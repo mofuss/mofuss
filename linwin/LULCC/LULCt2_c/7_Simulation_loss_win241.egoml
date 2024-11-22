@@ -1,0 +1,174 @@
+<?xml version="1.0" standalone="yes" ?>
+<script>
+    <property key="dff.date" value="Fri Mar 08 14:52:25 2024" />
+    <property key="dff.version" value="2.4.1.20140602" />
+    <functor name="CalcSlopeMap">
+        <property key="dff.functor.alias" value="calcSlopeMap939" />
+        <property key="viewer.slope" value="yes" />
+        <inputport name="elevation" peerid="v2" />
+        <inputport name="diagonalsAreLonger">.yes</inputport>
+        <inputport name="slopeInPercent">.no</inputport>
+        <inputport name="cellType">.float32</inputport>
+        <inputport name="nullValue">.default</inputport>
+        <inputport name="slopeIsSparse">.no</inputport>
+        <outputport name="slope" id="v1" />
+    </functor>
+    <functor name="LoadMap">
+        <property key="dff.functor.alias" value="loadMap2719" />
+        <property key="viewer.map" value="yes" />
+        <inputport name="filename">&quot;../TempRaster/DEM_c.tif&quot;</inputport>
+        <inputport name="nullValue">.default</inputport>
+        <inputport name="loadAsSparse">.no</inputport>
+        <inputport name="suffixDigits">0</inputport>
+        <inputport name="step">.none</inputport>
+        <inputport name="workdir">.none</inputport>
+        <outputport name="map" id="v2" />
+    </functor>
+    <functor name="LoadMap">
+        <property key="dff.functor.alias" value="loadMap2723" />
+        <inputport name="filename">&quot;../TempRaster/rivers_c_d.tif&quot;</inputport>
+        <inputport name="nullValue">.none</inputport>
+        <inputport name="loadAsSparse">.no</inputport>
+        <inputport name="suffixDigits">0</inputport>
+        <inputport name="step">.none</inputport>
+        <inputport name="workdir">.none</inputport>
+        <outputport name="map" id="v3" />
+    </functor>
+    <functor name="LoadMap">
+        <property key="dff.functor.alias" value="loadMap2725" />
+        <inputport name="filename">&quot;../TempRaster/roads_c_d.tif&quot;</inputport>
+        <inputport name="nullValue">.none</inputport>
+        <inputport name="loadAsSparse">.no</inputport>
+        <inputport name="suffixDigits">0</inputport>
+        <inputport name="step">.none</inputport>
+        <inputport name="workdir">.none</inputport>
+        <outputport name="map" id="v4" />
+    </functor>
+    <functor name="LoadCategoricalMap">
+        <property key="dff.functor.alias" value="loadCategoricalMap2726" />
+        <inputport name="filename">&quot;../TempRaster/Loss_10.tif&quot;</inputport>
+        <inputport name="nullValue">.none</inputport>
+        <inputport name="loadAsSparse">.no</inputport>
+        <inputport name="suffixDigits">0</inputport>
+        <inputport name="step">.none</inputport>
+        <inputport name="workdir">.none</inputport>
+        <outputport name="map" id="v5" />
+    </functor>
+    <functor name="LoadWeights">
+        <property key="dff.functor.alias" value="loadWeights2907" />
+        <inputport name="filename">&quot;../TempTables/weights_loss.dcf&quot;</inputport>
+        <inputport name="suffixDigits">0</inputport>
+        <inputport name="step">.none</inputport>
+        <inputport name="workdir">.none</inputport>
+        <outputport name="weights" id="v6" />
+    </functor>
+    <functor name="LoadLookupTable">
+        <property key="dff.functor.alias" value="loadLookupTable6948" />
+        <inputport name="filename">&quot;../TempTables/multi_loss.csv&quot;</inputport>
+        <inputport name="suffixDigits">0</inputport>
+        <inputport name="step">.none</inputport>
+        <inputport name="workdir">.none</inputport>
+        <outputport name="table" id="v7" />
+    </functor>
+    <functor name="LoadCategoricalMap">
+        <property key="dff.functor.alias" value="loadCategoricalMap27031" />
+        <inputport name="filename">&quot;../TempRaster/npa_c.tif&quot;</inputport>
+        <inputport name="nullValue">.none</inputport>
+        <inputport name="loadAsSparse">.no</inputport>
+        <inputport name="suffixDigits">0</inputport>
+        <inputport name="step">.none</inputport>
+        <inputport name="workdir">.none</inputport>
+        <outputport name="map" id="v8" />
+    </functor>
+    <containerfunctor name="Repeat">
+        <property key="dff.functor.alias" value="repeat6932" />
+        <inputport name="iterations">10</inputport>
+        <internaloutputport name="step" id="v9" />
+        <functor name="SaveMap">
+            <property key="dff.functor.alias" value="saveMap6944" />
+            <inputport name="map" peerid="v11" />
+            <inputport name="filename">&quot;out_lulcc/Sim_loss.tif&quot;</inputport>
+            <inputport name="suffixDigits">2</inputport>
+            <inputport name="step" peerid="v9" />
+            <inputport name="useCompression">.yes</inputport>
+            <inputport name="workdir">.none</inputport>
+        </functor>
+        <functor name="SaveMap">
+            <property key="dff.functor.alias" value="saveMap1125" />
+            <inputport name="map" peerid="v13" />
+            <inputport name="filename">&quot;out_lulcc/Prob_loss.tif&quot;</inputport>
+            <inputport name="suffixDigits">2</inputport>
+            <inputport name="step" peerid="v9" />
+            <inputport name="useCompression">.yes</inputport>
+            <inputport name="workdir">.none</inputport>
+        </functor>
+        <functor name="CalcChangeMatrix">
+            <property key="dff.functor.alias" value="calcChangeMatrix6936" />
+            <inputport name="landscape" peerid="v12" />
+            <inputport name="transitionMatrix" peerid="v14" />
+            <outputport name="changes" id="v10" />
+        </functor>
+        <functor name="Patcher">
+            <property key="dff.functor.alias" value="patcher6934" />
+            <inputport name="landscape" peerid="v12" />
+            <inputport name="probabilities" peerid="v13" />
+            <inputport name="changes" peerid="v10" />
+            <inputport name="transitionParameters">[&#x0A;    0-&gt;1 1 5 2&#x0A;]</inputport>
+            <inputport name="neighborWindowLines">3</inputport>
+            <inputport name="neighborWindowColumns">3</inputport>
+            <inputport name="pruneFactor">50</inputport>
+            <outputport name="changedLandscape" id="v11" />
+        </functor>
+        <functor name="MuxCategoricalMap">
+            <property key="dff.functor.alias" value="muxCategoricalMap6942" />
+            <inputport name="initial" peerid="v5" />
+            <inputport name="feedback" peerid="v11" />
+            <outputport name="map" id="v12" />
+        </functor>
+        <containerfunctor name="CalcWOfEProbabilityMap">
+            <property key="dff.functor.alias" value="calcWOfEProbabilityMap1121" />
+            <inputport name="landscape" peerid="v12" />
+            <inputport name="weights" peerid="v6" />
+            <inputport name="transitions">[ 0-&gt;1 ]</inputport>
+            <inputport name="cellType">.uint8</inputport>
+            <inputport name="nullValue">.default</inputport>
+            <outputport name="probabilities" id="v13" />
+            <functor name="NameMap">
+                <property key="dff.functor.alias" value="nameMap221" />
+                <inputport name="map" peerid="v4" />
+                <inputport name="mapName">&quot;roads&quot;</inputport>
+            </functor>
+            <functor name="NameMap">
+                <property key="dff.functor.alias" value="nameMap223" />
+                <inputport name="map" peerid="v3" />
+                <inputport name="mapName">&quot;rivers&quot;</inputport>
+            </functor>
+            <functor name="NameMap">
+                <property key="dff.functor.alias" value="nameMap213" />
+                <inputport name="map" peerid="v2" />
+                <inputport name="mapName">&quot;elevation&quot;</inputport>
+            </functor>
+            <functor name="NameMap">
+                <property key="dff.functor.alias" value="nameMap227" />
+                <inputport name="map" peerid="v1" />
+                <inputport name="mapName">&quot;slope&quot;</inputport>
+            </functor>
+            <functor name="NameMap">
+                <property key="dff.functor.alias" value="nameMap27033" />
+                <inputport name="map" peerid="v8" />
+                <inputport name="mapName">&quot;NPA&quot;</inputport>
+            </functor>
+        </containerfunctor>
+        <containerfunctor name="SelectTransitionMatrix">
+            <property key="dff.container.collapsed" value="no" />
+            <property key="dff.functor.alias" value="selectTransitionMatrix6938" />
+            <inputport name="step" peerid="v9" />
+            <outputport name="transitionMatrix" id="v14" />
+            <functor name="NumberTransitionMatrix">
+                <property key="dff.functor.alias" value="numberTransitionMatrix6940" />
+                <inputport name="transitionMatrix" peerid="v7" />
+                <inputport name="matrixNumber">1</inputport>
+            </functor>
+        </containerfunctor>
+    </containerfunctor>
+</script>
