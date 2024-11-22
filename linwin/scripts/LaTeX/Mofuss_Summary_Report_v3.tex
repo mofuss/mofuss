@@ -1,0 +1,274 @@
+\documentclass[english,a4paper,11pt,twoside]{report}
+\usepackage[english]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage{float}
+\usepackage{placeins}
+\usepackage{flafter} 
+\usepackage[toc,page]{appendix}
+\usepackage{graphicx}
+\usepackage{fancyhdr}
+\usepackage{natbib}
+\usepackage{longtable}
+\usepackage{media9}
+\usepackage{ocgx2}
+\usepackage{multirow}
+\usepackage[en-US]{datetime2}
+\usepackage{titlesec}
+\usepackage{csvsimple}
+\usepackage{pgfplotstable}
+\usepackage{multicol}
+\usepackage{lscape}
+\usepackage{graphics}
+\usepackage{subcaption}
+\usepackage{color,soul}
+\usepackage[
+ inner=3cm,
+ outer=1.5cm, 
+ bottom=2.5cm,
+ top=3cm
+]{geometry}
+\usepackage [hidelinks]{hyperref}
+\usepackage{caption}
+\usepackage{blindtext}
+\captionsetup{belowskip=0pt,aboveskip=4pt}
+
+\setlength{\headheight}{15pt}
+\newcommand*{\MyPath}{/home/}
+\newcommand{\HRule}{\rule{\linewidth}{0.5mm}}
+
+\def\figurename{Figure}
+\def\tablename{Table}
+\def\listfigurename{Figure Content}
+\def\listtablename{Índice de Tablas}
+\def\contentsname{Contents}
+\def\chaptername{Chapter}
+\def\Agradecimientos{Acknoledgements}
+\def\Prefacename{Preface}
+\def\refname{References}
+\def\abstractname{Summary}
+\def\bibname{{Bibliography}}
+\def\appendixname{Annexes}
+\def\appendicesname{Annexes}
+\renewcommand\appendixname{Annexes}
+\renewcommand\appendixpagename{Anexxes}
+\def\glossaryname{Glosaryo}%
+\def\indexname{{Alphabetical Index}}
+
+\pagestyle{fancy}
+\fancyfoot[C]{\thepage}
+%\lfoot{}\cfoot{- \thepage ~-}{\rfoot{}
+%\fancyhead[LE,RO]{\leftmark}
+%\fancyhead[LO]{\leftmark}
+%\fancyhead[RE]{\rightmark}
+%\rhead{ANEXOS}
+%\lhead{\thispart}
+%\lfoot{} %pied de page gauche
+%\rfoot{Année 2012-2013}
+
+% evita que los headers sean en mayusculas
+\renewcommand{\chaptermark}[1]{ \markboth{#1}{} }
+\renewcommand{\sectionmark}[1]{ \markright{#1}{} }
+
+%\titleformat{\chapter}[hang]{\normalfont\huge\bfseries}{\chaptertitlename\ \thechapter:}{1em}{} 
+\titleformat{\chapter}{\normalfont\huge\bfseries}{\chaptertitlename\ \thechapter.}{1em}{}
+
+\begin{document} 	
+\input{title_page.tex}
+\tableofcontents
+\renewcommand{\chaptername}{}  % quita la palabra chapter
+\newpage
+	
+\chapter{About this report} \label{ch:Intro}
+MoFuSS is a dynamic model that simulates the effects of fuelwood harvesting on vegetation, accounting for savings in non-renewable woody biomass from reduced consumption due to an external intervention, such as an improved cookstove (ICS) or fuel substitution project.
+
+We developed MoFuSS with the underlying objective of producing estimates of non-renewable biomass (NRB) at landscape level while allowing users to input the best available data for their area of interest, including project-specific maps and parameters. The tool was developed with a wide range of users in mind, ranging from academics and practitioners, to students and NGOs. Used correctly, it should help these stakeholders to: a) get more consistent estimates of woodfuel-related carbon savings within their interest areas, and b) plan sound and cost-effective intervention projects.
+
+The user has various ways or levels to use the tool: To be completted as part of the UNFCCC funded project...
+
+
+\chapter{Results} \label{ch:Results}
+\section{Input parameters set by the user} \label{sec:Input Par}
+Table \ref{tab:Input Par} lists basic parameters that were set by the user. This list \underline{only} include those few relevant variables tunable from the Wizard (user-friendly interface), not the full list of built-in options, which corresponds to Level 4 and above.
+
+\begin{itemize}
+	\item \textbf{Spatial resolution in meters (linear):} Be aware of input data original resolution and scale. For example, using 100m resolution would be possible if your input raster data is of a similar or higher resolution (less than 100m), and your input vector data is not coarser than 1:50,000 to 1:75,000.
+	\item \textbf{Type of scenario:} "BaU" (Business as Usual) or "ICS" (improved cookstoves) depending on the type of scenario you want to produce.
+	\item \textbf{Annual fuelwood savings:} Fraction of fuelwood use per year that will be saved (or not used) in the following year. This is supposed to be due to an intervention project disseminating cookstoves, or subsidies to LPG that could make people switch to non-fuelwood energy sources.
+	\item \textbf{Fuelwood use growth rate:} This variable is seldom known so rural/urban population (or total population) growth rates can be used as a proxy.
+	\item \textbf{Sample of localities of interest:} Spatial resolution in meters (linear).XXX 
+	\item \textbf{StartUp year:} Corresponds to the date (circa) of the input data that was used.
+	\item \textbf{Simulation Length:} Time length for each simulation.
+	\item \textbf{Number of MC realizations:} Number of realizations that were produced by the Monte Carlo (MC) module. A realization is each of many homologous simulations (i.e. set under randomly varying parameters and assumptions) that are run to account for uncertainty and sensitivity. Realizations should be understood as the process of how simulations “come out” after each Monte Carlo run. 
+	\item \textbf{Parameters through MC:} Parameters defining vegetation growth were alloed to vary randomly.
+	\item \textbf{Re-run Monte Carlo:} The MC module was ran for each scenario, instead of using the same MC realizations for both BaU and ICS scenarios.
+	\item \textbf{Aboveground biomass map provided:} A map showing the spatial distribution of aboveground biomass at startup year was used.
+	\item \textbf{Accounting for fuelwood from deforestation:} Forest loss and gain events that interacts with fuelwood supply and demand were simulated.\bigskip
+\end{itemize}
+
+\begin{table}[H]
+	\centering
+	\caption{Input parameters set by the user in the \input{../LULCC/TempTables/SceCode.txt}.}
+	\label{tab:Input Par}
+\csvautotabular{InputPara.csv}
+\end{table}
+
+\pagebreak
+\section{NRB and fNRB summary tables} \label{sec:NRB}
+MoFuSS produce summary results by administrative units that could be useful for understanding NRB at coarser level. For this table to be meaningful, it is recommended that the analysis area house entire administrative units. 
+Tables \ref{tab:NRB} and \ref{tab:fNRB} show results for the chosen Administrative Units for the \input{../LULCC/TempTables/Country.txt} case study.
+
+\begin{table}[H]
+	\centering
+	\caption{Summary output for non-renewable biomass (NRB) in the \input{../LULCC/TempTables/SceCode.txt}.}
+	\large 
+	\label{tab:NRB}
+	\csvautotabular{NRBTable.csv}
+	\begin{flushleft}
+	{\small Note: \textbf{Non-renewable biomass (NRB)} values are expressed in metric tons per simulation period, corresponding to \textbf{\input {SimLength.txt}} in this case. NRB.BaU and NRB.ICS are calculated as the \underline{average for all Monte Carlo realizations}, corresponding to \textbf{\input {MCruns.txt}} in this case. NRB.BaU.sd and NRB.ICS.sd correspond to standard deviations respectively.%
+	}
+	\end{flushleft}
+\end{table}
+\begin{table}[H]
+	\centering
+	\caption{Summary output for the fraction of non-renewable biomass (fNRB) in the  \input{../LULCC/TempTables/SceCode.txt}.}
+	\large
+	\label{tab:fNRB}
+	\csvautotabular{fNRBTable.csv}
+	\begin{flushleft}
+	{\small Note: The \textbf{fraction of non-renewable biomass (fNRB)} values are expressed as a percentage for the entire simulation period, corresponding to \textbf{\input {SimLength.txt}} in this case. fNRB.BaU and fNRB.ICS are estimated using average value of NRB and fuelwood consumption for all Monte Carlo realizations, corresponding to \textbf{\input {MCruns.txt}} in this case: $ fNRB=\frac{\bar{NRB}}{\bar{fuelwood\:use}} $. fNRB.BaU.sd and fNRB.ICS.sd correspond to standard deviations respectively, calculated by means of error propagation assuming no covariance.%
+	}
+	\end{flushleft}
+	\end{table}
+\bigskip
+\bigskip
+\bigskip
+\bigskip
+\bigskip
+\bigskip
+\bigskip
+\bigskip
+
+\pagebreak
+\section{Temporal outcomes} \label{sec:tempout}
+Figure \ref{fig:fig} shows trajectories foraboveground biomass (AGB), Non-renewable biomass (NRB), fraction of non-renewable biomass (fNRB) and total fuelwood use in the Business as Usual (BaU: Fig \ref{fig:sfig1}) and intervention (ICS: Fig \ref{fig:sfig2}) scenarios. Red lines were generated using mean user-defined parameters while light grey lines show each Monte Carlo realization using varying parameters.
+\begin{figure}[H]
+	\begin{subfigure}{.5\textwidth}
+		\centering
+		\includegraphics[width=.9\linewidth]{../OutBaU/png/AGB_NRB_fNRB}
+		\caption{BaU}
+		\label{fig:sfig1}
+	\end{subfigure}%
+	\begin{subfigure}{.5\textwidth}
+		\centering
+		\includegraphics[width=.9\linewidth]{../OutICS/png/AGB_NRB_fNRB}
+		\caption{ICS}
+		\label{fig:sfig2}
+	\end{subfigure}
+	\caption{Behavior of AGB, NRB, fNRB and total fuelwood use between BaU and ICS scenarios}
+	\label{fig:fig}
+\end{figure}
+
+\pagebreak
+\section{Spatial outcomes} \label{sec:spaout}
+Figure \ref{fig:1fig} shows the spatial distributions of aboveground biomass (AGB), Non-renewable biomass (NRB), fraction of non-renewable biomass (fNRB), fuelwood from deforestation and total fuelwood use in the Business as Usual (BaU: Fig \ref{fig:1sfig1}) and intervention (ICS: Fig \ref{fig:1sfig2}) scenarios for the first Monte Carlo realization (red line in Figure \ref{fig:fig}).The spatial distribution of NRB and fNRB are shown for the full simulation period. These maps could help identify communities with the highest fuelwood use, lying within or nearby high NRB “areas”. The process of selecting key villages contributing the most to NRB could be done manually, or by an optimization procedure (e.g. genetic algorithm) that maximizes a reduction in NRB based on selective deployment of ICS in space and time and could explicitly incorporate logistical or market-based constraints.
+
+\begin{figure}[H]
+	\begin{subfigure}{.5\textwidth}
+		\centering
+		\includegraphics[width=1.1\linewidth]{../OutBaU/png/map_AGB}
+		\caption{BaU}
+		\label{fig:1sfig1}
+	\end{subfigure}%
+	\begin{subfigure}{.5\textwidth}
+		\centering
+		\includegraphics[width=1.1\linewidth]{../OutICS/png/map_AGB}
+		\caption{ICS}
+		\label{fig:1sfig2}
+	\end{subfigure}
+	\caption{Spatial behavior of AGB, NRB, fNRB, fuelwood from deforestation and total fuelwood use in the BaU and ICS scenarios}
+	\label{fig:1fig}
+\end{figure}
+
+\pagebreak
+\section{Boxplots} \label{sec:boxplots}
+Box-and-whisker plots (Figure \ref{fig:2fig}) show the median of the MC distribution as a dark line, inter-quartile range (IQR) by the top and bottom of the box, and min/max of the range by the whiskers. Some plots have outliers, defined as data points between 1.5 and 3 IQR’s from either end of the box, shown by small circles.
+\begin{figure}[H]
+	\begin{subfigure}{.5\textwidth}
+		\centering
+		\includegraphics[width=0.9\linewidth]{../OutBaU/png/Boxplots}
+		\caption{BaU}
+		\label{fig:2sfig1}
+	\end{subfigure}%
+	\begin{subfigure}{.5\textwidth}
+		\centering
+		\includegraphics[width=0.9\linewidth]{../OutICS/png/Boxplots}
+		\caption{ICS}
+		\label{fig:2sfig2}
+	\end{subfigure}
+	\caption{Boxplots comparing AGB, NRB, fNRB, and total fuelwood use in the BaU and ICS scenarios}
+	\label{fig:2fig}
+\end{figure}
+
+
+\pagebreak
+\section{Animations of fuelwood harvest and aboveground biomass}
+Spatio-temporal changes in fuelwood harvest and aboveground biomass (AGB).
+\begin{flushleft}
+	\begin{frame}
+
+	\includemedia[
+	width=1.0\linewidth,
+	height=0.65\linewidth,
+	%    activate=onclick, %this is default
+	addresource=Growth_Harvest_AniOutBaU.mp4,
+	flashvars={src=Growth_Harvest_AniOutBaU.mp4}
+	]{}{StrobeMediaPlayback.swf}
+	
+	\end{frame}
+This animation represent the \textbf{BaU scenario}. Right click for viewing options.
+
+	\begin{frame}
+		
+		\includemedia[
+		width=1.0\linewidth,
+		height=0.65\linewidth,
+		%    activate=onclick, %this is default
+		addresource=Growth_Harvest_AniOutICS.mp4,
+		flashvars={src=Growth_Harvest_AniOutICS.mp4}
+		]{}{StrobeMediaPlayback.swf}
+		
+	\end{frame}
+This animation represent the \textbf{ICS scenario}. Right click for viewing options.
+\end{flushleft}
+
+\chapter{Conclusions: how to use this report}
+%\begin{itemize}
+%	\item Producto del sensor MODIS MOD44B (\textit{Vegetation Continuous Fields Yearly L3 Global 250m}): este producto evalúa la proporción de área arbórea. Las estimaciones se derivan de las siete bandas espectrales ''terrestres'' de MODIS utilizando un algoritmo de árbol de decisión supervisado con datos de entrenamiento a nivel global obtenidos con imágenes de alta resolución. (\href{https://lpdaac.usgs.gov/dataset_discovery/modis/modis_products_table/mod44b}{https://lpdaac.usgs.gov/dataset\_discovery/modis/modis\_products\_table/mod44b}).
+%	\item Datos del INFyS.
+%	\item Softwares: \href{MRT Tools (https://lpdaac.usgs.gov/tools/modis_reprojection_tool}{MRT Tools (https://lpdaac.usgs.gov/tools/modis\_reprojection\_tool}, DINAMICA-EGO \citep{Soares-Filho2002}, Q-GIS \citep{QGIS} y R \citep{RCoreTeam2013, Bivand2015}
+%\end{itemize}
+\begin{flushleft}
+	\blindtext[3]
+\end{flushleft}
+\FloatBarrier
+
+%section \ref{sec:Input Par}, p. \pageref{sec:Input Par} \\
+%\bibliographystyle{apalike-es}
+%\bibliography{bib_informe_MODIS} 
+\listoffigures
+\listoftables
+
+\newpage
+\pagestyle{empty}
+\topskip0pt
+\vspace*{\fill}
+\begin{center}
+	This version of MoFuSS is being developed between\\
+	March and July of 2023 with funding from\\
+	United Nations Framework Convention on Climate Change and\\ 
+	The Nature Conservancy.	
+	\label{lastpage}
+\end{center}
+\vspace*{\fill}
+\end{document}
