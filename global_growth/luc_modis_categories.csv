@@ -1,0 +1,19 @@
+luc_code,luc_cat,TOF_luc
+0,No Data,1
+1,Evergreen Needleleaf Forests,0
+2,Evergreen Broadleaf Forests,0
+3,Deciduous Needleleaf Forests,0
+4,Deciduous Broadleaf Forests,0
+5,Mixed Forests,0
+6,Closed Shrublands,0
+7,Open Shrublands,0
+8,Woody Savannas,0
+9,Savannas,0
+10,Grasslands,0
+11,Permanent Wetlands,0
+12,Croplands,0
+13,Urban and Built-up Lands,1
+14,Cropland/Natural Vegetation Mosaics,0
+15,Permanent Snow and Ice,1
+16,Barren,1
+17,Water Bodies,1
