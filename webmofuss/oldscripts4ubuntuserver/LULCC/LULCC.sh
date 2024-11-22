@@ -1,0 +1,16 @@
+~/Dinamica/Dinamica.AppImage ~/mofuss/linux/scripts/LULCC/1_Matrix_gain_linux5.egoml
+~/Dinamica/Dinamica.AppImage ~/mofuss/linux/scripts/LULCC/1_Matrix_loss_linux5.egoml
+~/Dinamica/Dinamica.AppImage ~/mofuss/linux/scripts/LULCC/1_Matrix_loss_linux5.egoml
+~/Dinamica/Dinamica.AppImage ~/mofuss/linux/scripts/LULCC/2_Distance_calc_linux5.egoml
+~/Dinamica/Dinamica.AppImage ~/mofuss/linux/scripts/LULCC/3_Ranges_gain_linux5.egoml
+~/Dinamica/Dinamica.AppImage ~/mofuss/linux/scripts/LULCC/3_Ranges_loss_linux5.egoml
+~/Dinamica/Dinamica.AppImage ~/mofuss/linux/scripts/LULCC/4_Weights_gain_linux5.egoml
+~/Dinamica/Dinamica.AppImage ~/mofuss/linux/scripts/LULCC/4_Weights_loss_linux5.egoml
+~/Dinamica/Dinamica.AppImage ~/mofuss/linux/scripts/LULCC/5_Correlation_gain_linux5.egoml
+~/Dinamica/Dinamica.AppImage ~/mofuss/linux/scripts/LULCC/5_Correlation_loss_linux5.egoml
+~/Dinamica/Dinamica.AppImage ~/mofuss/linux/scripts/LULCC/6_Probability_gain_linux5.egoml
+~/Dinamica/Dinamica.AppImage ~/mofuss/linux/scripts/LULCC/6_Probability_loss_linux5.egoml
+~/Dinamica/Dinamica.AppImage ~/mofuss/linux/scripts/LULCC/7_Simulation_gain_linux5.egoml
+~/Dinamica/Dinamica.AppImage ~/mofuss/linux/scripts/LULCC/7_Simulation_loss_linux5.egoml
+~/Dinamica/Dinamica.AppImage ~/mofuss/linux/scripts/LULCC/8_Validation_gain_linux5.egoml
+~/Dinamica/Dinamica.AppImage ~/mofuss/linux/scripts/LULCC/8_Validation_loss_linux5.egoml

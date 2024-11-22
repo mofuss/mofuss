@@ -1,0 +1,748 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
+<script>
+    <property key="dff.charset" value="UTF-8" />
+    <property key="dff.date" value="2019-Dec-18 19:41:31" />
+    <property key="dff.version" value="4.22.11.20191030-Beta" />
+    <property key="metadata.author" value="Designed and coded by Adrian Ghilardi (CIGA-UNAM), with contributions from Jean-François Mas (CIGA-UNAM), Robert Bailis (SEI), Rudi Drigo (Independent consultant) and Omar Masera (IIES-UNAM)." />
+    <property key="metadata.description" value='&quot;Mofuss&quot; is a dynamic model that simulates the effects of fuelwood harvesting on vegetation, accounting for savings in non-renewable woody biomass from reduced consumption due to an external intervention, such as an improved cookstove (ICS) or fuel substitution project.' />
+    <property key="metadata.notes" value='&quot;Mofuss&quot; (version 1.0) was developed between September 2011 and April 2015 with funding from Yale Institute for Biospheric Studies, Global Alliance for Clean Cookstoves, Overlook International Foundation, ClimateWorks Foundation and UNAM’s PAPIIT IA101513.' />
+    <property key="metadata.organization" value="UNAM - Yale - SEI" />
+    <property key="metadata.showproperties" value="no" />
+    <property key="metadata.title" value="Friction" />
+    <property key="metadata.version" value="1.0" />
+    <containerfunctor name="Workdir">
+        <property key="dff.functor.alias" value="workdir581" />
+        <property key="wizard.folder.input" value="Workdir_folder_3" />
+        <inputport name="folder">&quot;../../../../../media/webmofuss/Porsche8TB/00_MoFuSS_Dic2019/MoFuSS_Zambia_linux&quot;</inputport>
+        <internaloutputport name="workdir" id="v1" />
+        <containerfunctor name="Group">
+            <property key="dff.functor.alias" value="group1160" />
+            <functor name="BooleanValue">
+                <property key="dff.functor.alias" value="maritime" />
+                <property key="dff.functor.comment" value="Are you accounting for maritime routes" />
+                <property key="wizard.constant.input" value="BooleanValue_constant_1" />
+                <inputport name="constant">.no</inputport>
+                <outputport name="object" id="v2" />
+            </functor>
+            <functor name="MapJunction">
+                <property key="dff.functor.alias" value="mapJunction1177" />
+                <inputport name="possibleMap1" peerid="v14" />
+                <inputport name="possibleMap2" peerid="v9" />
+                <outputport name="map" id="v3" />
+            </functor>
+            <functor name="BooleanValue">
+                <property key="dff.functor.alias" value="bool1168" />
+                <inputport name="constant">.yes</inputport>
+                <outputport name="object" id="v4" />
+            </functor>
+            <functor name="BooleanValue">
+                <property key="dff.functor.alias" value="Attraction" />
+                <property key="dff.functor.comment" value="Are you accounting for attraction layers" />
+                <property key="wizard.constant.input" value="BooleanValue_constant_2" />
+                <inputport name="constant">.no</inputport>
+                <outputport name="object" id="v5" />
+            </functor>
+            <containerfunctor name="IfThen">
+                <property key="dff.functor.alias" value="ifThen1164" />
+                <inputport name="condition" peerid="v2" />
+                <functor name="LoadLookupTable">
+                    <property key="dff.functor.alias" value="loadLookupTable1197" />
+                    <inputport name="filename">&quot;LULCC/TempTables/Friction_rivers_reclass.csv&quot;</inputport>
+                    <inputport name="suffixDigits">0</inputport>
+                    <inputport name="step">.none</inputport>
+                    <inputport name="workdir" peerid="v1" />
+                    <outputport name="table" id="v6" />
+                </functor>
+                <functor name="LookupTable">
+                    <property key="dff.functor.alias" value="lookupTable1201" />
+                    <property key="dff.functor.comment" value="reclasification of rivers according to their friction (barrier-like)" />
+                    <property key="viewer.object" value="yes" />
+                    <inputport name="constant" peerid="v6" />
+                    <outputport name="object" id="v7" />
+                </functor>
+                <containerfunctor name="CalculateMap">
+                    <property key="dff.functor.alias" value="calculateMap1183" />
+                    <property key="viewer.result" value="yes" />
+                    <inputport name="expression">[&#x0A;    if isNull(i1) then&#x0A;        0&#x0A;    else &#x0A;        t1[i1]&#x0A;]</inputport>
+                    <inputport name="cellType">.float32</inputport>
+                    <inputport name="nullValue">.default</inputport>
+                    <inputport name="resultIsSparse">.no</inputport>
+                    <inputport name="resultFormat">.none</inputport>
+                    <outputport name="result" id="v8" />
+                    <functor name="NumberMap">
+                        <property key="dff.functor.alias" value="numberMap1189" />
+                        <inputport name="map" peerid="v11" />
+                        <inputport name="mapNumber">1</inputport>
+                    </functor>
+                    <functor name="NumberTable">
+                        <property key="dff.functor.alias" value="numberTable1195" />
+                        <inputport name="table" peerid="v7" />
+                        <inputport name="tableNumber">1</inputport>
+                    </functor>
+                </containerfunctor>
+                <containerfunctor name="CalculateMap">
+                    <property key="dff.functor.alias" value="calculateMap1174" />
+                    <property key="viewer.result" value="yes" />
+                    <inputport name="expression">[&#x0A;    if isNull(i1) and isNull(i2) then&#x0A;        0&#x0A;    else if not isNull(i2) then&#x0A;        i2 * 999999&#x0A;    else &#x0A;        i1&#x0A;]</inputport>
+                    <inputport name="cellType">.float32</inputport>
+                    <inputport name="nullValue">.default</inputport>
+                    <inputport name="resultIsSparse">.no</inputport>
+                    <inputport name="resultFormat">.none</inputport>
+                    <outputport name="result" id="v9" />
+                    <functor name="NumberMap">
+                        <property key="dff.functor.alias" value="numberMap1191" />
+                        <inputport name="map" peerid="v10" />
+                        <inputport name="mapNumber">2</inputport>
+                    </functor>
+                    <functor name="NumberMap">
+                        <property key="dff.functor.alias" value="numberMap1176" />
+                        <inputport name="map" peerid="v8" />
+                        <inputport name="mapNumber">1</inputport>
+                    </functor>
+                </containerfunctor>
+                <functor name="LoadMap">
+                    <property key="dff.functor.alias" value="loadMap571" />
+                    <property key="viewer.map" value="yes" />
+                    <inputport name="filename">&quot;../../../../../home/webmofuss/mofuss/linux/scripts/LULCC/TempRaster/maritime_c.tif&quot;</inputport>
+                    <inputport name="nullValue">0</inputport>
+                    <inputport name="storageMode">.default</inputport>
+                    <inputport name="suffixDigits">0</inputport>
+                    <inputport name="step">.none</inputport>
+                    <inputport name="workdir" peerid="v1" />
+                    <outputport name="map" id="v10" />
+                </functor>
+                <functor name="LoadMap">
+                    <property key="dff.functor.alias" value="loadMap572" />
+                    <property key="dff.functor.comment" value="Load the rivers network map" />
+                    <property key="viewer.map" value="yes" />
+                    <inputport name="filename">&quot;LULCC/TempRaster/rivers_c.tif&quot;</inputport>
+                    <inputport name="nullValue">0</inputport>
+                    <inputport name="storageMode">.default</inputport>
+                    <inputport name="suffixDigits">0</inputport>
+                    <inputport name="step">.none</inputport>
+                    <inputport name="workdir" peerid="v1" />
+                    <outputport name="map" id="v11" />
+                </functor>
+            </containerfunctor>
+            <containerfunctor name="IfNotThen">
+                <property key="dff.functor.alias" value="ifNotThen1166" />
+                <inputport name="condition" peerid="v2" />
+                <functor name="LookupTable">
+                    <property key="dff.functor.alias" value="lookupTable212" />
+                    <property key="dff.functor.comment" value="reclasification of rivers according to their friction (barrier-like)" />
+                    <property key="viewer.object" value="yes" />
+                    <inputport name="constant" peerid="v13" />
+                    <outputport name="object" id="v12" />
+                </functor>
+                <functor name="LoadLookupTable">
+                    <property key="dff.functor.alias" value="loadLookupTable3350" />
+                    <inputport name="filename">&quot;LULCC/TempTables/Friction_rivers_reclass.csv&quot;</inputport>
+                    <inputport name="suffixDigits">0</inputport>
+                    <inputport name="step">.none</inputport>
+                    <inputport name="workdir" peerid="v1" />
+                    <outputport name="table" id="v13" />
+                </functor>
+                <containerfunctor name="CalculateMap">
+                    <property key="dff.container.collapsed" value="no" />
+                    <property key="dff.functor.alias" value="calculateMap829" />
+                    <property key="dff.functor.comment" value="reclasifica tipos de rios en friccion, deja fondo en 0 (valor diferente de no data)" />
+                    <property key="viewer.result" value="yes" />
+                    <inputport name="expression">[&#x0A;    if isNull(i1) then&#x0A;        0&#x0A;    else &#x0A;        t1[i1]&#x0A;]</inputport>
+                    <inputport name="cellType">.float32</inputport>
+                    <inputport name="nullValue">.default</inputport>
+                    <inputport name="resultIsSparse">.no</inputport>
+                    <inputport name="resultFormat">.none</inputport>
+                    <outputport name="result" id="v14" />
+                    <functor name="NumberMap">
+                        <property key="dff.functor.alias" value="numberMap1075" />
+                        <inputport name="map" peerid="v15" />
+                        <inputport name="mapNumber">1</inputport>
+                    </functor>
+                    <functor name="NumberTable">
+                        <property key="dff.functor.alias" value="numberTable1076" />
+                        <inputport name="table" peerid="v12" />
+                        <inputport name="tableNumber">1</inputport>
+                    </functor>
+                </containerfunctor>
+                <functor name="LoadMap">
+                    <property key="dff.functor.alias" value="loadMap573" />
+                    <property key="dff.functor.comment" value="Load the rivers network map" />
+                    <inputport name="filename">&quot;LULCC/TempRaster/rivers_c.tif&quot;</inputport>
+                    <inputport name="nullValue">0</inputport>
+                    <inputport name="storageMode">.default</inputport>
+                    <inputport name="suffixDigits">0</inputport>
+                    <inputport name="step">.none</inputport>
+                    <inputport name="workdir" peerid="v1" />
+                    <outputport name="map" id="v15" />
+                </functor>
+            </containerfunctor>
+        </containerfunctor>
+        <containerfunctor name="Group">
+            <property key="dff.functor.alias" value="group1162" />
+            <functor name="BooleanValue">
+                <property key="dff.functor.alias" value="bool1170" />
+                <inputport name="constant" peerid="v4" />
+            </functor>
+            <functor name="LoadLookupTable">
+                <property key="dff.functor.alias" value="loadLookupTable3354" />
+                <inputport name="filename">&quot;LULCC/TempTables/Friction_drivingoverroads.csv&quot;</inputport>
+                <inputport name="suffixDigits">0</inputport>
+                <inputport name="step">.none</inputport>
+                <inputport name="workdir" peerid="v1" />
+                <outputport name="table" id="v16" />
+            </functor>
+            <functor name="LookupTable">
+                <property key="dff.functor.alias" value="lookupTable207" />
+                <property key="dff.functor.comment" value="Reclasification of the roadnetwrok following average velocities of vehicles (motor) as a funtcion of the road category: from multiple lane highway to urban streets." />
+                <inputport name="constant" peerid="v16" />
+                <outputport name="object" id="v17" />
+            </functor>
+            <functor name="SaveMap">
+                <property key="dff.functor.alias" value="saveMap1106" />
+                <inputport name="map" peerid="v18" />
+                <inputport name="filename">&quot;LULCC/TempRaster/Slope.tif&quot;</inputport>
+                <inputport name="suffixDigits">2</inputport>
+                <inputport name="step">.none</inputport>
+                <inputport name="useCompression">.yes</inputport>
+                <inputport name="workdir" peerid="v1" />
+                <inputport name="ignoreCostlySparseCategories">.yes</inputport>
+            </functor>
+            <functor name="CalcSlopeMap">
+                <property key="dff.functor.alias" value="calcSlopeMap312" />
+                <property key="dff.functor.comment" value="Calculate Slopes. The original DEM resolution quite affect slope calculations in various aspects. Its recomended to develoop friccion mapas at the highest posiible resolution, and resample before feeding the next script: Prob.ego" />
+                <inputport name="elevation" peerid="v37" />
+                <inputport name="diagonalsAreLonger">.yes</inputport>
+                <inputport name="slopeInPercent">.no</inputport>
+                <inputport name="cellType">.float32</inputport>
+                <inputport name="nullValue">.default</inputport>
+                <inputport name="slopeIsSparse">.no</inputport>
+                <outputport name="slope" id="v18" />
+            </functor>
+            <functor name="LoadLookupTable">
+                <property key="dff.functor.alias" value="loadLookupTable3352" />
+                <inputport name="filename">&quot;LULCC/TempTables/Friction_walkingcrosscountry.csv&quot;</inputport>
+                <inputport name="suffixDigits">0</inputport>
+                <inputport name="step">.none</inputport>
+                <inputport name="workdir" peerid="v1" />
+                <outputport name="table" id="v19" />
+            </functor>
+            <functor name="LoadLookupTable">
+                <property key="dff.functor.alias" value="loadLookupTable3348" />
+                <inputport name="filename">&quot;LULCC/TempTables/Friction_walkingoverroads.csv&quot;</inputport>
+                <inputport name="suffixDigits">0</inputport>
+                <inputport name="step">.none</inputport>
+                <inputport name="workdir" peerid="v1" />
+                <outputport name="table" id="v20" />
+            </functor>
+            <functor name="LookupTable">
+                <property key="dff.functor.alias" value="lookupTable219" />
+                <property key="dff.functor.comment" value="Reclasification of the Slope map according to walking&apos;s people cross-country speeds" />
+                <inputport name="constant" peerid="v19" />
+                <outputport name="object" id="v21" />
+            </functor>
+            <functor name="LookupTable">
+                <property key="dff.functor.alias" value="lookupTable366" />
+                <property key="dff.functor.comment" value="Reclasification of the slope map, but clipped by the roads, according to the speed of people while walking by the side of roads, which in this case is assumes doubles that one for cross-country under the same slope range." />
+                <inputport name="constant" peerid="v20" />
+                <outputport name="object" id="v22" />
+            </functor>
+            <functor name="MapJunction">
+                <property key="dff.functor.alias" value="mapJunction3387" />
+                <inputport name="possibleMap1" peerid="v36" />
+                <inputport name="possibleMap2" peerid="v35" />
+                <outputport name="map" id="v23" />
+            </functor>
+            <functor name="SaveMap">
+                <property key="dff.functor.alias" value="saveMap1107" />
+                <property key="dff.functor.comment" value="Friction map for walking fuelwood gatherers. Units are seconds per meter walked. 3600/x/1000 converts the value x (s m-1) into km hr-1." />
+                <inputport name="map" peerid="v23" />
+                <inputport name="filename">&quot;In/fricc_w.tif&quot;</inputport>
+                <inputport name="suffixDigits">2</inputport>
+                <inputport name="step">.none</inputport>
+                <inputport name="useCompression">.yes</inputport>
+                <inputport name="workdir" peerid="v1" />
+                <inputport name="ignoreCostlySparseCategories">.yes</inputport>
+            </functor>
+            <containerfunctor name="CalculateMap">
+                <property key="dff.container.collapsed" value="no" />
+                <property key="dff.functor.alias" value="calculateMap837" />
+                <property key="dff.functor.comment" value="tiempo recorrido (friccion) por vehiculo en carreteras, deja fondo en 9999 (diferente de no data)" />
+                <property key="viewer.result" value="yes" />
+                <inputport name="expression">[&#x0A;    if isNull(i1) then&#x0A;        0&#x0A;    else &#x0A;        t1[i1]&#x0A;]</inputport>
+                <inputport name="cellType">.float32</inputport>
+                <inputport name="nullValue">.default</inputport>
+                <inputport name="resultIsSparse">.no</inputport>
+                <inputport name="resultFormat">.none</inputport>
+                <outputport name="result" id="v24" />
+                <functor name="NumberMap">
+                    <property key="dff.functor.alias" value="Road clasification" />
+                    <inputport name="map" peerid="v38" />
+                    <inputport name="mapNumber">1</inputport>
+                </functor>
+                <functor name="NumberTable">
+                    <property key="dff.functor.alias" value="numberTable1093" />
+                    <inputport name="table" peerid="v17" />
+                    <inputport name="tableNumber">1</inputport>
+                </functor>
+            </containerfunctor>
+            <containerfunctor name="CalculateMap">
+                <property key="dff.container.collapsed" value="no" />
+                <property key="dff.functor.alias" value="calculateMap839" />
+                <property key="dff.functor.comment" value="combina friccion a pie con friccion carreteras (fraccion carretera se encima sobre a pie para las carreteras)" />
+                <property key="viewer.result" value="yes" />
+                <inputport name="expression">[&#x0A;    if i2 &gt; 0 and i2 &lt; 999999 then&#x0A;        i2&#x0A;    else &#x0A;        i1&#x0A;]</inputport>
+                <inputport name="cellType">.float32</inputport>
+                <inputport name="nullValue">.default</inputport>
+                <inputport name="resultIsSparse">.no</inputport>
+                <inputport name="resultFormat">.none</inputport>
+                <outputport name="result" id="v25" />
+                <functor name="NumberMap">
+                    <property key="dff.functor.alias" value="numberMap1095" />
+                    <inputport name="map" peerid="v28" />
+                    <inputport name="mapNumber">1</inputport>
+                </functor>
+                <functor name="NumberMap">
+                    <property key="dff.functor.alias" value="numberMap1096" />
+                    <inputport name="map" peerid="v24" />
+                    <inputport name="mapNumber">2</inputport>
+                </functor>
+            </containerfunctor>
+            <containerfunctor name="CalculateMap">
+                <property key="dff.container.collapsed" value="no" />
+                <property key="dff.functor.alias" value="calculateMap1110" />
+                <inputport name="expression">[&#x0A;    if isNull(i2) then&#x0A;        null&#x0A;    else &#x0A;        i1&#x0A;]</inputport>
+                <inputport name="cellType">.float32</inputport>
+                <inputport name="nullValue">.default</inputport>
+                <inputport name="resultIsSparse">.no</inputport>
+                <inputport name="resultFormat">.none</inputport>
+                <outputport name="result" id="v26" />
+                <functor name="NumberMap">
+                    <property key="dff.functor.alias" value="numberMap1104" />
+                    <inputport name="map" peerid="v25" />
+                    <inputport name="mapNumber">1</inputport>
+                </functor>
+                <functor name="NumberMap">
+                    <property key="dff.functor.alias" value="numberMap1105" />
+                    <inputport name="map" peerid="v37" />
+                    <inputport name="mapNumber">2</inputport>
+                </functor>
+            </containerfunctor>
+            <containerfunctor name="CalculateMap">
+                <property key="dff.functor.alias" value="calculateMap7453" />
+                <inputport name="expression">[&#x0A;    if isNull(i2) then&#x0A;        null&#x0A;    else &#x0A;        i1&#x0A;]</inputport>
+                <inputport name="cellType">.float32</inputport>
+                <inputport name="nullValue">.default</inputport>
+                <inputport name="resultIsSparse">.no</inputport>
+                <inputport name="resultFormat">.none</inputport>
+                <outputport name="result" id="v27" />
+                <functor name="NumberMap">
+                    <property key="dff.functor.alias" value="numberMap7455" />
+                    <inputport name="map" peerid="v37" />
+                    <inputport name="mapNumber">2</inputport>
+                </functor>
+                <functor name="NumberMap">
+                    <property key="dff.functor.alias" value="numberMap7457" />
+                    <inputport name="map" peerid="v26" />
+                    <inputport name="mapNumber">1</inputport>
+                </functor>
+            </containerfunctor>
+            <containerfunctor name="CalculateMap">
+                <property key="dff.container.collapsed" value="no" />
+                <property key="dff.functor.alias" value="calculateMap833" />
+                <property key="dff.functor.comment" value="combina friccion a pie con friccion rios (fraccion rios se encima sobre a pie para los rios)" />
+                <property key="viewer.result" value="yes" />
+                <inputport name="expression">[&#x0A;    if i2 &gt; 0 then&#x0A;        i2&#x0A;    else &#x0A;        i1&#x0A;]</inputport>
+                <inputport name="cellType">.float32</inputport>
+                <inputport name="nullValue">.default</inputport>
+                <inputport name="resultIsSparse">.no</inputport>
+                <inputport name="resultFormat">.none</inputport>
+                <outputport name="result" id="v28" />
+                <functor name="NumberMap">
+                    <property key="dff.functor.alias" value="numberMap1081" />
+                    <inputport name="map" peerid="v29" />
+                    <inputport name="mapNumber">1</inputport>
+                </functor>
+                <functor name="NumberMap">
+                    <property key="dff.functor.alias" value="numberMap1082" />
+                    <inputport name="map" peerid="v3" />
+                    <inputport name="mapNumber">2</inputport>
+                </functor>
+            </containerfunctor>
+            <containerfunctor name="CalculateMap">
+                <property key="dff.container.collapsed" value="no" />
+                <property key="dff.functor.alias" value="calculateMap831" />
+                <property key="dff.functor.comment" value="tiempo de recorrido" />
+                <property key="viewer.result" value="yes" />
+                <inputport name="expression">[&#x0A;    t1[&lt;=i1]&#x0A;]</inputport>
+                <inputport name="cellType">.float32</inputport>
+                <inputport name="nullValue">.default</inputport>
+                <inputport name="resultIsSparse">.no</inputport>
+                <inputport name="resultFormat">.none</inputport>
+                <outputport name="result" id="v29" />
+                <functor name="NumberMap">
+                    <property key="dff.functor.alias" value="numberMap1078" />
+                    <inputport name="map" peerid="v18" />
+                    <inputport name="mapNumber">1</inputport>
+                </functor>
+                <functor name="NumberTable">
+                    <property key="dff.functor.alias" value="numberTable1079" />
+                    <inputport name="table" peerid="v21" />
+                    <inputport name="tableNumber">1</inputport>
+                </functor>
+            </containerfunctor>
+            <containerfunctor name="CalculateMap">
+                <property key="dff.container.collapsed" value="no" />
+                <property key="dff.functor.alias" value="calculateMap834" />
+                <property key="dff.functor.comment" value="pone valores de pendientes para carreteras, 99999 para lo demas (valor diferente que el no data)" />
+                <property key="viewer.result" value="yes" />
+                <inputport name="expression">[&#x0A;    if isNull(i1) then&#x0A;        null&#x0A;    else &#x0A;        i2&#x0A;]</inputport>
+                <inputport name="cellType">.float32</inputport>
+                <inputport name="nullValue">.default</inputport>
+                <inputport name="resultIsSparse">.no</inputport>
+                <inputport name="resultFormat">.none</inputport>
+                <outputport name="result" id="v30" />
+                <functor name="NumberMap">
+                    <property key="dff.functor.alias" value="numberMap1084" />
+                    <inputport name="map" peerid="v38" />
+                    <inputport name="mapNumber">1</inputport>
+                </functor>
+                <functor name="NumberMap">
+                    <property key="dff.functor.alias" value="numberMap1085" />
+                    <inputport name="map" peerid="v18" />
+                    <inputport name="mapNumber">2</inputport>
+                </functor>
+            </containerfunctor>
+            <containerfunctor name="CalculateMap">
+                <property key="dff.container.collapsed" value="no" />
+                <property key="dff.functor.alias" value="calculateMap835" />
+                <property key="dff.functor.comment" value="convierte la pendiente de carretera a tiempo de recorrido (friccion), deja lo demas en 9999 (valor diferente que el nodata)" />
+                <property key="viewer.result" value="yes" />
+                <inputport name="expression">[&#x0A;    t1[&lt;=i1]&#x0A;]</inputport>
+                <inputport name="cellType">.float32</inputport>
+                <inputport name="nullValue">.default</inputport>
+                <inputport name="resultIsSparse">.no</inputport>
+                <inputport name="resultFormat">.none</inputport>
+                <outputport name="result" id="v31" />
+                <functor name="NumberMap">
+                    <property key="dff.functor.alias" value="numberMap1089" />
+                    <inputport name="map" peerid="v30" />
+                    <inputport name="mapNumber">1</inputport>
+                </functor>
+                <functor name="NumberTable">
+                    <property key="dff.functor.alias" value="numberTable1090" />
+                    <inputport name="table" peerid="v22" />
+                    <inputport name="tableNumber">1</inputport>
+                </functor>
+            </containerfunctor>
+            <containerfunctor name="CalculateMap">
+                <property key="dff.container.collapsed" value="no" />
+                <property key="dff.functor.alias" value="calculateMap840" />
+                <property key="dff.functor.comment" value="combina friccion a pie con friccion carretera (fraccion carretera se encima sobre a pie para las carreteras)" />
+                <property key="viewer.result" value="yes" />
+                <inputport name="expression">[&#x0A;    if isNull(i2) then&#x0A;        i1&#x0A;    else if i2 &gt; 0 and i2 &lt; 999999 then&#x0A;        i2&#x0A;    else &#x0A;        i1&#x0A;]</inputport>
+                <inputport name="cellType">.float32</inputport>
+                <inputport name="nullValue">.default</inputport>
+                <inputport name="resultIsSparse">.no</inputport>
+                <inputport name="resultFormat">.none</inputport>
+                <outputport name="result" id="v32" />
+                <functor name="NumberMap">
+                    <property key="dff.functor.alias" value="numberMap1098" />
+                    <inputport name="map" peerid="v28" />
+                    <inputport name="mapNumber">1</inputport>
+                </functor>
+                <functor name="NumberMap">
+                    <property key="dff.functor.alias" value="numberMap1099" />
+                    <inputport name="map" peerid="v31" />
+                    <inputport name="mapNumber">2</inputport>
+                </functor>
+            </containerfunctor>
+            <containerfunctor name="CalculateMap">
+                <property key="dff.container.collapsed" value="no" />
+                <property key="dff.functor.alias" value="calculateMap1125" />
+                <property key="viewer.result" value="yes" />
+                <inputport name="expression">[&#x0A;    if isNull(i2) then&#x0A;        null&#x0A;    else &#x0A;        i1&#x0A;]</inputport>
+                <inputport name="cellType">.float32</inputport>
+                <inputport name="nullValue">.default</inputport>
+                <inputport name="resultIsSparse">.no</inputport>
+                <inputport name="resultFormat">.none</inputport>
+                <outputport name="result" id="v33" />
+                <functor name="NumberMap">
+                    <property key="dff.functor.alias" value="numberMap1101" />
+                    <inputport name="map" peerid="v32" />
+                    <inputport name="mapNumber">1</inputport>
+                </functor>
+                <functor name="NumberMap">
+                    <property key="dff.functor.alias" value="numberMap1102" />
+                    <inputport name="map" peerid="v37" />
+                    <inputport name="mapNumber">2</inputport>
+                </functor>
+            </containerfunctor>
+            <containerfunctor name="CalculateMap">
+                <property key="dff.functor.alias" value="calculateMap7444" />
+                <inputport name="expression">[&#x0A;    if isNull(i2) then&#x0A;        null&#x0A;    else &#x0A;        i1&#x0A;]</inputport>
+                <inputport name="cellType">.float32</inputport>
+                <inputport name="nullValue">.default</inputport>
+                <inputport name="resultIsSparse">.no</inputport>
+                <inputport name="resultFormat">.none</inputport>
+                <outputport name="result" id="v34" />
+                <functor name="NumberMap">
+                    <property key="dff.functor.alias" value="numberMap7446" />
+                    <inputport name="map" peerid="v33" />
+                    <inputport name="mapNumber">1</inputport>
+                </functor>
+                <functor name="NumberMap">
+                    <property key="dff.functor.alias" value="numberMap7448" />
+                    <inputport name="map" peerid="v37" />
+                    <inputport name="mapNumber">2</inputport>
+                </functor>
+            </containerfunctor>
+            <containerfunctor name="IfThen">
+                <property key="dff.functor.alias" value="ifThen3370" />
+                <inputport name="condition" peerid="v2" />
+                <containerfunctor name="CalculateMap">
+                    <property key="dff.functor.alias" value="calculateMap3374" />
+                    <inputport name="expression">[&#x0A;    if isNull(i2) then&#x0A;        i1&#x0A;    else &#x0A;        999999&#x0A;]</inputport>
+                    <inputport name="cellType">.float32</inputport>
+                    <inputport name="nullValue">.default</inputport>
+                    <inputport name="resultIsSparse">.no</inputport>
+                    <inputport name="resultFormat">.none</inputport>
+                    <outputport name="result" id="v35" />
+                    <functor name="NumberMap">
+                        <property key="dff.functor.alias" value="numberMap3376" />
+                        <inputport name="map" peerid="v10" />
+                        <inputport name="mapNumber">2</inputport>
+                    </functor>
+                    <functor name="NumberMap">
+                        <property key="dff.functor.alias" value="numberMap3378" />
+                        <inputport name="map" peerid="v34" />
+                        <inputport name="mapNumber">1</inputport>
+                    </functor>
+                </containerfunctor>
+            </containerfunctor>
+            <containerfunctor name="IfNotThen">
+                <property key="dff.functor.alias" value="ifNotThen3389" />
+                <inputport name="condition" peerid="v2" />
+                <containerfunctor name="CalculateMap">
+                    <property key="dff.functor.alias" value="calculateMap3391" />
+                    <inputport name="expression">[&#x0A;    i1&#x0A;]</inputport>
+                    <inputport name="cellType">.float32</inputport>
+                    <inputport name="nullValue">.default</inputport>
+                    <inputport name="resultIsSparse">.no</inputport>
+                    <inputport name="resultFormat">.none</inputport>
+                    <outputport name="result" id="v36" />
+                    <functor name="NumberMap">
+                        <property key="dff.functor.alias" value="numberMap3393" />
+                        <inputport name="map" peerid="v34" />
+                        <inputport name="mapNumber">1</inputport>
+                    </functor>
+                </containerfunctor>
+            </containerfunctor>
+            <functor name="LoadMap">
+                <property key="dff.functor.alias" value="loadMap574" />
+                <property key="dff.functor.comment" value="Loads the digital elevation model (DEM)" />
+                <inputport name="filename">&quot;LULCC/TempRaster/DEM_c.tif&quot;</inputport>
+                <inputport name="nullValue">.default</inputport>
+                <inputport name="storageMode">.default</inputport>
+                <inputport name="suffixDigits">0</inputport>
+                <inputport name="step">.none</inputport>
+                <inputport name="workdir" peerid="v1" />
+                <outputport name="map" id="v37" />
+            </functor>
+            <functor name="LoadMap">
+                <property key="dff.functor.alias" value="loadMap575" />
+                <property key="dff.functor.comment" value="Loads the roadnetwork map" />
+                <inputport name="filename">&quot;LULCC/TempRaster/roads_c.tif&quot;</inputport>
+                <inputport name="nullValue">0</inputport>
+                <inputport name="storageMode">.default</inputport>
+                <inputport name="suffixDigits">0</inputport>
+                <inputport name="step">.none</inputport>
+                <inputport name="workdir" peerid="v1" />
+                <outputport name="map" id="v38" />
+            </functor>
+        </containerfunctor>
+        <containerfunctor name="IfThen">
+            <property key="dff.functor.alias" value="ifThen3431" />
+            <inputport name="condition" peerid="v5" />
+            <containerfunctor name="Group">
+                <property key="dff.container.collapsed" value="no" />
+                <property key="dff.functor.alias" value="group3378" />
+                <functor name="SaveMap">
+                    <property key="dff.functor.alias" value="saveMap3439" />
+                    <property key="dff.functor.comment" value="Friction map for walking fuelwood gatherers. Units are seconds per meter walked. 3600/x/1000 converts the value x (s m-1) into km hr-1." />
+                    <inputport name="map" peerid="v43" />
+                    <inputport name="filename">&quot;In/fricc_v.tif&quot;</inputport>
+                    <inputport name="suffixDigits">2</inputport>
+                    <inputport name="step">.none</inputport>
+                    <inputport name="useCompression">.yes</inputport>
+                    <inputport name="workdir" peerid="v1" />
+                    <inputport name="ignoreCostlySparseCategories">.yes</inputport>
+                </functor>
+                <containerfunctor name="CalculateMap">
+                    <property key="dff.functor.alias" value="calculateMap3380" />
+                    <property key="viewer.result" value="yes" />
+                    <inputport name="expression">[&#x0A;    if not isNull(i2) then&#x0A;        i1 / 2&#x0A;    else &#x0A;        i1&#x0A;]</inputport>
+                    <inputport name="cellType">.float32</inputport>
+                    <inputport name="nullValue">.default</inputport>
+                    <inputport name="resultIsSparse">.no</inputport>
+                    <inputport name="resultFormat">.none</inputport>
+                    <outputport name="result" id="v39" />
+                    <functor name="NumberMap">
+                        <property key="dff.functor.alias" value="numberMap3382" />
+                        <inputport name="map" peerid="v27" />
+                        <inputport name="mapNumber">1</inputport>
+                    </functor>
+                    <functor name="NumberMap">
+                        <property key="dff.functor.alias" value="numberMap3385" />
+                        <inputport name="map" peerid="v48" />
+                        <inputport name="mapNumber">2</inputport>
+                    </functor>
+                </containerfunctor>
+                <containerfunctor name="CalculateMap">
+                    <property key="dff.functor.alias" value="calculateMap3398" />
+                    <property key="viewer.result" value="yes" />
+                    <inputport name="expression">[&#x0A;    if not isNull(i2) then&#x0A;        i1 / 2&#x0A;    else &#x0A;        i1&#x0A;]</inputport>
+                    <inputport name="cellType">.float32</inputport>
+                    <inputport name="nullValue">.default</inputport>
+                    <inputport name="resultIsSparse">.no</inputport>
+                    <inputport name="resultFormat">.none</inputport>
+                    <outputport name="result" id="v40" />
+                    <functor name="NumberMap">
+                        <property key="dff.functor.alias" value="numberMap3418" />
+                        <inputport name="map" peerid="v45" />
+                        <inputport name="mapNumber">2</inputport>
+                    </functor>
+                    <functor name="NumberMap">
+                        <property key="dff.functor.alias" value="numberMap3420" />
+                        <inputport name="map" peerid="v42" />
+                        <inputport name="mapNumber">1</inputport>
+                    </functor>
+                </containerfunctor>
+                <containerfunctor name="CalculateMap">
+                    <property key="dff.functor.alias" value="calculateMap3400" />
+                    <property key="viewer.result" value="yes" />
+                    <inputport name="expression">[&#x0A;    if not isNull(i2) then&#x0A;        i1 / 2&#x0A;    else &#x0A;        i1&#x0A;]</inputport>
+                    <inputport name="cellType">.float32</inputport>
+                    <inputport name="nullValue">.default</inputport>
+                    <inputport name="resultIsSparse">.no</inputport>
+                    <inputport name="resultFormat">.none</inputport>
+                    <outputport name="result" id="v41" />
+                    <functor name="NumberMap">
+                        <property key="dff.functor.alias" value="numberMap3414" />
+                        <inputport name="map" peerid="v40" />
+                        <inputport name="mapNumber">1</inputport>
+                    </functor>
+                    <functor name="NumberMap">
+                        <property key="dff.functor.alias" value="numberMap3416" />
+                        <inputport name="map" peerid="v44" />
+                        <inputport name="mapNumber">2</inputport>
+                    </functor>
+                </containerfunctor>
+                <containerfunctor name="CalculateMap">
+                    <property key="dff.functor.alias" value="calculateMap3402" />
+                    <property key="viewer.result" value="yes" />
+                    <inputport name="expression">[&#x0A;    if not isNull(i2) then&#x0A;        i1 / 2&#x0A;    else &#x0A;        i1&#x0A;]</inputport>
+                    <inputport name="cellType">.float32</inputport>
+                    <inputport name="nullValue">.default</inputport>
+                    <inputport name="resultIsSparse">.no</inputport>
+                    <inputport name="resultFormat">.none</inputport>
+                    <outputport name="result" id="v42" />
+                    <functor name="NumberMap">
+                        <property key="dff.functor.alias" value="numberMap3410" />
+                        <inputport name="map" peerid="v47" />
+                        <inputport name="mapNumber">2</inputport>
+                    </functor>
+                    <functor name="NumberMap">
+                        <property key="dff.functor.alias" value="numberMap3412" />
+                        <inputport name="map" peerid="v39" />
+                        <inputport name="mapNumber">1</inputport>
+                    </functor>
+                </containerfunctor>
+                <containerfunctor name="CalculateMap">
+                    <property key="dff.functor.alias" value="calculateMap3404" />
+                    <property key="viewer.result" value="yes" />
+                    <inputport name="expression">[&#x0A;    if not isNull(i2) then&#x0A;        i1 / 2&#x0A;    else &#x0A;        i1&#x0A;]</inputport>
+                    <inputport name="cellType">.float32</inputport>
+                    <inputport name="nullValue">.default</inputport>
+                    <inputport name="resultIsSparse">.no</inputport>
+                    <inputport name="resultFormat">.none</inputport>
+                    <outputport name="result" id="v43" />
+                    <functor name="NumberMap">
+                        <property key="dff.functor.alias" value="numberMap3406" />
+                        <inputport name="map" peerid="v41" />
+                        <inputport name="mapNumber">1</inputport>
+                    </functor>
+                    <functor name="NumberMap">
+                        <property key="dff.functor.alias" value="numberMap3408" />
+                        <inputport name="map" peerid="v46" />
+                        <inputport name="mapNumber">2</inputport>
+                    </functor>
+                </containerfunctor>
+                <functor name="LoadMap">
+                    <property key="dff.functor.alias" value="loadMap576" />
+                    <inputport name="filename">&quot;../../../../../home/webmofuss/mofuss/linux/scripts/LULCC/TempRaster/attraction_c5000.tif&quot;</inputport>
+                    <inputport name="nullValue">.none</inputport>
+                    <inputport name="storageMode">.default</inputport>
+                    <inputport name="suffixDigits">0</inputport>
+                    <inputport name="step">.none</inputport>
+                    <inputport name="workdir" peerid="v1" />
+                    <outputport name="map" id="v44" />
+                </functor>
+                <functor name="LoadMap">
+                    <property key="dff.functor.alias" value="loadMap577" />
+                    <inputport name="filename">&quot;../../../../../home/webmofuss/mofuss/linux/scripts/LULCC/TempRaster/attraction_c2500.tif&quot;</inputport>
+                    <inputport name="nullValue">.none</inputport>
+                    <inputport name="storageMode">.default</inputport>
+                    <inputport name="suffixDigits">0</inputport>
+                    <inputport name="step">.none</inputport>
+                    <inputport name="workdir" peerid="v1" />
+                    <outputport name="map" id="v45" />
+                </functor>
+                <functor name="LoadMap">
+                    <property key="dff.functor.alias" value="loadMap578" />
+                    <inputport name="filename">&quot;../../../../../home/webmofuss/mofuss/linux/scripts/LULCC/TempRaster/attraction_c10000.tif&quot;</inputport>
+                    <inputport name="nullValue">.none</inputport>
+                    <inputport name="storageMode">.default</inputport>
+                    <inputport name="suffixDigits">0</inputport>
+                    <inputport name="step">.none</inputport>
+                    <inputport name="workdir" peerid="v1" />
+                    <outputport name="map" id="v46" />
+                </functor>
+                <functor name="LoadMap">
+                    <property key="dff.functor.alias" value="loadMap579" />
+                    <inputport name="filename">&quot;../../../../../home/webmofuss/mofuss/linux/scripts/LULCC/TempRaster/attraction_c100.tif&quot;</inputport>
+                    <inputport name="nullValue">.none</inputport>
+                    <inputport name="storageMode">.default</inputport>
+                    <inputport name="suffixDigits">0</inputport>
+                    <inputport name="step">.none</inputport>
+                    <inputport name="workdir" peerid="v1" />
+                    <outputport name="map" id="v47" />
+                </functor>
+                <functor name="LoadMap">
+                    <property key="dff.functor.alias" value="loadMap580" />
+                    <inputport name="filename">&quot;../../../../../home/webmofuss/mofuss/linux/scripts/LULCC/TempRaster/attraction_c0.tif&quot;</inputport>
+                    <inputport name="nullValue">.none</inputport>
+                    <inputport name="storageMode">.default</inputport>
+                    <inputport name="suffixDigits">0</inputport>
+                    <inputport name="step">.none</inputport>
+                    <inputport name="workdir" peerid="v1" />
+                    <outputport name="map" id="v48" />
+                </functor>
+            </containerfunctor>
+        </containerfunctor>
+        <containerfunctor name="IfNotThen">
+            <property key="dff.functor.alias" value="ifNotThen3433" />
+            <inputport name="condition" peerid="v5" />
+            <functor name="SaveMap">
+                <property key="dff.functor.alias" value="saveMap1108" />
+                <property key="dff.functor.comment" value="Friction map for fuelwood gatherers using motorized vehicles. Units are seconds per meter drived or walked (they also need to walk to take the fuelwood to their cars). 3600/x/1000 converts the value x (s m-1) into km hr-1" />
+                <inputport name="map" peerid="v27" />
+                <inputport name="filename">&quot;In/fricc_v.tif&quot;</inputport>
+                <inputport name="suffixDigits">2</inputport>
+                <inputport name="step">.none</inputport>
+                <inputport name="useCompression">.yes</inputport>
+                <inputport name="workdir" peerid="v1" />
+                <inputport name="ignoreCostlySparseCategories">.yes</inputport>
+            </functor>
+        </containerfunctor>
+    </containerfunctor>
+</script>

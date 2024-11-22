@@ -1,0 +1,149 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
+<script>
+    <property key="dff.charset" value="UTF-8" />
+    <property key="dff.date" value="2019-Dec-17 18:59:55" />
+    <property key="dff.version" value="4.22.11.20191030-Beta" />
+    <containerfunctor name="Workdir">
+        <property key="dff.functor.alias" value="workdir573" />
+        <inputport name="folder">&quot;../../../../../../media/webmofuss/Porsche8TB/00_MoFuSS_Dic2019/MoFuSS_Zambia_linux&quot;</inputport>
+        <internaloutputport name="workdir" id="v1" />
+        <functor name="CalcDistanceMap">
+            <property key="dff.functor.alias" value="calcDistanceMap184" />
+            <property key="viewer.distance" value="yes" />
+            <inputport name="categoricalMap" peerid="v7" />
+            <inputport name="categories">[ 1 ]</inputport>
+            <inputport name="cellType">.float32</inputport>
+            <inputport name="nullValue">.default</inputport>
+            <inputport name="truncateDistance">.yes</inputport>
+            <outputport name="distance" id="v2" />
+        </functor>
+        <functor name="CalcDistanceMap">
+            <property key="dff.functor.alias" value="calcDistanceMap186" />
+            <property key="viewer.distance" value="yes" />
+            <inputport name="categoricalMap" peerid="v6" />
+            <inputport name="categories">[ 1 ]</inputport>
+            <inputport name="cellType">.float32</inputport>
+            <inputport name="nullValue">.default</inputport>
+            <inputport name="truncateDistance">.yes</inputport>
+            <outputport name="distance" id="v3" />
+        </functor>
+        <functor name="SaveMap">
+            <property key="dff.functor.alias" value="saveMap189" />
+            <inputport name="map" peerid="v2" />
+            <inputport name="filename">&quot;LULCC/TempRaster/roads_c_d.tif&quot;</inputport>
+            <inputport name="suffixDigits">0</inputport>
+            <inputport name="step">0</inputport>
+            <inputport name="useCompression">.yes</inputport>
+            <inputport name="workdir" peerid="v1" />
+            <inputport name="ignoreCostlySparseCategories">.yes</inputport>
+        </functor>
+        <functor name="SaveMap">
+            <property key="dff.functor.alias" value="saveMap191" />
+            <inputport name="map" peerid="v3" />
+            <inputport name="filename">&quot;LULCC/TempRaster/rivers_c_d.tif&quot;</inputport>
+            <inputport name="suffixDigits">0</inputport>
+            <inputport name="step">0</inputport>
+            <inputport name="useCompression">.yes</inputport>
+            <inputport name="workdir" peerid="v1" />
+            <inputport name="ignoreCostlySparseCategories">.yes</inputport>
+        </functor>
+        <functor name="LoadLookupTable">
+            <property key="dff.functor.alias" value="loadLookupTable8670" />
+            <inputport name="filename">&quot;LULCC/TempTables/Friction_drivingoverroads_calcdist.csv&quot;</inputport>
+            <inputport name="suffixDigits">0</inputport>
+            <inputport name="step">.none</inputport>
+            <inputport name="workdir" peerid="v1" />
+            <outputport name="table" id="v4" />
+        </functor>
+        <functor name="LoadLookupTable">
+            <property key="dff.functor.alias" value="loadLookupTable8673" />
+            <property key="viewer.table" value="yes" />
+            <inputport name="filename">&quot;LULCC/TempTables/Friction_rivers_reclass_calcdist.csv&quot;</inputport>
+            <inputport name="suffixDigits">0</inputport>
+            <inputport name="step">.none</inputport>
+            <inputport name="workdir" peerid="v1" />
+            <outputport name="table" id="v5" />
+        </functor>
+        <containerfunctor name="CalculateCategoricalMap">
+            <property key="dff.functor.alias" value="calculateCategoricalMap12352" />
+            <property key="viewer.result" value="yes" />
+            <inputport name="expression">[&#x0A;    if isNull(i1) and isNull(i2) then&#x0A;        null&#x0A;    else if isNull(i1) and not isNull(i2) then&#x0A;        0&#x0A;    else &#x0A;        t1[i1]&#x0A;]</inputport>
+            <inputport name="cellType">.int32</inputport>
+            <inputport name="nullValue">.default</inputport>
+            <inputport name="resultIsSparse">.no</inputport>
+            <inputport name="resultFormat">.none</inputport>
+            <outputport name="result" id="v6" />
+            <functor name="NumberMap">
+                <property key="dff.functor.alias" value="numberMap12327" />
+                <inputport name="map" peerid="v9" />
+                <inputport name="mapNumber">1</inputport>
+            </functor>
+            <functor name="NumberTable">
+                <property key="dff.functor.alias" value="numberTable12331" />
+                <inputport name="table" peerid="v5" />
+                <inputport name="tableNumber">1</inputport>
+            </functor>
+            <functor name="NumberMap">
+                <property key="dff.functor.alias" value="numberMap4640" />
+                <inputport name="map" peerid="v10" />
+                <inputport name="mapNumber">2</inputport>
+            </functor>
+        </containerfunctor>
+        <containerfunctor name="CalculateCategoricalMap">
+            <property key="dff.functor.alias" value="calculateCategoricalMap12354" />
+            <property key="viewer.result" value="yes" />
+            <inputport name="expression">[&#x0A;    if isNull(i1) and isNull(i2) then&#x0A;        null&#x0A;    else if isNull(i1) and not isNull(i2) then&#x0A;        0&#x0A;    else &#x0A;        t1[i1]&#x0A;]</inputport>
+            <inputport name="cellType">.int32</inputport>
+            <inputport name="nullValue">.default</inputport>
+            <inputport name="resultIsSparse">.no</inputport>
+            <inputport name="resultFormat">.none</inputport>
+            <outputport name="result" id="v7" />
+            <functor name="NumberMap">
+                <property key="dff.functor.alias" value="numberMap12342" />
+                <inputport name="map" peerid="v8" />
+                <inputport name="mapNumber">1</inputport>
+            </functor>
+            <functor name="NumberTable">
+                <property key="dff.functor.alias" value="numberTable12340" />
+                <inputport name="table" peerid="v4" />
+                <inputport name="tableNumber">1</inputport>
+            </functor>
+            <functor name="NumberMap">
+                <property key="dff.functor.alias" value="numberMap4636" />
+                <inputport name="map" peerid="v10" />
+                <inputport name="mapNumber">2</inputport>
+            </functor>
+        </containerfunctor>
+        <functor name="LoadCategoricalMap">
+            <property key="dff.functor.alias" value="loadCategoricalMap570" />
+            <inputport name="filename">&quot;LULCC/TempRaster/roads_c.tif&quot;</inputport>
+            <inputport name="nullValue">0</inputport>
+            <inputport name="storageMode">.default</inputport>
+            <inputport name="suffixDigits">0</inputport>
+            <inputport name="step">0</inputport>
+            <inputport name="workdir" peerid="v1" />
+            <outputport name="map" id="v8" />
+        </functor>
+        <functor name="LoadCategoricalMap">
+            <property key="dff.functor.alias" value="loadCategoricalMap571" />
+            <property key="viewer.map" value="yes" />
+            <inputport name="filename">&quot;LULCC/TempRaster/rivers_c.tif&quot;</inputport>
+            <inputport name="nullValue">0</inputport>
+            <inputport name="storageMode">.default</inputport>
+            <inputport name="suffixDigits">0</inputport>
+            <inputport name="step">0</inputport>
+            <inputport name="workdir" peerid="v1" />
+            <outputport name="map" id="v9" />
+        </functor>
+        <functor name="LoadMap">
+            <property key="dff.functor.alias" value="loadMap572" />
+            <inputport name="filename">&quot;LULCC/TempRaster/mask_c.tif&quot;</inputport>
+            <inputport name="nullValue">.none</inputport>
+            <inputport name="storageMode">.default</inputport>
+            <inputport name="suffixDigits">0</inputport>
+            <inputport name="step">.none</inputport>
+            <inputport name="workdir" peerid="v1" />
+            <outputport name="map" id="v10" />
+        </functor>
+    </containerfunctor>
+</script>
