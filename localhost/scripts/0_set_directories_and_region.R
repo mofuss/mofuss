@@ -13,12 +13,13 @@ if (hardwireddirs == 1) {
   
   # 1km
   gitlabdir <- "C:/Users/UNAM/Documents/mofuss"
-  countrydir <- "D:/PNG_100m_20241114"
-  country <- "C:\\Users\\UNAM\\Documents\\mofuss\\countries\\PapuaNewGuinea.tif"
+  countrydir <- "D:/COD_100m_20241119"
+  country <- "C:\\Users\\UNAM\\Documents\\mofuss\\countries\\DemocraticRepublicoftheCongo.tif"
   demanddir <- "D:/demand100m"
   admindir <- "D:/admin_regions"
   emissionsdir <- "D:/emissions"
   rTempdir <- "D:/rTemp"
+  parameters_file_path <- "C:/Users/UNAM/Documents/mofuss/selected_parameters/parameters_cod100m.xlsx"
   
   # Extract the country name
   country_name <- gsub(pattern = "(.*countries[\\])(.*)(.tif.*)", 
@@ -53,7 +54,6 @@ if (hardwireddirs == 1) {
     }
   }
   
-  parameters_file_path <- "C:/Users/Adrian Ghilardi/Documents/mofuss/selected_parameters/parameters_world1000m.xlsx"
   parameters_file <- basename(parameters_file_path)
   
   # Check if the user selected a file

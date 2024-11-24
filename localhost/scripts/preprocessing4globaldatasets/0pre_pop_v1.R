@@ -4,6 +4,7 @@
 
 # 2dolist
 # Check Terra's handling of VRT, sometimes it doesn't work and need to ne updated
+# Need to restart R and windows before running this script
 
 # Internal parameters
 cpu = "nrb" #"alien" # vs nrb
