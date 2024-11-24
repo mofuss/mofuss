@@ -5,7 +5,7 @@
 # 2dolist
 
 # Internal parameters
-start_from_scratch <- 0 # Set to 0 when the MoFuSS working directory already exists and has data in it
+start_from_scratch <- 1 # Set to 0 when the MoFuSS working directory already exists and has data in it
 hardwireddirs <- 0 # Set to 0 when you are choosing all directories
 # rm(list=ls(all=TRUE))
 
