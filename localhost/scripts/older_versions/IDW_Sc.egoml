@@ -1,0 +1,350 @@
+<?xml version="1.0" standalone="yes" ?>
+<script>
+    <property key="dff.date" value="Sat Nov 30 20:40:35 2019" />
+    <property key="dff.version" value="2.4.1.20140602" />
+    <property key="metadata.author" value="Designed and coded by Adrian Ghilardi (CIGA-UNAM), with contributions from Jean-François Mas (CIGA-UNAM), Robert Bailis (SEI), Rudi Drigo (Independent consultant) and Omar Masera (IIES-UNAM)." />
+    <property key="metadata.description" value='&quot;Mofuss&quot; is a dynamic model that simulates the effects of fuelwood harvesting on vegetation, accounting for savings in non-renewable woody biomass from reduced consumption due to an external intervention, such as an improved cookstove (ICS) or fuel substitution project.' />
+    <property key="metadata.notes" value='&quot;Mofuss&quot; (version 1.0) was developed between September 2011 and April 2015 with funding from Yale Institute for Biospheric Studies, Global Alliance for Clean Cookstoves, Overlook International Foundation, ClimateWorks Foundation and UNAM’s PAPIIT IA101513.' />
+    <property key="metadata.organization" value="CIGA UNAM - Yale - SEI" />
+    <property key="metadata.showproperties" value="no" />
+    <property key="metadata.title" value="IDW" />
+    <property key="metadata.version" value="1.0" />
+    <property key="metadata.wizard" value='{&#x0A;&quot;inputPages&quot;: [&#x0A;{&#x0A;&quot;title&quot;: &quot;Default&quot;,&#x0A;&quot;content&quot;: &quot;&lt;html&gt;&#x0A;&lt;head/&gt;&#x0A;&lt;body bgcolor=&apos;&apos;&apos;white&apos;&apos;&apos;&gt;&#x0A;&lt;p style=&apos;&apos;&apos;color:gray;font-size:20px;font-family:verdana;&apos;&apos;&apos;&gt;&#x0A;&lt;span style=&apos;&apos;&apos;color:#0000cc; font-size:11.0pt; font-family:Verdana;;line-height:115%;&apos;&apos;&apos;&gt;A &lt;/span&gt;&#x0A;&lt;b&gt;&#x0A;&lt;span style=&apos;&apos;&apos;font-size:11.0pt; font-family:Verdana; color:#0000cc;;line-height:115%;&apos;&apos;&apos;&gt;modified IDW interpolator to calculate pressure maps:&lt;/span&gt;&#x0A;&lt;/b&gt;&#x0A;&lt;span style=&apos;&apos;&apos;font-size:11.0pt; font-family:Verdana; color:#0000cc;;line-height:115%;&apos;&apos;&apos;/&gt;&#x0A;&lt;/p&gt;&#x0A;&lt;p style=&apos;&apos;&apos;font-size:20px;font-family:verdana;color:gray;&apos;&apos;&apos;&gt;&#x0A;&lt;span style=&apos;&apos;&apos;font-size:11.0pt; font-family:Verdana;;line-height:115%;&apos;&apos;&apos;&gt;Pressure or probability maps for woodfuel harvesting: Maps depicting the probability of woodfuel harvest events are calculated by means of a modified Inverse Distance Weighted interpolation procedure, using demand origin points and friction maps for both walking and driving woodfuel collectors. The IDW script can be quite demanding in terms of geoprocessing operations and could take quite a long time to run depending on spatial extent, resolution and number of origin points. &lt;/span&gt;&#x0A;&lt;/p&gt;&#x0A;&lt;p style=&apos;&apos;&apos;font-size:20px;font-family:verdana;color:gray;&apos;&apos;&apos;&gt;  &lt;span style=&apos;&apos;&apos;font-size:11.0pt; font-family:Verdana;;line-height:115%;&apos;&apos;&apos;/&gt;&#x0A;&lt;/p&gt;&#x0A;&lt;p style=&apos;&apos;&apos;font-size:20px;font-family:verdana;color:gray;&apos;&apos;&apos;&gt;&#x0A;&lt;img border=&apos;&apos;&apos;0&apos;&apos;&apos; src=&apos;&apos;&apos;LULCC/Wizard_imgs/IDW1.jpg&apos;&apos;&apos;/&gt;&#x0A;&lt;/p&gt;&#x0A;&lt;p style=&apos;&apos;&apos;font-size:20px;font-family:verdana;color:gray;&apos;&apos;&apos;&gt;  &lt;span style=&apos;&apos;&apos;font-size:12pt; font-family:Verdana;;line-height:115%;&apos;&apos;&apos;/&gt;&#x0A;&lt;/p&gt;&#x0A;&lt;p style=&apos;&apos;&apos;font-size:20px;font-family:verdana;color:gray;&apos;&apos;&apos;&gt;&#x0A;&lt;img border=&apos;&apos;&apos;0&apos;&apos;&apos; src=&apos;&apos;&apos;LULCC/Wizard_imgs/IDW2.jpg&apos;&apos;&apos;/&gt;&#x0A;&lt;/p&gt;&#x0A;&lt;/body&gt;&#x0A;&lt;/html&gt;&#x0A;&quot;,&#x0A;&quot;editors&quot;: [&#x0A;{&#x0A;&quot;name&quot;: &quot;Localities of interest&quot;,&#x0A;&quot;description&quot;: &quot;Did you save a sample of selected localities that you want to analyze in isolation from all villages and cities using fuelwood within the study area? (i.e. did you save an \&quot;Extent Locs.shp\&quot; file?).&quot;,&#x0A;&quot;tag&quot;: &quot;Bool_constant_1&quot;&#x0A;}&#x0A;]&#x0A;}&#x0A;],&#x0A;&quot;outputPages&quot;: [&#x0A;{&#x0A;&quot;title&quot;: &quot;Default&quot;,&#x0A;&quot;content&quot;: &quot;&lt;html&gt;&#x0A;&lt;head/&gt;&#x0A;&lt;body bgcolor=&apos;&apos;&apos;white&apos;&apos;&apos;&gt;&#x0A;&lt;p style=&apos;&apos;&apos;font-family:verdana;color:gray;font-size:20px;&apos;&apos;&apos;&gt;&#x0A;&lt;b&gt; &lt;span style=&apos;&apos;&apos;font-size:12pt; font-family:Verdana;&apos;&apos;&apos;&gt;Not too bad in terms of timing,&lt;/span&gt;&#x0A;&lt;/b&gt;&#x0A;&lt;span style=&apos;&apos;&apos;font-size:12pt; font-family:Verdana;&apos;&apos;&apos;/&gt;&#x0A;&lt;span style=&apos;&apos;&apos;font-size:12pt; font-family:Verdana;&apos;&apos;&apos;&gt;remember that to boost this step speed you can try the IDW boost scripts by running multiple parallel virtual instances in the cloud.&lt;/span&gt;&#x0A;&lt;/p&gt;&#x0A;&lt;p style=&apos;&apos;&apos;font-size:20px;color:gray;font-family:verdana;&apos;&apos;&apos;&gt;&#x0A;&lt;img src=&apos;&apos;&apos;LULCC/Wizard_imgs/slow.png&apos;&apos;&apos; border=&apos;&apos;&apos;0&apos;&apos;&apos;/&gt;&#x0A;&lt;/p&gt;&#x0A;&lt;p style=&apos;&apos;&apos;font-size:20px;color:gray;font-family:verdana;&apos;&apos;&apos;&gt;  &lt;span style=&apos;&apos;&apos;font-size:12pt; font-family:Verdana;&apos;&apos;&apos;/&gt;&#x0A;&lt;/p&gt;&#x0A;&lt;/body&gt;&#x0A;&lt;/html&gt;&#x0A;&quot;,&#x0A;&quot;editors&quot;: []&#x0A;}&#x0A;]&#x0A;}' />
+    <functor name="SaveMap">
+        <property key="dff.functor.alias" value="saveMap1673" />
+        <inputport name="map" peerid="v17" />
+        <inputport name="filename">&quot;In/Indice_w.tif&quot;</inputport>
+        <inputport name="suffixDigits">0</inputport>
+        <inputport name="step">.none</inputport>
+        <inputport name="useCompression">.yes</inputport>
+        <inputport name="workdir">.none</inputport>
+    </functor>
+    <functor name="SaveMap">
+        <property key="dff.functor.alias" value="saveMap1674" />
+        <inputport name="map" peerid="v23" />
+        <inputport name="filename">&quot;In/Indice_v.tif&quot;</inputport>
+        <inputport name="suffixDigits">0</inputport>
+        <inputport name="step">.none</inputport>
+        <inputport name="useCompression">.yes</inputport>
+        <inputport name="workdir">.none</inputport>
+    </functor>
+    <functor name="Int">
+        <property key="dff.functor.alias" value="Maximum Number of Passes for Cost Map" />
+        <property key="dff.functor.comment" value="Set 0 for optimun solution" />
+        <inputport name="constant">1</inputport>
+        <outputport name="object" id="v1" />
+    </functor>
+    <functor name="LoadLookupTable">
+        <property key="dff.functor.alias" value="loadLookupTable7158" />
+        <inputport name="filename">&quot;In/DemandScenarios/fwuse_V01.csv&quot;</inputport>
+        <inputport name="suffixDigits">0</inputport>
+        <inputport name="step">.none</inputport>
+        <inputport name="workdir">.none</inputport>
+        <outputport name="table" id="v2" />
+    </functor>
+    <functor name="LoadLookupTable">
+        <property key="dff.functor.alias" value="loadLookupTable7160" />
+        <inputport name="filename">&quot;In/DemandScenarios/fwuse_W01.csv&quot;</inputport>
+        <inputport name="suffixDigits">0</inputport>
+        <inputport name="step">.none</inputport>
+        <inputport name="workdir">.none</inputport>
+        <outputport name="table" id="v3" />
+    </functor>
+    <functor name="Double">
+        <property key="dff.functor.alias" value="IDW exponent" />
+        <property key="dff.functor.comment" value="IDW exponent" />
+        <inputport name="constant">1.005</inputport>
+        <outputport name="object" id="v4" />
+    </functor>
+    <functor name="CategoricalMapJunction">
+        <property key="dff.functor.alias" value="categoricalMapJunction1114" />
+        <inputport name="possibleMap1" peerid="v11" />
+        <inputport name="possibleMap2" peerid="v12" />
+        <outputport name="map" id="v5" />
+    </functor>
+    <functor name="LoadMap">
+        <property key="dff.functor.alias" value="loadMap1676" />
+        <inputport name="filename">&quot;In/fricc_w.tif&quot;</inputport>
+        <inputport name="nullValue">.none</inputport>
+        <inputport name="loadAsSparse">.no</inputport>
+        <inputport name="suffixDigits">0</inputport>
+        <inputport name="step">.none</inputport>
+        <inputport name="workdir">.none</inputport>
+        <outputport name="map" id="v6" />
+    </functor>
+    <functor name="LoadMap">
+        <property key="dff.functor.alias" value="loadMap1675" />
+        <inputport name="filename">&quot;In/fricc_v.tif&quot;</inputport>
+        <inputport name="nullValue">.none</inputport>
+        <inputport name="loadAsSparse">.no</inputport>
+        <inputport name="suffixDigits">0</inputport>
+        <inputport name="step">.none</inputport>
+        <inputport name="workdir">.none</inputport>
+        <outputport name="map" id="v7" />
+    </functor>
+    <functor name="Int">
+        <property key="dff.functor.alias" value="Maximum distance in seconds" />
+        <inputport name="constant">1209600</inputport>
+        <outputport name="object" id="v8" />
+    </functor>
+    <functor name="LoadLookupTable">
+        <property key="dff.functor.alias" value="loadLookupTable43837" />
+        <inputport name="filename">&quot;LULCC/TempTables/LocsSample.csv&quot;</inputport>
+        <inputport name="suffixDigits">0</inputport>
+        <inputport name="step">.none</inputport>
+        <inputport name="workdir">.none</inputport>
+        <outputport name="table" id="v9" />
+    </functor>
+    <functor name="GetLookupTableValue">
+        <property key="dff.functor.alias" value="getLookupTableValue43843" />
+        <inputport name="table" peerid="v9" />
+        <inputport name="key">1</inputport>
+        <inputport name="valueIfNotFound">.none</inputport>
+        <outputport name="value" id="v10" />
+    </functor>
+    <containerfunctor name="IfNotThen">
+        <property key="dff.functor.alias" value="ifNotThen1110" />
+        <inputport name="condition" peerid="v10" />
+        <functor name="LoadCategoricalMap">
+            <property key="dff.functor.alias" value="loadCategoricalMap1500" />
+            <inputport name="filename">&quot;LULCC/TempRaster/Locs_c.tif&quot;</inputport>
+            <inputport name="nullValue">.default</inputport>
+            <inputport name="loadAsSparse">.no</inputport>
+            <inputport name="suffixDigits">0</inputport>
+            <inputport name="step">.none</inputport>
+            <inputport name="workdir">.none</inputport>
+            <outputport name="map" id="v11" />
+        </functor>
+    </containerfunctor>
+    <containerfunctor name="IfThen">
+        <property key="dff.functor.alias" value="ifThen1108" />
+        <inputport name="condition" peerid="v10" />
+        <functor name="LoadCategoricalMap">
+            <property key="dff.functor.alias" value="loadCategoricalMap1112" />
+            <inputport name="filename">&quot;LULCC/TempRaster/Ext_Locs_c.tif&quot;</inputport>
+            <inputport name="nullValue">.none</inputport>
+            <inputport name="loadAsSparse">.no</inputport>
+            <inputport name="suffixDigits">0</inputport>
+            <inputport name="step">.none</inputport>
+            <inputport name="workdir">.none</inputport>
+            <outputport name="map" id="v12" />
+        </functor>
+    </containerfunctor>
+    <containerfunctor name="ForEachCategory">
+        <property key="dff.functor.alias" value="forEachCategory1660" />
+        <inputport name="categorization" peerid="v5" />
+        <internaloutputport name="step" id="v13" />
+        <functor name="MuxMap">
+            <property key="dff.functor.alias" value="muxMap3640" />
+            <inputport name="initial" peerid="v26" />
+            <inputport name="feedback" peerid="v17" />
+            <outputport name="map" id="v14" />
+        </functor>
+        <functor name="Step">
+            <property key="dff.functor.alias" value="step3770" />
+            <inputport name="step" peerid="v13" />
+            <outputport name="step" id="v15" />
+        </functor>
+        <containerfunctor name="CalculateMap">
+            <property key="dff.container.collapsed" value="no" />
+            <property key="dff.functor.alias" value="calculateMap1684" />
+            <inputport name="expression">[&#x0A;    if i1 = v1 then&#x0A;        1&#x0A;    else &#x0A;        null&#x0A;]</inputport>
+            <inputport name="cellType">.int8</inputport>
+            <inputport name="nullValue">.default</inputport>
+            <inputport name="resultIsSparse">.no</inputport>
+            <inputport name="resultFormat">.none</inputport>
+            <outputport name="result" id="v16" />
+            <functor name="NumberValue">
+                <property key="dff.functor.alias" value="numberValue1663" />
+                <inputport name="value" peerid="v15" />
+                <inputport name="valueNumber">1</inputport>
+            </functor>
+            <functor name="NumberMap">
+                <property key="dff.functor.alias" value="numberMap1506" />
+                <inputport name="map" peerid="v5" />
+                <inputport name="mapNumber">1</inputport>
+            </functor>
+        </containerfunctor>
+        <containerfunctor name="CalculateMap">
+            <property key="dff.container.collapsed" value="no" />
+            <property key="dff.functor.alias" value="calculateMap1685" />
+            <property key="dff.functor.comment" value="divide el consumo / costo, suma para todas las localidades&#x0A;si costo &gt; 4 h (14400 s) no hace nada." />
+            <inputport name="expression">[&#x0A;    if isNull(i1) then&#x0A;        i2&#x0A;    else if i1 &lt;= v3 then&#x0A;        t1[v1] / (i1 ^ v2) + i2&#x0A;    else &#x0A;        i2&#x0A;]</inputport>
+            <inputport name="cellType">.float32</inputport>
+            <inputport name="nullValue">.default</inputport>
+            <inputport name="resultIsSparse">.no</inputport>
+            <inputport name="resultFormat">.none</inputport>
+            <outputport name="result" id="v17" />
+            <functor name="NumberMap">
+                <property key="dff.functor.alias" value="numberMap1669" />
+                <inputport name="map" peerid="v18" />
+                <inputport name="mapNumber">1</inputport>
+            </functor>
+            <functor name="NumberMap">
+                <property key="dff.functor.alias" value="numberMap1670" />
+                <inputport name="map" peerid="v14" />
+                <inputport name="mapNumber">2</inputport>
+            </functor>
+            <functor name="NumberTable">
+                <property key="dff.functor.alias" value="numberTable1686" />
+                <inputport name="table" peerid="v3" />
+                <inputport name="tableNumber">1</inputport>
+            </functor>
+            <functor name="NumberValue">
+                <property key="dff.functor.alias" value="numberValue1672" />
+                <inputport name="value" peerid="v15" />
+                <inputport name="valueNumber">1</inputport>
+            </functor>
+            <functor name="NumberValue">
+                <property key="dff.functor.alias" value="numberValue1772" />
+                <inputport name="value" peerid="v4" />
+                <inputport name="valueNumber">2</inputport>
+            </functor>
+            <functor name="NumberValue">
+                <property key="dff.functor.alias" value="numberValue3829" />
+                <inputport name="value" peerid="v8" />
+                <inputport name="valueNumber">3</inputport>
+            </functor>
+        </containerfunctor>
+        <containerfunctor name="ProcessorPolicy">
+            <property key="dff.functor.alias" value="processorPolicy7128" />
+            <inputport name="maximumNumberOfProcessors">1</inputport>
+            <inputport name="forceSpecifiedNumberOfProcessors">.no</inputport>
+            <functor name="CalcCostMap">
+                <property key="dff.functor.alias" value="calcCostMap3320" />
+                <property key="viewer.cost" value="yes" />
+                <inputport name="source" peerid="v16" />
+                <inputport name="friction" peerid="v6" />
+                <inputport name="cellType">.float32</inputport>
+                <inputport name="nullValue">.default</inputport>
+                <inputport name="diagonalsCostMore">.yes</inputport>
+                <inputport name="maximumNumberOfPasses" peerid="v1" />
+                <inputport name="frictionIsRelative">.yes</inputport>
+                <outputport name="cost" id="v18" />
+            </functor>
+        </containerfunctor>
+    </containerfunctor>
+    <containerfunctor name="ForEachCategory">
+        <property key="dff.functor.alias" value="forEachCategory1647" />
+        <inputport name="categorization" peerid="v5" />
+        <internaloutputport name="step" id="v19" />
+        <functor name="MuxMap">
+            <property key="dff.functor.alias" value="muxMap3641" />
+            <inputport name="initial" peerid="v25" />
+            <inputport name="feedback" peerid="v23" />
+            <outputport name="map" id="v20" />
+        </functor>
+        <functor name="Step">
+            <property key="dff.functor.alias" value="step3771" />
+            <inputport name="step" peerid="v19" />
+            <outputport name="step" id="v21" />
+        </functor>
+        <containerfunctor name="CalculateMap">
+            <property key="dff.container.collapsed" value="no" />
+            <property key="dff.functor.alias" value="calculateMap1681" />
+            <inputport name="expression">[&#x0A;    if i1 = v1 then&#x0A;        1&#x0A;    else &#x0A;        null&#x0A;]</inputport>
+            <inputport name="cellType">.int8</inputport>
+            <inputport name="nullValue">.default</inputport>
+            <inputport name="resultIsSparse">.no</inputport>
+            <inputport name="resultFormat">.none</inputport>
+            <outputport name="result" id="v22" />
+            <functor name="NumberValue">
+                <property key="dff.functor.alias" value="numberValue1650" />
+                <inputport name="value" peerid="v21" />
+                <inputport name="valueNumber">1</inputport>
+            </functor>
+            <functor name="NumberMap">
+                <property key="dff.functor.alias" value="numberMap1508" />
+                <inputport name="map" peerid="v5" />
+                <inputport name="mapNumber">1</inputport>
+            </functor>
+        </containerfunctor>
+        <containerfunctor name="CalculateMap">
+            <property key="dff.container.collapsed" value="no" />
+            <property key="dff.functor.alias" value="calculateMap1682" />
+            <property key="dff.functor.comment" value="divide el consumo / costo, suma para todas las localidades&#x0A;si costo &gt; 2 h (7200 s) no hace nada" />
+            <inputport name="expression">[&#x0A;    if isNull(i1) then&#x0A;        i2&#x0A;    else if i1 &lt;= v3 then&#x0A;        t1[v1] / (i1 ^ v2) + i2&#x0A;    else &#x0A;        i2&#x0A;]</inputport>
+            <inputport name="cellType">.float32</inputport>
+            <inputport name="nullValue">.default</inputport>
+            <inputport name="resultIsSparse">.no</inputport>
+            <inputport name="resultFormat">.none</inputport>
+            <outputport name="result" id="v23" />
+            <functor name="NumberMap">
+                <property key="dff.functor.alias" value="numberMap1656" />
+                <inputport name="map" peerid="v20" />
+                <inputport name="mapNumber">2</inputport>
+            </functor>
+            <functor name="NumberMap">
+                <property key="dff.functor.alias" value="numberMap1657" />
+                <inputport name="map" peerid="v24" />
+                <inputport name="mapNumber">1</inputport>
+            </functor>
+            <functor name="NumberTable">
+                <property key="dff.functor.alias" value="numberTable1683" />
+                <inputport name="table" peerid="v2" />
+                <inputport name="tableNumber">1</inputport>
+            </functor>
+            <functor name="NumberValue">
+                <property key="dff.functor.alias" value="numberValue1659" />
+                <inputport name="value" peerid="v21" />
+                <inputport name="valueNumber">1</inputport>
+            </functor>
+            <functor name="NumberValue">
+                <property key="dff.functor.alias" value="numberValue1777" />
+                <inputport name="value" peerid="v4" />
+                <inputport name="valueNumber">2</inputport>
+            </functor>
+            <functor name="NumberValue">
+                <property key="dff.functor.alias" value="numberValue3826" />
+                <inputport name="value" peerid="v8" />
+                <inputport name="valueNumber">3</inputport>
+            </functor>
+        </containerfunctor>
+        <containerfunctor name="ProcessorPolicy">
+            <property key="dff.functor.alias" value="processorPolicy1853" />
+            <inputport name="maximumNumberOfProcessors">1</inputport>
+            <inputport name="forceSpecifiedNumberOfProcessors">.no</inputport>
+            <functor name="CalcCostMap">
+                <property key="dff.functor.alias" value="calcCostMap3321" />
+                <inputport name="source" peerid="v22" />
+                <inputport name="friction" peerid="v7" />
+                <inputport name="cellType">.float32</inputport>
+                <inputport name="nullValue">.default</inputport>
+                <inputport name="diagonalsCostMore">.yes</inputport>
+                <inputport name="maximumNumberOfPasses" peerid="v1" />
+                <inputport name="frictionIsRelative">.yes</inputport>
+                <outputport name="cost" id="v24" />
+            </functor>
+        </containerfunctor>
+    </containerfunctor>
+    <containerfunctor name="CalculateMap">
+        <property key="dff.container.collapsed" value="no" />
+        <property key="dff.functor.alias" value="calculateMap1680" />
+        <inputport name="expression">[&#x0A;    if not isNull(i1) then&#x0A;        0&#x0A;    else &#x0A;        null&#x0A;]</inputport>
+        <inputport name="cellType">.float32</inputport>
+        <inputport name="nullValue">.default</inputport>
+        <inputport name="resultIsSparse">.no</inputport>
+        <inputport name="resultFormat">.none</inputport>
+        <outputport name="result" id="v25" />
+        <functor name="NumberMap">
+            <property key="dff.functor.alias" value="numberMap1646" />
+            <inputport name="map" peerid="v7" />
+            <inputport name="mapNumber">1</inputport>
+        </functor>
+    </containerfunctor>
+    <containerfunctor name="CalculateMap">
+        <property key="dff.container.collapsed" value="no" />
+        <property key="dff.functor.alias" value="calculateMap1679" />
+        <inputport name="expression">[&#x0A;    if not isNull(i1) then&#x0A;        0&#x0A;    else &#x0A;        null&#x0A;]</inputport>
+        <inputport name="cellType">.float32</inputport>
+        <inputport name="nullValue">.default</inputport>
+        <inputport name="resultIsSparse">.no</inputport>
+        <inputport name="resultFormat">.none</inputport>
+        <outputport name="result" id="v26" />
+        <functor name="NumberMap">
+            <property key="dff.functor.alias" value="numberMap1643" />
+            <inputport name="map" peerid="v6" />
+            <inputport name="mapNumber">1</inputport>
+        </functor>
+    </containerfunctor>
+</script>
