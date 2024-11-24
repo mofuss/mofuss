@@ -1,3 +1,5 @@
+This project uses Google Earth Engine for data download, R for data preparation and graphs, C++ for harvest probabiility maps, DINAMICA EGO for geospatial simulations (core scripts), ffmpeg for animations, and LaTeX for final reports.
+
 ## Hi there 👋
 Looking good!  -RP
 <!--
@@ -14,3 +16,4 @@ Here are some ideas to get you started:
 - 😄 Pronouns: ...
 - ⚡ Fun fact: ...
 -->
+
