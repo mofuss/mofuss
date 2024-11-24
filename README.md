@@ -2,9 +2,14 @@ This project uses Google Earth Engine for data download, R for data preparation 
 
 As of November 25, 2024, the project does not include a license, effectively making it closed source. While others can view the code, they cannot legally use, modify, or distribute it. We plan to reopen the project after completing the development of the web-MoFuSS interface. This interface will provide the most user-friendly way to run MoFuSS with your own parameters on our HPC clusters—no installation required.
 
+Please visit https://www.mofuss.unam.mx/ for exploring global geospatial results and accesing the documentation :sparkles:
+
+Contact: mofussfreeware@gmail.com
+
+<!--
 ## Hi there 👋
 Looking good!  -RP
-<!--
+
 **mofuss/mofuss** is a ✨ _special_ ✨ repository because its `README.md` (this file) appears on your GitHub profile.
 
 Here are some ideas to get you started:
