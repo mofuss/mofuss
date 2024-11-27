@@ -11,7 +11,31 @@
 * Explore global geospatial results and access comprehensive documentation by visiting [MoFuSS's official website](https://www.mofuss.unam.mx/).
 * For questions or feedback, please contact mofussfreeware@gmail.com :sparkles:
 
-## Getting started to use MoFuSS
+## Getting started to use MoFuSS on the UNAM HPC cluster
+
+### Preparing your environment
+* All scripts are written to run on Windows, and would need to be modified to run on Linux/MacOS.
+* Install R and RStudio on your local machine.
+* Clone this repository to your local machine.
+* Install the `remotes` package in R: `install.packages("remotes")`
+* Install the following packages in R:
+    * Use pacman if desired:
+    ```
+    if (!require("pacman")) install.packages("pacman")
+    pacman::p_load(readr, dplyr, fasterize, glue, igraph, raster, rgl, sf, tictoc, stars, gitlabr, inline, tidyverse, spam, svDialogs, terra, readxl)
+    ```
+
+
+### Running MoFuSS on the UNAM HPC cluster
+* The sequence of scripts to run MoFuSS on the UNAM HPC cluster is the following:
+    * 1. `scripts/0_set_directories_and_region.R`
+    * 2. `scripts/1_erase_all_win.R`
+    * 3. `scripts/3_demand4IDW_v1.R`
+    * 4. `scripts/3_demand4IDW_v2.R`
+    * 5. `scripts/3debug_demand4IDW_v1_optional.R`
+    * 6. `scripts/5_harmonizer.R`
+    * 7. `scripts/6_scenarios.R`
+
 
 
 ## Gettings started to contribute
