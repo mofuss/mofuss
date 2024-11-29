@@ -1,4 +1,6 @@
-# Rick: we can now this readme exclusively for the Get Started with a localhost installation, no need to keep the very general text about MoFuSS as its now in the organization profile.
+# Rick: we can now use this readme file exclusively for the _get started with a localhost installation_ text, no need to keep the very general text about MoFuSS as its now in the organization profile.
+
+******************
 
 ### **Welcome to the New MoFuSS GitHub Account!**
 
