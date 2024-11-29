@@ -1,3 +1,5 @@
+# Rick: we can now this readme exclusively for the Get Started with a localhost installation, no need to keep the very general text about MoFuSS as its now in the organization profile.
+
 ### **Welcome to the New MoFuSS GitHub Account!**
 
 As of November 2024, we’ve officially migrated from the MoFuSS GitLab account to this GitHub platform. Please note that the GitLab account will be permanently erased soon to avoid any confusion.
