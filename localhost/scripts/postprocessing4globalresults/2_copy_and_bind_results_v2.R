@@ -9,13 +9,13 @@ processingversion <- "globalsouth_mofuss_bindingfolder/"
 taildir <- "/OutBaU/webmofuss_results/"
 version <- "globalsouth_mofuss_final"
 cleanlocal <- 1 # This will completely clean the final results folder
-replace_node_files <- 1 # This will erase and overwrite all webmofuss results from each region into the GDrive folder
+replace_node_files <- 0 # This will erase and overwrite all webmofuss results from each region into the GDrive folder
 rasters <- 1
 shapefiles <- 1
 longnames <- 0 # Turn on in case you want the script to automatically shorten all names into unique ones.}, instead of choosing columns and renaming them
 
 simplifypolys <- 1
-chunk_size <- 500 # Use 2 to fix Zimbabwe - Number of features to include in each chunk. Adjust based on your system's memory capacity and feature complexity
+chunk_size <- 2 # Use 2 to fix Zimbabwe - Number of features to include in each chunk. Adjust based on your system's memory capacity and feature complexity
 # Define the keep value and other parameters
 useextrasimppara <- 1
 keep_value <- 0.8  # Retain 80% of the points, adjust as needed
@@ -265,13 +265,37 @@ Gdrivedir <- "G:/My Drive/webpages/2024_MoFuSSGlobal_Datasets/webmofussDS_v2/" #
       dplyr::select(-iddissolve) %>%
       replace(is.na(.), 0) %>%
       dplyr::mutate(
+        NRB_2020_2050_mean = round((NRB_2020_2050_mean/1000),0),
+        NRB_2020_2050_sd = round((NRB_2020_2050_sd/1000),0),
+        Harv_2020_2050_mean = round((Harv_2020_2050_mean/1000),0),
+        Harv_2020_2050_sd = round((Harv_2020_2050_sd/1000),0),
+        NRB_2020_2050_1MC = round((NRB_2020_2050_1MC/1000),0),
+        Harv_2020_2050_1MC = round((Harv_2020_2050_1MC/1000),0),
+        fNRB_2020_2050_sd = ifelse(fNRB_2020_2050_sd >= 100, 100, fNRB_2020_2050_sd),
+        
         NRB_2020_2030_mean = round((NRB_2020_2030_mean/1000),0),
         NRB_2020_2030_sd = round((NRB_2020_2030_sd/1000),0),
         Harv_2020_2030_mean = round((Harv_2020_2030_mean/1000),0),
         Harv_2020_2030_sd = round((Harv_2020_2030_sd/1000),0),
         NRB_2020_2030_1MC = round((NRB_2020_2030_1MC/1000),0),
         Harv_2020_2030_1MC = round((Harv_2020_2030_1MC/1000),0),
-        fNRB_2020_2030_sd = ifelse(fNRB_2020_2030_sd >= 100, 100, fNRB_2020_2030_sd)
+        fNRB_2020_2030_sd = ifelse(fNRB_2020_2030_sd >= 100, 100, fNRB_2020_2030_sd),
+        
+        NRB_2030_2040_mean = round((NRB_2030_2040_mean/1000),0),
+        NRB_2030_2040_sd = round((NRB_2030_2040_sd/1000),0),
+        Harv_2030_2040_mean = round((Harv_2030_2040_mean/1000),0),
+        Harv_2030_2040_sd = round((Harv_2030_2040_sd/1000),0),
+        NRB_2030_2040_1MC = round((NRB_2030_2040_1MC/1000),0),
+        Harv_2030_2040_1MC = round((Harv_2030_2040_1MC/1000),0),
+        fNRB_2030_2040_sd = ifelse(fNRB_2030_2040_sd >= 100, 100, fNRB_2030_2040_sd),
+        
+        NRB_2040_2050_mean = round((NRB_2040_2050_mean/1000),0),
+        NRB_2040_2050_sd = round((NRB_2040_2050_sd/1000),0),
+        Harv_2040_2050_mean = round((Harv_2040_2050_mean/1000),0),
+        Harv_2040_2050_sd = round((Harv_2040_2050_sd/1000),0),
+        NRB_2040_2050_1MC = round((NRB_2040_2050_1MC/1000),0),
+        Harv_2040_2050_1MC = round((Harv_2040_2050_1MC/1000),0),
+        fNRB_2040_2050_sd = ifelse(fNRB_2040_2050_sd >= 100, 100, fNRB_2040_2050_sd)
       )
     
     # Assuming wbs is your multipolygon sf object

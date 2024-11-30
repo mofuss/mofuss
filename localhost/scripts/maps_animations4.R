@@ -10,8 +10,8 @@
 ## Aunque estos salen de dinamica hasta cierto punto, faltaria 2020-final year ###
 
 # Internal parameters
-videoson <- 1
-compilelatex <- 1
+videoson <- 0
+compilelatex <- 0
 uncertaintystacks <- 1
 fNRB_partition_tables <- 1
 mcthreshold <- 30
@@ -58,7 +58,7 @@ args=(commandArgs(TRUE))
 if(length(args)==0){
   print("No arguments supplied by DINAMICA.")
   ##Supply default values here (to be used when running the script through R directly)
-  MC = 2 # MonteCarlo runs
+  MC = 30 # MonteCarlo runs
   IT = 2010 # Initial year
   K_MC=1
   TOF_MC=1
