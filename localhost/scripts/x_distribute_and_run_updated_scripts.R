@@ -34,7 +34,7 @@ if (fixdir == 1){
   all_dirs <- dir_ls(search_path, type = "directory")
   
   # Filter directories containing 'adm0' but not 'idw'
-  adm0_dirs <- all_dirs[grepl("adm", all_dirs) & !grepl("idw", all_dirs) & !grepl("regions", all_dirs)]
+  adm0_dirs <- all_dirs[grepl("adm0", all_dirs) & !grepl("idw", all_dirs) & !grepl("regions", all_dirs)]
   adm0_dirs
 }
 
@@ -65,6 +65,31 @@ for (dir in adm0_dirs) {
     file.copy(file, dest_file, overwrite = TRUE)
   }
 }
+
+# Execute certain scripts across all directories---
+
+# External script path
+script_path <- paste0(gitlabdir,"/localhost/scripts/maps_animations5.R")
+
+# Loop through each directory and execute the script
+for (dir in adm0_dirs) {
+  cat("Processing directory:", dir, "\n")
+  
+  # Change the working directory
+  setwd(dir)
+  
+  # Run the external script
+  tryCatch(
+    {
+      source(script_path)
+      cat("Successfully processed:", dir, "\n")
+    },
+    error = function(e) {
+      cat("Error in processing:", dir, "\n", e, "\n")
+    }
+  )
+}
+
 
 # Distribuir todo lo de crecimiento y la demanda, guaradndo en GD primero y leugo copiando a todos los nodos
 
