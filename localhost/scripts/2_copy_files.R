@@ -97,8 +97,8 @@ if (webmofuss == 0) {
   unlink("TempVector//*.*",force=TRUE)
   unlink("TempVector_GCS//*.*",force=TRUE)
   
-  batfiles <- list.files (paste0(gitlabdir, "/linwin/scripts/LULCC/"), pattern = ".bat")
-  file.copy(from=paste0(gitlabdir, "/linwin/scripts/LULCC/",batfiles), 
+  batfiles <- list.files (paste0(gitlabdir, "/localhost/scripts/LULCC/"), pattern = ".bat")
+  file.copy(from=paste0(gitlabdir, "/localhost/scripts/LULCC/",batfiles), 
             to=paste0(countrydir, "/LULCC"), 
             overwrite = TRUE)
   shell(file.path(getwd(), "LULCC/RpathOSsystem2.bat")) # WARNING, "shell" won't read blank spaces - End of Linux integration
@@ -127,7 +127,7 @@ if (webmofuss == 0) {
   write.csv(OSm, "LULCC/TempTables/OStype.csv",row.names=FALSE)
   
   # Fix all pop-ups from the repository!
-  # shell.exec("https://gitlab.com/mofuss/mofuss/-/blob/master/linwin/scripts/LULCC/Wizard_imgs/R_found.pdf")
+  # shell.exec("https://gitlab.com/mofuss/mofuss/-/blob/master/localhost/scripts/LULCC/Wizard_imgs/R_found.pdf")
   # shell(file.path(getwd(), "LULCC/Wizard_imgs/R_found.pdf"))
   
   # Choose country from Gitlab "local" repository e.g. "C:\Users\adrian\Documents\mofuss\countries"
@@ -214,13 +214,13 @@ if (webmofuss == 0) {
   
   for (f in files2copy) {
     # f <- "ffmpeg32/"
-    file.copy(from=paste0(gitlabdir, "/linwin/scripts/",f), 
+    file.copy(from=paste0(gitlabdir, "/localhost/scripts/",f), 
               to=paste0(countrydir), 
               overwrite = TRUE, recursive = TRUE, copy.mode = TRUE)
   }
   
   # Copy wizard images
-  file.copy(from=paste0(gitlabdir, "/linwin/scripts/LULCC/Wizard_imgs/"),
+  file.copy(from=paste0(gitlabdir, "/localhost/scripts/LULCC/Wizard_imgs/"),
             to=paste0(countrydir, "/LULCC/"),
             overwrite = TRUE, recursive = TRUE, copy.mode = TRUE)
   
@@ -317,7 +317,7 @@ if (webmofuss == 0) {
   batfiles <- list.files (paste0(gitlabdir, "/linwgrax
                                  in/scripts/LULCC/"), pattern = ".bat")
   print(batfiles)
-  file.copy(from=paste0(gitlabdir, "/linwin/scripts/LULCC/",batfiles), 
+  file.copy(from=paste0(gitlabdir, "/localhost/scripts/LULCC/",batfiles), 
             to=paste0(countrydir, "/LULCC"), 
             overwrite = TRUE)
   

@@ -10,6 +10,8 @@
 
 # Internal parameters
 plot_curves = 0
+# Determine the number of chunks (adjust based on available memory)
+n_chunks <- 30
 
 # Load packages ----
 library(readr)
@@ -356,38 +358,82 @@ for (lucinputdataset in lucavailablemaps) {
     mean_val <- round(mean(x[x >= q_val], na.rm = na.rm),0)
     return(mean_val)
   }
+
+  # # Determine the number of chunks (adjust based on available memory)
+  # n_chunks <- 30
   
-  # pct_mean <- function(x, p = pdecil, na.rm = TRUE) {
-  #   x <- x[!is.na(x)]  # Remove NA values early
-  #   if (length(x) == 0) return(NA)
-  #   q_val <- quantile(x, p, na.rm = FALSE)  # `na.rm` is no longer needed
-  #   mean_val <- round(mean(x[x >= q_val]), 0)
-  #   return(mean_val)
+  # Calculate the indices for splitting
+  chunk_indices <- split(seq_len(nrow(luc_poly)), cut(seq_len(nrow(luc_poly)), n_chunks, labels = FALSE))
+  
+  # Split the SpatVector into a list of smaller SpatVectors
+  luc_poly_chunks <- lapply(chunk_indices, function(indices) {
+    luc_poly[indices, ]
+  })
+  
+  # Check the result
+  length(luc_poly_chunks) # Should return 10
+  
+  # Initialize an empty list to store results
+  results_list_pctmean <- list()
+  
+  # Process each chunk
+  for (i in seq_along(luc_poly_chunks)) {
+    # Print the index of the current chunk
+    cat("Processing chunk", i, "of", length(luc_poly_chunks), "\n")
+    # Optionally, print more details about the chunk (e.g., number of geometries)
+    cat("Number of polygons in this chunk:", nrow(luc_poly_chunks[[i]]), "\n")
+    # Extract raster values for the current chunk
+    chunk <- luc_poly_chunks[[i]]
+    result_pctmean <- terra::extract(agb4stats_rcr, chunk, fun=pct_mean, bind=TRUE)
+    # Store the result
+    results_list_pctmean[[i]] <- result_pctmean
+  }
+  
+  # Combine all results into a single data frame
+  agb_mean_decilv0 <- do.call(rbind, results_list_pctmean)
+
+  # # Compare single vs chunk geoprocessing ----
+  # # Combine all results into a single data frame
+  # agb_mean_decilv0_chunk <- do.call(rbind, results_list)
+  # 
+  # agb_mean_decilv0_old <- terra::extract(agb4stats_rcr, luc_poly, fun=pct_mean, bind=TRUE)
+  # 
+  # 
+  # # Compare CRS
+  # identical(terra::crs(agb_mean_decilv0_chunk), terra::crs(agb_mean_decilv0_old))  # TRUE if they have the same CRS
+  # 
+  # # Compare Extent
+  # identical(terra::ext(agb_mean_decilv0_chunk), terra::ext(agb_mean_decilv0_old))  # TRUE if extents are identical
+  # 
+  # # Compare Number of Features
+  # identical(nrow(agb_mean_decilv0_chunk), nrow(agb_mean_decilv0_old))  # TRUE if they have the same number of geometries
+  # 
+  # # Extract attribute tables
+  # attributes1 <- terra::values(agb_mean_decilv0_chunk)
+  # attributes2 <- terra::values(agb_mean_decilv0_old)
+  # 
+  # # Check if the data frames are identical
+  # attributes_check <- all.equal(attributes1, attributes2)
+  # if (isTRUE(attributes_check)) {
+  #   cat("Attributes are identical.\n")
+  # } else {
+  #   cat("Attribute discrepancies:\n", attributes_check, "\n")
   # }
   # 
-  # chunk_size <- 5  # Number of polygons per chunk (adjust as needed)
-  # num_chunks <- ceiling(length(luc_poly) / chunk_size)  # Total number of chunks
-  # 
-  # # Initialize an empty list to store results
-  # results <- list()
-  # 
-  # # Loop through each chunk
-  # for (i in seq_len(num_chunks)) {
-  #   cat("Processing chunk", i, "of", num_chunks, "\n")
-  #   
-  #   # Define the indices for the current chunk
-  #   start_idx <- (i - 1) * chunk_size + 1
-  #   end_idx <- min(i * chunk_size, length(luc_poly))
-  #   
-  #   # Subset the SpatVector for the current chunk
-  #   chunk <- luc_poly[start_idx:end_idx]
-  #   
-  #   # Perform extraction on the current chunk
-  #   results[[i]] <- terra::extract(agb4stats_rcr, chunk, fun = pct_mean, bind = TRUE)
+  # # Optionally, find mismatched rows
+  # mismatched_rows <- which(!apply(attributes1 == attributes2, 1, all, na.rm = TRUE))
+  # if (length(mismatched_rows) > 0) {
+  #   cat("Mismatched rows:\n")
+  #   print(attributes1[mismatched_rows, ])
+  #   print(attributes2[mismatched_rows, ])
   # }
   # 
-  # # Combine all results into a single object
-  # agb_mean_decilv0 <- do.call(rbind, results)
+  # geometry_check <- terra::all.equal(agb_mean_decilv0_chunk, agb_mean_decilv0_old)
+  # if (isTRUE(geometry_check)) {
+  #   cat("Geometries are identical.\n")
+  # } else {
+  #   cat("Geometry discrepancies:\n", geometry_check, "\n")
+  # }
   
   agb_mean_decilv0 <- terra::extract(agb4stats_rcr, luc_poly, fun=pct_mean, bind=TRUE)
   agb_mean_decil <- agb_mean_decilv0 %>%
@@ -407,7 +453,25 @@ for (lucinputdataset in lucavailablemaps) {
     sd_val <- round(sd(x[x >= q_val], na.rm = na.rm),0)
     return(sd_val)
   }
-  agb_sd_decilv0 <- terra::extract(agb4stats_rcr, luc_poly, fun=pct_sd, bind=TRUE)
+  
+  # Initialize an empty list to store results
+  results_list_pctsd <- list()
+  
+  # Process each chunk
+  for (i in seq_along(luc_poly_chunks)) {
+    # Print the index of the current chunk
+    cat("Processing chunk", i, "of", length(luc_poly_chunks), "\n")
+    # Optionally, print more details about the chunk (e.g., number of geometries)
+    cat("Number of polygons in this chunk:", nrow(luc_poly_chunks[[i]]), "\n")
+    # Extract raster values for the current chunk
+    chunk <- luc_poly_chunks[[i]]
+    result_pctsd <- terra::extract(agb4stats_rcr, chunk, fun=pct_sd, bind=TRUE)
+    # Store the result
+    results_list_pctsd[[i]] <- result_pctsd
+  }
+  
+  # Combine all results into a single data frame
+  agb_sd_decilv0 <- do.call(rbind, results_list_pctsd)
   agb_sd_decil <- agb_sd_decilv0 %>%
     as.data.frame() %>%
     dplyr::rename(IDorig = continent,
@@ -425,7 +489,25 @@ for (lucinputdataset in lucavailablemaps) {
     n_val <- n_val <- sum(x >= q_val, na.rm = na.rm)
     return(n_val)
   }
-  agb_n_decilv0 <- terra::extract(agb4stats_rcr, luc_poly, fun=pct_n, bind=TRUE)
+  
+  # Initialize an empty list to store results
+  results_list_pctn <- list()
+  
+  # Process each chunk
+  for (i in seq_along(luc_poly_chunks)) {
+    # Print the index of the current chunk
+    cat("Processing chunk", i, "of", length(luc_poly_chunks), "\n")
+    # Optionally, print more details about the chunk (e.g., number of geometries)
+    cat("Number of polygons in this chunk:", nrow(luc_poly_chunks[[i]]), "\n")
+    # Extract raster values for the current chunk
+    chunk <- luc_poly_chunks[[i]]
+    result_pctn <- terra::extract(agb4stats_rcr, chunk, fun=pct_n, bind=TRUE)
+    # Store the result
+    results_list_pctn[[i]] <- result_pctn
+  }
+  
+  # Combine all results into a single data frame
+  agb_n_decilv0 <- do.call(rbind, results_list_pctn)
   agb_n_decil <- agb_n_decilv0 %>%
     as.data.frame() %>%
     dplyr::rename(IDorig = continent,
@@ -434,6 +516,8 @@ for (lucinputdataset in lucavailablemaps) {
     dplyr::select(-reg_code:-reg_gez_luc, -TOF_luc) %>%
     replace(., is.na(.), 1) # Replace  NaN for no pixels in category!
   head(agb_n_decil)
+  
+  # WATCH OUT HERE fun='mean' ----
   
   agb_meanv0 <- terra::extract(agb4stats_rcr, luc_poly, fun='mean', na.rm = TRUE, bind=TRUE)
   agb_meanv1 <- agb_meanv0  %>%
