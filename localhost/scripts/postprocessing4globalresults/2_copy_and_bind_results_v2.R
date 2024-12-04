@@ -14,7 +14,7 @@ rasters <- 1
 shapefiles <- 1
 longnames <- 0 # Turn on in case you want the script to automatically shorten all names into unique ones, instead of choosing columns and renaming them
 
-simplifypolys <- 1
+simplifypolys <- 0
 chunk_size <- 2 # Use 2 to fix Zimbabwe - Number of features to include in each chunk. Adjust based on your system's memory capacity and feature complexity
 # Define the keep value and other parameters
 useextrasimppara <- 1
@@ -257,7 +257,7 @@ Gdrivedir <- "G:/My Drive/webpages/2024_MoFuSSGlobal_Datasets/webmofussDS_v2/" #
   ## Bind vectors ----
   # Read and bind vectors while masking out water bodies after binding geopackages
   for (j in admvector){
-    # j = "adm2"
+    # j = "adm0"
     filegpkg <- paste0("/mofuss_",j,"_fr.gpkg")
     bindvector <- do.call(rbind, lapply(paste0(result_dirs, filegpkg), sf::read_sf)) %>% # st_read
       st_transform(4326) %>%
@@ -477,7 +477,7 @@ Gdrivedir <- "G:/My Drive/webpages/2024_MoFuSSGlobal_Datasets/webmofussDS_v2/" #
   }
   
   ### Pack as one geopackage file ----
-  
+  # j = "adm2"
   process_files <- function(j, outdir.vector, simplified = FALSE) {  
     suffix <- ifelse(simplified, "_simp", "")
     file_levels <- switch(j,
