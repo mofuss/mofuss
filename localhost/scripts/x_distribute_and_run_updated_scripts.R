@@ -57,6 +57,7 @@ files_to_copy <- c(
 
 # Loop through each directory in adm0_dirs
 for (dir in adm0_dirs) {
+  # dir <- "D:/OCEANIA_adm0_png_sep2024"
   # Loop through each file to copy
   for (file in files_to_copy) {
     # Define the destination file path
