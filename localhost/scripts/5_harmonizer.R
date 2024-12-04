@@ -1068,8 +1068,8 @@ if (webmofuss == 0) {
   if (LULCt1map == "YES"){
     dir.create("LULCC/lucdynamics_luc1")
     dir.create("LULCC/lucdynamics_luc1/out_lulcc")
-    lulcc.egoml <- list.files (paste0(gitlabdir, "/linwin/scripts/LULCC/LULCt1_c/"))
-    file.copy(from=paste0(gitlabdir, "/linwin/scripts/LULCC/LULCt1_c/",lulcc.egoml), 
+    lulcc.egoml <- list.files (paste0(gitlabdir, "/localhost/scripts/LULCC/LULCt1_c/"))
+    file.copy(from=paste0(gitlabdir, "/localhost/scripts/LULCC/LULCt1_c/",lulcc.egoml), 
               to=paste0(countrydir, "/LULCC/lucdynamics_luc1"), 
               overwrite = TRUE)
     system(paste0(countrydir, "/LULCC/lucdynamics_luc1/LULCC_blackbox_scripts2.bat"))
@@ -1078,8 +1078,8 @@ if (webmofuss == 0) {
   if (LULCt2map == "YES"){
     dir.create("LULCC/lucdynamics_luc2")
     dir.create("LULCC/lucdynamics_luc2/out_lulcc")
-    lulcc.egoml <- list.files (paste0(gitlabdir, "/linwin/scripts/LULCC/LULCt2_c/"))
-    file.copy(from=paste0(gitlabdir, "/linwin/scripts/LULCC/LULCt2_c/",lulcc.egoml), 
+    lulcc.egoml <- list.files (paste0(gitlabdir, "/localhost/scripts/LULCC/LULCt2_c/"))
+    file.copy(from=paste0(gitlabdir, "/localhost/scripts/LULCC/LULCt2_c/",lulcc.egoml), 
               to=paste0(countrydir, "/LULCC/lucdynamics_luc2"), 
               overwrite = TRUE)
     system(paste0(countrydir, "/LULCC/lucdynamics_luc2/LULCC_blackbox_scripts2.bat"))
@@ -1088,8 +1088,8 @@ if (webmofuss == 0) {
   if (LULCt3map == "YES"){
     dir.create("LULCC/lucdynamics_luc3")
     dir.create("LULCC/lucdynamics_luc3/out_lulcc")
-    lulcc.egoml <- list.files (paste0(gitlabdir, "/linwin/scripts/LULCC/LULCt3_c/"))
-    file.copy(from=paste0(gitlabdir, "/linwin/scripts/LULCC/LULCt3_c/",lulcc.egoml), 
+    lulcc.egoml <- list.files (paste0(gitlabdir, "/localhost/scripts/LULCC/LULCt3_c/"))
+    file.copy(from=paste0(gitlabdir, "/localhost/scripts/LULCC/LULCt3_c/",lulcc.egoml), 
               to=paste0(countrydir, "/LULCC/lucdynamics_luc3"), 
               overwrite = TRUE)
     system(paste0(countrydir, "/LULCC/lucdynamics_luc3/LULCC_blackbox_scripts2.bat"))

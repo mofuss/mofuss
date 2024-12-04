@@ -12,7 +12,7 @@
 # Internal parameters
 videoson <- 0
 compilelatex <- 0
-uncertaintystacks <- 1
+uncertaintystacks <- 0
 fNRB_partition_tables <- 1
 mcthreshold <- 30
 copy_old_dinamica_rasters <- 0
@@ -80,7 +80,7 @@ if(length(args)==0){
   MaxAGB_firstMC=400 # Maximum K for all LULC classes at first MC run
   MaxAGB_lastMC=400 # Maximum K for all LULC classes at last MC run
   AGBmap=1
-  SumTables=1
+  SumTables=0
   OSType=64
   BaUvsICS="BaU"
   RerunMC=1
@@ -817,12 +817,12 @@ if (videoson == 1){
 
 # Spatial stats ####
 ## Standard Deviation and Variance in NRB ####		
-listNRB <- list.files("Temp", pattern = "^2_NRB.+[.]tif$",ignore.case=F)
-StackNRB <- stack(paste("Temp/",listNRB,sep=""))
-nlay <- nlayers(StackNRB)
-NRBmean <- stackApply(StackNRB, indices=1, fun=mean)
-writeRaster(NRBmean, filename="Temp//aNRBmean.tif", datatype="FLT4S", overwrite=TRUE)
-writeRaster(NRBmean, filename="Temp//3_NRBmean.tif", datatype="FLT4S", overwrite=TRUE)
+# listNRB <- list.files("Temp", pattern = "^2_NRB.+[.]tif$",ignore.case=F)
+# StackNRB <- stack(paste("Temp/",listNRB,sep=""))
+# nlay <- nlayers(StackNRB)
+# NRBmean <- stackApply(StackNRB, indices=1, fun=mean)
+# writeRaster(NRBmean, filename="Temp//aNRBmean.tif", datatype="FLT4S", overwrite=TRUE)
+# writeRaster(NRBmean, filename="Temp//3_NRBmean.tif", datatype="FLT4S", overwrite=TRUE)
 
 if (uncertaintystacks == 1) {
   NRBvar <- stackApply(StackNRB, indices=1, fun=var)
@@ -847,12 +847,12 @@ if (uncertaintystacks == 1) {
   
 }
 
-listCON_NRB <-list.files("Temp", pattern = "^2_CON_NRBs.+[.]tif$",ignore.case=F) # Dinamica saves "2_CON_NRB##.tif AND "2_CON_NRBs##.tif. Exactly the same, erase one of them and save time
-StackCON_NRB <- stack(paste("Temp/",listCON_NRB,sep=""))
-nlayCON_NRB <- nlayers(StackCON_NRB)
-CON_NRBmean <- stackApply(StackCON_NRB, indices=1, fun=mean)
-writeRaster(CON_NRBmean, filename="Temp//aCON_NRBmean.tif", datatype="FLT4S", overwrite=TRUE)
-writeRaster(CON_NRBmean, filename="Temp//3_CON_NRBmean.tif", datatype="FLT4S", overwrite=TRUE)
+# listCON_NRB <-list.files("Temp", pattern = "^2_CON_NRBs.+[.]tif$",ignore.case=F) # Dinamica saves "2_CON_NRB##.tif AND "2_CON_NRBs##.tif. Exactly the same, erase one of them and save time
+# StackCON_NRB <- stack(paste("Temp/",listCON_NRB,sep=""))
+# nlayCON_NRB <- nlayers(StackCON_NRB)
+# CON_NRBmean <- stackApply(StackCON_NRB, indices=1, fun=mean)
+# writeRaster(CON_NRBmean, filename="Temp//aCON_NRBmean.tif", datatype="FLT4S", overwrite=TRUE)
+# writeRaster(CON_NRBmean, filename="Temp//3_CON_NRBmean.tif", datatype="FLT4S", overwrite=TRUE)
 
 if (uncertaintystacks == 1) {
   CON_NRBvar <- stackApply(StackCON_NRB, indices=1, fun=var)
@@ -877,12 +877,12 @@ if (uncertaintystacks == 1) {
   
 }
 
-listCON_TOT<-list.files("Temp", pattern = "^2_CON_TOT.+[.]tif$",ignore.case=F)
-StackCON_TOT <- stack(paste("Temp/",listCON_TOT,sep=""))
-nlayCON_TOT<-nlayers(StackCON_TOT)
-CON_TOTmean<- stackApply(StackCON_TOT, indices=1, fun=mean)
-writeRaster(CON_TOTmean, filename="Temp//aCON_TOTmean.tif", datatype="FLT4S", overwrite=TRUE)
-writeRaster(CON_TOTmean, filename="Temp//3_CON_TOTmean.tif", datatype="FLT4S", overwrite=TRUE)
+# listCON_TOT<-list.files("Temp", pattern = "^2_CON_TOT.+[.]tif$",ignore.case=F)
+# StackCON_TOT <- stack(paste("Temp/",listCON_TOT,sep=""))
+# nlayCON_TOT<-nlayers(StackCON_TOT)
+# CON_TOTmean<- stackApply(StackCON_TOT, indices=1, fun=mean)
+# writeRaster(CON_TOTmean, filename="Temp//aCON_TOTmean.tif", datatype="FLT4S", overwrite=TRUE)
+# writeRaster(CON_TOTmean, filename="Temp//3_CON_TOTmean.tif", datatype="FLT4S", overwrite=TRUE)
 
 if (uncertaintystacks == 1) {
   CON_TOTvar <- stackApply(StackCON_TOT, indices=1, fun=var)
@@ -1717,6 +1717,41 @@ if (fNRB_partition_tables == 1) {
   
   # fNRB partition tables and vectors ####
   
+  admin <- raster("LULCC/TempRaster//admin_c.tif")
+  admin1 <- raster("LULCC/TempRaster//admin_c1.tif")
+  admin2 <- raster("LULCC/TempRaster//admin_c2.tif")
+  
+  userarea_gpkg <- st_read("LULCC/TempVector/userarea.gpkg")
+  userarea_gpkg1 <- st_read("LULCC/TempVector/userarea1.gpkg")
+  userarea_gpkg2 <- st_read("LULCC/TempVector/userarea2.gpkg")
+  
+  dir.create("OutBaU/webmofuss_results/") 
+  
+  country_parameters %>%
+    dplyr::filter(Var == "ext_analysis_ID") %>%
+    pull(ParCHR) -> ext_analysis_ID
+  
+  country_parameters %>%
+    dplyr::filter(Var == "ext_analysis_NAME") %>%
+    pull(ParCHR) -> ext_analysis_NAME
+  
+  country_parameters %>%
+    dplyr::filter(Var == "ext_analysis_ID_1") %>%
+    pull(ParCHR) -> ext_analysis_ID_1
+  
+  country_parameters %>%
+    dplyr::filter(Var == "ext_analysis_NAME_1") %>%
+    pull(ParCHR) -> ext_analysis_NAME_1
+  
+  country_parameters %>%
+    dplyr::filter(Var == "ext_analysis_ID_2") %>%
+    pull(ParCHR) -> ext_analysis_ID_2
+  
+  country_parameters %>%
+    dplyr::filter(Var == "ext_analysis_NAME_2") %>%
+    pull(ParCHR) -> ext_analysis_NAME_2
+  
+  
   # # Only the following bins are possible from the 3_demand4IDW_v1 script
   # STdyn = 10 # 2020
   # STdyn = 20 # 2030
@@ -2305,35 +2340,42 @@ if (fNRB_partition_tables == 1) {
       print(10)
       
       NRBzon_frbind <- dplyr::bind_rows(NRBzon_frlist)
-      summarycols <- c("NRB_2010_2020", "Harv_2010_2020")
+      summarycols <- c("NRB_2010_2020", "Harv_2010_2020", "fNRB_2010_2020")
       
       NRBzonfr_st <- NRBzon_frbind %>%
         group_by(zone) %>%
-        summarise_at(vars(all_of(summarycols)), list(mean=mean, sd=sd)) %>%
+        summarise_at(vars(all_of(summarycols)), 
+                     list(mean = mean, 
+                          sd = sd, 
+                          se = ~ sd(.) / sqrt(n()))) %>%
         round(.,0)
       
       NRBzonfr_stR <- reduce(
-        .x = list(c('NRB_2010_2020_sd','NRB_2010_2020_mean'), 
-                  c('Harv_2010_2020_sd','Harv_2010_2020_mean')), 
-        .f = ~ relocate(.x, .y[1], .after = .y[2]),
+        .x = list(
+          c('NRB_2010_2020_mean', 'NRB_2010_2020_sd', 'NRB_2010_2020_se'),
+          c('Harv_2010_2020_mean', 'Harv_2010_2020_sd', 'Harv_2010_2020_se'),
+          c('fNRB_2010_2020_mean', 'fNRB_2010_2020_sd', 'fNRB_2010_2020_se')
+        ),
+        .f = ~ relocate(.x, .y[2], .after = .y[1]) %>% relocate(.y[3], .after = .y[2]),
         .init = NRBzonfr_st
       )
       NRBzonfr_stR
+      names(NRBzonfr_stR)
       
       # Calculate n assuming a spatial autocorrelation of 100km: 4 pixels in 10,000 kernels
-      se_ncell100km <- round((ncell(stackG[[1]])/2500),0)
+      # se_ncell100km <- round((ncell(stackG[[1]])/2500),0)
+      se_ncell100km <- MC
       
       NRBzonfr_statsx <- NRBzonfr_stR %>%
         dplyr::mutate(fNRB_2010_2020_mean = NRB_2010_2020_mean / Harv_2010_2020_mean * 100,
                       fNRB_2010_2020_sd = sqrt(((NRB_2010_2020_sd/NRB_2010_2020_mean)^2) + 
-                                                 ((Harv_2010_2020_sd/Harv_2010_2020_mean)^2))*100) %>%
-                      #fNRB_2010_2020_ee = fNRB_2010_2020_sd/sqrt(se_ncell100km),
+                                                 ((Harv_2010_2020_sd/Harv_2010_2020_mean)^2))*100,
+                      fNRB_2010_2020_se = fNRB_2010_2020_sd/sqrt(se_ncell100km)) %>%
         round(.,0)
       
-      if (MC < mcthreshold) {
+      if (MC > mcthreshold) {
         NRBzonfr_stats <- NRBzonfr_statsx %>%
-          dplyr::mutate(across(ends_with("sd"), ~ (.x = NA)))
-        NRBzonfr_stats
+          dplyr::mutate(across(ends_with(c("sd", "se")), ~ NA))
       } else {
         NRBzonfr_stats <- NRBzonfr_statsx
       }
@@ -2350,13 +2392,7 @@ if (fNRB_partition_tables == 1) {
         write.csv(NRB_fNRB2_frcompl_madm0, "LULCC/TempTables/summary_adm0_frcompl.csv", row.names=FALSE, quote=FALSE)
         write.csv(NRB_fNRB2_frcompl_madm0, "OutBaU/webmofuss_results/summary_adm0_frcompl.csv", row.names=FALSE, quote=FALSE)
         
-        NRB_fNRB3_fr_madm0 <- NRB_fNRB2_frcompl_madm0 # %>%
-          # dplyr::select(-NRB_2010_2030_mean, -NRB_2010_2030_sd, NRB_2010_2020_mean, NRB_2010_2020_sd, 
-          #               -Harv_2010_2030_mean, -Harv_2010_2030_sd, Harv_2010_2020_mean, Harv_2010_2020_sd,
-          #               -fNRB_2010_2030_mean, -fNRB_2010_2030_sd, fNRB_2010_2020_mean, fNRB_2010_2020_sd,
-          #               -NRB_2010_2030_1MC, -NRB_2010_2030_1MC, NRB_2010_2020_1MC, NRB_2010_2020_1MC, 
-          #               -Harv_2010_2030_1MC, -Harv_2010_2030_1MC, Harv_2010_2020_1MC, Harv_2010_2020_1MC,
-          #               -fNRB_2010_2030_1MC, -fNRB_2010_2030_1MC, fNRB_2010_2020_1MC, fNRB_2010_2020_1MC) 
+        NRB_fNRB3_fr_madm0 <- NRB_fNRB2_frcompl_madm0
         write.csv(NRB_fNRB3_fr_madm0, "LULCC/TempTables/summary_adm0_fr.csv", row.names=FALSE, quote=FALSE)
         write.csv(NRB_fNRB3_fr_madm0, "OutBaU/webmofuss_results/summary_adm0_fr.csv", row.names=FALSE, quote=FALSE)
         
@@ -2382,13 +2418,7 @@ if (fNRB_partition_tables == 1) {
         write.csv(NRB_fNRB2_frcompl_madm1, "LULCC/TempTables/summary_adm1_frcompl.csv", row.names=FALSE, quote=FALSE)
         write.csv(NRB_fNRB2_frcompl_madm1, "OutBaU/webmofuss_results/summary_adm1_frcompl.csv", row.names=FALSE, quote=FALSE)
         
-        NRB_fNRB3_fr_madm1 <- NRB_fNRB2_frcompl_madm1 # %>%
-          # dplyr::select(-NRB_2010_2030_mean, -NRB_2010_2030_sd, NRB_2010_2020_mean, NRB_2010_2020_sd, 
-          #               -Harv_2010_2030_mean, -Harv_2010_2030_sd, Harv_2010_2020_mean, Harv_2010_2020_sd,
-          #               -fNRB_2010_2030_mean, -fNRB_2010_2030_sd, fNRB_2010_2020_mean, fNRB_2010_2020_sd,
-          #               -NRB_2010_2030_1MC, -NRB_2010_2030_1MC, NRB_2010_2020_1MC, NRB_2010_2020_1MC, 
-          #               -Harv_2010_2030_1MC, -Harv_2010_2030_1MC, Harv_2010_2020_1MC, Harv_2010_2020_1MC,
-          #               -fNRB_2010_2030_1MC, -fNRB_2010_2030_1MC, fNRB_2010_2020_1MC, fNRB_2010_2020_1MC) 
+        NRB_fNRB3_fr_madm1 <- NRB_fNRB2_frcompl_madm1
         write.csv(NRB_fNRB3_fr_madm1, "LULCC/TempTables/summary_adm1_fr.csv", row.names=FALSE, quote=FALSE)
         write.csv(NRB_fNRB3_fr_madm1, "OutBaU/webmofuss_results/summary_adm1_fr.csv", row.names=FALSE, quote=FALSE)
         
@@ -2412,13 +2442,7 @@ if (fNRB_partition_tables == 1) {
         write.csv(NRB_fNRB2_frcompl_madm2, "LULCC/TempTables/summary_adm2_frcompl.csv", row.names=FALSE, quote=FALSE)
         write.csv(NRB_fNRB2_frcompl_madm2, "OutBaU/webmofuss_results/summary_adm2_frcompl.csv", row.names=FALSE, quote=FALSE)
         
-        NRB_fNRB3_fr_madm2 <- NRB_fNRB2_frcompl_madm2 # %>%
-          # dplyr::select(-NRB_2010_2030_mean, -NRB_2010_2030_sd, NRB_2010_2020_mean, NRB_2010_2020_sd, 
-          #               -Harv_2010_2030_mean, -Harv_2010_2030_sd, Harv_2010_2020_mean, Harv_2010_2020_sd,
-          #               -fNRB_2010_2030_mean, -fNRB_2010_2030_sd, fNRB_2010_2020_mean, fNRB_2010_2020_sd,
-          #               -NRB_2010_2030_1MC, -NRB_2010_2030_1MC, NRB_2010_2020_1MC, NRB_2010_2020_1MC, 
-          #               -Harv_2010_2030_1MC, -Harv_2010_2030_1MC, Harv_2010_2020_1MC, Harv_2010_2020_1MC,
-          #               -fNRB_2010_2030_1MC, -fNRB_2010_2030_1MC, fNRB_2010_2020_1MC, fNRB_2010_2020_1MC) 
+        NRB_fNRB3_fr_madm2 <- NRB_fNRB2_frcompl_madm2
         write.csv(NRB_fNRB3_fr_madm2, "LULCC/TempTables/summary_adm2_fr.csv", row.names=FALSE, quote=FALSE)
         write.csv(NRB_fNRB3_fr_madm2, "OutBaU/webmofuss_results/summary_adm2_fr.csv", row.names=FALSE, quote=FALSE)
         
@@ -2443,47 +2467,57 @@ if (fNRB_partition_tables == 1) {
       
       NRBzon_frbind <- dplyr::bind_rows(NRBzon_frlist)
       summarycols <- c("NRB_2010_2030", "NRB_2010_2020", "NRB_2020_2030", 
-                       "Harv_2010_2030", "Harv_2010_2020", "Harv_2020_2030")
+                       "Harv_2010_2030", "Harv_2010_2020", "Harv_2020_2030",
+                       "fNRB_2010_2030", "fNRB_2010_2020", "fNRB_2020_2030")
       
       NRBzonfr_st <- NRBzon_frbind %>%
         group_by(zone) %>%
-        summarise_at(vars(all_of(summarycols)), list(mean=mean, sd=sd)) %>%
+        summarise_at(vars(all_of(summarycols)), 
+                     list(mean = mean, 
+                          sd = sd, 
+                          se = ~ sd(.) / sqrt(n()))) %>%
         round(.,0)
       
       NRBzonfr_stR <- reduce(
-        .x = list(c('NRB_2010_2030_sd','NRB_2010_2030_mean'),
-                  c('NRB_2010_2020_sd','NRB_2010_2020_mean'), 
-                  c('NRB_2020_2030_sd','NRB_2020_2030_mean'),
-                  c('Harv_2010_2030_sd','Harv_2010_2030_mean'),
-                  c('Harv_2010_2020_sd','Harv_2010_2020_mean'), 
-                  c('Harv_2020_2030_sd','Harv_2020_2030_mean')), 
-        .f = ~ relocate(.x, .y[1], .after = .y[2]),
+        .x = list(
+          c('NRB_2010_2030_mean', 'NRB_2010_2030_sd', 'NRB_2010_2030_se'),
+          c('NRB_2010_2020_mean', 'NRB_2010_2020_sd', 'NRB_2010_2020_se'),
+          c('NRB_2020_2030_mean', 'NRB_2020_2030_sd', 'NRB_2020_2030_se'),
+          c('Harv_2010_2030_mean', 'Harv_2010_2030_sd', 'Harv_2010_2030_se'),
+          c('Harv_2010_2020_mean', 'Harv_2010_2020_sd', 'Harv_2010_2020_se'),
+          c('Harv_2020_2030_mean', 'Harv_2020_2030_sd', 'Harv_2020_2030_se'),
+          c('fNRB_2010_2030_mean', 'fNRB_2010_2030_sd', 'fNRB_2010_2030_se'),
+          c('fNRB_2010_2020_mean', 'fNRB_2010_2020_sd', 'fNRB_2010_2020_se'),
+          c('fNRB_2020_2030_mean', 'fNRB_2020_2030_sd', 'fNRB_2020_2030_se')
+        ),
+        .f = ~ relocate(.x, .y[2], .after = .y[1]) %>% relocate(.y[3], .after = .y[2]),
         .init = NRBzonfr_st
       )
       NRBzonfr_stR
+      names(NRBzonfr_stR)
       
       # Calculate n assuming a spatial autocorrelation of 100km: 4 pixels in 10,000 kernels
-      se_ncell100km <- round((ncell(stackG[[1]])/2500),0)
+      # se_ncell100km <- round((ncell(stackG[[1]])/2500),0)
+      se_ncell100km <- MC
       
       NRBzonfr_statsx <- NRBzonfr_stR %>%
         dplyr::mutate(fNRB_2010_2030_mean = NRB_2010_2030_mean / Harv_2010_2030_mean * 100,
                       fNRB_2010_2030_sd = sqrt(((NRB_2010_2030_sd/NRB_2010_2030_mean)^2) + 
                                                  ((Harv_2010_2030_sd/Harv_2010_2030_mean)^2))*100,
-                      #fNRB_2010_2030_ee = fNRB_2010_2030_sd/sqrt(se_ncell100km),
+                      fNRB_2010_2030_se = fNRB_2010_2030_sd/sqrt(se_ncell100km),
                       fNRB_2010_2020_mean = NRB_2010_2020_mean / Harv_2010_2020_mean * 100,
                       fNRB_2010_2020_sd = sqrt(((NRB_2010_2020_sd/NRB_2010_2020_mean)^2) + 
                                                  ((Harv_2010_2020_sd/Harv_2010_2020_mean)^2))*100,
-                      #fNRB_2010_2020_ee = fNRB_2010_2020_sd/sqrt(se_ncell100km),
+                      fNRB_2010_2020_se = fNRB_2010_2020_sd/sqrt(se_ncell100km),
                       fNRB_2020_2030_mean = NRB_2020_2030_mean / Harv_2020_2030_mean * 100,
                       fNRB_2020_2030_sd = sqrt(((NRB_2020_2030_sd/NRB_2020_2030_mean)^2) + 
-                                                 ((Harv_2020_2030_sd/Harv_2020_2030_mean)^2))*100) %>%
-        #fNRB_2020_2030_ee = fNRB_2020_2030_sd/sqrt(se_ncell100km)) %>%
+                                                 ((Harv_2020_2030_sd/Harv_2020_2030_mean)^2))*100,
+                      fNRB_2020_2030_se = fNRB_2020_2030_sd/sqrt(se_ncell100km)) %>%
         round(.,0)
       
-      if (MC < mcthreshold) {
+      if (MC > mcthreshold) {
         NRBzonfr_stats <- NRBzonfr_statsx %>%
-          dplyr::mutate(across(ends_with("sd"), ~ (.x = NA)))
-        NRBzonfr_stats
+          dplyr::mutate(across(ends_with(c("sd", "se")), ~ NA))
       } else {
         NRBzonfr_stats <- NRBzonfr_statsx
       }
@@ -2501,12 +2535,8 @@ if (fNRB_partition_tables == 1) {
         write.csv(NRB_fNRB2_frcompl_madm0, "OutBaU/webmofuss_results/summary_adm0_frcompl.csv", row.names=FALSE, quote=FALSE)
         
         NRB_fNRB3_fr_madm0 <- NRB_fNRB2_frcompl_madm0 %>%
-          dplyr::select(-NRB_2010_2030_mean, -NRB_2010_2030_sd, -NRB_2010_2020_mean, -NRB_2010_2020_sd, 
-                        -Harv_2010_2030_mean, -Harv_2010_2030_sd, -Harv_2010_2020_mean, -Harv_2010_2020_sd,
-                        -fNRB_2010_2030_mean, -fNRB_2010_2030_sd, -fNRB_2010_2020_mean, -fNRB_2010_2020_sd,
-                        -NRB_2010_2030_1MC, -NRB_2010_2030_1MC, -NRB_2010_2020_1MC, -NRB_2010_2020_1MC, 
-                        -Harv_2010_2030_1MC, -Harv_2010_2030_1MC, -Harv_2010_2020_1MC, -Harv_2010_2020_1MC,
-                        -fNRB_2010_2030_1MC, -fNRB_2010_2030_1MC, -fNRB_2010_2020_1MC, -fNRB_2010_2020_1MC) 
+          dplyr::select(-matches("_2010_2030|_2010_2020"), -ends_with("_sd")) %>%
+          dplyr::select(-ends_with("_1MC"))
         write.csv(NRB_fNRB3_fr_madm0, "LULCC/TempTables/summary_adm0_fr.csv", row.names=FALSE, quote=FALSE)
         write.csv(NRB_fNRB3_fr_madm0, "OutBaU/webmofuss_results/summary_adm0_fr.csv", row.names=FALSE, quote=FALSE)
         
@@ -2533,12 +2563,8 @@ if (fNRB_partition_tables == 1) {
         write.csv(NRB_fNRB2_frcompl_madm1, "OutBaU/webmofuss_results/summary_adm1_frcompl.csv", row.names=FALSE, quote=FALSE)
         
         NRB_fNRB3_fr_madm1 <- NRB_fNRB2_frcompl_madm1 %>%
-          dplyr::select(-NRB_2010_2030_mean, -NRB_2010_2030_sd, -NRB_2010_2020_mean, -NRB_2010_2020_sd, 
-                        -Harv_2010_2030_mean, -Harv_2010_2030_sd, -Harv_2010_2020_mean, -Harv_2010_2020_sd,
-                        -fNRB_2010_2030_mean, -fNRB_2010_2030_sd, -fNRB_2010_2020_mean, -fNRB_2010_2020_sd,
-                        -NRB_2010_2030_1MC, -NRB_2010_2030_1MC, -NRB_2010_2020_1MC, -NRB_2010_2020_1MC, 
-                        -Harv_2010_2030_1MC, -Harv_2010_2030_1MC, -Harv_2010_2020_1MC, -Harv_2010_2020_1MC,
-                        -fNRB_2010_2030_1MC, -fNRB_2010_2030_1MC, -fNRB_2010_2020_1MC, -fNRB_2010_2020_1MC) 
+          dplyr::select(-matches("_2010_2030|_2010_2020"), -ends_with("_sd")) %>%
+          dplyr::select(-ends_with("_1MC"))
         write.csv(NRB_fNRB3_fr_madm1, "LULCC/TempTables/summary_adm1_fr.csv", row.names=FALSE, quote=FALSE)
         write.csv(NRB_fNRB3_fr_madm1, "OutBaU/webmofuss_results/summary_adm1_fr.csv", row.names=FALSE, quote=FALSE)
         
@@ -2563,12 +2589,8 @@ if (fNRB_partition_tables == 1) {
         write.csv(NRB_fNRB2_frcompl_madm2, "OutBaU/webmofuss_results/summary_adm2_frcompl.csv", row.names=FALSE, quote=FALSE)
         
         NRB_fNRB3_fr_madm2 <- NRB_fNRB2_frcompl_madm2 %>%
-          dplyr::select(-NRB_2010_2030_mean, -NRB_2010_2030_sd, -NRB_2010_2020_mean, -NRB_2010_2020_sd, 
-                        -Harv_2010_2030_mean, -Harv_2010_2030_sd, -Harv_2010_2020_mean, -Harv_2010_2020_sd,
-                        -fNRB_2010_2030_mean, -fNRB_2010_2030_sd, -fNRB_2010_2020_mean, -fNRB_2010_2020_sd,
-                        -NRB_2010_2030_1MC, -NRB_2010_2030_1MC, -NRB_2010_2020_1MC, -NRB_2010_2020_1MC, 
-                        -Harv_2010_2030_1MC, -Harv_2010_2030_1MC, -Harv_2010_2020_1MC, -Harv_2010_2020_1MC,
-                        -fNRB_2010_2030_1MC, -fNRB_2010_2030_1MC, -fNRB_2010_2020_1MC, -fNRB_2010_2020_1MC) 
+          dplyr::select(-matches("_2010_2030|_2010_2020"), -ends_with("_sd")) %>%
+          dplyr::select(-ends_with("_1MC"))
         write.csv(NRB_fNRB3_fr_madm2, "LULCC/TempTables/summary_adm2_fr.csv", row.names=FALSE, quote=FALSE)
         write.csv(NRB_fNRB3_fr_madm2, "OutBaU/webmofuss_results/summary_adm2_fr.csv", row.names=FALSE, quote=FALSE)
         
@@ -2597,54 +2619,59 @@ if (fNRB_partition_tables == 1) {
       
       NRBzonfr_st <- NRBzon_frbind %>%
         group_by(zone) %>%
-        summarise_at(vars(all_of(summarycols)), list(mean=mean, sd=sd)) %>%
+        summarise_at(vars(all_of(summarycols)), 
+                     list(mean = mean, 
+                          sd = sd, 
+                          se = ~ sd(.) / sqrt(n()))) %>%
         round(.,0)
       
       NRBzonfr_stR <- reduce(
-        .x = list(c('NRB_2010_2035_sd','NRB_2010_2035_mean'),
-                  c('NRB_2020_2035_sd','NRB_2020_2035_mean'),
-                  c('NRB_2010_2020_sd','NRB_2010_2020_mean'),
-                  c('NRB_2020_2035_sd','NRB_2020_2035_mean'),
-                  c('Harv_2010_2035_sd','Harv_2010_2035_mean'),
-                  c('Harv_2020_2035_sd','Harv_2020_2035_mean'),
-                  c('Harv_2010_2020_sd','Harv_2010_2020_mean'),
-                  c('Harv_2020_2035_sd','Harv_2020_2035_mean'),
-                  c('fNRB_2010_2035_sd','fNRB_2010_2035_mean'),
-                  c('fNRB_2020_2035_sd','fNRB_2020_2035_mean'),
-                  c('fNRB_2010_2020_sd','fNRB_2010_2020_mean'),
-                  c('fNRB_2020_2035_sd','fNRB_2020_2035_mean')),
-        .f = ~ relocate(.x, .y[1], .after = .y[2]),
+        .x = list(
+          c('NRB_2010_2035_mean', 'NRB_2010_2035_sd', 'NRB_2010_2035_se'),
+          c('NRB_2020_2035_mean', 'NRB_2020_2035_sd', 'NRB_2020_2035_se'),
+          c('NRB_2010_2020_mean', 'NRB_2010_2020_sd', 'NRB_2010_2020_se'),
+          c('NRB_2020_2035_mean', 'NRB_2020_2035_sd', 'NRB_2020_2035_se'),
+          c('Harv_2010_2035_mean', 'Harv_2010_2035_sd', 'Harv_2010_2035_se'),
+          c('Harv_2020_2035_mean', 'Harv_2020_2035_sd', 'Harv_2020_2035_se'),
+          c('Harv_2010_2020_mean', 'Harv_2010_2020_sd', 'Harv_2010_2020_se'),
+          c('Harv_2020_2035_mean', 'Harv_2020_2035_sd', 'Harv_2020_2035_se'),
+          c('fNRB_2010_2035_mean', 'fNRB_2010_2035_sd', 'fNRB_2010_2035_se'),
+          c('fNRB_2020_2035_mean', 'fNRB_2020_2035_sd', 'fNRB_2020_2035_se'),
+          c('fNRB_2010_2020_mean', 'fNRB_2010_2020_sd', 'fNRB_2010_2020_se'),
+          c('fNRB_2020_2035_mean', 'fNRB_2020_2035_sd', 'fNRB_2020_2035_se')
+        ),
+        .f = ~ relocate(.x, .y[2], .after = .y[1]) %>% relocate(.y[3], .after = .y[2]),
         .init = NRBzonfr_st
       )
       NRBzonfr_stR
+      names(NRBzonfr_stR)
       
       # Calculate n assuming a spatial autocorrelation of 100km: 4 pixels in 10,000 kernels
-      se_ncell100km <- round((ncell(stackG[[1]])/2500),0)
+      # se_ncell100km <- round((ncell(stackG[[1]])/2500),0)
+      se_ncell100km <- MC
       
       NRBzonfr_statsx <- NRBzonfr_stR %>%
         dplyr::mutate(fNRB_2010_2035_mean = NRB_2010_2035_mean / Harv_2010_2035_mean * 100,
                       fNRB_2010_2035_sd = sqrt(((NRB_2010_2035_sd/NRB_2010_2035_mean)^2) + 
                                                  ((Harv_2010_2035_sd/Harv_2010_2035_mean)^2))*100,
-                      #fNRB_2010_2035_ee = fNRB_2010_2035_sd/sqrt(se_ncell100km),
+                      fNRB_2010_2035_se = fNRB_2010_2035_sd/sqrt(se_ncell100km),
                       fNRB_2020_2035_mean = NRB_2020_2035_mean / Harv_2020_2035_mean * 100,
                       fNRB_2020_2035_sd = sqrt(((NRB_2020_2035_sd/NRB_2020_2035_mean)^2) + 
                                                  ((Harv_2020_2035_sd/Harv_2020_2035_mean)^2))*100,
-                      #fNRB_2020_2035_ee = fNRB_2020_2035_sd/sqrt(se_ncell100km),
+                      fNRB_2020_2035_se = fNRB_2020_2035_sd/sqrt(se_ncell100km),
                       fNRB_2010_2020_mean = NRB_2010_2020_mean / Harv_2010_2020_mean * 100,
                       fNRB_2010_2020_sd = sqrt(((NRB_2010_2020_sd/NRB_2010_2020_mean)^2) + 
                                                  ((Harv_2010_2020_sd/Harv_2010_2020_mean)^2))*100,
-                      #fNRB_2010_2020_ee = fNRB_2010_2020_sd/sqrt(se_ncell100km)),
+                      fNRB_2010_2020_se = fNRB_2010_2020_sd/sqrt(se_ncell100km),
                       fNRB_2020_2035_mean = NRB_2020_2035_mean / Harv_2020_2035_mean * 100,
                       fNRB_2020_2035_sd = sqrt(((NRB_2020_2035_sd/NRB_2020_2035_mean)^2) + 
-                                                 ((Harv_2020_2035_sd/Harv_2020_2035_mean)^2))*100) %>%
-                      #fNRB_2020_2035_ee = fNRB_2020_2035_sd/sqrt(se_ncell100km)) %>%
-        #fNRB_2040_2050_ee = fNRB_2040_2050_sd/sqrt(se_ncell100km)) %>%
+                                                 ((Harv_2020_2035_sd/Harv_2020_2035_mean)^2))*100,
+                      fNRB_2020_2035_se = fNRB_2020_2035_sd/sqrt(se_ncell100km)) %>%
         round(.,0)
       
-      if (MC < mcthreshold) {
+      if (MC > mcthreshold) {
         NRBzonfr_stats <- NRBzonfr_statsx %>%
-          dplyr::mutate(across(ends_with("sd"), ~ (.x = NA)))
-        NRBzonfr_stats
+          dplyr::mutate(across(ends_with(c("sd", "se")), ~ NA))
       } else {
         NRBzonfr_stats <- NRBzonfr_statsx
       }
@@ -2662,13 +2689,10 @@ if (fNRB_partition_tables == 1) {
         write.csv(NRB_fNRB2_frcompl_madm0, "OutBaU/webmofuss_results/summary_adm0_frcompl.csv", row.names=FALSE, quote=FALSE)
         
         NRB_fNRB3_fr_madm0 <- NRB_fNRB2_frcompl_madm0 %>%
-          dplyr::select(-NRB_2010_2035_mean, -NRB_2010_2035_sd, -NRB_2010_2020_mean, -NRB_2010_2020_sd,
-                        -Harv_2010_2035_mean, -Harv_2010_2035_sd, -Harv_2010_2020_mean, -Harv_2010_2020_sd,
-                        -fNRB_2010_2035_mean, -fNRB_2010_2035_sd, -fNRB_2010_2020_mean, -fNRB_2010_2020_sd,
-                        -NRB_2010_2035_1MC, -NRB_2010_2020_1MC, -Harv_2010_2035_1MC, -Harv_2010_2020_1MC, 
-                        -fNRB_2010_2035_1MC, -fNRB_2010_2020_1MC) %>%
+          dplyr::select(-matches("_2010_2035|_2010_2020"), -ends_with("_sd")) %>%
           dplyr::relocate(NRB_2020_2035_1MC, .after = zone_1MC) %>%
-          dplyr::relocate(Harv_2020_2035_1MC, .after = NRB_2020_2035_1MC) 
+          dplyr::relocate(Harv_2020_2035_1MC, .after = NRB_2030_2035_1MC) %>% #Not sure this will work with STdyn==25
+          dplyr::select(-ends_with("_1MC"))
         write.csv(NRB_fNRB3_fr_madm0, "LULCC/TempTables/summary_adm0_fr.csv", row.names=FALSE, quote=FALSE)
         write.csv(NRB_fNRB3_fr_madm0, "OutBaU/webmofuss_results/summary_adm0_fr.csv", row.names=FALSE, quote=FALSE)
         
@@ -2695,13 +2719,10 @@ if (fNRB_partition_tables == 1) {
         write.csv(NRB_fNRB2_frcompl_madm1, "OutBaU/webmofuss_results/summary_adm1_frcompl.csv", row.names=FALSE, quote=FALSE)
         
         NRB_fNRB3_fr_madm1 <- NRB_fNRB2_frcompl_madm1 %>%
-          dplyr::select(-NRB_2010_2035_mean, -NRB_2010_2035_sd, -NRB_2010_2020_mean, -NRB_2010_2020_sd,
-                        -Harv_2010_2035_mean, -Harv_2010_2035_sd, -Harv_2010_2020_mean, -Harv_2010_2020_sd,
-                        -fNRB_2010_2035_mean, -fNRB_2010_2035_sd, -fNRB_2010_2020_mean, -fNRB_2010_2020_sd,
-                        -NRB_2010_2035_1MC, -NRB_2010_2020_1MC, -Harv_2010_2035_1MC, -Harv_2010_2020_1MC, 
-                        -fNRB_2010_2035_1MC, -fNRB_2010_2020_1MC) %>%
+          dplyr::select(-matches("_2010_2035|_2010_2020"), -ends_with("_sd")) %>%
           dplyr::relocate(NRB_2020_2035_1MC, .after = zone_1MC) %>%
-          dplyr::relocate(Harv_2020_2035_1MC, .after = NRB_2020_2035_1MC) 
+          dplyr::relocate(Harv_2020_2035_1MC, .after = NRB_2030_2035_1MC) %>% #Not sure this will work with STdyn==25
+          dplyr::select(-ends_with("_1MC"))
         write.csv(NRB_fNRB3_fr_madm1, "LULCC/TempTables/summary_adm1_fr.csv", row.names=FALSE, quote=FALSE)
         write.csv(NRB_fNRB3_fr_madm1, "OutBaU/webmofuss_results/summary_adm1_fr.csv", row.names=FALSE, quote=FALSE)
         
@@ -2726,13 +2747,10 @@ if (fNRB_partition_tables == 1) {
         write.csv(NRB_fNRB2_frcompl_madm2, "OutBaU/webmofuss_results/summary_adm2_frcompl.csv", row.names=FALSE, quote=FALSE)
         
         NRB_fNRB3_fr_madm2 <- NRB_fNRB2_frcompl_madm2 %>%
-          dplyr::select(-NRB_2010_2035_mean, -NRB_2010_2035_sd, -NRB_2010_2020_mean, -NRB_2010_2020_sd,
-                        -Harv_2010_2035_mean, -Harv_2010_2035_sd, -Harv_2010_2020_mean, -Harv_2010_2020_sd,
-                        -fNRB_2010_2035_mean, -fNRB_2010_2035_sd, -fNRB_2010_2020_mean, -fNRB_2010_2020_sd,
-                        -NRB_2010_2035_1MC, -NRB_2010_2020_1MC, -Harv_2010_2035_1MC, -Harv_2010_2020_1MC, 
-                        -fNRB_2010_2035_1MC, -fNRB_2010_2020_1MC) %>%
+          dplyr::select(-matches("_2010_2035|_2010_2020"), -ends_with("_sd")) %>%
           dplyr::relocate(NRB_2020_2035_1MC, .after = zone_1MC) %>%
-          dplyr::relocate(Harv_2020_2035_1MC, .after = NRB_2020_2035_1MC) 
+          dplyr::relocate(Harv_2020_2035_1MC, .after = NRB_2030_2035_1MC) %>% #Not sure this will work with STdyn==25
+          dplyr::select(-ends_with("_1MC"))
         write.csv(NRB_fNRB3_fr_madm2, "LULCC/TempTables/summary_adm2_fr.csv", row.names=FALSE, quote=FALSE)
         write.csv(NRB_fNRB3_fr_madm2, "OutBaU/webmofuss_results/summary_adm2_fr.csv", row.names=FALSE, quote=FALSE)
         
@@ -2762,61 +2780,66 @@ if (fNRB_partition_tables == 1) {
       
       NRBzonfr_st <- NRBzon_frbind %>%
         group_by(zone) %>%
-        summarise_at(vars(all_of(summarycols)), list(mean=mean, sd=sd)) %>%
+        summarise_at(vars(all_of(summarycols)), 
+                     list(mean = mean, 
+                          sd = sd, 
+                          se = ~ sd(.) / sqrt(n()))) %>%
         round(.,0)
       
       NRBzonfr_stR <- reduce(
-        .x = list(c('NRB_2010_2040_sd','NRB_2010_2040_mean'),
-                  c('NRB_2020_2040_sd','NRB_2020_2040_mean'),
-                  c('NRB_2010_2020_sd','NRB_2010_2020_mean'),
-                  c('NRB_2020_2030_sd','NRB_2020_2030_mean'),
-                  c('NRB_2030_2040_sd','NRB_2030_2040_mean'),
-                  c('Harv_2010_2040_sd','Harv_2010_2040_mean'),
-                  c('Harv_2020_2040_sd','Harv_2020_2040_mean'),
-                  c('Harv_2010_2020_sd','Harv_2010_2020_mean'),
-                  c('Harv_2020_2030_sd','Harv_2020_2030_mean'),
-                  c('Harv_2030_2040_sd','Harv_2030_2040_mean'),
-                  c('fNRB_2010_2040_sd','fNRB_2010_2040_mean'),
-                  c('fNRB_2020_2040_sd','fNRB_2020_2040_mean'),
-                  c('fNRB_2010_2020_sd','fNRB_2010_2020_mean'),
-                  c('fNRB_2020_2030_sd','fNRB_2020_2030_mean'),
-                  c('fNRB_2030_2040_sd','fNRB_2030_2040_mean')),
-        .f = ~ relocate(.x, .y[1], .after = .y[2]),
+        .x = list(
+          c('NRB_2010_2040_mean', 'NRB_2010_2040_sd', 'NRB_2010_2040_se'),
+          c('NRB_2020_2040_mean', 'NRB_2020_2040_sd', 'NRB_2020_2040_se'),
+          c('NRB_2010_2020_mean', 'NRB_2010_2020_sd', 'NRB_2010_2020_se'),
+          c('NRB_2020_2030_mean', 'NRB_2020_2030_sd', 'NRB_2020_2030_se'),
+          c('NRB_2030_2040_mean', 'NRB_2030_2040_sd', 'NRB_2030_2040_se'),
+          c('Harv_2010_2040_mean', 'Harv_2010_2040_sd', 'Harv_2010_2040_se'),
+          c('Harv_2020_2040_mean', 'Harv_2020_2040_sd', 'Harv_2020_2040_se'),
+          c('Harv_2010_2020_mean', 'Harv_2010_2020_sd', 'Harv_2010_2020_se'),
+          c('Harv_2020_2030_mean', 'Harv_2020_2030_sd', 'Harv_2020_2030_se'),
+          c('Harv_2030_2040_mean', 'Harv_2030_2040_sd', 'Harv_2030_2040_se'),
+          c('fNRB_2010_2040_mean', 'fNRB_2010_2040_sd', 'fNRB_2010_2040_se'),
+          c('fNRB_2020_2040_mean', 'fNRB_2020_2040_sd', 'fNRB_2020_2040_se'),
+          c('fNRB_2010_2020_mean', 'fNRB_2010_2020_sd', 'fNRB_2010_2020_se'),
+          c('fNRB_2020_2030_mean', 'fNRB_2020_2030_sd', 'fNRB_2020_2030_se'),
+          c('fNRB_2030_2040_mean', 'fNRB_2030_2040_sd', 'fNRB_2030_2040_se')
+        ),
+        .f = ~ relocate(.x, .y[2], .after = .y[1]) %>% relocate(.y[3], .after = .y[2]),
         .init = NRBzonfr_st
       )
       NRBzonfr_stR
+      names(NRBzonfr_stR)
       
       # Calculate n assuming a spatial autocorrelation of 100km: 4 pixels in 10,000 kernels
-      se_ncell100km <- round((ncell(stackG[[1]])/2500),0)
+      # se_ncell100km <- round((ncell(stackG[[1]])/2500),0)
+      se_ncell100km <- MC
       
       NRBzonfr_statsx <- NRBzonfr_stR %>%
         dplyr::mutate(fNRB_2010_2040_mean = NRB_2010_2040_mean / Harv_2010_2040_mean * 100,
                       fNRB_2010_2040_sd = sqrt(((NRB_2010_2040_sd/NRB_2010_2040_mean)^2) + 
                                                  ((Harv_2010_2040_sd/Harv_2010_2040_mean)^2))*100,
-                      #fNRB_2010_2040_ee = fNRB_2010_2040_sd/sqrt(se_ncell100km),
+                      fNRB_2010_2040_se = fNRB_2010_2040_sd/sqrt(se_ncell100km),
                       fNRB_2020_2040_mean = NRB_2020_2040_mean / Harv_2020_2040_mean * 100,
                       fNRB_2020_2040_sd = sqrt(((NRB_2020_2040_sd/NRB_2020_2040_mean)^2) + 
                                                  ((Harv_2020_2040_sd/Harv_2020_2040_mean)^2))*100,
-                      #fNRB_2020_2040_ee = fNRB_2020_2040_sd/sqrt(se_ncell100km),
+                      fNRB_2020_2040_se = fNRB_2020_2040_sd/sqrt(se_ncell100km),
                       fNRB_2010_2020_mean = NRB_2010_2020_mean / Harv_2010_2020_mean * 100,
                       fNRB_2010_2020_sd = sqrt(((NRB_2010_2020_sd/NRB_2010_2020_mean)^2) + 
                                                  ((Harv_2010_2020_sd/Harv_2010_2020_mean)^2))*100,
-                      #fNRB_2010_2020_ee = fNRB_2010_2020_sd/sqrt(se_ncell100km)),
-                      
+                      fNRB_2010_2020_se = fNRB_2010_2020_sd/sqrt(se_ncell100km),
                       fNRB_2020_2030_mean = NRB_2020_2030_mean / Harv_2020_2030_mean * 100,
                       fNRB_2020_2030_sd = sqrt(((NRB_2020_2030_sd/NRB_2020_2030_mean)^2) + 
                                                  ((Harv_2020_2030_sd/Harv_2020_2030_mean)^2))*100,
-                      #fNRB_2020_2030_ee = fNRB_2020_2030_sd/sqrt(se_ncell100km)),
+                      fNRB_2020_2030_se = fNRB_2020_2030_sd/sqrt(se_ncell100km),
                       fNRB_2030_2040_mean = NRB_2030_2040_mean / Harv_2030_2040_mean * 100,
                       fNRB_2030_2040_sd = sqrt(((NRB_2030_2040_sd/NRB_2030_2040_mean)^2) + 
-                                                 ((Harv_2030_2040_sd/Harv_2030_2040_mean)^2))*100) %>%
-                      #fNRB_2030_2040_ee = fNRB_2030_2040_sd/sqrt(se_ncell100km)) %>%
+                                                 ((Harv_2030_2040_sd/Harv_2030_2040_mean)^2))*100,
+                      fNRB_2030_2040_se = fNRB_2030_2040_sd/sqrt(se_ncell100km)) %>%
         round(.,0)
       
-      if (MC < mcthreshold) {
+      if (MC > mcthreshold) {
         NRBzonfr_stats <- NRBzonfr_statsx %>%
-          dplyr::mutate(across(ends_with("sd"), ~ (.x = NA)))
-        NRBzonfr_stats
+          dplyr::mutate(across(ends_with(c("sd", "se")), ~ NA))
       } else {
         NRBzonfr_stats <- NRBzonfr_statsx
       }
@@ -2834,13 +2857,10 @@ if (fNRB_partition_tables == 1) {
         write.csv(NRB_fNRB2_frcompl_madm0, "OutBaU/webmofuss_results/summary_adm0_frcompl.csv", row.names=FALSE, quote=FALSE)
         
         NRB_fNRB3_fr_madm0 <- NRB_fNRB2_frcompl_madm0 %>%
-          dplyr::select(-NRB_2010_2040_mean, -NRB_2010_2040_sd, -NRB_2010_2020_mean, -NRB_2010_2020_sd,
-                        -Harv_2010_2040_mean, -Harv_2010_2040_sd, -Harv_2010_2020_mean, -Harv_2010_2020_sd,
-                        -fNRB_2010_2040_mean, -fNRB_2010_2040_sd, -fNRB_2010_2020_mean, -fNRB_2010_2020_sd,
-                        -NRB_2010_2040_1MC, -NRB_2010_2040_1MC, -Harv_2010_2040_1MC, -Harv_2010_2020_1MC, 
-                        -fNRB_2010_2040_1MC, -fNRB_2010_2020_1MC) %>%
+          dplyr::select(-matches("_2010_2040|_2010_2020"), -ends_with("_sd")) %>%
           dplyr::relocate(NRB_2020_2040_1MC, .after = zone_1MC) %>%
-          dplyr::relocate(Harv_2020_2040_1MC, .after = NRB_2030_2040_1MC) 
+          dplyr::relocate(Harv_2020_2040_1MC, .after = NRB_2030_2040_1MC) %>%
+          dplyr::select(-ends_with("_1MC"))
         write.csv(NRB_fNRB3_fr_madm0, "LULCC/TempTables/summary_adm0_fr.csv", row.names=FALSE, quote=FALSE)
         write.csv(NRB_fNRB3_fr_madm0, "OutBaU/webmofuss_results/summary_adm0_fr.csv", row.names=FALSE, quote=FALSE)
         
@@ -2867,13 +2887,10 @@ if (fNRB_partition_tables == 1) {
         write.csv(NRB_fNRB2_frcompl_madm1, "OutBaU/webmofuss_results/summary_adm1_frcompl.csv", row.names=FALSE, quote=FALSE)
         
         NRB_fNRB3_fr_madm1 <- NRB_fNRB2_frcompl_madm1 %>%
-          dplyr::select(-NRB_2010_2040_mean, -NRB_2010_2040_sd, -NRB_2010_2020_mean, -NRB_2010_2020_sd,
-                        -Harv_2010_2040_mean, -Harv_2010_2040_sd, -Harv_2010_2020_mean, -Harv_2010_2020_sd,
-                        -fNRB_2010_2040_mean, -fNRB_2010_2040_sd, -fNRB_2010_2020_mean, -fNRB_2010_2020_sd,
-                        -NRB_2010_2040_1MC, -NRB_2010_2040_1MC, -Harv_2010_2040_1MC, -Harv_2010_2020_1MC, 
-                        -fNRB_2010_2040_1MC, -fNRB_2010_2020_1MC) %>%
+          dplyr::select(-matches("_2010_2040|_2010_2020"), -ends_with("_sd")) %>%
           dplyr::relocate(NRB_2020_2040_1MC, .after = zone_1MC) %>%
-          dplyr::relocate(Harv_2020_2040_1MC, .after = NRB_2030_2040_1MC) 
+          dplyr::relocate(Harv_2020_2040_1MC, .after = NRB_2030_2040_1MC) %>%
+          dplyr::select(-ends_with("_1MC"))
         write.csv(NRB_fNRB3_fr_madm1, "LULCC/TempTables/summary_adm1_fr.csv", row.names=FALSE, quote=FALSE)
         write.csv(NRB_fNRB3_fr_madm1, "OutBaU/webmofuss_results/summary_adm1_fr.csv", row.names=FALSE, quote=FALSE)
         
@@ -2898,13 +2915,10 @@ if (fNRB_partition_tables == 1) {
         write.csv(NRB_fNRB2_frcompl_madm2, "OutBaU/webmofuss_results/summary_adm2_frcompl.csv", row.names=FALSE, quote=FALSE)
         
         NRB_fNRB3_fr_madm2 <- NRB_fNRB2_frcompl_madm2 %>%
-          dplyr::select(-NRB_2010_2040_mean, -NRB_2010_2040_sd, -NRB_2010_2020_mean, -NRB_2010_2020_sd,
-                        -Harv_2010_2040_mean, -Harv_2010_2040_sd, -Harv_2010_2020_mean, -Harv_2010_2020_sd,
-                        -fNRB_2010_2040_mean, -fNRB_2010_2040_sd, -fNRB_2010_2020_mean, -fNRB_2010_2020_sd,
-                        -NRB_2010_2040_1MC, -NRB_2010_2040_1MC, -Harv_2010_2040_1MC, -Harv_2010_2020_1MC, 
-                        -fNRB_2010_2040_1MC, -fNRB_2010_2020_1MC) %>%
+          dplyr::select(-matches("_2010_2040|_2010_2020"), -ends_with("_sd")) %>%
           dplyr::relocate(NRB_2020_2040_1MC, .after = zone_1MC) %>%
-          dplyr::relocate(Harv_2020_2040_1MC, .after = NRB_2030_2040_1MC) 
+          dplyr::relocate(Harv_2020_2040_1MC, .after = NRB_2030_2040_1MC) %>%
+          dplyr::select(-ends_with("_1MC"))
         write.csv(NRB_fNRB3_fr_madm2, "LULCC/TempTables/summary_adm2_fr.csv", row.names=FALSE, quote=FALSE)
         write.csv(NRB_fNRB3_fr_madm2, "OutBaU/webmofuss_results/summary_adm2_fr.csv", row.names=FALSE, quote=FALSE)
         
@@ -2934,72 +2948,78 @@ if (fNRB_partition_tables == 1) {
       
       NRBzonfr_st <- NRBzon_frbind %>%
         group_by(zone) %>%
-        summarise_at(vars(all_of(summarycols)), list(mean=mean, sd=sd)) %>%
+        summarise_at(vars(all_of(summarycols)), 
+                     list(mean = mean, 
+                          sd = sd, 
+                          se = ~ sd(.) / sqrt(n()))) %>%
         round(.,0)
       
       NRBzonfr_stR <- reduce(
-        .x = list(c('NRB_2010_2050_sd','NRB_2010_2050_mean'),
-                  c('NRB_2020_2050_sd','NRB_2020_2050_mean'),
-                  c('NRB_2010_2020_sd','NRB_2010_2020_mean'),
-                  c('NRB_2020_2030_sd','NRB_2020_2030_mean'),
-                  c('NRB_2030_2040_sd','NRB_2030_2040_mean'),
-                  c('NRB_2040_2050_sd','NRB_2040_2050_mean'),
-                  c('Harv_2010_2050_sd','Harv_2010_2050_mean'),
-                  c('Harv_2020_2050_sd','Harv_2020_2050_mean'),
-                  c('Harv_2010_2020_sd','Harv_2010_2020_mean'),
-                  c('Harv_2020_2030_sd','Harv_2020_2030_mean'),
-                  c('Harv_2030_2040_sd','Harv_2030_2040_mean'),
-                  c('Harv_2040_2050_sd','Harv_2040_2050_mean'),
-                  c('fNRB_2010_2050_sd','fNRB_2010_2050_mean'),
-                  c('fNRB_2020_2050_sd','fNRB_2020_2050_mean'),
-                  c('fNRB_2010_2020_sd','fNRB_2010_2020_mean'),
-                  c('fNRB_2020_2030_sd','fNRB_2020_2030_mean'),
-                  c('fNRB_2030_2040_sd','fNRB_2030_2040_mean'),
-                  c('fNRB_2040_2050_sd','fNRB_2040_2050_mean')), 
-        .f = ~ relocate(.x, .y[1], .after = .y[2]),
+        .x = list(
+          c('NRB_2010_2050_mean', 'NRB_2010_2050_sd', 'NRB_2010_2050_se'),
+          c('NRB_2020_2050_mean', 'NRB_2020_2050_sd', 'NRB_2020_2050_se'),
+          c('NRB_2010_2020_mean', 'NRB_2010_2020_sd', 'NRB_2010_2020_se'),
+          c('NRB_2020_2030_mean', 'NRB_2020_2030_sd', 'NRB_2020_2030_se'),
+          c('NRB_2030_2040_mean', 'NRB_2030_2040_sd', 'NRB_2030_2040_se'),
+          c('NRB_2040_2050_mean', 'NRB_2040_2050_sd', 'NRB_2040_2050_se'),
+          c('Harv_2010_2050_mean', 'Harv_2010_2050_sd', 'Harv_2010_2050_se'),
+          c('Harv_2020_2050_mean', 'Harv_2020_2050_sd', 'Harv_2020_2050_se'),
+          c('Harv_2010_2020_mean', 'Harv_2010_2020_sd', 'Harv_2010_2020_se'),
+          c('Harv_2020_2030_mean', 'Harv_2020_2030_sd', 'Harv_2020_2030_se'),
+          c('Harv_2030_2040_mean', 'Harv_2030_2040_sd', 'Harv_2030_2040_se'),
+          c('Harv_2040_2050_mean', 'Harv_2040_2050_sd', 'Harv_2040_2050_se'),
+          c('fNRB_2010_2050_mean', 'fNRB_2010_2050_sd', 'fNRB_2010_2050_se'),
+          c('fNRB_2020_2050_mean', 'fNRB_2020_2050_sd', 'fNRB_2020_2050_se'),
+          c('fNRB_2010_2020_mean', 'fNRB_2010_2020_sd', 'fNRB_2010_2020_se'),
+          c('fNRB_2020_2030_mean', 'fNRB_2020_2030_sd', 'fNRB_2020_2030_se'),
+          c('fNRB_2030_2040_mean', 'fNRB_2030_2040_sd', 'fNRB_2030_2040_se'),
+          c('fNRB_2040_2050_mean', 'fNRB_2040_2050_sd', 'fNRB_2040_2050_se')
+        ),
+        .f = ~ relocate(.x, .y[2], .after = .y[1]) %>% relocate(.y[3], .after = .y[2]),
         .init = NRBzonfr_st
       )
       NRBzonfr_stR
+      names(NRBzonfr_stR)
       
       # Calculate n assuming a spatial autocorrelation of 100km: 4 pixels in 10,000 kernels
-      se_ncell100km <- round((ncell(stackG[[1]])/2500),0)
+      # se_ncell100km <- round((ncell(stackG[[1]])/2500),0)
+      se_ncell100km <- MC
       
       NRBzonfr_statsx <- NRBzonfr_stR %>%
         dplyr::mutate(fNRB_2010_2050_mean = NRB_2010_2050_mean / Harv_2010_2050_mean * 100,
                       fNRB_2010_2050_sd = sqrt(((NRB_2010_2050_sd/NRB_2010_2050_mean)^2) + 
                                                  ((Harv_2010_2050_sd/Harv_2010_2050_mean)^2))*100,
-                      #fNRB_2010_2050_ee = fNRB_2010_2050_sd/sqrt(se_ncell100km),
+                      fNRB_2010_2050_se = fNRB_2010_2050_sd/sqrt(se_ncell100km),
                       fNRB_2020_2050_mean = NRB_2020_2050_mean / Harv_2020_2050_mean * 100,
                       fNRB_2020_2050_sd = sqrt(((NRB_2020_2050_sd/NRB_2020_2050_mean)^2) + 
                                                  ((Harv_2020_2050_sd/Harv_2020_2050_mean)^2))*100,
-                      #fNRB_2020_2050_ee = fNRB_2020_2050_sd/sqrt(se_ncell100km),
+                      fNRB_2020_2050_se = fNRB_2020_2050_sd/sqrt(se_ncell100km),
                       fNRB_2010_2020_mean = NRB_2010_2020_mean / Harv_2010_2020_mean * 100,
                       fNRB_2010_2020_sd = sqrt(((NRB_2010_2020_sd/NRB_2010_2020_mean)^2) + 
                                                  ((Harv_2010_2020_sd/Harv_2010_2020_mean)^2))*100,
-                      #fNRB_2010_2020_ee = fNRB_2010_2020_sd/sqrt(se_ncell100km)),
-                      
+                      fNRB_2010_2020_se = fNRB_2010_2020_sd/sqrt(se_ncell100km),
                       fNRB_2020_2030_mean = NRB_2020_2030_mean / Harv_2020_2030_mean * 100,
                       fNRB_2020_2030_sd = sqrt(((NRB_2020_2030_sd/NRB_2020_2030_mean)^2) + 
                                                  ((Harv_2020_2030_sd/Harv_2020_2030_mean)^2))*100,
-                      #fNRB_2020_2030_ee = fNRB_2020_2030_sd/sqrt(se_ncell100km)),
+                      fNRB_2020_2030_se = fNRB_2020_2030_sd/sqrt(se_ncell100km),
                       fNRB_2030_2040_mean = NRB_2030_2040_mean / Harv_2030_2040_mean * 100,
                       fNRB_2030_2040_sd = sqrt(((NRB_2030_2040_sd/NRB_2030_2040_mean)^2) + 
                                                  ((Harv_2030_2040_sd/Harv_2030_2040_mean)^2))*100,
-                      #fNRB_2030_2040_ee = fNRB_2030_2040_sd/sqrt(se_ncell100km)),
+                      fNRB_2030_2040_se = fNRB_2030_2040_sd/sqrt(se_ncell100km),
                       fNRB_2040_2050_mean = NRB_2040_2050_mean / Harv_2040_2050_mean * 100,
                       fNRB_2040_2050_sd = sqrt(((NRB_2040_2050_sd/NRB_2040_2050_mean)^2) + 
-                                                 ((Harv_2040_2050_sd/Harv_2040_2050_mean)^2))*100) %>%
-        #fNRB_2040_2050_ee = fNRB_2040_2050_sd/sqrt(se_ncell100km)) %>%
+                                                 ((Harv_2040_2050_sd/Harv_2040_2050_mean)^2))*100,
+                      fNRB_2040_2050_se = fNRB_2040_2050_sd/sqrt(se_ncell100km)) %>%
         round(.,0)
+      names(NRBzonfr_statsx)
       
-      if (MC < mcthreshold) {
+      if (MC > mcthreshold) {
         NRBzonfr_stats <- NRBzonfr_statsx %>%
-          dplyr::mutate(across(ends_with("sd"), ~ (.x = NA)))
-        NRBzonfr_stats
+          dplyr::mutate(across(ends_with(c("sd", "se")), ~ NA))
       } else {
         NRBzonfr_stats <- NRBzonfr_statsx
       }
-      
+
       NRB_fNRB2_fr <- cbind(NRBzonfr_stats,NRBzon_frlist1MC)
       NRB_fNRB2_fr
       names(NRB_fNRB2_fr)
@@ -3013,13 +3033,10 @@ if (fNRB_partition_tables == 1) {
         write.csv(NRB_fNRB2_frcompl_madm0, "OutBaU/webmofuss_results/summary_adm0_frcompl.csv", row.names=FALSE, quote=FALSE)
         
         NRB_fNRB3_fr_madm0 <- NRB_fNRB2_frcompl_madm0 %>%
-          dplyr::select(-NRB_2010_2050_mean, -NRB_2010_2050_sd, -NRB_2010_2020_mean, -NRB_2010_2020_sd,
-                        -Harv_2010_2050_mean, -Harv_2010_2050_sd, -Harv_2010_2020_mean, -Harv_2010_2020_sd,
-                        -fNRB_2010_2050_mean, -fNRB_2010_2050_sd, -fNRB_2010_2020_mean, -fNRB_2010_2020_sd,
-                        -NRB_2010_2050_1MC, -NRB_2010_2020_1MC, -Harv_2010_2050_1MC, -Harv_2010_2020_1MC, 
-                        -fNRB_2010_2050_1MC, -fNRB_2010_2020_1MC) %>%
+          dplyr::select(-matches("_2010_2050|_2010_2020"), -ends_with("_sd")) %>%
           dplyr::relocate(NRB_2020_2050_1MC, .after = zone_1MC) %>%
-          dplyr::relocate(Harv_2020_2050_1MC, .after = NRB_2040_2050_1MC) 
+          dplyr::relocate(Harv_2020_2050_1MC, .after = NRB_2040_2050_1MC) %>%
+          dplyr::select(-ends_with("_1MC"))
         write.csv(NRB_fNRB3_fr_madm0, "LULCC/TempTables/summary_adm0_fr.csv", row.names=FALSE, quote=FALSE)
         write.csv(NRB_fNRB3_fr_madm0, "OutBaU/webmofuss_results/summary_adm0_fr.csv", row.names=FALSE, quote=FALSE)
         
@@ -3046,13 +3063,10 @@ if (fNRB_partition_tables == 1) {
         write.csv(NRB_fNRB2_frcompl_madm1, "OutBaU/webmofuss_results/summary_adm1_frcompl.csv", row.names=FALSE, quote=FALSE)
         
         NRB_fNRB3_fr_madm1 <- NRB_fNRB2_frcompl_madm1 %>%
-          dplyr::select(-NRB_2010_2050_mean, -NRB_2010_2050_sd, -NRB_2010_2020_mean, -NRB_2010_2020_sd,
-                        -Harv_2010_2050_mean, -Harv_2010_2050_sd, -Harv_2010_2020_mean, -Harv_2010_2020_sd,
-                        -fNRB_2010_2050_mean, -fNRB_2010_2050_sd, -fNRB_2010_2020_mean, -fNRB_2010_2020_sd,
-                        -NRB_2010_2050_1MC, -NRB_2010_2020_1MC, -Harv_2010_2050_1MC, -Harv_2010_2020_1MC, 
-                        -fNRB_2010_2050_1MC, -fNRB_2010_2020_1MC) %>%
+          dplyr::select(-matches("_2010_2050|_2010_2020"), -ends_with("_sd")) %>%
           dplyr::relocate(NRB_2020_2050_1MC, .after = zone_1MC) %>%
-          dplyr::relocate(Harv_2020_2050_1MC, .after = NRB_2040_2050_1MC)
+          dplyr::relocate(Harv_2020_2050_1MC, .after = NRB_2040_2050_1MC) %>%
+          dplyr::select(-ends_with("_1MC"))
         write.csv(NRB_fNRB3_fr_madm1, "LULCC/TempTables/summary_adm1_fr.csv", row.names=FALSE, quote=FALSE)
         write.csv(NRB_fNRB3_fr_madm1, "OutBaU/webmofuss_results/summary_adm1_fr.csv", row.names=FALSE, quote=FALSE)
         
@@ -3077,13 +3091,10 @@ if (fNRB_partition_tables == 1) {
         write.csv(NRB_fNRB2_frcompl_madm2, "OutBaU/webmofuss_results/summary_adm2_frcompl.csv", row.names=FALSE, quote=FALSE)
         
         NRB_fNRB3_fr_madm2 <- NRB_fNRB2_frcompl_madm2 %>%
-          dplyr::select(-NRB_2010_2050_mean, -NRB_2010_2050_sd, -NRB_2010_2020_mean, -NRB_2010_2020_sd,
-                        -Harv_2010_2050_mean, -Harv_2010_2050_sd, -Harv_2010_2020_mean, -Harv_2010_2020_sd,
-                        -fNRB_2010_2050_mean, -fNRB_2010_2050_sd, -fNRB_2010_2020_mean, -fNRB_2010_2020_sd,
-                        -NRB_2010_2050_1MC, -NRB_2010_2020_1MC, -Harv_2010_2050_1MC, -Harv_2010_2020_1MC, 
-                        -fNRB_2010_2050_1MC, -fNRB_2010_2020_1MC) %>%
+          dplyr::select(-matches("_2010_2050|_2010_2020"), -ends_with("_sd")) %>%
           dplyr::relocate(NRB_2020_2050_1MC, .after = zone_1MC) %>%
-          dplyr::relocate(Harv_2020_2050_1MC, .after = NRB_2040_2050_1MC)
+          dplyr::relocate(Harv_2020_2050_1MC, .after = NRB_2040_2050_1MC) %>%
+          dplyr::select(-ends_with("_1MC"))
         write.csv(NRB_fNRB3_fr_madm2, "LULCC/TempTables/summary_adm2_fr.csv", row.names=FALSE, quote=FALSE)
         write.csv(NRB_fNRB3_fr_madm2, "OutBaU/webmofuss_results/summary_adm2_fr.csv", row.names=FALSE, quote=FALSE)
         

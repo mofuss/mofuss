@@ -1,4 +1,13 @@
-## MoFuSS Overview
+
+******************
+
+### **Welcome to the New MoFuSS GitHub Account!**
+
+As of November 2024, we’ve officially migrated from the MoFuSS GitLab account to this GitHub platform. Please note that the GitLab account will be permanently erased soon to avoid any confusion.
+
+Stay tuned for updates, and thank you for your support as we continue to grow!
+
+MoFuSS uses Google Earth Engine for data download, R for data preparation and graphs, C++ for harvest probabiility maps, DINAMICA EGO for geospatial simulations (core scripts), ffmpeg for animations, and LaTeX for final reports.
 
 * This project uses Google Earth Engine for data download, R for data preparation and graphs, C++ for harvest probabiility maps, DINAMICA EGO for geospatial simulations (core scripts), ffmpeg for animations, and LaTeX for final reports.
 * 6 sequential scripts are run on your local machine to generate the stage-1 results.

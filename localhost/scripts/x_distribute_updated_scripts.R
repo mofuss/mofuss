@@ -47,11 +47,12 @@ gitlabdir <- getwd()
 # Copy mofuss files in gitlab to all working directories (adm0)---- 
 # Define the list of files to copy
 files_to_copy <- c(
-  paste0(gitlabdir, "/linwin/scripts/7_FW_dyn_lulcc_Sc16b_luc1.egoml"),
-  paste0(gitlabdir, "/linwin/scripts/7_FW_dyn_lulcc_Sc16b_luc2.egoml"),
-  paste0(gitlabdir, "/linwin/scripts/rnorm2.R"),
-  paste0(gitlabdir, "/linwin/scripts/maps_animations4.R"),
-  paste0(gitlabdir, "/linwin/scripts/NRB_graphs_datasets2.R")
+  # paste0(gitlabdir, "/localhost/scripts/7_FW_dyn_lulcc_Sc16b_luc1.egoml"),
+  # paste0(gitlabdir, "/localhost/scripts/7_FW_dyn_lulcc_Sc16b_luc2.egoml"),
+  paste0(gitlabdir, "/localhost/scripts/rnorm2.R"),
+  # paste0(gitlabdir, "/localhost/scripts/maps_animations4.R"),
+  paste0(gitlabdir, "/localhost/scripts/maps_animations5.R"),
+  paste0(gitlabdir, "/localhost/scripts/NRB_graphs_datasets2.R")
 )
 
 # Loop through each directory in adm0_dirs

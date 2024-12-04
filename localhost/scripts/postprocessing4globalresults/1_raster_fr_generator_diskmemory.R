@@ -4,9 +4,10 @@
 
 # 2dolist
 ## Faltaría 2010-2050
+## ADJUST TO CHANGE SD FOR SE ----
 
 # Internal parameters
-fixdir <- 0
+fixdir <- 1
 
 # Load packages ----
 library(terra)
@@ -21,7 +22,8 @@ tic()
 if (fixdir == 1){
   
   # Define a particular directory when needed:
-  adm0_dirs <- c("D:/SSA_adm0_zambia_apr2024")
+  adm0_dirs <- c("F:/SSA_adm0_ghana_apr2024",
+                 "F:/ASIA_adm0_china_apr2024")
   # adm0_dirs <- c("E:/ASIA_adm0_central_apr2024")
   #adm0_dirs <- c("F:/ASIA_adm0_china_apr2024")
   # adm0_dirs <- c("F:/ASIA_adm0_mongolia_apr2024",
@@ -1012,6 +1014,7 @@ if (!dir.exists("temp_raster_lists")) {
   }
   
   # Define the output directory----
+  ## ADJUST TO CHANGE SD FOR SE ----
   output_dir <- paste0(dir,"/OutBaU/webmofuss_results")
   
   if (STdyn == 10){

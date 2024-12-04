@@ -12,10 +12,10 @@ cleanlocal <- 1 # This will completely clean the final results folder
 replace_node_files <- 1 # This will erase and overwrite all webmofuss results from each region into the GDrive folder
 rasters <- 1
 shapefiles <- 1
-longnames <- 0 # Turn on in case you want the script to automatically shorten all names into unique ones.}, instead of choosing columns and renaming them
+longnames <- 0 # Turn on in case you want the script to automatically shorten all names into unique ones, instead of choosing columns and renaming them
 
-simplifypolys <- 1
-chunk_size <- 500 # Use 2 to fix Zimbabwe - Number of features to include in each chunk. Adjust based on your system's memory capacity and feature complexity
+simplifypolys <- 0
+chunk_size <- 2 # Use 2 to fix Zimbabwe - Number of features to include in each chunk. Adjust based on your system's memory capacity and feature complexity
 # Define the keep value and other parameters
 useextrasimppara <- 1
 keep_value <- 0.8  # Retain 80% of the points, adjust as needed
@@ -230,9 +230,9 @@ Gdrivedir <- "G:/My Drive/webpages/2024_MoFuSSGlobal_Datasets/webmofussDS_v2/" #
     
     if (bins == 1){
       filecsvfr <- paste0("/summary_",i,"_fr.csv")
-      resfr <- do.call(rbind, lapply(paste0(result_dirs, filecsvfr), read.csv)) %>%
-        filter(!is.na(MC_1MC)) %>%
-        mutate(fNRB_2020_2030_sd = ifelse(fNRB_2020_2030_sd >= 100, 100, fNRB_2020_2030_sd))
+      resfr <- do.call(rbind, lapply(paste0(result_dirs, filecsvfr), read.csv)) # %>%
+        # filter(!is.na(MC_1MC)) %>%
+        # mutate(fNRB_2020_2030_se = ifelse(fNRB_2020_2030_se >= 100, 100, fNRB_2020_2030_se))
       write.csv(resfr, paste0(outdir.tables,"/summary_",i,"_fr.csv"))
       
       # ###
@@ -257,7 +257,7 @@ Gdrivedir <- "G:/My Drive/webpages/2024_MoFuSSGlobal_Datasets/webmofussDS_v2/" #
   ## Bind vectors ----
   # Read and bind vectors while masking out water bodies after binding geopackages
   for (j in admvector){
-    # j = "adm2"
+    # j = "adm0"
     filegpkg <- paste0("/mofuss_",j,"_fr.gpkg")
     bindvector <- do.call(rbind, lapply(paste0(result_dirs, filegpkg), sf::read_sf)) %>% # st_read
       st_transform(4326) %>%
@@ -265,13 +265,34 @@ Gdrivedir <- "G:/My Drive/webpages/2024_MoFuSSGlobal_Datasets/webmofussDS_v2/" #
       dplyr::select(-iddissolve) %>%
       replace(is.na(.), 0) %>%
       dplyr::mutate(
+        NRB_2020_2050_mean = round((NRB_2020_2050_mean/1000),0),
+        NRB_2020_2050_se = round((NRB_2020_2050_se/1000),0),
+        Harv_2020_2050_mean = round((Harv_2020_2050_mean/1000),0),
+        Harv_2020_2050_se = round((Harv_2020_2050_se/1000),0),
+        # NRB_2020_2050_1MC = round((NRB_2020_2050_1MC/1000),0),
+        # Harv_2020_2050_1MC = round((Harv_2020_2050_1MC/1000),0),
+        #fNRB_2020_2050_se = ifelse(fNRB_2020_2050_se >= 100, 100, fNRB_2020_2050_se),
         NRB_2020_2030_mean = round((NRB_2020_2030_mean/1000),0),
-        NRB_2020_2030_sd = round((NRB_2020_2030_sd/1000),0),
+        NRB_2020_2030_se = round((NRB_2020_2030_se/1000),0),
         Harv_2020_2030_mean = round((Harv_2020_2030_mean/1000),0),
-        Harv_2020_2030_sd = round((Harv_2020_2030_sd/1000),0),
-        NRB_2020_2030_1MC = round((NRB_2020_2030_1MC/1000),0),
-        Harv_2020_2030_1MC = round((Harv_2020_2030_1MC/1000),0),
-        fNRB_2020_2030_sd = ifelse(fNRB_2020_2030_sd >= 100, 100, fNRB_2020_2030_sd)
+        Harv_2020_2030_se = round((Harv_2020_2030_se/1000),0),
+        # NRB_2020_2030_1MC = round((NRB_2020_2030_1MC/1000),0),
+        # Harv_2020_2030_1MC = round((Harv_2020_2030_1MC/1000),0),
+        #fNRB_2020_2030_se = ifelse(fNRB_2020_2030_se >= 100, 100, fNRB_2020_2030_se),
+        NRB_2030_2040_mean = round((NRB_2030_2040_mean/1000),0),
+        NRB_2030_2040_se = round((NRB_2030_2040_se/1000),0),
+        Harv_2030_2040_mean = round((Harv_2030_2040_mean/1000),0),
+        Harv_2030_2040_se = round((Harv_2030_2040_se/1000),0),
+        # NRB_2030_2040_1MC = round((NRB_2030_2040_1MC/1000),0),
+        # Harv_2030_2040_1MC = round((Harv_2030_2040_1MC/1000),0),
+        #fNRB_2030_2040_se = ifelse(fNRB_2030_2040_se >= 100, 100, fNRB_2030_2040_se),
+        NRB_2040_2050_mean = round((NRB_2040_2050_mean/1000),0),
+        NRB_2040_2050_se = round((NRB_2040_2050_se/1000),0),
+        Harv_2040_2050_mean = round((Harv_2040_2050_mean/1000),0),
+        Harv_2040_2050_se = round((Harv_2040_2050_se/1000),0),
+        # NRB_2040_2050_1MC = round((NRB_2040_2050_1MC/1000),0),
+        # Harv_2040_2050_1MC = round((Harv_2040_2050_1MC/1000),0),
+        #fNRB_2040_2050_se = ifelse(fNRB_2040_2050_se >= 100, 100, fNRB_2040_2050_se)
       )
     
     # Assuming wbs is your multipolygon sf object
@@ -389,16 +410,16 @@ Gdrivedir <- "G:/My Drive/webpages/2024_MoFuSSGlobal_Datasets/webmofussDS_v2/" #
         }
         
         bindvectorSshp <- bindvectorSshp2 %>%
-          dplyr::select(GID_0,NAME_0,NRB_2020_2030_mean,NRB_2020_2030_sd,
-                        Harv_2020_2030_mean,Harv_2020_2030_sd,
-                        fNRB_2020_2030_mean,fNRB_2020_2030_sd,
+          dplyr::select(GID_0,NAME_0,NRB_2020_2030_mean,NRB_2020_2030_se,
+                        Harv_2020_2030_mean,Harv_2020_2030_se,
+                        fNRB_2020_2030_mean,fNRB_2020_2030_se,
           ) %>%
           dplyr::rename(NRB_m = NRB_2020_2030_mean,
-                        NRB_sd = NRB_2020_2030_sd,
+                        NRB_se = NRB_2020_2030_se,
                         Harv_m = Harv_2020_2030_mean,
-                        Harv_sd = Harv_2020_2030_sd,
+                        Harv_se = Harv_2020_2030_se,
                         fNRB_m = fNRB_2020_2030_mean,
-                        fNRB_sd = fNRB_2020_2030_sd)
+                        fNRB_se = fNRB_2020_2030_se)
         
         if (simplifypolys == 1) {
           st_write(bindvectorSshp, paste0(outdir.vector,"/mofuss_",j,"_simp.shp"), delete_layer = TRUE)
@@ -456,7 +477,7 @@ Gdrivedir <- "G:/My Drive/webpages/2024_MoFuSSGlobal_Datasets/webmofussDS_v2/" #
   }
   
   ### Pack as one geopackage file ----
-  
+  # j = "adm2"
   process_files <- function(j, outdir.vector, simplified = FALSE) {  
     suffix <- ifelse(simplified, "_simp", "")
     file_levels <- switch(j,
