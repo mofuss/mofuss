@@ -6,20 +6,20 @@
 
 # Internal parameters
 start_from_scratch <- 0 # Set to 0 when the MoFuSS working directory already exists and has data in it
-hardwireddirs <- 0 # Set to 0 when you are choosing all directories
+hardwireddirs <- 1# Set to 0 when you are choosing all directories
 # rm(list=ls(all=TRUE))
 
 if (hardwireddirs == 1) {
   
   # 1km
   gitlabdir <- "C:/Users/aghil/Documents/mofuss"
-  countrydir <- "D:/COD_100m_20241119"
-  country <- "C:\\Users\\UNAM\\Documents\\mofuss\\countries\\DemocraticRepublicoftheCongo.tif"
-  demanddir <- "D:/demand100m"
+  countrydir <- "D:/world_1000m_20240818"
+  country <- "C:\\Users\\UNAM\\Documents\\mofuss\\countries\\Global.tif"
+  demanddir <- "D:/demand"
   admindir <- "D:/admin_regions"
   emissionsdir <- "D:/emissions"
   rTempdir <- "D:/rTemp"
-  parameters_file_path <- "C:/Users/UNAM/Documents/mofuss/selected_parameters/parameters_cod100m.xlsx"
+  parameters_file_path <- "C:/Users/aghil/Documents/mofuss/selected_parameters/parameters_world1000m.xlsx"
   
   # Extract the country name
   country_name <- gsub(pattern = "(.*countries[\\])(.*)(.tif.*)", 
