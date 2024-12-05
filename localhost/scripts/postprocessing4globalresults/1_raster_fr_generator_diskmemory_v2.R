@@ -2,11 +2,11 @@
 # Version 4
 # Date: Dec 2024
 
-# 2dolist
+# 2dolist ----
 ## Faltaría 2010-2050
 
-# Internal parameters
-fixdir <- 1
+# Internal parameters ----
+fixdir <- 0
 
 # Load packages ----
 library(terra)
@@ -1122,7 +1122,7 @@ for (dir in adm0_dirs) {
   
   
   
-  # unlink("temp_raster_lists", recursive= TRUE, force=TRUE)
+  unlink("temp_raster_lists", recursive= TRUE, force=TRUE)
   
 }
 
