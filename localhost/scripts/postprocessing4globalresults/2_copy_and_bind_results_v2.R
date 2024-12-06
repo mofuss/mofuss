@@ -547,17 +547,17 @@ Gdrivedir <- "G:/My Drive/webpages/2024_MoFuSSGlobal_Datasets/webmofussDS_v2/" #
     #                "/2_AGBt101.tif", "/aNRBmean.tif", "/aNRBsd.tif")
     
     # Add all possibilities
-    rasterint <- c("/agb_2010_mean.tif", "/agb_2010_sd.tif", 
-                   "/agb_2020_mean.tif", "/agb_2020_sd.tif", 
-                   "/agb_2030_mean.tif", "/agb_2030_sd.tif", 
-                   "/agb_2035_mean.tif", "/agb_2035_sd.tif",
-                   "/agb_2040_mean.tif", "/agb_2040_sd.tif", 
-                   "/agb_2050_mean.tif", "/agb_2050_sd.tif",
-                   "/harv_20_50_mean.tif", "/harv_20_50_sd.tif", "/nrb_20_50_mean.tif", "/nrb_20_50_sd.tif",
-                   "/harv_20_30_mean.tif", "/harv_20_30_sd.tif", "/nrb_20_30_mean.tif", "/nrb_20_30_sd.tif",
-                   "/harv_20_35_mean.tif", "/harv_20_35_sd.tif", "/nrb_20_35_mean.tif", "/nrb_20_35_sd.tif",
-                   "/harv_30_40_mean.tif", "/harv_30_40_sd.tif", "/nrb_30_40_mean.tif", "/nrb_30_40_sd.tif",
-                   "/harv_40_50_mean.tif", "/harv_40_50_sd.tif", "/nrb_40_50_mean.tif", "/nrb_40_50_sd.tif")
+    rasterint <- c("/agb_2010_mean.tif", "/agb_2010_sd.tif", "/agb_2010_se.tif",
+                   "/agb_2020_mean.tif", "/agb_2020_sd.tif", "/agb_2020_se.tif",
+                   "/agb_2030_mean.tif", "/agb_2030_sd.tif", "/agb_2030_se.tif",
+                   "/agb_2035_mean.tif", "/agb_2035_sd.tif", "/agb_2035_se.tif",
+                   "/agb_2040_mean.tif", "/agb_2040_sd.tif", "/agb_2040_se.tif",
+                   "/agb_2050_mean.tif", "/agb_2050_sd.tif", "/agb_2050_se.tif",
+                   "/harv_20_50_mean.tif", "/harv_20_50_sd.tif", "/harv_20_50_se.tif", "/nrb_20_50_mean.tif", "/nrb_20_50_sd.tif", "/nrb_20_50_se.tif",
+                   "/harv_20_30_mean.tif", "/harv_20_30_sd.tif", "/harv_20_30_se.tif", "/nrb_20_30_mean.tif", "/nrb_20_30_sd.tif", "/nrb_20_30_se.tif",
+                   "/harv_20_35_mean.tif", "/harv_20_35_sd.tif", "/harv_20_35_se.tif", "/nrb_20_35_mean.tif", "/nrb_20_35_sd.tif", "/nrb_20_35_se.tif",
+                   "/harv_30_40_mean.tif", "/harv_30_40_sd.tif", "/harv_30_40_se.tif", "/nrb_30_40_mean.tif", "/nrb_30_40_sd.tif", "/nrb_30_40_se.tif",
+                   "/harv_40_50_mean.tif", "/harv_40_50_sd.tif", "/harv_40_50_se.tif", "/nrb_40_50_mean.tif", "/nrb_40_50_sd.tif", "/nrb_40_50_se.tif")
     
     # Function to reproject wbs to match raster CRS
     reproject_wbs <- function(raster, wbs) {
