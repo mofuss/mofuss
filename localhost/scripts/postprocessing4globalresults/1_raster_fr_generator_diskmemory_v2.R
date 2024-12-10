@@ -6,7 +6,7 @@
 ## Faltaría 2010-2050
 
 # Internal parameters ----
-fixdir <- 0
+fixdir <- 1
 
 # Load packages ----
 library(terra)
@@ -21,7 +21,7 @@ tic()
 if (fixdir == 1){
   
   # Define a particular directory when needed:
-  adm0_dirs <- c("F:/SSA_adm0_ghana_apr2024")
+  adm0_dirs <- c("D:/SSA_adm0_madagascar_apr2024")
   # adm0_dirs <- c("E:/ASIA_adm0_central_apr2024")
   #adm0_dirs <- c("F:/ASIA_adm0_china_apr2024")
   # adm0_dirs <- c("F:/ASIA_adm0_mongolia_apr2024",
@@ -62,7 +62,7 @@ if (fixdir == 1){
 
 # Loop through each adm0 directory----
 for (dir in adm0_dirs) {
-  # dir = "F:/SSA_adm0_togo_apr2024"
+  dir = "D:/SSA_adm0_madagascar_apr2024"
   # dir = "D:/SSA_adm0_zambia_apr2024"
   # dir = ("E:/ASIA_adm0_central_apr2024")
   # dir = "F:/ASIA_adm0_china_apr2024"
@@ -1092,7 +1092,7 @@ for (dir in adm0_dirs) {
   # Function to calculate mean, SD, and SE for AGB rasters
   process_agb <- function(year) {
     # Load raster list
-    agb_list <- readRDS(paste0("temp_raster_lists/agb_", year, "_step_", i, ".rds"))
+    agb_list <- readRDS(paste0("temp_raster_lists/agb_", year, "_step_", i, ".rds")) ## OJO SOLO PA COMPARAR AGB
     
     # Combine rasters
     agb_rasters <- do.call(c, lapply(agb_list, rast))
@@ -1118,9 +1118,6 @@ for (dir in adm0_dirs) {
   for (year in agb_years) {
     process_agb(year)
   }
-  
-  
-  
   
   unlink("temp_raster_lists", recursive= TRUE, force=TRUE)
   
