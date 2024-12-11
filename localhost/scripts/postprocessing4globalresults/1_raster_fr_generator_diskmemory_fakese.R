@@ -1033,17 +1033,17 @@ if (!dir.exists("temp_raster_lists")) {
 
     # Calculate the mean and standard deviation across all layers in the SpatRaster
     nrb_bin2010_2020_mean <- app(nrb_bin2010_2020_rasters, fun = mean)
-    nrb_bin2010_2020_sd <- app(nrb_bin2010_2020_rasters, fun = sd)
+    nrb_bin2010_2020_se <- app(nrb_bin2010_2020_rasters, fun = sd)
     harvest_st_bin2010_2020_mean <- app(harvest_st_bin2010_2020_rasters, fun = mean)
-    harvest_st_bin2010_2020_sd <- app(harvest_st_bin2010_2020_rasters, fun = sd)
+    harvest_st_bin2010_2020_se <- app(harvest_st_bin2010_2020_rasters, fun = sd)
     harvest_st_bin2010_2020_mean[harvest_st_bin2010_2020_mean <= 0] = NA 
-    harvest_st_bin2010_2020_sd[harvest_st_bin2010_2020_sd <= 0] = NA 
+    harvest_st_bin2010_2020_se[harvest_st_bin2010_2020_se <= 0] = NA 
 
     # Save the resulting rasters
     writeRaster(nrb_bin2010_2020_mean, file.path(output_dir, "nrb_10_20_mean.tif"), overwrite=TRUE)
-    writeRaster(nrb_bin2010_2020_sd, file.path(output_dir, "nrb_10_20_sd.tif"), overwrite=TRUE)
+    writeRaster(nrb_bin2010_2020_se, file.path(output_dir, "nrb_10_20_se.tif"), overwrite=TRUE)
     writeRaster(harvest_st_bin2010_2020_mean, file.path(output_dir, "harv_10_20_mean.tif"), overwrite=TRUE)
-    writeRaster(harvest_st_bin2010_2020_sd, file.path(output_dir, "harv_10_20_sd.tif"), overwrite=TRUE)
+    writeRaster(harvest_st_bin2010_2020_se, file.path(output_dir, "harv_10_20_se.tif"), overwrite=TRUE)
 
     # Repeat for agb 
     agb_2010_list <- readRDS(paste0("temp_raster_lists/agb_2010_step_", i, ".rds"))
@@ -1056,14 +1056,14 @@ if (!dir.exists("temp_raster_lists")) {
     agb_2020_rasters <- do.call(c, agb_2020_rasters)
     
     agb_2010_mean <- app(agb_2010_rasters, fun = mean)
-    agb_2010_sd <- app(agb_2010_rasters, fun = sd)
+    agb_2010_se <- app(agb_2010_rasters, fun = sd)
     agb_2020_mean <- app(agb_2020_rasters, fun = mean)
-    agb_2020_sd <- app(agb_2020_rasters, fun = sd)
+    agb_2020_se <- app(agb_2020_rasters, fun = sd)
     
     writeRaster(agb_2010_mean, file.path(output_dir, "agb_2010_mean.tif"), overwrite=TRUE)
-    writeRaster(agb_2010_sd, file.path(output_dir, "agb_2010_sd.tif"), overwrite=TRUE)
+    writeRaster(agb_2010_se, file.path(output_dir, "agb_2010_se.tif"), overwrite=TRUE)
     writeRaster(agb_2020_mean, file.path(output_dir, "agb_2020_mean.tif"), overwrite=TRUE)
-    writeRaster(agb_2020_sd, file.path(output_dir, "agb_2020_sd.tif"), overwrite=TRUE)
+    writeRaster(agb_2020_se, file.path(output_dir, "agb_2020_se.tif"), overwrite=TRUE)
     
   }
   
@@ -1085,17 +1085,17 @@ if (!dir.exists("temp_raster_lists")) {
     
     # Calculate the mean and standard deviation across all layers in the SpatRaster
     nrb_bin2010_2020_mean <- app(nrb_bin2010_2020_rasters, fun = mean)
-    nrb_bin2010_2020_sd <- app(nrb_bin2010_2020_rasters, fun = sd)
+    nrb_bin2010_2020_se <- app(nrb_bin2010_2020_rasters, fun = sd)
     harvest_st_bin2010_2020_mean <- app(harvest_st_bin2010_2020_rasters, fun = mean)
-    harvest_st_bin2010_2020_sd <- app(harvest_st_bin2010_2020_rasters, fun = sd)
+    harvest_st_bin2010_2020_se <- app(harvest_st_bin2010_2020_rasters, fun = sd)
     harvest_st_bin2010_2020_mean[harvest_st_bin2010_2020_mean <= 0] = NA 
-    harvest_st_bin2010_2020_sd[harvest_st_bin2010_2020_sd <= 0] = NA 
+    harvest_st_bin2010_2020_se[harvest_st_bin2010_2020_se <= 0] = NA 
     
     # Save the resulting rasters
     writeRaster(nrb_bin2010_2020_mean, file.path(output_dir, "nrb_10_20_mean.tif"), overwrite=TRUE)
-    writeRaster(nrb_bin2010_2020_sd, file.path(output_dir, "nrb_10_20_sd.tif"), overwrite=TRUE)
+    writeRaster(nrb_bin2010_2020_se, file.path(output_dir, "nrb_10_20_se.tif"), overwrite=TRUE)
     writeRaster(harvest_st_bin2010_2020_mean, file.path(output_dir, "harv_10_20_mean.tif"), overwrite=TRUE)
-    writeRaster(harvest_st_bin2010_2020_sd, file.path(output_dir, "harv_10_20_sd.tif"), overwrite=TRUE)
+    writeRaster(harvest_st_bin2010_2020_se, file.path(output_dir, "harv_10_20_se.tif"), overwrite=TRUE)
     
     ## 2020_2030 ----
     # Load the list of file paths from disk
@@ -1112,17 +1112,17 @@ if (!dir.exists("temp_raster_lists")) {
     
     # Calculate the mean and standard deviation across all layers in the SpatRaster
     nrb_bin2020_2030_mean <- app(nrb_bin2020_2030_rasters, fun = mean)
-    nrb_bin2020_2030_sd <- app(nrb_bin2020_2030_rasters, fun = sd)
+    nrb_bin2020_2030_se <- app(nrb_bin2020_2030_rasters, fun = sd)
     harvest_st_bin2020_2030_mean <- app(harvest_st_bin2020_2030_rasters, fun = mean)
-    harvest_st_bin2020_2030_sd <- app(harvest_st_bin2020_2030_rasters, fun = sd)
+    harvest_st_bin2020_2030_se <- app(harvest_st_bin2020_2030_rasters, fun = sd)
     harvest_st_bin2020_2030_mean[harvest_st_bin2020_2030_mean <= 0] = NA 
-    harvest_st_bin2020_2030_sd[harvest_st_bin2020_2030_sd <= 0] = NA 
+    harvest_st_bin2020_2030_se[harvest_st_bin2020_2030_se <= 0] = NA 
     
     # Save the resulting rasters
     writeRaster(nrb_bin2020_2030_mean, file.path(output_dir, "nrb_20_30_mean.tif"), overwrite=TRUE)
-    writeRaster(nrb_bin2020_2030_sd, file.path(output_dir, "nrb_20_30_sd.tif"), overwrite=TRUE)
+    writeRaster(nrb_bin2020_2030_se, file.path(output_dir, "nrb_20_30_se.tif"), overwrite=TRUE)
     writeRaster(harvest_st_bin2020_2030_mean, file.path(output_dir, "harv_20_30_mean.tif"), overwrite=TRUE)
-    writeRaster(harvest_st_bin2020_2030_sd, file.path(output_dir, "harv_20_30_sd.tif"), overwrite=TRUE)
+    writeRaster(harvest_st_bin2020_2030_se, file.path(output_dir, "harv_20_30_se.tif"), overwrite=TRUE)
     
     
     # Repeat for agb 
@@ -1139,18 +1139,18 @@ if (!dir.exists("temp_raster_lists")) {
     agb_2030_rasters <- do.call(c, agb_2030_rasters)
     
     agb_2010_mean <- app(agb_2010_rasters, fun = mean)
-    agb_2010_sd <- app(agb_2010_rasters, fun = sd)
+    agb_2010_se <- app(agb_2010_rasters, fun = sd)
     agb_2020_mean <- app(agb_2020_rasters, fun = mean)
-    agb_2020_sd <- app(agb_2020_rasters, fun = sd)
+    agb_2020_se <- app(agb_2020_rasters, fun = sd)
     agb_2030_mean <- app(agb_2030_rasters, fun = mean)
-    agb_2030_sd <- app(agb_2030_rasters, fun = sd)
+    agb_2030_se <- app(agb_2030_rasters, fun = sd)
     
     writeRaster(agb_2010_mean, file.path(output_dir, "agb_2010_mean.tif"), overwrite=TRUE)
-    writeRaster(agb_2010_sd, file.path(output_dir, "agb_2010_sd.tif"), overwrite=TRUE)
+    writeRaster(agb_2010_se, file.path(output_dir, "agb_2010_se.tif"), overwrite=TRUE)
     writeRaster(agb_2020_mean, file.path(output_dir, "agb_2020_mean.tif"), overwrite=TRUE)
-    writeRaster(agb_2020_sd, file.path(output_dir, "agb_2020_sd.tif"), overwrite=TRUE)
+    writeRaster(agb_2020_se, file.path(output_dir, "agb_2020_se.tif"), overwrite=TRUE)
     writeRaster(agb_2030_mean, file.path(output_dir, "agb_2030_mean.tif"), overwrite=TRUE)
-    writeRaster(agb_2030_sd, file.path(output_dir, "agb_2030_sd.tif"), overwrite=TRUE)
+    writeRaster(agb_2030_se, file.path(output_dir, "agb_2030_se.tif"), overwrite=TRUE)
     
   }
   
@@ -1172,17 +1172,17 @@ if (!dir.exists("temp_raster_lists")) {
     
     # Calculate the mean and standard deviation across all layers in the SpatRaster
     nrb_bin2010_2020_mean <- app(nrb_bin2010_2020_rasters, fun = mean)
-    nrb_bin2010_2020_sd <- app(nrb_bin2010_2020_rasters, fun = sd)
+    nrb_bin2010_2020_se <- app(nrb_bin2010_2020_rasters, fun = sd)
     harvest_st_bin2010_2020_mean <- app(harvest_st_bin2010_2020_rasters, fun = mean)
-    harvest_st_bin2010_2020_sd <- app(harvest_st_bin2010_2020_rasters, fun = sd)
+    harvest_st_bin2010_2020_se <- app(harvest_st_bin2010_2020_rasters, fun = sd)
     harvest_st_bin2010_2020_mean[harvest_st_bin2010_2020_mean <= 0] = NA 
-    harvest_st_bin2010_2020_sd[harvest_st_bin2010_2020_sd <= 0] = NA 
+    harvest_st_bin2010_2020_se[harvest_st_bin2010_2020_se <= 0] = NA 
     
     # Save the resulting rasters
     writeRaster(nrb_bin2010_2020_mean, file.path(output_dir, "nrb_10_20_mean.tif"), overwrite=TRUE)
-    writeRaster(nrb_bin2010_2020_sd, file.path(output_dir, "nrb_10_20_sd.tif"), overwrite=TRUE)
+    writeRaster(nrb_bin2010_2020_se, file.path(output_dir, "nrb_10_20_se.tif"), overwrite=TRUE)
     writeRaster(harvest_st_bin2010_2020_mean, file.path(output_dir, "harv_10_20_mean.tif"), overwrite=TRUE)
-    writeRaster(harvest_st_bin2010_2020_sd, file.path(output_dir, "harv_10_20_sd.tif"), overwrite=TRUE)
+    writeRaster(harvest_st_bin2010_2020_se, file.path(output_dir, "harv_10_20_se.tif"), overwrite=TRUE)
     
     ## 2020_2035 ----
     # Load the list of file paths from disk
@@ -1199,17 +1199,17 @@ if (!dir.exists("temp_raster_lists")) {
     
     # Calculate the mean and standard deviation across all layers in the SpatRaster
     nrb_bin2020_2035_mean <- app(nrb_bin2020_2035_rasters, fun = mean)
-    nrb_bin2020_2035_sd <- app(nrb_bin2020_2035_rasters, fun = sd)
+    nrb_bin2020_2035_se <- app(nrb_bin2020_2035_rasters, fun = sd)
     harvest_st_bin2020_2035_mean <- app(harvest_st_bin2020_2035_rasters, fun = mean)
-    harvest_st_bin2020_2035_sd <- app(harvest_st_bin2020_2035_rasters, fun = sd)
+    harvest_st_bin2020_2035_se <- app(harvest_st_bin2020_2035_rasters, fun = sd)
     harvest_st_bin2020_2035_mean[harvest_st_bin2020_2035_mean <= 0] = NA 
-    harvest_st_bin2020_2035_sd[harvest_st_bin2020_2035_sd <= 0] = NA 
+    harvest_st_bin2020_2035_se[harvest_st_bin2020_2035_se <= 0] = NA 
     
     # Save the resulting rasters
     writeRaster(nrb_bin2020_2035_mean, file.path(output_dir, "nrb_20_35_mean.tif"), overwrite=TRUE)
-    writeRaster(nrb_bin2020_2035_sd, file.path(output_dir, "nrb_20_35_sd.tif"), overwrite=TRUE)
+    writeRaster(nrb_bin2020_2035_se, file.path(output_dir, "nrb_20_35_se.tif"), overwrite=TRUE)
     writeRaster(harvest_st_bin2020_2035_mean, file.path(output_dir, "harv_20_35_mean.tif"), overwrite=TRUE)
-    writeRaster(harvest_st_bin2020_2035_sd, file.path(output_dir, "harv_20_35_sd.tif"), overwrite=TRUE)
+    writeRaster(harvest_st_bin2020_2035_se, file.path(output_dir, "harv_20_35_se.tif"), overwrite=TRUE)
     
     
     # Repeat for agb 
@@ -1226,18 +1226,18 @@ if (!dir.exists("temp_raster_lists")) {
     agb_2035_rasters <- do.call(c, agb_2035_rasters)
     
     agb_2010_mean <- app(agb_2010_rasters, fun = mean)
-    agb_2010_sd <- app(agb_2010_rasters, fun = sd)
+    agb_2010_se <- app(agb_2010_rasters, fun = sd)
     agb_2020_mean <- app(agb_2020_rasters, fun = mean)
-    agb_2020_sd <- app(agb_2020_rasters, fun = sd)
+    agb_2020_se <- app(agb_2020_rasters, fun = sd)
     agb_2035_mean <- app(agb_2035_rasters, fun = mean)
-    agb_2035_sd <- app(agb_2035_rasters, fun = sd)
+    agb_2035_se <- app(agb_2035_rasters, fun = sd)
     
     writeRaster(agb_2010_mean, file.path(output_dir, "agb_2010_mean.tif"), overwrite=TRUE)
-    writeRaster(agb_2010_sd, file.path(output_dir, "agb_2010_sd.tif"), overwrite=TRUE)
+    writeRaster(agb_2010_se, file.path(output_dir, "agb_2010_se.tif"), overwrite=TRUE)
     writeRaster(agb_2020_mean, file.path(output_dir, "agb_2020_mean.tif"), overwrite=TRUE)
-    writeRaster(agb_2020_sd, file.path(output_dir, "agb_2020_sd.tif"), overwrite=TRUE)
+    writeRaster(agb_2020_se, file.path(output_dir, "agb_2020_se.tif"), overwrite=TRUE)
     writeRaster(agb_2035_mean, file.path(output_dir, "agb_2035_mean.tif"), overwrite=TRUE)
-    writeRaster(agb_2035_sd, file.path(output_dir, "agb_2035_sd.tif"), overwrite=TRUE)
+    writeRaster(agb_2035_se, file.path(output_dir, "agb_2035_se.tif"), overwrite=TRUE)
 
     
   }
@@ -1260,17 +1260,17 @@ if (!dir.exists("temp_raster_lists")) {
     
     # Calculate the mean and standard deviation across all layers in the SpatRaster
     nrb_bin2010_2020_mean <- app(nrb_bin2010_2020_rasters, fun = mean)
-    nrb_bin2010_2020_sd <- app(nrb_bin2010_2020_rasters, fun = sd)
+    nrb_bin2010_2020_se <- app(nrb_bin2010_2020_rasters, fun = sd)
     harvest_st_bin2010_2020_mean <- app(harvest_st_bin2010_2020_rasters, fun = mean)
-    harvest_st_bin2010_2020_sd <- app(harvest_st_bin2010_2020_rasters, fun = sd)
+    harvest_st_bin2010_2020_se <- app(harvest_st_bin2010_2020_rasters, fun = sd)
     harvest_st_bin2010_2020_mean[harvest_st_bin2010_2020_mean <= 0] = NA 
-    harvest_st_bin2010_2020_sd[harvest_st_bin2010_2020_sd <= 0] = NA 
+    harvest_st_bin2010_2020_se[harvest_st_bin2010_2020_se <= 0] = NA 
     
     # Save the resulting rasters
     writeRaster(nrb_bin2010_2020_mean, file.path(output_dir, "nrb_10_20_mean.tif"), overwrite=TRUE)
-    writeRaster(nrb_bin2010_2020_sd, file.path(output_dir, "nrb_10_20_sd.tif"), overwrite=TRUE)
+    writeRaster(nrb_bin2010_2020_se, file.path(output_dir, "nrb_10_20_se.tif"), overwrite=TRUE)
     writeRaster(harvest_st_bin2010_2020_mean, file.path(output_dir, "harv_10_20_mean.tif"), overwrite=TRUE)
-    writeRaster(harvest_st_bin2010_2020_sd, file.path(output_dir, "harv_10_20_sd.tif"), overwrite=TRUE)
+    writeRaster(harvest_st_bin2010_2020_se, file.path(output_dir, "harv_10_20_se.tif"), overwrite=TRUE)
     
     ## 2020_2030 ----
     # Load the list of file paths from disk
@@ -1287,17 +1287,17 @@ if (!dir.exists("temp_raster_lists")) {
     
     # Calculate the mean and standard deviation across all layers in the SpatRaster
     nrb_bin2020_2030_mean <- app(nrb_bin2020_2030_rasters, fun = mean)
-    nrb_bin2020_2030_sd <- app(nrb_bin2020_2030_rasters, fun = sd)
+    nrb_bin2020_2030_se <- app(nrb_bin2020_2030_rasters, fun = sd)
     harvest_st_bin2020_2030_mean <- app(harvest_st_bin2020_2030_rasters, fun = mean)
-    harvest_st_bin2020_2030_sd <- app(harvest_st_bin2020_2030_rasters, fun = sd)
+    harvest_st_bin2020_2030_se <- app(harvest_st_bin2020_2030_rasters, fun = sd)
     harvest_st_bin2020_2030_mean[harvest_st_bin2020_2030_mean <= 0] = NA 
-    harvest_st_bin2020_2030_sd[harvest_st_bin2020_2030_sd <= 0] = NA 
+    harvest_st_bin2020_2030_se[harvest_st_bin2020_2030_se <= 0] = NA 
     
     # Save the resulting rasters
     writeRaster(nrb_bin2020_2030_mean, file.path(output_dir, "nrb_20_30_mean.tif"), overwrite=TRUE)
-    writeRaster(nrb_bin2020_2030_sd, file.path(output_dir, "nrb_20_30_sd.tif"), overwrite=TRUE)
+    writeRaster(nrb_bin2020_2030_se, file.path(output_dir, "nrb_20_30_se.tif"), overwrite=TRUE)
     writeRaster(harvest_st_bin2020_2030_mean, file.path(output_dir, "harv_20_30_mean.tif"), overwrite=TRUE)
-    writeRaster(harvest_st_bin2020_2030_sd, file.path(output_dir, "harv_20_30_sd.tif"), overwrite=TRUE)
+    writeRaster(harvest_st_bin2020_2030_se, file.path(output_dir, "harv_20_30_se.tif"), overwrite=TRUE)
     
     ## 2030_2040 ----
     # Load the list of file paths from disk
@@ -1314,17 +1314,17 @@ if (!dir.exists("temp_raster_lists")) {
     
     # Calculate the mean and standard deviation across all layers in the SpatRaster
     nrb_bin2030_2040_mean <- app(nrb_bin2030_2040_rasters, fun = mean)
-    nrb_bin2030_2040_sd <- app(nrb_bin2030_2040_rasters, fun = sd)
+    nrb_bin2030_2040_se <- app(nrb_bin2030_2040_rasters, fun = sd)
     harvest_st_bin2030_2040_mean <- app(harvest_st_bin2030_2040_rasters, fun = mean)
-    harvest_st_bin2030_2040_sd <- app(harvest_st_bin2030_2040_rasters, fun = sd)
+    harvest_st_bin2030_2040_se <- app(harvest_st_bin2030_2040_rasters, fun = sd)
     harvest_st_bin2030_2040_mean[harvest_st_bin2030_2040_mean <= 0] = NA 
-    harvest_st_bin2030_2040_sd[harvest_st_bin2030_2040_sd <= 0] = NA 
+    harvest_st_bin2030_2040_se[harvest_st_bin2030_2040_se <= 0] = NA 
     
     # Save the resulting rasters
     writeRaster(nrb_bin2030_2040_mean, file.path(output_dir, "nrb_30_40_mean.tif"), overwrite=TRUE)
-    writeRaster(nrb_bin2030_2040_sd, file.path(output_dir, "nrb_30_40_sd.tif"), overwrite=TRUE)
+    writeRaster(nrb_bin2030_2040_se, file.path(output_dir, "nrb_30_40_se.tif"), overwrite=TRUE)
     writeRaster(harvest_st_bin2030_2040_mean, file.path(output_dir, "harv_30_40_mean.tif"), overwrite=TRUE)
-    writeRaster(harvest_st_bin2030_2040_sd, file.path(output_dir, "harv_30_40_sd.tif"), overwrite=TRUE)
+    writeRaster(harvest_st_bin2030_2040_se, file.path(output_dir, "harv_30_40_se.tif"), overwrite=TRUE)
     
     # Repeat for agb 
     agb_2010_list <- readRDS(paste0("temp_raster_lists/agb_2010_step_", i, ".rds"))
@@ -1343,22 +1343,22 @@ if (!dir.exists("temp_raster_lists")) {
     agb_2040_rasters <- do.call(c, agb_2040_rasters)
     
     agb_2010_mean <- app(agb_2010_rasters, fun = mean)
-    agb_2010_sd <- app(agb_2010_rasters, fun = sd)
+    agb_2010_se <- app(agb_2010_rasters, fun = sd)
     agb_2020_mean <- app(agb_2020_rasters, fun = mean)
-    agb_2020_sd <- app(agb_2020_rasters, fun = sd)
+    agb_2020_se <- app(agb_2020_rasters, fun = sd)
     agb_2030_mean <- app(agb_2030_rasters, fun = mean)
-    agb_2030_sd <- app(agb_2030_rasters, fun = sd)
+    agb_2030_se <- app(agb_2030_rasters, fun = sd)
     agb_2040_mean <- app(agb_2040_rasters, fun = mean)
-    agb_2040_sd <- app(agb_2040_rasters, fun = sd)
+    agb_2040_se <- app(agb_2040_rasters, fun = sd)
     
     writeRaster(agb_2010_mean, file.path(output_dir, "agb_2010_mean.tif"), overwrite=TRUE)
-    writeRaster(agb_2010_sd, file.path(output_dir, "agb_2010_sd.tif"), overwrite=TRUE)
+    writeRaster(agb_2010_se, file.path(output_dir, "agb_2010_se.tif"), overwrite=TRUE)
     writeRaster(agb_2020_mean, file.path(output_dir, "agb_2020_mean.tif"), overwrite=TRUE)
-    writeRaster(agb_2020_sd, file.path(output_dir, "agb_2020_sd.tif"), overwrite=TRUE)
+    writeRaster(agb_2020_se, file.path(output_dir, "agb_2020_se.tif"), overwrite=TRUE)
     writeRaster(agb_2030_mean, file.path(output_dir, "agb_2030_mean.tif"), overwrite=TRUE)
-    writeRaster(agb_2030_sd, file.path(output_dir, "agb_2030_sd.tif"), overwrite=TRUE)
+    writeRaster(agb_2030_se, file.path(output_dir, "agb_2030_se.tif"), overwrite=TRUE)
     writeRaster(agb_2040_mean, file.path(output_dir, "agb_2040_mean.tif"), overwrite=TRUE)
-    writeRaster(agb_2040_sd, file.path(output_dir, "agb_2040_sd.tif"), overwrite=TRUE)
+    writeRaster(agb_2040_se, file.path(output_dir, "agb_2040_se.tif"), overwrite=TRUE)
     
   }
   
@@ -1380,17 +1380,17 @@ if (!dir.exists("temp_raster_lists")) {
     
     # Calculate the mean and standard deviation across all layers in the SpatRaster
     nrb_bin2010_2020_mean <- app(nrb_bin2010_2020_rasters, fun = mean)
-    nrb_bin2010_2020_sd <- app(nrb_bin2010_2020_rasters, fun = sd)
+    nrb_bin2010_2020_se <- app(nrb_bin2010_2020_rasters, fun = sd)
     harvest_st_bin2010_2020_mean <- app(harvest_st_bin2010_2020_rasters, fun = mean)
-    harvest_st_bin2010_2020_sd <- app(harvest_st_bin2010_2020_rasters, fun = sd)
+    harvest_st_bin2010_2020_se <- app(harvest_st_bin2010_2020_rasters, fun = sd)
     harvest_st_bin2010_2020_mean[harvest_st_bin2010_2020_mean <= 0] = NA 
-    harvest_st_bin2010_2020_sd[harvest_st_bin2010_2020_sd <= 0] = NA 
+    harvest_st_bin2010_2020_se[harvest_st_bin2010_2020_se <= 0] = NA 
     
     # Save the resulting rasters
     writeRaster(nrb_bin2010_2020_mean, file.path(output_dir, "nrb_10_20_mean.tif"), overwrite=TRUE)
-    writeRaster(nrb_bin2010_2020_sd, file.path(output_dir, "nrb_10_20_sd.tif"), overwrite=TRUE)
+    writeRaster(nrb_bin2010_2020_se, file.path(output_dir, "nrb_10_20_se.tif"), overwrite=TRUE)
     writeRaster(harvest_st_bin2010_2020_mean, file.path(output_dir, "harv_10_20_mean.tif"), overwrite=TRUE)
-    writeRaster(harvest_st_bin2010_2020_sd, file.path(output_dir, "harv_10_20_sd.tif"), overwrite=TRUE)
+    writeRaster(harvest_st_bin2010_2020_se, file.path(output_dir, "harv_10_20_se.tif"), overwrite=TRUE)
     
     ## 2020_2030 ----
     # Load the list of file paths from disk
@@ -1407,17 +1407,17 @@ if (!dir.exists("temp_raster_lists")) {
     
     # Calculate the mean and standard deviation across all layers in the SpatRaster
     nrb_bin2020_2030_mean <- app(nrb_bin2020_2030_rasters, fun = mean)
-    nrb_bin2020_2030_sd <- app(nrb_bin2020_2030_rasters, fun = sd)
+    nrb_bin2020_2030_se <- app(nrb_bin2020_2030_rasters, fun = sd)
     harvest_st_bin2020_2030_mean <- app(harvest_st_bin2020_2030_rasters, fun = mean)
-    harvest_st_bin2020_2030_sd <- app(harvest_st_bin2020_2030_rasters, fun = sd)
+    harvest_st_bin2020_2030_se <- app(harvest_st_bin2020_2030_rasters, fun = sd)
     harvest_st_bin2020_2030_mean[harvest_st_bin2020_2030_mean <= 0] = NA 
-    harvest_st_bin2020_2030_sd[harvest_st_bin2020_2030_sd <= 0] = NA 
+    harvest_st_bin2020_2030_se[harvest_st_bin2020_2030_se <= 0] = NA 
     
     # Save the resulting rasters
     writeRaster(nrb_bin2020_2030_mean, file.path(output_dir, "nrb_20_30_mean.tif"), overwrite=TRUE)
-    writeRaster(nrb_bin2020_2030_sd, file.path(output_dir, "nrb_20_30_sd.tif"), overwrite=TRUE)
+    writeRaster(nrb_bin2020_2030_se, file.path(output_dir, "nrb_20_30_se.tif"), overwrite=TRUE)
     writeRaster(harvest_st_bin2020_2030_mean, file.path(output_dir, "harv_20_30_mean.tif"), overwrite=TRUE)
-    writeRaster(harvest_st_bin2020_2030_sd, file.path(output_dir, "harv_20_30_sd.tif"), overwrite=TRUE)
+    writeRaster(harvest_st_bin2020_2030_se, file.path(output_dir, "harv_20_30_se.tif"), overwrite=TRUE)
     
     ## 2020_2035 ----
     # Load the list of file paths from disk
@@ -1434,17 +1434,17 @@ if (!dir.exists("temp_raster_lists")) {
     
     # Calculate the mean and standard deviation across all layers in the SpatRaster
     nrb_bin2020_2035_mean <- app(nrb_bin2020_2035_rasters, fun = mean)
-    nrb_bin2020_2035_sd <- app(nrb_bin2020_2035_rasters, fun = sd)
+    nrb_bin2020_2035_se <- app(nrb_bin2020_2035_rasters, fun = sd)
     harvest_st_bin2020_2035_mean <- app(harvest_st_bin2020_2035_rasters, fun = mean)
-    harvest_st_bin2020_2035_sd <- app(harvest_st_bin2020_2035_rasters, fun = sd)
+    harvest_st_bin2020_2035_se <- app(harvest_st_bin2020_2035_rasters, fun = sd)
     harvest_st_bin2020_2035_mean[harvest_st_bin2020_2035_mean <= 0] = NA 
-    harvest_st_bin2020_2035_sd[harvest_st_bin2020_2035_sd <= 0] = NA 
+    harvest_st_bin2020_2035_se[harvest_st_bin2020_2035_se <= 0] = NA 
     
     # Save the resulting rasters
     writeRaster(nrb_bin2020_2035_mean, file.path(output_dir, "nrb_20_35_mean.tif"), overwrite=TRUE)
-    writeRaster(nrb_bin2020_2035_sd, file.path(output_dir, "nrb_20_35_sd.tif"), overwrite=TRUE)
+    writeRaster(nrb_bin2020_2035_se, file.path(output_dir, "nrb_20_35_se.tif"), overwrite=TRUE)
     writeRaster(harvest_st_bin2020_2035_mean, file.path(output_dir, "harv_20_35_mean.tif"), overwrite=TRUE)
-    writeRaster(harvest_st_bin2020_2035_sd, file.path(output_dir, "harv_20_35_sd.tif"), overwrite=TRUE)
+    writeRaster(harvest_st_bin2020_2035_se, file.path(output_dir, "harv_20_35_se.tif"), overwrite=TRUE)
     
     ## 2020_2050 ----
     # Load the list of file paths from disk
@@ -1461,17 +1461,17 @@ if (!dir.exists("temp_raster_lists")) {
     
     # Calculate the mean and standard deviation across all layers in the SpatRaster
     nrb_bin2020_2050_mean <- app(nrb_bin2020_2050_rasters, fun = mean)
-    nrb_bin2020_2050_sd <- app(nrb_bin2020_2050_rasters, fun = sd)
+    nrb_bin2020_2050_se <- app(nrb_bin2020_2050_rasters, fun = sd)
     harvest_st_bin2020_2050_mean <- app(harvest_st_bin2020_2050_rasters, fun = mean)
-    harvest_st_bin2020_2050_sd <- app(harvest_st_bin2020_2050_rasters, fun = sd)
+    harvest_st_bin2020_2050_se <- app(harvest_st_bin2020_2050_rasters, fun = sd)
     harvest_st_bin2020_2050_mean[harvest_st_bin2020_2050_mean <= 0] = NA 
-    harvest_st_bin2020_2050_sd[harvest_st_bin2020_2050_sd <= 0] = NA 
+    harvest_st_bin2020_2050_se[harvest_st_bin2020_2050_se <= 0] = NA 
     
     # Save the resulting rasters
     writeRaster(nrb_bin2020_2050_mean, file.path(output_dir, "nrb_20_50_mean.tif"), overwrite=TRUE)
-    writeRaster(nrb_bin2020_2050_sd, file.path(output_dir, "nrb_20_50_sd.tif"), overwrite=TRUE)
+    writeRaster(nrb_bin2020_2050_se, file.path(output_dir, "nrb_20_50_se.tif"), overwrite=TRUE)
     writeRaster(harvest_st_bin2020_2050_mean, file.path(output_dir, "harv_20_50_mean.tif"), overwrite=TRUE)
-    writeRaster(harvest_st_bin2020_2050_sd, file.path(output_dir, "harv_20_50_sd.tif"), overwrite=TRUE)
+    writeRaster(harvest_st_bin2020_2050_se, file.path(output_dir, "harv_20_50_se.tif"), overwrite=TRUE)
     
     ## 2030_2040 ----
     # Load the list of file paths from disk
@@ -1488,17 +1488,17 @@ if (!dir.exists("temp_raster_lists")) {
     
     # Calculate the mean and standard deviation across all layers in the SpatRaster
     nrb_bin2030_2040_mean <- app(nrb_bin2030_2040_rasters, fun = mean)
-    nrb_bin2030_2040_sd <- app(nrb_bin2030_2040_rasters, fun = sd)
+    nrb_bin2030_2040_se <- app(nrb_bin2030_2040_rasters, fun = sd)
     harvest_st_bin2030_2040_mean <- app(harvest_st_bin2030_2040_rasters, fun = mean)
-    harvest_st_bin2030_2040_sd <- app(harvest_st_bin2030_2040_rasters, fun = sd)
+    harvest_st_bin2030_2040_se <- app(harvest_st_bin2030_2040_rasters, fun = sd)
     harvest_st_bin2030_2040_mean[harvest_st_bin2030_2040_mean <= 0] = NA 
-    harvest_st_bin2030_2040_sd[harvest_st_bin2030_2040_sd <= 0] = NA 
+    harvest_st_bin2030_2040_se[harvest_st_bin2030_2040_se <= 0] = NA 
     
     # Save the resulting rasters
     writeRaster(nrb_bin2030_2040_mean, file.path(output_dir, "nrb_30_40_mean.tif"), overwrite=TRUE)
-    writeRaster(nrb_bin2030_2040_sd, file.path(output_dir, "nrb_30_40_sd.tif"), overwrite=TRUE)
+    writeRaster(nrb_bin2030_2040_se, file.path(output_dir, "nrb_30_40_se.tif"), overwrite=TRUE)
     writeRaster(harvest_st_bin2030_2040_mean, file.path(output_dir, "harv_30_40_mean.tif"), overwrite=TRUE)
-    writeRaster(harvest_st_bin2030_2040_sd, file.path(output_dir, "harv_30_40_sd.tif"), overwrite=TRUE)
+    writeRaster(harvest_st_bin2030_2040_se, file.path(output_dir, "harv_30_40_se.tif"), overwrite=TRUE)
     
     ## 2040_2050 ----
     # Load the list of file paths from disk
@@ -1515,17 +1515,17 @@ if (!dir.exists("temp_raster_lists")) {
     
     # Calculate the mean and standard deviation across all layers in the SpatRaster
     nrb_bin2040_2050_mean <- app(nrb_bin2040_2050_rasters, fun = mean)
-    nrb_bin2040_2050_sd <- app(nrb_bin2040_2050_rasters, fun = sd)
+    nrb_bin2040_2050_se <- app(nrb_bin2040_2050_rasters, fun = sd)
     harvest_st_bin2040_2050_mean <- app(harvest_st_bin2040_2050_rasters, fun = mean)
-    harvest_st_bin2040_2050_sd <- app(harvest_st_bin2040_2050_rasters, fun = sd)
+    harvest_st_bin2040_2050_se <- app(harvest_st_bin2040_2050_rasters, fun = sd)
     harvest_st_bin2040_2050_mean[harvest_st_bin2040_2050_mean <= 0] = NA 
-    harvest_st_bin2040_2050_sd[harvest_st_bin2040_2050_sd <= 0] = NA 
+    harvest_st_bin2040_2050_se[harvest_st_bin2040_2050_se <= 0] = NA 
     
     # Save the resulting rasters
     writeRaster(nrb_bin2040_2050_mean, file.path(output_dir, "nrb_40_50_mean.tif"), overwrite=TRUE)
-    writeRaster(nrb_bin2040_2050_sd, file.path(output_dir, "nrb_40_50_sd.tif"), overwrite=TRUE)
+    writeRaster(nrb_bin2040_2050_se, file.path(output_dir, "nrb_40_50_se.tif"), overwrite=TRUE)
     writeRaster(harvest_st_bin2040_2050_mean, file.path(output_dir, "harv_40_50_mean.tif"), overwrite=TRUE)
-    writeRaster(harvest_st_bin2040_2050_sd, file.path(output_dir, "harv_40_50_sd.tif"), overwrite=TRUE)
+    writeRaster(harvest_st_bin2040_2050_se, file.path(output_dir, "harv_40_50_se.tif"), overwrite=TRUE)
     
     # Repeat for agb 
     agb_2010_list <- readRDS(paste0("temp_raster_lists/agb_2010_step_", i, ".rds"))
@@ -1550,30 +1550,30 @@ if (!dir.exists("temp_raster_lists")) {
     agb_2050_rasters <- do.call(c, agb_2050_rasters)
     
     agb_2010_mean <- app(agb_2010_rasters, fun = mean)
-    agb_2010_sd <- app(agb_2010_rasters, fun = sd)
+    agb_2010_se <- app(agb_2010_rasters, fun = sd)
     agb_2020_mean <- app(agb_2020_rasters, fun = mean)
-    agb_2020_sd <- app(agb_2020_rasters, fun = sd)
+    agb_2020_se <- app(agb_2020_rasters, fun = sd)
     agb_2030_mean <- app(agb_2030_rasters, fun = mean)
-    agb_2030_sd <- app(agb_2030_rasters, fun = sd)
+    agb_2030_se <- app(agb_2030_rasters, fun = sd)
     agb_2035_mean <- app(agb_2035_rasters, fun = mean)
-    agb_2035_sd <- app(agb_2035_rasters, fun = sd)
+    agb_2035_se <- app(agb_2035_rasters, fun = sd)
     agb_2040_mean <- app(agb_2040_rasters, fun = mean)
-    agb_2040_sd <- app(agb_2040_rasters, fun = sd)
+    agb_2040_se <- app(agb_2040_rasters, fun = sd)
     agb_2050_mean <- app(agb_2050_rasters, fun = mean)
-    agb_2050_sd <- app(agb_2050_rasters, fun = sd)
+    agb_2050_se <- app(agb_2050_rasters, fun = sd)
     
     writeRaster(agb_2010_mean, file.path(output_dir, "agb_2010_mean.tif"), overwrite=TRUE)
-    writeRaster(agb_2010_sd, file.path(output_dir, "agb_2010_sd.tif"), overwrite=TRUE)
+    writeRaster(agb_2010_se, file.path(output_dir, "agb_2010_se.tif"), overwrite=TRUE)
     writeRaster(agb_2020_mean, file.path(output_dir, "agb_2020_mean.tif"), overwrite=TRUE)
-    writeRaster(agb_2020_sd, file.path(output_dir, "agb_2020_sd.tif"), overwrite=TRUE)
+    writeRaster(agb_2020_se, file.path(output_dir, "agb_2020_se.tif"), overwrite=TRUE)
     writeRaster(agb_2030_mean, file.path(output_dir, "agb_2030_mean.tif"), overwrite=TRUE)
-    writeRaster(agb_2030_sd, file.path(output_dir, "agb_2030_sd.tif"), overwrite=TRUE)
+    writeRaster(agb_2030_se, file.path(output_dir, "agb_2030_se.tif"), overwrite=TRUE)
     writeRaster(agb_2035_mean, file.path(output_dir, "agb_2035_mean.tif"), overwrite=TRUE)
-    writeRaster(agb_2035_sd, file.path(output_dir, "agb_2035_sd.tif"), overwrite=TRUE)
+    writeRaster(agb_2035_se, file.path(output_dir, "agb_2035_se.tif"), overwrite=TRUE)
     writeRaster(agb_2040_mean, file.path(output_dir, "agb_2040_mean.tif"), overwrite=TRUE)
-    writeRaster(agb_2040_sd, file.path(output_dir, "agb_2040_sd.tif"), overwrite=TRUE)
+    writeRaster(agb_2040_se, file.path(output_dir, "agb_2040_se.tif"), overwrite=TRUE)
     writeRaster(agb_2050_mean, file.path(output_dir, "agb_2050_mean.tif"), overwrite=TRUE)
-    writeRaster(agb_2050_sd, file.path(output_dir, "agb_2050_sd.tif"), overwrite=TRUE)
+    writeRaster(agb_2050_se, file.path(output_dir, "agb_2050_se.tif"), overwrite=TRUE)
     
 
   }
