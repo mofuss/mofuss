@@ -33,11 +33,19 @@ MoFuSS uses Google Earth Engine for data download, R for data preparation and gr
     if (!require("pacman")) install.packages("pacman")
     pacman::p_load(readr, dplyr, fasterize, glue, igraph, raster, rgl, sf, tictoc, stars, gitlabr, inline, tidyverse, spam, svDialogs, terra, readxl)
     ```
+* Obtain the three folders needed to run the R script locally and save them directly in the C or D drive.
+    * admin_regions
+        * Geographical information
+    * demand_in
+        * Data on the fuel demand
+    * world_1000m_yyyymmdd
+        * Contains mapping data at specified resolution corresponding to the analysis precision level (1000m here)
 
 
 ### Running MoFuSS on the UNAM HPC cluster
 * The sequence of scripts to run MoFuSS on the UNAM HPC cluster is the following:
     * 1. `scripts/0_set_directories_and_region.R`
+         * Use the hardwired option in the script to set these paths to the locations you selected for the 3 folders in the above step.
     * 2. `scripts/1_erase_all_win.R`
     * 3. `scripts/3_demand4IDW_v1.R`
     * 4. `scripts/3_demand4IDW_v2.R`
