@@ -9,12 +9,12 @@ processingversion <- "globalsouth_mofuss_bindingfolder/"
 taildir <- "/OutBaU/webmofuss_results/"
 version <- "globalsouth_mofuss_final"
 cleanlocal <- 1 # This will completely clean the final results folder
-replace_node_files <- 1 # This will erase and overwrite all webmofuss results from each region into the GDrive folder
+replace_node_files <- 0 # This will erase and overwrite all webmofuss results from each region into the GDrive folder
 rasters <- 1
 shapefiles <- 1
 longnames <- 0 # Turn on in case you want the script to automatically shorten all names into unique ones, instead of choosing columns and renaming them
 
-simplifypolys <- 0
+simplifypolys <- 1
 chunk_size <- 2 # Use 2 to fix Zimbabwe - Number of features to include in each chunk. Adjust based on your system's memory capacity and feature complexity
 # Define the keep value and other parameters
 useextrasimppara <- 1
