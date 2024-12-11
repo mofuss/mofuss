@@ -93,4 +93,51 @@ for (dir in adm0_dirs) {
 
 
 
+
+
+
+
+# Distribuir todo lo de crecimiento y la demanda, guaradndo en GD primero y leugo copiando a todos los nodos
+
+files_to_copy_growth <- c(
+  paste0(gitlabdir, "/global_growth/growth_parameters_v3_modis.csv"),
+  paste0(gitlabdir, "/global_growth/growth_parameters_v3_copernicus.csv"),
+  paste0(gitlabdir, "/global_growth/ipcc_growth_and_stock_2019.xlsx"),
+  paste0(gitlabdir, "/global_growth/luc_modis_categories.csv"),
+  paste0(gitlabdir, "/global_growth/luc_copernicus_categories.csv")
+)
+
+# Loop through each directory in adm0_dirs
+for (dir in adm0_dirs) {
+  # Loop through each file to copy
+  for (file_growth in files_to_copy_growth) {
+    # Define the destination file path
+    dest_file_growth <- file.path(paste0(dir,"/LULCC/DownloadedDatasets/SourceDataGlobal/InTables"), basename(file_growth))
+    # Copy the file to the destination directory
+    file.copy(file_growth, dest_file_growth, overwrite = TRUE)
+  }
+}
+
+files_to_copy_growth2 <- c(
+  paste0(gitlabdir, "/global_growth/growth_parameters1csv"),
+  paste0(gitlabdir, "/global_growth/growth_parameters2.csv")
+)
+
+# Loop through each directory in adm0_dirs
+for (dir in adm0_dirs) {
+  # Loop through each file to copy
+  for (file_growth2 in files_to_copy_growth2) {
+    # Define the destination file path
+    dest_file_growth2a <- file.path(paste0(dir,"/LULCC/TempTables"), basename(file_growth2))
+    dest_file_growth2b <- file.path(paste0(dir,"/LULCC/SourceData/InTables"), basename(file_growth2))
+    # Copy the file to the destination directory
+    file.copy(file_growth2, dest_file_growth2a, overwrite = TRUE)
+    file.copy(file_growth2, dest_file_growth2b, overwrite = TRUE)
+  }
+}
+
+
+
+
+
  
