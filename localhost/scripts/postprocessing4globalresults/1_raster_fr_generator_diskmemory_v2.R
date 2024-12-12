@@ -21,8 +21,8 @@ tic()
 if (fixdir == 1){
   
   # Define a particular directory when needed:
-  adm0_dirs <- c("D:\tanzania_1000m_bau",
-                 "D:\tanzania_1000m_minus25")
+  adm0_dirs <- c("D:/tanzania_1000m_bau",
+                 "D:/tanzania_1000m_minus25")
   # adm0_dirs <- c("E:/ASIA_adm0_central_apr2024")
   #adm0_dirs <- c("F:/ASIA_adm0_china_apr2024")
   # adm0_dirs <- c("F:/ASIA_adm0_mongolia_apr2024",
