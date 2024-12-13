@@ -13,7 +13,7 @@ if (hardwireddirs == 1) {
   
   # 1km
   gitlabdir <- "C:/Users/aghil/Documents/mofuss"
-  countrydir <- "D:/world_1000m_20240818"
+  countrydir <- "D:/tanzania_1000m_bau"
   country <- "C:\\Users\\UNAM\\Documents\\mofuss\\countries\\Global.tif"
   demanddir <- "D:/demand"
   admindir <- "D:/admin_regions"
