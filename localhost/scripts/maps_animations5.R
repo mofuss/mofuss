@@ -10,8 +10,8 @@
 ## Aunque estos salen de dinamica hasta cierto punto, faltaria 2020-final year ###
 
 # Internal parameters
-videoson <- 0
-compilelatex <- 0
+videoson <- 1
+compilelatex <- 1
 uncertaintystacks <- 0
 fNRB_partition_tables <- 1
 mcthreshold <- 30
@@ -58,7 +58,7 @@ args=(commandArgs(TRUE))
 if(length(args)==0){
   print("No arguments supplied by DINAMICA.")
   ##Supply default values here (to be used when running the script through R directly)
-  MC = 30 # MonteCarlo runs
+  MC = 2 # MonteCarlo runs
   IT = 2010 # Initial year
   K_MC=1
   TOF_MC=1
@@ -136,6 +136,11 @@ country_parameters %>%
   pull(ParCHR) %>%
   as.integer(.) -> end_year
 STdyn <- end_year - IT
+
+country_parameters %>%
+  dplyr::filter(Var == "GEpoly") %>%
+  pull(ParCHR) %>%
+  as.integer(.) -> GEpoly
 
 if (LULCt1map == "YES") {
   tof_vs_for <- read_csv("LULCC/TempTables/growth_parameters1.csv") %>% 
@@ -1716,14 +1721,18 @@ if (compilelatex == 1) {
 if (fNRB_partition_tables == 1) {
   
   # fNRB partition tables and vectors ####
-  
-  admin <- raster("LULCC/TempRaster//admin_c.tif")
-  admin1 <- raster("LULCC/TempRaster//admin_c1.tif")
-  admin2 <- raster("LULCC/TempRaster//admin_c2.tif")
-  
-  userarea_gpkg <- st_read("LULCC/TempVector/userarea.gpkg")
-  userarea_gpkg1 <- st_read("LULCC/TempVector/userarea1.gpkg")
-  userarea_gpkg2 <- st_read("LULCC/TempVector/userarea2.gpkg")
+  if (GEpoly == 1) {
+    admin <- raster("LULCC/TempRaster//admin_c.tif")
+    userarea_gpkg <- st_read("LULCC/TempVector/userarea.gpkg")
+  } else {
+    admin <- raster("LULCC/TempRaster//admin_c.tif")
+    admin1 <- raster("LULCC/TempRaster//admin_c1.tif")
+    admin2 <- raster("LULCC/TempRaster//admin_c2.tif")
+    
+    userarea_gpkg <- st_read("LULCC/TempVector/userarea.gpkg")
+    userarea_gpkg1 <- st_read("LULCC/TempVector/userarea1.gpkg")
+    userarea_gpkg2 <- st_read("LULCC/TempVector/userarea2.gpkg")
+    }
   
   dir.create("OutBaU/webmofuss_results/") 
   
@@ -1760,8 +1769,14 @@ if (fNRB_partition_tables == 1) {
   # STdyn = 40 # 2050
   
   # For ALL MonteCarlo realizations and admin levels
-  adminlevel <- c(admin, admin1, admin2)
-  admin_name <- c("adm0", "adm1", "adm2")
+  if (GEpoly == 1) {
+    adminlevel <- c(admin)
+    admin_name <- c("adm0")
+  } else {
+    adminlevel <- c(admin, admin1, admin2)
+    admin_name <- c("adm0", "adm1", "adm2")
+  }
+
   
   foreach(admm = adminlevel, admname = admin_name) %do% {
     #admm <- adminlevel[[1]] # Only the first admin level
@@ -2398,16 +2413,26 @@ if (fNRB_partition_tables == 1) {
         
         print(paste0(admname," finished for tables"))
         
-        userarea_simpx_fr0 <- userarea_gpkg %>%
-          inner_join(.,NRB_fNRB3_fr_madm0, by="ID") %>%
-          dplyr::select(-NAME_0.y, -Subregion.y, -mofuss_reg.y, -GID_0.y) %>%
-          dplyr::rename(GID_0 = GID_0.x,
-                        NAME_0 = NAME_0.x,
-                        Subregion = Subregion.x,
-                        mofuss_reg = mofuss_reg.x) %>%
-          replace(is.na(.), 0)
-        st_write(userarea_simpx_fr0, "OutBaU/webmofuss_results/mofuss_adm0_fr.gpkg", delete_layer = TRUE)
-        print(paste0(admname," finished for vector layers"))
+        if (GEpoly == 1) {
+          userarea_simpx_fr0 <- userarea_gpkg %>%
+            inner_join(.,NRB_fNRB3_fr_madm0, by="ID") %>%
+            dplyr::select(-NAME_0.y) %>%
+            dplyr::rename(NAME_0 = NAME_0.x) %>%
+            replace(is.na(.), 0)
+          st_write(userarea_simpx_fr0, "OutBaU/webmofuss_results/mofuss_adm0_fr.gpkg", delete_layer = TRUE)
+          print(paste0(admname," finished for vector layers"))
+        } else {
+          userarea_simpx_fr0 <- userarea_gpkg %>%
+            inner_join(.,NRB_fNRB3_fr_madm0, by="ID") %>%
+            dplyr::select(-NAME_0.y, -Subregion.y, -mofuss_reg.y, -GID_0.y) %>%
+            dplyr::rename(GID_0 = GID_0.x,
+                          NAME_0 = NAME_0.x,
+                          Subregion = Subregion.x,
+                          mofuss_reg = mofuss_reg.x) %>%
+            replace(is.na(.), 0)
+          st_write(userarea_simpx_fr0, "OutBaU/webmofuss_results/mofuss_adm0_fr.gpkg", delete_layer = TRUE)
+          print(paste0(admname," finished for vector layers"))
+        }
         
       } else if (admname == "adm1") {
         NRB_fNRB2_frcompl_madm1 <- userarea_gpkg1 %>%
@@ -2542,16 +2567,26 @@ if (fNRB_partition_tables == 1) {
         
         print(paste0(admname," finished for tables"))
         
-        userarea_simpx_fr0 <- userarea_gpkg %>%
-          inner_join(.,NRB_fNRB3_fr_madm0, by="ID") %>%
-          dplyr::select(-NAME_0.y, -Subregion.y, -mofuss_reg.y, -GID_0.y) %>%
-          dplyr::rename(GID_0 = GID_0.x,
-                        NAME_0 = NAME_0.x,
-                        Subregion = Subregion.x,
-                        mofuss_reg = mofuss_reg.x) %>%
-          replace(is.na(.), 0)
-        st_write(userarea_simpx_fr0, "OutBaU/webmofuss_results/mofuss_adm0_fr.gpkg", delete_layer = TRUE)
-        print(paste0(admname," finished for vector layers"))
+        if (GEpoly == 1) {
+          userarea_simpx_fr0 <- userarea_gpkg %>%
+            inner_join(.,NRB_fNRB3_fr_madm0, by="ID") %>%
+            dplyr::select(-NAME_0.y) %>%
+            dplyr::rename(NAME_0 = NAME_0.x) %>%
+            replace(is.na(.), 0)
+          st_write(userarea_simpx_fr0, "OutBaU/webmofuss_results/mofuss_adm0_fr.gpkg", delete_layer = TRUE)
+          print(paste0(admname," finished for vector layers"))
+        } else {
+          userarea_simpx_fr0 <- userarea_gpkg %>%
+            inner_join(.,NRB_fNRB3_fr_madm0, by="ID") %>%
+            dplyr::select(-NAME_0.y, -Subregion.y, -mofuss_reg.y, -GID_0.y) %>%
+            dplyr::rename(GID_0 = GID_0.x,
+                          NAME_0 = NAME_0.x,
+                          Subregion = Subregion.x,
+                          mofuss_reg = mofuss_reg.x) %>%
+            replace(is.na(.), 0)
+          st_write(userarea_simpx_fr0, "OutBaU/webmofuss_results/mofuss_adm0_fr.gpkg", delete_layer = TRUE)
+          print(paste0(admname," finished for vector layers"))
+        }
         
       } else if (admname == "adm1") {
         NRB_fNRB2_frcompl_madm1 <- userarea_gpkg1 %>%
@@ -2698,16 +2733,26 @@ if (fNRB_partition_tables == 1) {
         
         print(paste0(admname," finished for tables"))
         
-        userarea_simpx_fr0 <- userarea_gpkg %>%
-          inner_join(.,NRB_fNRB3_fr_madm0, by="ID") %>%
-          dplyr::select(-NAME_0.y, -Subregion.y, -mofuss_reg.y, -GID_0.y) %>%
-          dplyr::rename(GID_0 = GID_0.x,
-                        NAME_0 = NAME_0.x,
-                        Subregion = Subregion.x,
-                        mofuss_reg = mofuss_reg.x) %>%
-          replace(is.na(.), 0)
-        st_write(userarea_simpx_fr0, "OutBaU/webmofuss_results/mofuss_adm0_fr.gpkg", delete_layer = TRUE)
-        print(paste0(admname," finished for vector layers"))
+        if (GEpoly == 1) {
+          userarea_simpx_fr0 <- userarea_gpkg %>%
+            inner_join(.,NRB_fNRB3_fr_madm0, by="ID") %>%
+            dplyr::select(-NAME_0.y) %>%
+            dplyr::rename(NAME_0 = NAME_0.x) %>%
+            replace(is.na(.), 0)
+          st_write(userarea_simpx_fr0, "OutBaU/webmofuss_results/mofuss_adm0_fr.gpkg", delete_layer = TRUE)
+          print(paste0(admname," finished for vector layers"))
+        } else {
+          userarea_simpx_fr0 <- userarea_gpkg %>%
+            inner_join(.,NRB_fNRB3_fr_madm0, by="ID") %>%
+            dplyr::select(-NAME_0.y, -Subregion.y, -mofuss_reg.y, -GID_0.y) %>%
+            dplyr::rename(GID_0 = GID_0.x,
+                          NAME_0 = NAME_0.x,
+                          Subregion = Subregion.x,
+                          mofuss_reg = mofuss_reg.x) %>%
+            replace(is.na(.), 0)
+          st_write(userarea_simpx_fr0, "OutBaU/webmofuss_results/mofuss_adm0_fr.gpkg", delete_layer = TRUE)
+          print(paste0(admname," finished for vector layers"))
+        }
         
       } else if (admname == "adm1") {
         NRB_fNRB2_frcompl_madm1 <- userarea_gpkg1 %>%
@@ -2866,16 +2911,26 @@ if (fNRB_partition_tables == 1) {
         
         print(paste0(admname," finished for tables"))
         
-        userarea_simpx_fr0 <- userarea_gpkg %>%
-          inner_join(.,NRB_fNRB3_fr_madm0, by="ID") %>%
-          dplyr::select(-NAME_0.y, -Subregion.y, -mofuss_reg.y, -GID_0.y) %>%
-          dplyr::rename(GID_0 = GID_0.x,
-                        NAME_0 = NAME_0.x,
-                        Subregion = Subregion.x,
-                        mofuss_reg = mofuss_reg.x) %>%
-          replace(is.na(.), 0)
-        st_write(userarea_simpx_fr0, "OutBaU/webmofuss_results/mofuss_adm0_fr.gpkg", delete_layer = TRUE)
-        print(paste0(admname," finished for vector layers"))
+        if (GEpoly == 1) {
+          userarea_simpx_fr0 <- userarea_gpkg %>%
+            inner_join(.,NRB_fNRB3_fr_madm0, by="ID") %>%
+            dplyr::select(-NAME_0.y) %>%
+            dplyr::rename(NAME_0 = NAME_0.x) %>%
+            replace(is.na(.), 0)
+          st_write(userarea_simpx_fr0, "OutBaU/webmofuss_results/mofuss_adm0_fr.gpkg", delete_layer = TRUE)
+          print(paste0(admname," finished for vector layers"))
+        } else {
+          userarea_simpx_fr0 <- userarea_gpkg %>%
+            inner_join(.,NRB_fNRB3_fr_madm0, by="ID") %>%
+            dplyr::select(-NAME_0.y, -Subregion.y, -mofuss_reg.y, -GID_0.y) %>%
+            dplyr::rename(GID_0 = GID_0.x,
+                          NAME_0 = NAME_0.x,
+                          Subregion = Subregion.x,
+                          mofuss_reg = mofuss_reg.x) %>%
+            replace(is.na(.), 0)
+          st_write(userarea_simpx_fr0, "OutBaU/webmofuss_results/mofuss_adm0_fr.gpkg", delete_layer = TRUE)
+          print(paste0(admname," finished for vector layers"))
+        }
         
       } else if (admname == "adm1") {
         NRB_fNRB2_frcompl_madm1 <- userarea_gpkg1 %>%
@@ -3042,17 +3097,28 @@ if (fNRB_partition_tables == 1) {
         
         print(paste0(admname," finished for tables"))
         
-        userarea_simpx_fr0 <- userarea_gpkg %>%
-          inner_join(.,NRB_fNRB3_fr_madm0, by="ID") %>%
-          dplyr::select(-NAME_0.y, -Subregion.y, -mofuss_reg.y, -GID_0.y) %>%
-          dplyr::rename(GID_0 = GID_0.x,
-                        NAME_0 = NAME_0.x,
-                        Subregion = Subregion.x,
-                        mofuss_reg = mofuss_reg.x) %>%
-          replace(is.na(.), 0)
-        st_write(userarea_simpx_fr0, "OutBaU/webmofuss_results/mofuss_adm0_fr.gpkg", delete_layer = TRUE)
-        print(paste0(admname," finished for vector layers"))
+        if (GEpoly == 1) {
+          userarea_simpx_fr0 <- userarea_gpkg %>%
+            inner_join(.,NRB_fNRB3_fr_madm0, by="ID") %>%
+            dplyr::select(-NAME_0.y) %>%
+            dplyr::rename(NAME_0 = NAME_0.x) %>%
+            replace(is.na(.), 0)
+          st_write(userarea_simpx_fr0, "OutBaU/webmofuss_results/mofuss_adm0_fr.gpkg", delete_layer = TRUE)
+          print(paste0(admname," finished for vector layers"))
+        } else {
+          userarea_simpx_fr0 <- userarea_gpkg %>%
+            inner_join(.,NRB_fNRB3_fr_madm0, by="ID") %>%
+            dplyr::select(-NAME_0.y, -Subregion.y, -mofuss_reg.y, -GID_0.y) %>%
+            dplyr::rename(GID_0 = GID_0.x,
+                          NAME_0 = NAME_0.x,
+                          Subregion = Subregion.x,
+                          mofuss_reg = mofuss_reg.x) %>%
+            replace(is.na(.), 0)
+          st_write(userarea_simpx_fr0, "OutBaU/webmofuss_results/mofuss_adm0_fr.gpkg", delete_layer = TRUE)
+          print(paste0(admname," finished for vector layers"))
+        }
         
+       
       } else if (admname == "adm1") {
         NRB_fNRB2_frcompl_madm1 <- userarea_gpkg1 %>%
           st_drop_geometry() %>%
