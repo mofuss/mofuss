@@ -517,7 +517,7 @@ for (lucinputdataset in lucavailablemaps) {
     replace(., is.na(.), 1) # Replace  NaN for no pixels in category!
   head(agb_n_decil)
   
-  # WATCH OUT HERE fun='mean' ----
+  # WATCH OUT HERE fun='mean' ---- its ok
   
   agb_meanv0 <- terra::extract(agb4stats_rcr, luc_poly, fun='mean', na.rm = TRUE, bind=TRUE)
   agb_meanv1 <- agb_meanv0  %>%

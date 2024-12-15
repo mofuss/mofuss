@@ -1,3 +1,4 @@
+# MDG
 # MoFuSS
 # Version 3
 # Date: Mar 2024
@@ -1784,7 +1785,7 @@ if (fNRB_partition_tables == 1) {
     NRBzon_frlist <- list()
     # MC=2
     for (j in 1:MC) {
-      #j = 1
+      # j = 1
       print(j)
       
       # NRB 

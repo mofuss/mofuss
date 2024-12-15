@@ -208,7 +208,8 @@ if (webmofuss == 0) {
                   "NRB_graphs_datasets2.R",
                   # "maps_animations2.R",
                   # "maps_animations3.R",
-                  "maps_animations4.R",
+                  #"maps_animations4.R",
+                  "maps_animations5.R",
                   "finalogs.R",
                   "bypass_maps_animations.R")
   

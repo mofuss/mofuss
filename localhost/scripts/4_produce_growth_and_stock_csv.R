@@ -115,7 +115,7 @@ if (LULCt1map == "YES" & LULCt2map == "YES"){
 lucavailablemaps
 
 for (lucinputdataset in lucavailablemaps) {
-
+# lucinputdataset = "copernicus"
 setwd(countrydir)
 
 # Prepare the rural urban mask ----

@@ -188,15 +188,19 @@ countries.list <-  mofuss_regions0 %>%
 
 # Select a region
 if (byregion == "Continental") {
-  cont.list <- (c("SSA" ,"LATAM", "ASIA"))
-  region.input <- dlgList(as.character(cont.list), 
-                           preselect = "SSA",
-                           multiple = FALSE, 
-                           title = "Choose a continent to process",
-                           gui = .GUI
-  )
-  mofuss_region <- region.input$res
+  country_parameters %>%
+    dplyr::filter(Var == "region2BprocessedCont") %>%
+    pull(ParCHR) -> mofuss_region
 
+  # cont.list <- (c("SSA" ,"LATAM", "ASIA"))
+  # region.input <- dlgList(as.character(cont.list), 
+  #                          preselect = "SSA",
+  #                          multiple = FALSE, 
+  #                          title = "Choose a continent to process",
+  #                          gui = .GUI
+  # )
+  # mofuss_region <- region.input$res
+  
   if (!length(mofuss_region)) {
     cat("You cancelled the choice\n")
   } else {
@@ -205,13 +209,17 @@ if (byregion == "Continental") {
   }
 
 } else if (byregion == "Regional") {
-  region.input <- dlgList(as.character(regions.list[ , ]), 
-                           preselect = "SSA_adm0_eastern",
-                           multiple = FALSE,
-                           title = "Choose a region to process",
-                           gui = .GUI
-  )
-  mofuss_region <- region.input$res
+  country_parameters %>%
+    dplyr::filter(Var == "region2BprocessedReg") %>%
+    pull(ParCHR) -> mofuss_region
+  
+#   region.input <- dlgList(as.character(regions.list[ , ]), 
+#                            preselect = "SSA_adm0_eastern",
+#                            multiple = FALSE,
+#                            title = "Choose a region to process",
+#                            gui = .GUI
+#   )
+#   mofuss_region <- region.input$res
   
   if (!length(mofuss_region)) {
     cat("You cancelled the choice\n")
@@ -220,14 +228,18 @@ if (byregion == "Continental") {
     print(region.input$res)
   }
 } else if (byregion == "Country") {
-  # Select a country
-  region.input <- dlgList(as.character(countries.list[ , ]), 
-                            preselect = "Kenya",
-                            multiple = FALSE, # Check if multiple countries or values is doable
-                            title = "Choose one country to process",
-                            gui = .GUI
-  )
-  mofuss_region <- region.input$res
+  country_parameters %>%
+    dplyr::filter(Var == "region2BprocessedCtry") %>%
+    pull(ParCHR) -> mofuss_region
+  
+  # # Select a country
+  # region.input <- dlgList(as.character(countries.list[ , ]), 
+  #                           preselect = "Kenya",
+  #                           multiple = FALSE, # Check if multiple countries or values is doable
+  #                           title = "Choose one country to process",
+  #                           gui = .GUI
+  # )
+  # mofuss_region <- region.input$res
   
 } else {
   print("Error")
@@ -1135,183 +1147,6 @@ file.copy(from=paste0(demanddir,"/to_idw/BaU_fwch_w.csv"),
 
 file.copy(from=paste0(demanddir,"/to_idw/BaU_fwch_v.csv"),
           to=paste0(countrydir,"/In/DemandScenarios"),
-          overwrite = TRUE)
-
-# Select GADM_AOI_gpkg ----
-
-setwd(admindir)
-
-unlink("InVector/extent_*.*")
-
-if (byregion == "Continental"){ ## Continent ----
-  
-  extent_mask0 <- st_read("regions_adm0_p/mofuss_regions0_p.gpkg") %>% 
-    dplyr::filter(grepl(mofuss_region,mofuss_reg)) %>%
-    dplyr::mutate(ID = seq(1:nrow(.)))
-  st_write(extent_mask0, "InVector/extent_mask.gpkg", overwrite = TRUE)
-  
-  countries.list <- extent_mask0 %>%
-    as.data.frame() %>%
-    dplyr::select(NAME_0) %>%
-    unique() %>%
-    arrange(NAME_0)
-  
-  country.input <- dlgList(as.character(countries.list[ , ]), 
-                           preselect = "Kenya",
-                           multiple = FALSE, # Check if multiple countries or values is doable
-                           title = "Choose one country to process",
-                           gui = .GUI
-  )
-  mofuss_country <- country.input$res
-  
-  extent_mask0 %>%
-    terra::subset(.$NAME_0 == mofuss_country) %>% #Remember to change in the parameters table
-    st_write("InVector/extent_analysis.gpkg", overwrite = TRUE)
-  
-  # ADM LEVEL = 1, when running ADM LEVEL = 0
-  mask1list <- paste0("regions_adm1_p/",list.files(path = paste0("regions_adm1_p/"),
-                                                   pattern = mofuss_region, full.names = FALSE))
-  mask1list_sf <- lapply(mask1list, st_read)
-  mofuss_regions1_gpkg <- do.call(rbind, mask1list_sf) %>%
-    dplyr::mutate(ID = seq(1:nrow(.)))
-  st_write(mofuss_regions1_gpkg, "InVector/extent_mask1.gpkg", overwrite = TRUE)
-  debugdfadm1 <- mofuss_regions1_gpkg %>% st_drop_geometry()
-  
-  mofuss_regions1_gpkg %>%
-    terra::subset(.$NAME_0 == mofuss_country) %>% # Remember to change in the parameters table FIX
-    st_write("InVector/extent_analysis1.gpkg", overwrite = TRUE)
-  
-  # ADM LEVEL = 2, when running ADM LEVEL = 0 #Slow process, elapsed time:
-  mask2list <- paste0("regions_adm2_p/",list.files(path = paste0("regions_adm2_p/"),
-                                                   pattern = mofuss_region, full.names = FALSE))
-  mask2list_sf <- lapply(mask2list, st_read)
-  mofuss_regions2_gpkg <- do.call(rbind, mask2list_sf) %>%
-    dplyr::mutate(ID = seq(1:nrow(.)))
-  st_write(mofuss_regions2_gpkg, "InVector/extent_mask2.gpkg", overwrite = TRUE)
-  debugdfadm2 <- mofuss_regions2_gpkg %>% st_drop_geometry()
-  
-  mofuss_regions2_gpkg %>%
-    terra::subset(.$NAME_0 == mofuss_country) %>% # Remember to change in the parameters table FIX
-    st_write("InVector/extent_analysis2.gpkg", overwrite = TRUE)
-  
-}
-
-
-if (byregion == "Regional"){ ## Regional ----
-  
-  extent_mask0 <- vect(st_read(paste0("regions_adm0_p/",mofuss_region,"_p.gpkg")))
-  terra::writeVector(extent_mask0, "InVector/extent_mask.gpkg", overwrite = TRUE)
-  
-  countries.list <- extent_mask0 %>%
-    as.data.frame() %>%
-    dplyr::select(NAME_0) %>%
-    unique() %>%
-    arrange(NAME_0)
-  
-  country.input <- dlgList(as.character(countries.list[ , ]), 
-                           preselect = "Kenya",
-                           multiple = FALSE, # Check if multiple countries or values is doable
-                           title = "Choose one country to process",
-                           gui = .GUI
-  )
-  mofuss_country <- country.input$res
-  
-  extent_mask0 %>%
-    terra::subset(.$NAME_0 == mofuss_country) %>% #Remember to change in the parameters table
-    terra::writeVector("InVector/extent_analysis.gpkg", overwrite = TRUE)
-  
-  # ADM LEVEL = 1, when running ADM LEVEL = 0
-  mofuss_regions1_gpkg <- vect("regions_adm1_p/mofuss_regions1_p.gpkg")
-  mofuss_regions1 <- as.data.frame(mofuss_regions1_gpkg)
-  
-  mofuss_region1 <- gsub(0,1, mofuss_region)
-  extent_mask1 <- vect(paste0("regions_adm1_p/",mofuss_region1,"_p.gpkg"))
-  terra::writeVector(extent_mask1, "InVector/extent_mask1.gpkg", overwrite = TRUE)
-  
-  extent_mask1 %>%
-    terra::subset(.$NAME_0 == mofuss_country) %>% #Remember to change in the parameters table
-    terra::writeVector("InVector/extent_analysis1.gpkg", overwrite = TRUE)
-  
-  mofuss_region2 <- gsub(0,2, mofuss_region)
-  extent_mask2 <- vect(paste0("regions_adm2_p/",mofuss_region2,"_p.gpkg"))
-  terra::writeVector(extent_mask2, "InVector/extent_mask2.gpkg", overwrite = TRUE)
-  
-  extent_mask2 %>%
-    terra::subset(.$NAME_0 == mofuss_country) %>% #Remember to change in the parameters table
-    terra::writeVector("InVector/extent_analysis2.gpkg", overwrite = TRUE)
-  
-}
-
-if (byregion == "Country"){ ## Country ---- 
-  
-  extent_mask0 <- vect(st_read("regions_adm0_p/mofuss_regions0_p.gpkg")) %>% 
-    terra::subset(.$NAME_0 == mofuss_region)
-  terra::writeVector(extent_mask0, "InVector/extent_mask.gpkg", overwrite = TRUE)
-  
-  extent_mask1 <- vect(st_read("regions_adm1_p/mofuss_regions1_p.gpkg")) %>%
-    terra::subset(.$NAME_0 == mofuss_region)
-  terra::writeVector(extent_mask1, "InVector/extent_mask1.gpkg", overwrite = TRUE)
-  
-  extent_mask2 <- vect(st_read("regions_adm2_p/mofuss_regions2_p.gpkg")) %>%
-    terra::subset(.$NAME_0 == mofuss_region)
-  terra::writeVector(extent_mask2, "InVector/extent_mask2.gpkg", overwrite = TRUE)
-  
-  adm1.list <- extent_mask1 %>%
-    as.data.frame() %>%
-    dplyr::select(NAME_1) %>%
-    unique() %>%
-    arrange(NAME_1)
-  
-  adm1.input <- dlgList(as.character(adm1.list[ , ]), 
-                        # preselect = "Kenya",
-                        multiple = FALSE, # Check if multiple countries or values is doable
-                        title = "Choose one polygon to process",
-                        gui = .GUI
-  )
-  adm1_country <- adm1.input$res
-  
-  extent_mask1 %>%
-    terra::subset(.$NAME_1 == adm1_country) %>%
-    terra::writeVector("InVector/extent_analysis.gpkg", overwrite = TRUE)
-  
-  extent_mask2 %>%
-    terra::subset(.$NAME_1 == adm1_country) %>%
-    terra::writeVector("InVector/extent_analysis1.gpkg", overwrite = TRUE)
-  
-  extent_mask2 %>% # Repeats previous admin 2 level for being a country crop
-    terra::subset(.$NAME_1 == adm1_country) %>%
-    terra::writeVector("InVector/extent_analysis2.gpkg", overwrite = TRUE)
-  
-}
-
-# Copy to MoFuSS ----
-setwd(countrydir)
-
-#ADM 0
-file.copy(from=paste0(admindir,"/InVector/extent_mask.gpkg"),
-          to=paste0(countrydir,"/LULCC/SourceData/InVector"),
-          overwrite = TRUE)
-
-file.copy(from=paste0(admindir,"/InVector/extent_analysis.gpkg"),
-          to=paste0(countrydir,"/LULCC/SourceData/InVector"),
-          overwrite = TRUE)
-
-#ADM 1
-file.copy(from=paste0(admindir,"/InVector/extent_mask1.gpkg"),
-          to=paste0(countrydir,"/LULCC/SourceData/InVector"),
-          overwrite = TRUE)
-
-file.copy(from=paste0(admindir,"/InVector/extent_analysis1.gpkg"),
-          to=paste0(countrydir,"/LULCC/SourceData/InVector"),
-          overwrite = TRUE)
-
-#ADM 2
-file.copy(from=paste0(admindir,"/InVector/extent_mask2.gpkg"),
-          to=paste0(countrydir,"/LULCC/SourceData/InVector"),
-          overwrite = TRUE)
-
-file.copy(from=paste0(admindir,"/InVector/extent_analysis2.gpkg"),
-          to=paste0(countrydir,"/LULCC/SourceData/InVector"),
           overwrite = TRUE)
 
 
