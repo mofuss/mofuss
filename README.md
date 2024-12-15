@@ -1,5 +1,36 @@
+# Welcome to MoFuSS local installation Read Me file
 
-******************
+Explore global geospatial results and access comprehensive documentation by visiting MoFuSS's official website.
+
+For questions or feedback, please contact mofussfreeware@gmail.com ✨
+
+## MoFuSS can be run in two ways:
+**1.- Web-Based Interface:** This is the simplest option as it requires no installation. However, it is still under development. To check for updates, visit our MoFuSS group or go to www.mofuss.unam.mx under the "User-Defined Scenarios" or "MoFuSS-US" section.
+
+**2.- Local Installation:** This option allows you to run MoFuSS directly on your local computer. However, it's important to note that at least one module must be executed on a High-Performance Computing (HPC) cluster, as it relies on parallel C++ algorithms. This document provides a step-by-step guide for installing MoFuSS locally.
+
+For instructions on how to run MoFuSS locally, including how to use the HPC module, refer to the section below this Read.me file titled _"Running MoFuSS Locally."_
+
+## Install MoFuSS Locally
+
+MoFuSS uses Google Earth Engine for data download, R for data preparation and graphs, C++ for harvest probability maps, DINAMICA EGO for geospatial simulations (core scripts), ffmpeg for creating animations, LaTeX for formatting and generating final reports
+
+#### Stage 0: Data Download. If you already have all the necessary datasets, you can skip this stage and proceed directly to Stage 1.  
+#### Stage 1: Local Data Processing. Six sequential scripts are run on your local machine to generate Stage 1 results. 
+#### Stage 2: A subste of Stage 1 results are then sent to the High-Performance Computing (HPC) cluster, where geospatial simulations are performed. Once the simulations are complete, the results are sent back to your local machine for further processing.
+#### Stage 3: Final Analysis and Report Generation. Results from Stages 1 and 2 are used on your local machine to generate the final outputs, including summary results and reports formatted using LaTeX.
+
+## Stage 0: Data Download
+<< Instructions on how to download all datasets are in progress >>
+
+
+## Running MoFuSS Locally.
+
+
+
+********************************************************************************
+
+
 
 ### **Welcome to the New MoFuSS GitHub Account!**
 
