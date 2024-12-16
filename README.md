@@ -7,9 +7,7 @@ For questions or feedback, please contact mofussfreeware@gmail.com ✨
 ## MoFuSS can be run in two ways:
 **1.- Web-Based Interface:** This is the simplest option as it requires no installation. However, it is still under development. To check for updates, [join our MoFuSS group](groups.google.com/g/mofuss) or visit www.mofuss.unam.mx under the "User-Defined Scenarios" or "MoFuSS-US" section.
 
-**2.- Local Installation:** This option allows you to run MoFuSS directly on your local computer. However, it's important to note that at least one module must be executed on a High-Performance Computing (HPC) cluster, as it relies on parallel C++ algorithms. This document provides a step-by-step guide for installing MoFuSS locally.
-
-_For step-by-step instructions on running MoFuSS locally, including guidance on using the HPC module, continue reading below._ 📚
+**2.- Local Installation:** This option allows you to run MoFuSS directly on your local computer. However, it's important to note that at least one module must be executed on a High-Performance Computing (HPC) cluster, as it relies on parallel C++ algorithms. This document provides a step-by-step guide for installing MoFuSS locally. 📚
 
 ## Install and run MoFuSS Locally
 
