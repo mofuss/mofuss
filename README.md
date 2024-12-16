@@ -22,7 +22,7 @@ MoFuSS uses Google Earth Engine for data download, R for data preparation and gr
 
 ### Stage 0: Data Download
 
-If you wish to download all or select MoFuSS datasets from scratch, or replace specific MoFuSS datasets with those you've produced, please refer to the MoFuSS repository: [gee2mofuss](https://github.com/mofuss/gee2mofuss). [**Please not that we are still documenting this repository, please contact aghilardi@ciga.unam.mx in case you need support**]
+If you wish to download all or some MoFuSS datasets from scratch, or replace specific MoFuSS datasets with those you've produced, please refer to the MoFuSS repository: [gee2mofuss](https://github.com/mofuss/gee2mofuss). [**Please not that we are still documenting this repository, please contact aghilardi@ciga.unam.mx in case you need support**]
 
 ### Stage 1: Local Data Processing
 #### Preparing your environment
@@ -36,32 +36,42 @@ If you wish to download all or select MoFuSS datasets from scratch, or replace s
     if (!require("pacman")) install.packages("pacman")
     pacman::p_load(readr, dplyr, fasterize, glue, igraph, raster, rgl, sf, tictoc, stars, gitlabr, inline, tidyverse, spam, svDialogs, terra, readxl)
     ```
-* Obtain the three folders needed to run the R script locally and save them directly in the C or D drive. (THIS COMES FRO STAGE 0)
+* Obtain the three folders needed to run the R script locally and save them directly in the C or D drive. [**Note for Adrian to expand this section, link to Stage 0 and better explain the 5 folders structure**]
    * admin_regions
       * Geographical information
-    * demand_in
-        * Data on the fuel demand
-    * world_1000m_yyyymmdd
-        * Contains mapping data at specified resolution corresponding to the analysis precision level (1000m here)
+   * demand_in
+      * Data on the fuel demand
+   * world_1000m_yyyymmdd
+      * Contains mapping data at specified resolution corresponding to the analysis precision level (1000m here)
+   * emissions
+   * rTemp
 
 #### Running Stage 1
 All R scripts are written to run on Windows and Linux, and would need to be modified to run on MacOS.
 * The sequence of scripts for this stage is the following:
-    * 1. `scripts/0_set_directories_and_region.R`
-         * Use the hardwired option in the script to set these paths to the locations you selected for the 3 folders in the above step.
-    * 2. `scripts/1_erase_all_win.R`
-    * 3. `scripts/3_demand4IDW_v1.R`
-    * 4. `scripts/3_demand4IDW_v2.R`
-    * 5. `scripts/3debug_demand4IDW_v1_optional.R`
-    * 6. `scripts/5_harmonizer.R`
-    * 7. `scripts/6_scenarios.R`
+    * 1. `localhost/scripts/0_set_directories_and_region.R`
+         * Use the hardwired option in the script to set these paths to the locations you selected for the 5 folders in the above step.
+    * 2. `localhost/scripts/1_erase_all_win.R`
+    * 3. `localhost/scripts/2_copy_files.R`
+    * 4. `localhost/scripts/3_demand4IDW_v3.R`
+    * 5. `localhost/scripts/4_produce_growth_and_stock_csv.R`
+    * 6. `localhost/scripts/5_harmonizer_v1.R`
+    * 7. `localhost/scripts/6_scenarios.R`
 
 ### Stage 2: HPC processing...
 How to use the tool...
 
-
+Explain parameters...
 
 ### Stage 3: Final Analysis and Report Generation.
+#### Dinamica EGO core scripts...
+
+a
+
+b
+
+c
+
 
 #### Retrieven results
 
