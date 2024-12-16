@@ -11,7 +11,7 @@
 # Internal parameters
 plot_curves = 0
 # Determine the number of chunks (adjust based on available memory)
-n_chunks <- 500
+n_chunks <- 10
 
 # Load packages ----
 library(readr)
@@ -396,48 +396,47 @@ for (lucinputdataset in lucavailablemaps) {
   # }
   
   
-  # Define chunks to skip
-  skip_chunks <- c(2) # Add any other chunk numbers if needed
-  
-  for (i in seq_along(luc_poly_chunks)) {
-    if (i %in% skip_chunks) {
-      cat("Skipping problematic chunk", i, "\n")
-      next
-    }
-    cat("Processing chunk", i, "of", length(luc_poly_chunks), "\n")
-    chunk <- luc_poly_chunks[[i]]
-    if (nrow(chunk) == 0) {
-      cat("Skipping chunk", i, "because it has no polygons.\n")
-      next
-    }
-    cat("Number of polygons in this chunk:", nrow(chunk), "\n")
-    result_pctmean <- tryCatch({
-      terra::extract(agb4stats_rcr, chunk, fun = pct_mean, bind = TRUE)
-    }, error = function(e) {
-      cat("Error in chunk", i, ":", conditionMessage(e), "\n")
-      NULL
-    })
-    if (!is.null(result_pctmean)) {
-      results_list_pctmean[[i]] <- result_pctmean
-      saveRDS(result_pctmean, paste0("result_chunk_", i, ".rds"))
-    }
-    rm(result_pctmean, chunk)
-    gc()
-  }
-  
-  
-  # # Process each chunk
+  # # Define chunks to skip
+  # skip_chunks <- c(2) # Add any other chunk numbers if needed
+  # 
   # for (i in seq_along(luc_poly_chunks)) {
-  #   # Print the index of the current chunk
+  #   if (i %in% skip_chunks) {
+  #     cat("Skipping problematic chunk", i, "\n")
+  #     next
+  #   }
   #   cat("Processing chunk", i, "of", length(luc_poly_chunks), "\n")
-  #   # Optionally, print more details about the chunk (e.g., number of geometries)
-  #   cat("Number of polygons in this chunk:", nrow(luc_poly_chunks[[i]]), "\n")
-  #   # Extract raster values for the current chunk
   #   chunk <- luc_poly_chunks[[i]]
-  #   result_pctmean <- terra::extract(agb4stats_rcr, chunk, fun=pct_mean, bind=TRUE)
-  #   # Store the result
-  #   results_list_pctmean[[i]] <- result_pctmean
+  #   if (nrow(chunk) == 0) {
+  #     cat("Skipping chunk", i, "because it has no polygons.\n")
+  #     next
+  #   }
+  #   cat("Number of polygons in this chunk:", nrow(chunk), "\n")
+  #   result_pctmean <- tryCatch({
+  #     terra::extract(agb4stats_rcr, chunk, fun = pct_mean, bind = TRUE)
+  #   }, error = function(e) {
+  #     cat("Error in chunk", i, ":", conditionMessage(e), "\n")
+  #     NULL
+  #   })
+  #   if (!is.null(result_pctmean)) {
+  #     results_list_pctmean[[i]] <- result_pctmean
+  #     saveRDS(result_pctmean, paste0("result_chunk_", i, ".rds"))
+  #   }
+  #   rm(result_pctmean, chunk)
+  #   gc()
   # }
+  
+  # Process each chunk
+  for (i in seq_along(luc_poly_chunks)) {
+    # Print the index of the current chunk
+    cat("Processing chunk", i, "of", length(luc_poly_chunks), "\n")
+    # Optionally, print more details about the chunk (e.g., number of geometries)
+    cat("Number of polygons in this chunk:", nrow(luc_poly_chunks[[i]]), "\n")
+    # Extract raster values for the current chunk
+    chunk <- luc_poly_chunks[[i]]
+    result_pctmean <- terra::extract(agb4stats_rcr, chunk, fun=pct_mean, bind=TRUE)
+    # Store the result
+    results_list_pctmean[[i]] <- result_pctmean
+  }
   
   # Combine all results into a single data frame
   agb_mean_decilv0 <- do.call(rbind, results_list_pctmean)
