@@ -14,7 +14,7 @@ For questions or feedback, please contact mofussfreeware@gmail.com ✨
 MoFuSS uses Google Earth Engine for data download, R for data preparation and graphs, C++ for harvest probability maps, DINAMICA EGO for geospatial simulations (core scripts), ffmpeg for creating animations, LaTeX for formatting and generating final reports
 
 * Stage 0: Data Download. If you already have all the necessary datasets, you can skip this stage and proceed directly to Stage 1.  
-* Stage 1: Local Data Processing. Six sequential scripts are run on your local machine to generate Stage 1 results. 
+* Stage 1: Local Data Processing. Seven sequential scripts are run on your local machine to generate Stage 1 results. 
 * Stage 2: A subset of Stage 1 results are then sent to the High-Performance Computing (HPC) cluster, where woodfuel harvest probability maps are built. Once all the geoprocessing is complete, you need to download the results into your local machine for further processing.
 * Stage 3: Final Analysis and Report Generation. Results from Stages 1 and 2 are used on your local machine to generate the final outputs, including summary results and reports formatted using LaTeX.
 
