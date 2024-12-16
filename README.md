@@ -1,4 +1,4 @@
-# Welcome to MoFuSS local installation Read Me file
+# MoFuSS local installation
 
 Explore global geospatial results and access comprehensive documentation by visiting MoFuSS's official website.
 
@@ -15,10 +15,10 @@ For instructions on how to run MoFuSS locally, including how to use the HPC modu
 
 MoFuSS uses Google Earth Engine for data download, R for data preparation and graphs, C++ for harvest probability maps, DINAMICA EGO for geospatial simulations (core scripts), ffmpeg for creating animations, LaTeX for formatting and generating final reports
 
-#### Stage 0: Data Download. If you already have all the necessary datasets, you can skip this stage and proceed directly to Stage 1.  
-#### Stage 1: Local Data Processing. Six sequential scripts are run on your local machine to generate Stage 1 results. 
-#### Stage 2: A subste of Stage 1 results are then sent to the High-Performance Computing (HPC) cluster, where geospatial simulations are performed. Once the simulations are complete, the results are sent back to your local machine for further processing.
-#### Stage 3: Final Analysis and Report Generation. Results from Stages 1 and 2 are used on your local machine to generate the final outputs, including summary results and reports formatted using LaTeX.
+* Stage 0: Data Download. If you already have all the necessary datasets, you can skip this stage and proceed directly to Stage 1.  
+* Stage 1: Local Data Processing. Six sequential scripts are run on your local machine to generate Stage 1 results. 
+* Stage 2: A subste of Stage 1 results are then sent to the High-Performance Computing (HPC) cluster, where geospatial simulations are performed. Once the simulations are complete, the results are sent back to your local machine for further processing.
+* Stage 3: Final Analysis and Report Generation. Results from Stages 1 and 2 are used on your local machine to generate the final outputs, including summary results and reports formatted using LaTeX.
 
 ## Stage 0: Data Download
 << Instructions on how to download all datasets are in progress >>
