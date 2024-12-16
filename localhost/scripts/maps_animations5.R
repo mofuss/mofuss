@@ -11,7 +11,7 @@
 ## Aunque estos salen de dinamica hasta cierto punto, faltaria 2020-final year ###
 
 # Internal parameters
-videoson <- 1
+videoson <- 0
 compilelatex <- 0
 uncertaintystacks <- 0
 fNRB_partition_tables <- 1
@@ -59,7 +59,7 @@ args=(commandArgs(TRUE))
 if(length(args)==0){
   print("No arguments supplied by DINAMICA.")
   ##Supply default values here (to be used when running the script through R directly)
-  MC = 2 # MonteCarlo runs
+  MC = 10 # MonteCarlo runs
   IT = 2010 # Initial year
   K_MC=1
   TOF_MC=1
@@ -1721,10 +1721,24 @@ if (compilelatex == 1) {
 
 if (fNRB_partition_tables == 1) {
   
+  dir.create("OutBaU/webmofuss_results/") 
+  
   # fNRB partition tables and vectors ####
   if (GEpoly == 1) {
     admin <- raster("LULCC/TempRaster//admin_c.tif")
     userarea_gpkg <- st_read("LULCC/TempVector/userarea.gpkg")
+    
+    country_parameters %>%
+      dplyr::filter(Var == "ext_analysis_ID") %>%
+      pull(ParCHR) -> ext_analysis_ID
+    
+    country_parameters %>%
+      dplyr::filter(Var == "ext_analysis_NAME") %>%
+      pull(ParCHR) -> ext_analysis_NAME
+    
+    adminlevel <- c(admin)
+    admin_name <- c("adm0")
+    
   } else {
     admin <- raster("LULCC/TempRaster//admin_c.tif")
     admin1 <- raster("LULCC/TempRaster//admin_c1.tif")
@@ -1733,34 +1747,34 @@ if (fNRB_partition_tables == 1) {
     userarea_gpkg <- st_read("LULCC/TempVector/userarea.gpkg")
     userarea_gpkg1 <- st_read("LULCC/TempVector/userarea1.gpkg")
     userarea_gpkg2 <- st_read("LULCC/TempVector/userarea2.gpkg")
-    }
-  
-  dir.create("OutBaU/webmofuss_results/") 
-  
-  country_parameters %>%
-    dplyr::filter(Var == "ext_analysis_ID") %>%
-    pull(ParCHR) -> ext_analysis_ID
-  
-  country_parameters %>%
-    dplyr::filter(Var == "ext_analysis_NAME") %>%
-    pull(ParCHR) -> ext_analysis_NAME
-  
-  country_parameters %>%
-    dplyr::filter(Var == "ext_analysis_ID_1") %>%
-    pull(ParCHR) -> ext_analysis_ID_1
-  
-  country_parameters %>%
-    dplyr::filter(Var == "ext_analysis_NAME_1") %>%
-    pull(ParCHR) -> ext_analysis_NAME_1
-  
-  country_parameters %>%
-    dplyr::filter(Var == "ext_analysis_ID_2") %>%
-    pull(ParCHR) -> ext_analysis_ID_2
-  
-  country_parameters %>%
-    dplyr::filter(Var == "ext_analysis_NAME_2") %>%
-    pull(ParCHR) -> ext_analysis_NAME_2
-  
+    
+    country_parameters %>%
+      dplyr::filter(Var == "ext_analysis_ID") %>%
+      pull(ParCHR) -> ext_analysis_ID
+    
+    country_parameters %>%
+      dplyr::filter(Var == "ext_analysis_NAME") %>%
+      pull(ParCHR) -> ext_analysis_NAME
+    
+    country_parameters %>%
+      dplyr::filter(Var == "ext_analysis_ID_1") %>%
+      pull(ParCHR) -> ext_analysis_ID_1
+    
+    country_parameters %>%
+      dplyr::filter(Var == "ext_analysis_NAME_1") %>%
+      pull(ParCHR) -> ext_analysis_NAME_1
+    
+    country_parameters %>%
+      dplyr::filter(Var == "ext_analysis_ID_2") %>%
+      pull(ParCHR) -> ext_analysis_ID_2
+    
+    country_parameters %>%
+      dplyr::filter(Var == "ext_analysis_NAME_2") %>%
+      pull(ParCHR) -> ext_analysis_NAME_2
+    
+    adminlevel <- c(admin, admin1, admin2)
+    admin_name <- c("adm0", "adm1", "adm2")
+  }
   
   # # Only the following bins are possible from the 3_demand4IDW_v1 script
   # STdyn = 10 # 2020
@@ -1768,16 +1782,6 @@ if (fNRB_partition_tables == 1) {
   # STdyn = 25 # 2035
   # STdyn = 30 # 2040
   # STdyn = 40 # 2050
-  
-  # For ALL MonteCarlo realizations and admin levels
-  if (GEpoly == 1) {
-    adminlevel <- c(admin)
-    admin_name <- c("adm0")
-  } else {
-    adminlevel <- c(admin, admin1, admin2)
-    admin_name <- c("adm0", "adm1", "adm2")
-  }
-
   
   foreach(admm = adminlevel, admname = admin_name) %do% {
     #admm <- adminlevel[[1]] # Only the first admin level
@@ -1808,14 +1812,14 @@ if (fNRB_partition_tables == 1) {
       assign(nrb_name_per, calculated_sum_nrb_per)
       
       if (STdyn != 10){
-      nrb_name <- paste("nrb_sum_bin2020", nlay_yr, sep = "_")
-      calculated_nrb <- stackG[[11]] - stackGlH[[nlay-1]] # Bin will start in 2020 and end in the final year
-      calculated_nrb[calculated_nrb <= 0] = NA 
-      calculated_sum_nrb <- as.data.frame(zonal(calculated_nrb, admm, 'sum')) %>%
-        as.data.table() %>%
-        setnames(.,"sum", paste0("NRB_2020_",nlay_yr)) %>%
-        dplyr::select(!zone)
-      assign(nrb_name, calculated_sum_nrb)
+        nrb_name <- paste("nrb_sum_bin2020", nlay_yr, sep = "_")
+        calculated_nrb <- stackG[[11]] - stackGlH[[nlay-1]] # Bin will start in 2020 and end in the final year
+        calculated_nrb[calculated_nrb <= 0] = NA 
+        calculated_sum_nrb <- as.data.frame(zonal(calculated_nrb, admm, 'sum')) %>%
+          as.data.table() %>%
+          setnames(.,"sum", paste0("NRB_2020_",nlay_yr)) %>%
+          dplyr::select(!zone)
+        assign(nrb_name, calculated_sum_nrb)
       }
       
       if (STdyn == 10){
@@ -1824,7 +1828,7 @@ if (fNRB_partition_tables == 1) {
         nrb_sum_bin2010_2020 <- as.data.frame(zonal(nrb_bin2010_2020, admm, 'sum')) %>%
           as.data.table() %>%
           setnames(.,"sum", "NRB_2010_2020") #%>%
-          #dplyr::select(!zone)
+        #dplyr::select(!zone)
       }
       
       if (STdyn == 20){
@@ -2034,7 +2038,7 @@ if (fNRB_partition_tables == 1) {
         harv_sum_bin2010_2020 <- as.data.frame(zonal(harvest_st_bin2010_2020, admm, 'sum')) %>%
           as.data.table() %>%
           setnames(.,"sum", "Harv_2010_2020") #%>%
-          #dplyr::select(!zone)
+        #dplyr::select(!zone)
       }
       
       if (STdyn == 20){
@@ -2818,7 +2822,7 @@ if (fNRB_partition_tables == 1) {
       
     } else if (STdyn == 30){ # STdyn == 30 summary----
       print(30)
-
+      
       NRBzon_frbind <- dplyr::bind_rows(NRBzon_frlist)
       summarycols <- c("NRB_2010_2040", "NRB_2020_2040", "NRB_2010_2020", "NRB_2020_2030", "NRB_2030_2040",
                        "Harv_2010_2040", "Harv_2020_2040", "Harv_2010_2020", "Harv_2020_2030",  "Harv_2030_2040", 
@@ -3075,7 +3079,7 @@ if (fNRB_partition_tables == 1) {
       } else {
         NRBzonfr_stats <- NRBzonfr_statsx
       }
-
+      
       NRB_fNRB2_fr <- cbind(NRBzonfr_stats,NRBzon_frlist1MC)
       NRB_fNRB2_fr
       names(NRB_fNRB2_fr)
@@ -3119,7 +3123,7 @@ if (fNRB_partition_tables == 1) {
           print(paste0(admname," finished for vector layers"))
         }
         
-       
+        
       } else if (admname == "adm1") {
         NRB_fNRB2_frcompl_madm1 <- userarea_gpkg1 %>%
           st_drop_geometry() %>%
