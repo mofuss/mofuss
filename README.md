@@ -5,24 +5,24 @@ Explore global geospatial results and access comprehensive documentation by visi
 For questions or feedback, please contact mofussfreeware@gmail.com ✨
 
 ## MoFuSS can be run in two ways:
-**1.- Web-Based Interface:** This is the simplest option as it requires no installation. However, it is still under development. To check for updates, visit our MoFuSS group or go to www.mofuss.unam.mx under the "User-Defined Scenarios" or "MoFuSS-US" section.
+**1.- Web-Based Interface:** This is the simplest option as it requires no installation. However, it is still under development. To check for updates, [join our MoFuSS group](groups.google.com/g/mofuss) or visit www.mofuss.unam.mx under the "User-Defined Scenarios" or "MoFuSS-US" section.
 
-**2.- Local Installation:** This option allows you to run MoFuSS directly on your local computer. However, it's important to note that at least one module must be executed on a High-Performance Computing (HPC) cluster, as it relies on parallel C++ algorithms. This document provides a step-by-step guide for installing MoFuSS locally.
-
-_For step-by-step instructions on running MoFuSS locally, including guidance on using the HPC module, continue reading below._ 📚
+**2.- Local Installation:** This option allows you to run MoFuSS directly on your local computer. However, it's important to note that at least one module must be executed on a High-Performance Computing (HPC) cluster, as it relies on parallel C++ algorithms. This document provides a step-by-step guide for installing MoFuSS locally. 📚
 
 ## Install and run MoFuSS Locally
 
 MoFuSS uses Google Earth Engine for data download, R for data preparation and graphs, C++ for harvest probability maps, DINAMICA EGO for geospatial simulations (core scripts), ffmpeg for creating animations, LaTeX for formatting and generating final reports
 
 * Stage 0: Data Download. If you already have all the necessary datasets, you can skip this stage and proceed directly to Stage 1.  
-* Stage 1: Local Data Processing. Six sequential scripts are run on your local machine to generate Stage 1 results. 
-* Stage 2: A subset of Stage 1 results are then sent to the High-Performance Computing (HPC) cluster, where geospatial simulations are performed. Once the simulations are complete, the results are sent back to your local machine for further processing.
+* Stage 1: Local Data Processing. Seven sequential scripts are run on your local machine to generate Stage 1 results. 
+* Stage 2: A subset of Stage 1 results are then sent to the High-Performance Computing (HPC) cluster, where woodfuel harvest probability maps are built. Once all the geoprocessing is complete, you need to download the results into your local machine for further processing. 
 * Stage 3: Final Analysis and Report Generation. Results from Stages 1 and 2 are used on your local machine to generate the final outputs, including summary results and reports formatted using LaTeX.
+
+[**MoFuSS can send progress updates directly to your Telegram account, eliminating the need for constant monitoring. However, we are unsure about the security of this approach.**]
 
 ### Stage 0: Data Download
 
-If you wish to download all or some MoFuSS datasets from scratch, or replace specific MoFuSS datasets with those you've produced, please refer to the MoFuSS repository: [gee2mofuss](https://github.com/mofuss/gee2mofuss). [**Please not that we are still documenting this repository, please contact aghilardi@ciga.unam.mx in case you need support**]
+If you wish to download all or some MoFuSS datasets from scratch, or replace specific MoFuSS datasets with those you've produced, please refer to the MoFuSS repository: [gee2mofuss](https://github.com/mofuss/gee2mofuss). [**Note that we are still documenting this repository, please contact aghilardi@ciga.unam.mx in case you need support**]
 
 ### Stage 1: Local Data Processing
 #### Preparing your environment
