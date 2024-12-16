@@ -26,7 +26,7 @@ If you wish to download all or select MoFuSS datasets from scratch, or replace s
 
 ### Stage 1: Local Data Processing
 #### Preparing your environment
-* All scripts are written to run on Windows, and would need to be modified to run on Linux/MacOS.
+
 * Install R and RStudio on your local machine.
 * Clone this repository to your local machine.
 * Install the `remotes` package in R: `install.packages("remotes")`
@@ -45,8 +45,8 @@ If you wish to download all or select MoFuSS datasets from scratch, or replace s
         * Contains mapping data at specified resolution corresponding to the analysis precision level (1000m here)
 
 #### Running Stage 1
-
-* The sequence of scripts to run MoFuSS on the UNAM HPC cluster is the following:
+All R scripts are written to run on Windows and Linux, and would need to be modified to run on MacOS.
+* The sequence of scripts for this stage is the following:
     * 1. `scripts/0_set_directories_and_region.R`
          * Use the hardwired option in the script to set these paths to the locations you selected for the 3 folders in the above step.
     * 2. `scripts/1_erase_all_win.R`
