@@ -23,6 +23,13 @@ MoFuSS uses Google Earth Engine for data download, R for data preparation and gr
 ### Stage 0: Data Download
 << Instructions on how to download all datasets are in progress >>
 
+a
+
+b
+
+c
+
+
 ### Stage 1: Local Data Processing
 #### Preparing your environment
 * All scripts are written to run on Windows, and would need to be modified to run on Linux/MacOS.
@@ -36,8 +43,8 @@ MoFuSS uses Google Earth Engine for data download, R for data preparation and gr
     pacman::p_load(readr, dplyr, fasterize, glue, igraph, raster, rgl, sf, tictoc, stars, gitlabr, inline, tidyverse, spam, svDialogs, terra, readxl)
     ```
 * Obtain the three folders needed to run the R script locally and save them directly in the C or D drive.
-    * admin_regions
-        * Geographical information
+   * admin_regions
+      * Geographical information
     * demand_in
         * Data on the fuel demand
     * world_1000m_yyyymmdd
@@ -61,6 +68,13 @@ How to use the tool...
 
 
 ### Stage 3: Final Analysis and Report Generation.
+
+#### Retrieven results
+
+#### Ouputs
+
+#### Etc
+
 
 
 
