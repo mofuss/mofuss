@@ -11,7 +11,7 @@
 # Internal parameters
 plot_curves = 0
 # Determine the number of chunks (adjust based on available memory)
-n_chunks <- 30
+n_chunks <- 50
 
 # Load packages ----
 library(readr)
