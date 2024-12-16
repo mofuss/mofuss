@@ -9,7 +9,7 @@ For questions or feedback, please contact mofussfreeware@gmail.com ✨
 
 **2.- Local Installation:** This option allows you to run MoFuSS directly on your local computer. However, it's important to note that at least one module must be executed on a High-Performance Computing (HPC) cluster, as it relies on parallel C++ algorithms. This document provides a step-by-step guide for installing MoFuSS locally.
 
-For instructions on how to run MoFuSS locally, including how to use the HPC module, refer to the section below this Read.me file titled _"Running MoFuSS Locally."_
+_For step-by-step instructions on running MoFuSS locally, including guidance on using the HPC module, continue reading below._ 📚
 
 ## Install and run MoFuSS Locally
 
@@ -21,14 +21,8 @@ MoFuSS uses Google Earth Engine for data download, R for data preparation and gr
 * Stage 3: Final Analysis and Report Generation. Results from Stages 1 and 2 are used on your local machine to generate the final outputs, including summary results and reports formatted using LaTeX.
 
 ### Stage 0: Data Download
-<< Instructions on how to download all datasets are in progress >>
 
-a
-
-b
-
-c
-
+If you wish to download all or select MoFuSS datasets from scratch, or replace specific MoFuSS datasets with those you've produced, please refer to the MoFuSS repository: [gee2mofuss](https://github.com/mofuss/gee2mofuss). [**Please not that we are still documenting this repository, please contact aghilardi@ciga.unam.mx in case you need support**]
 
 ### Stage 1: Local Data Processing
 #### Preparing your environment
@@ -42,7 +36,7 @@ c
     if (!require("pacman")) install.packages("pacman")
     pacman::p_load(readr, dplyr, fasterize, glue, igraph, raster, rgl, sf, tictoc, stars, gitlabr, inline, tidyverse, spam, svDialogs, terra, readxl)
     ```
-* Obtain the three folders needed to run the R script locally and save them directly in the C or D drive.
+* Obtain the three folders needed to run the R script locally and save them directly in the C or D drive. (THIS COMES FRO STAGE 0)
    * admin_regions
       * Geographical information
     * demand_in
