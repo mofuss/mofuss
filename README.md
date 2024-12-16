@@ -15,8 +15,10 @@ MoFuSS uses Google Earth Engine for data download, R for data preparation and gr
 
 * Stage 0: Data Download. If you already have all the necessary datasets, you can skip this stage and proceed directly to Stage 1.  
 * Stage 1: Local Data Processing. Seven sequential scripts are run on your local machine to generate Stage 1 results. 
-* Stage 2: A subset of Stage 1 results are then sent to the High-Performance Computing (HPC) cluster, where woodfuel harvest probability maps are built. Once all the geoprocessing is complete, you need to download the results into your local machine for further processing.
+* Stage 2: A subset of Stage 1 results are then sent to the High-Performance Computing (HPC) cluster, where woodfuel harvest probability maps are built. Once all the geoprocessing is complete, you need to download the results into your local machine for further processing. 
 * Stage 3: Final Analysis and Report Generation. Results from Stages 1 and 2 are used on your local machine to generate the final outputs, including summary results and reports formatted using LaTeX.
+
+[**MoFuSS can send progress updates directly to your Telegram account, eliminating the need for constant monitoring. However, we are unsure about the security of this approach.**]
 
 ### Stage 0: Data Download
 
