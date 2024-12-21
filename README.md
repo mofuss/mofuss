@@ -51,10 +51,13 @@ On the contrary... if you would like to...
    * _D:/emissions_
    * _D:/rTemp_
 
+#### Preparing your environment: Setting up parameters
+Within your local github folder, there are a few parameter tables in .csv and .xlsx: `mofuss/localhost/selected_parameters/`. When running 1km Global South simulations, you'll need to check the one named: "_parameters_world1000m_" and adust all parameters accordingly to your preferences.
+
 #### Running Stage 1
 All R scripts are written to run on Windows and Linux, and would need to be modified to run on MacOS.
 * The sequence of scripts for this stage is the following:
-    * 1. `mofuss/localhost/scripts/0_set_directories_and_region.R`
+    * 1. `mofuss/localhost/scripts/0_set_directories_and_region_v2.R`
          * Use the hardwired option in the script to set these paths to the locations you selected for the 5 folders in the above step.
     * 2. `mofuss/localhost/scripts/1_erase_all_win.R`
     * 3. `mofuss/localhost/scripts/2_copy_files.R`
@@ -64,9 +67,14 @@ All R scripts are written to run on Windows and Linux, and would need to be modi
     * 7. `mofuss/localhost/scripts/6_scenarios.R`
 
 ### Stage 2: HPC processing...
-How to use the tool...
+Once all R script finished running succesfully, you need to upload the following files into [MoFuSS's IDW online tool](https://www.mofuss.unam.mx/idw/) running in our HPC clusters:
+   * 1.- `YourMoFuSSWorkingDirectory/In/DemandScenarios/BaU_fwch_v.csv`
+   * 2.- `YourMoFuSSWorkingDirectory/In/DemandScenarios/BaU_fwch_w.csv`
+   * 3.- `YourMoFuSSWorkingDirectory/In/fricc_v.tif`
+   * 4.- `YourMoFuSSWorkingDirectory/In/fricc_w.tif`
+   * 5.- `YourMoFuSSWorkingDirectory/In/locs_c_v.tif`
+   * 6.- `YourMoFuSSWorkingDirectory/In/locs_c_w.tif`
 
-Explain parameters...
 
 ### Stage 3: Final Analysis and Report Generation.
 #### Dinamica EGO core scripts...
