@@ -22,9 +22,9 @@ MoFuSS uses Google Earth Engine for data download, R for data preparation and gr
 
 ### Stage 0: Data Download
 
-If you wish to download all or some MoFuSS datasets from scratch, or replace specific MoFuSS datasets with those you've produced, please refer to the MoFuSS repository: [gee2mofuss](https://github.com/mofuss/gee2mofuss). [**Note that we are still documenting this repository, please contact aghilardi@ciga.unam.mx in case you need support**]
+If you prefer to run 1km simulations for nearly any country or region in the Global South using the provided datasets (recommended), proceed directly to **Stage 1.**
 
-On the contrary... if you would like to... 
+Alternatively, if you wish to download all or some MoFuSS datasets from scratch, or replace specific MoFuSS datasets with those you've produced, please refer to the MoFuSS repository: [gee2mofuss](https://github.com/mofuss/gee2mofuss). [**Note that we are still working and documenting this repository, please contact aghilardi@ciga.unam.mx in case you need support**]
 
 ### Stage 1: Local Data Processing
 #### Preparing your environment: RStudio
@@ -44,47 +44,54 @@ On the contrary... if you would like to...
 * Extract the contents of the "demand" and "admin_regions" folders directly onto your local hard drive. Avoid creating unnecessary subfolders, such as demand/demand/...
 * Create a local folder where you plan to run MoFuSS, e.g., MoFuSS_Malawi_1km. Extract the LULCC.zip file into this folder, ensuring that no unnecessary subfolders are created (e.g., avoid LULCC/LULCC/...).
 * Within your local hard drive, create two empty folders named "emissions" and "rTemp".
-* Ideally, if possible, all five folders should be at the same level within your hard drive, similar to the following example
-   * _D:/MoFuSS_Malawi_1km_
-   * _D:/admin_regions_
-   * _D:/demand_
-   * _D:/emissions_
-   * _D:/rTemp_
+* Ideally, if possible, all five folders should be at the same level within your hard drive, similar to the following **example**:
+   * 1.- `D:/MoFuSS_Malawi_1km/LULCC/`
+   * 2.- `D:/admin_regions`
+   * 3.- `D:/demand`
+   * 4.- `D:/emissions`
+   * 5.- `D:/rTemp`
+
+#### Preparing your environment: Setting up parameters
+* Within your local github folder, there are a few parameter tables in .csv and .xlsx: `mofuss/localhost/selected_parameters/`.
+* When running 1km Global South simulations, you'll need to check the one named: "_parameters_world1000m_" and adjust all parameters accordingly to your preferences.
+* Please pay particular attention to the Area of Interest (AoI) of your choice.
 
 #### Running Stage 1
-All R scripts are written to run on Windows and Linux, and would need to be modified to run on MacOS.
-* The sequence of scripts for this stage is the following:
-    * 1. `mofuss/localhost/scripts/0_set_directories_and_region.R`
-         * Use the hardwired option in the script to set these paths to the locations you selected for the 5 folders in the above step.
-    * 2. `mofuss/localhost/scripts/1_erase_all_win.R`
-    * 3. `mofuss/localhost/scripts/2_copy_files.R`
-    * 4. `mofuss/localhost/scripts/3_demand4IDW_v3.R`
-    * 5. `mofuss/localhost/scripts/4_produce_growth_and_stock_csv.R`
-    * 6. `mofuss/localhost/scripts/5_harmonizer_v1.R`
-    * 7. `mofuss/localhost/scripts/6_scenarios.R`
+* All R scripts are written to run on Windows and Linux, and would need to be modified to run on MacOS. The sequence of scripts for this stage is the following:
+   * 1.- `mofuss/localhost/scripts/0_set_directories_and_region_v2.R`
+   * 2.- `mofuss/localhost/scripts/1_erase_all_win.R`
+   * 3.- `mofuss/localhost/scripts/2_copy_files.R`
+   * 4.- `mofuss/localhost/scripts/3_demand4IDW_v3.R`
+   * 5.- `mofuss/localhost/scripts/4_produce_growth_and_stock_csv.R`
+   * 6.- `mofuss/localhost/scripts/5_harmonizer_v1.R`
+   * 7.- `mofuss/localhost/scripts/6_scenarios.R`
 
-### Stage 2: HPC processing...
-How to use the tool...
+### Stage 2: HPC processing
+* After successfully running all the R scripts, upload the resulting files to [MoFuSS's IDW online tool](https://www.mofuss.unam.mx/idw/) hosted on our HPC clusters.
+* Complete all parameters requested or leave the default ones. Alternatively, if you are operating your own HPC cluster, refer to the [CostDistance repository](https://github.com/mofuss/CostDistance_IDW) for detailed instructions.
+* Files to be ingested by the Cost Distance code:
+   * 1.- `YourMoFuSSWorkingDirectory/In/DemandScenarios/BaU_fwch_v.csv`
+   * 2.- `YourMoFuSSWorkingDirectory/In/DemandScenarios/BaU_fwch_w.csv`
+   * 3.- `YourMoFuSSWorkingDirectory/In/fricc_v.tif`
+   * 4.- `YourMoFuSSWorkingDirectory/In/fricc_w.tif`
+   * 5.- `YourMoFuSSWorkingDirectory/In/locs_c_v.tif`
+   * 6.- `YourMoFuSSWorkingDirectory/In/locs_c_w.tif`
 
-Explain parameters...
+### Stage 3: Final Analysis and report generation.
+#### Preparing your environment: Setting up LaTeX for final reports
+* Download and Install MiKTeX. Visit the [MiKTeX download page](https://miktex.org/download) and download the installer suitable for your operating system.
+* Run the Installer. During installation, ensure you select the option to allow MiKTeX to install missing packages automatically. This will enable it to download and install libraries locally when required.
+* Verify Installation. Open a terminal or command prompt and type pdflatex --version to confirm MiKTeX is correctly installed.
+* Optional: Configure Updates. Open the MiKTeX Console, navigate to the "Updates" section, and ensure that your installation is up to date.
 
-### Stage 3: Final Analysis and Report Generation.
-#### Dinamica EGO core scripts...
+#### Preparing your environment: Setting up Dinamica EGO
+* Install Dinamica EGO. It is recommended to use the older version available in the [Zenodo Repository](https://zenodo.org/records/14517562)
+* Open Dinamica EGO Wizard
+* Open and run the file located at: `YourMoFuSSWorkingDirectory/7_FW_dyn_lulcc_Sc16b_luc1.egoml`, and follow the provided instructions on the HTML interface.
 
-a
-
-b
-
-c
-
-
-#### Retrieven results
-
-#### Ouputs
-
-#### Etc
+#### Retrieve results
+All output files will be saved in: `YourMoFuSSWorkingDirectory/OutBaU/`
 
 
 
-
-
+👀 If you have any feedback on this documentation, please feel free to reach out to us at: aghilardi@ciga.unam.mx.
