@@ -201,6 +201,8 @@ if (webmofuss == 0) {
                   # 7_FW_dyn_lulcc_Sc16b.egoml",
                   "7_FW_dyn_lulcc_Sc16b_luc1.egoml",
                   "7_FW_dyn_lulcc_Sc16b_luc2.egoml",
+                  "7_FW_dyn_lulcc_Sc16b_luc1_lucbet.egoml",
+                  "7_FW_dyn_lulcc_Sc16b_luc2.lucbet.egoml",
                   # "8_FW_dyn_lulcc_Sc17.egoml",
                   "debugging/0_debugv1.R",
                   "debugging/0_debugv2.R",
