@@ -45,29 +45,30 @@ On the contrary... if you would like to...
 * Create a local folder where you plan to run MoFuSS, e.g., MoFuSS_Malawi_1km. Extract the LULCC.zip file into this folder, ensuring that no unnecessary subfolders are created (e.g., avoid LULCC/LULCC/...).
 * Within your local hard drive, create two empty folders named "emissions" and "rTemp".
 * Ideally, if possible, all five folders should be at the same level within your hard drive, similar to the following example
-   * _D:/MoFuSS_Malawi_1km_
-   * _D:/admin_regions_
-   * _D:/demand_
-   * _D:/emissions_
-   * _D:/rTemp_
+   * 1.- _D:/MoFuSS_Malawi_1km_
+   * 2.- _D:/admin_regions_
+   * 3.- _D:/demand_
+   * 4.- _D:/emissions_
+   * 5.- _D:/rTemp_
 
 #### Preparing your environment: Setting up parameters
-Within your local github folder, there are a few parameter tables in .csv and .xlsx: `mofuss/localhost/selected_parameters/`. When running 1km Global South simulations, you'll need to check the one named: "_parameters_world1000m_" and adust all parameters accordingly to your preferences.
+* Within your local github folder, there are a few parameter tables in .csv and .xlsx: `mofuss/localhost/selected_parameters/`.
+* When running 1km Global South simulations, you'll need to check the one named: "_parameters_world1000m_" and adust all parameters accordingly to your preferences.
 
 #### Running Stage 1
-All R scripts are written to run on Windows and Linux, and would need to be modified to run on MacOS.
-* The sequence of scripts for this stage is the following:
-    * 1. `mofuss/localhost/scripts/0_set_directories_and_region_v2.R`
-         * Use the hardwired option in the script to set these paths to the locations you selected for the 5 folders in the above step.
-    * 2. `mofuss/localhost/scripts/1_erase_all_win.R`
-    * 3. `mofuss/localhost/scripts/2_copy_files.R`
-    * 4. `mofuss/localhost/scripts/3_demand4IDW_v3.R`
-    * 5. `mofuss/localhost/scripts/4_produce_growth_and_stock_csv.R`
-    * 6. `mofuss/localhost/scripts/5_harmonizer_v1.R`
-    * 7. `mofuss/localhost/scripts/6_scenarios.R`
+* All R scripts are written to run on Windows and Linux, and would need to be modified to run on MacOS. The sequence of scripts for this stage is the following:
+   * 1.- `mofuss/localhost/scripts/0_set_directories_and_region_v2.R`
+   * 2.- `mofuss/localhost/scripts/1_erase_all_win.R`
+   * 3.- `mofuss/localhost/scripts/2_copy_files.R`
+   * 4.- `mofuss/localhost/scripts/3_demand4IDW_v3.R`
+   * 5.- `mofuss/localhost/scripts/4_produce_growth_and_stock_csv.R`
+   * 6.- `mofuss/localhost/scripts/5_harmonizer_v1.R`
+   * 7.- `mofuss/localhost/scripts/6_scenarios.R`
 
 ### Stage 2: HPC processing...
-Once all R script finished running succesfully, you need to upload the following files into [MoFuSS's IDW online tool](https://www.mofuss.unam.mx/idw/) running in our HPC clusters:
+* After successfully running all the R scripts, upload the resulting files to [MoFuSS's IDW online tool](https://www.mofuss.unam.mx/idw/) hosted on our HPC clusters.
+* Complete all parameters requested or leave the default ones. Alternatively, if you are operating your own HPC cluster, refer to the [CostDistance repository](https://github.com/mofuss/CostDistance_IDW) for detailed instructions.
+* Files to be ingested by the Cost Distance code:
    * 1.- `YourMoFuSSWorkingDirectory/In/DemandScenarios/BaU_fwch_v.csv`
    * 2.- `YourMoFuSSWorkingDirectory/In/DemandScenarios/BaU_fwch_w.csv`
    * 3.- `YourMoFuSSWorkingDirectory/In/fricc_v.tif`
@@ -75,10 +76,10 @@ Once all R script finished running succesfully, you need to upload the following
    * 5.- `YourMoFuSSWorkingDirectory/In/locs_c_v.tif`
    * 6.- `YourMoFuSSWorkingDirectory/In/locs_c_w.tif`
 
-
 ### Stage 3: Final Analysis and Report Generation.
 #### Dinamica EGO core scripts...
 
+YourMoFuSSWorkingDirectory/
 a
 
 b
