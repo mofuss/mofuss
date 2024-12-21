@@ -44,12 +44,12 @@ On the contrary... if you would like to...
 * Extract the contents of the "demand" and "admin_regions" folders directly onto your local hard drive. Avoid creating unnecessary subfolders, such as demand/demand/...
 * Create a local folder where you plan to run MoFuSS, e.g., MoFuSS_Malawi_1km. Extract the LULCC.zip file into this folder, ensuring that no unnecessary subfolders are created (e.g., avoid LULCC/LULCC/...).
 * Within your local hard drive, create two empty folders named "emissions" and "rTemp".
-* Ideally, if possible, all five folders should be at the same level within your hard drive, similar to the following example
-   * 1.- _D:/MoFuSS_Malawi_1km_
-   * 2.- _D:/admin_regions_
-   * 3.- _D:/demand_
-   * 4.- _D:/emissions_
-   * 5.- _D:/rTemp_
+* Ideally, if possible, all five folders should be at the same level within your hard drive, similar to the following **example**:
+   * 1.- `D:/MoFuSS_Malawi_1km`
+   * 2.- `D:/admin_regions`
+   * 3.- `D:/demand`
+   * 4.- `D:/emissions`
+   * 5.- `D:/rTemp`
 
 #### Preparing your environment: Setting up parameters
 * Within your local github folder, there are a few parameter tables in .csv and .xlsx: `mofuss/localhost/selected_parameters/`.
@@ -77,9 +77,12 @@ On the contrary... if you would like to...
    * 6.- `YourMoFuSSWorkingDirectory/In/locs_c_w.tif`
 
 ### Stage 3: Final Analysis and Report Generation.
-#### Dinamica EGO core scripts...
+#### Preparing your environment: Setting up Dinamica EGO
+Install... where is it!!!
 
-YourMoFuSSWorkingDirectory/
+
+
+YourMoFuSSWorkingDirectory/Dinamica EGO core scripts...
 a
 
 b
@@ -87,7 +90,7 @@ b
 c
 
 
-#### Retrieven results
+#### Retrieve results
 
 #### Ouputs
 
