@@ -36,7 +36,12 @@ If you wish to download all or some MoFuSS datasets from scratch, or replace spe
     if (!require("pacman")) install.packages("pacman")
     pacman::p_load(readr, dplyr, fasterize, glue, igraph, raster, rgl, sf, tictoc, stars, gitlabr, inline, tidyverse, spam, svDialogs, terra, readxl)
     ```
-* Obtain the three folders needed to run the R script locally and save them directly in the C or D drive. [**Note for Adrian to expand this section, link to Stage 0 and better explain the 5 folders structure**]
+* Download into your local hard drive the three folders needed to run MoFuSS locally, available from our [Zenodo repository.](https://zenodo.org/records/14517562)
+* Uncompress demand and admin_regions avoiding to create unnecesarry fodler
+* Create local folder were you expect to run MoFuSS, e.g. "MoFuSS_Malawi_1km"; unzippe LULCC.zio inside this folder; once again, preventing of creating uneccesarry subfolders e.g. LULCC/LULCC
+*
+* and save them directly in the C or D drive. [**Note for Adrian to expand this section, link to Stage 0 and better explain the 5 folders structure**]
+* 
    * admin_regions
       * Geographical information
    * demand_in
