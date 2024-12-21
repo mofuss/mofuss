@@ -25,7 +25,7 @@ MoFuSS uses Google Earth Engine for data download, R for data preparation and gr
 If you wish to download all or some MoFuSS datasets from scratch, or replace specific MoFuSS datasets with those you've produced, please refer to the MoFuSS repository: [gee2mofuss](https://github.com/mofuss/gee2mofuss). [**Note that we are still documenting this repository, please contact aghilardi@ciga.unam.mx in case you need support**]
 
 ### Stage 1: Local Data Processing
-#### Preparing your environment
+#### Preparing your environment: RStudio
 
 * Install R and RStudio on your local machine.
 * Clone this repository to your local machine.
@@ -36,6 +36,8 @@ If you wish to download all or some MoFuSS datasets from scratch, or replace spe
     if (!require("pacman")) install.packages("pacman")
     pacman::p_load(readr, dplyr, fasterize, glue, igraph, raster, rgl, sf, tictoc, stars, gitlabr, inline, tidyverse, spam, svDialogs, terra, readxl)
     ```
+#### Preparing your environment: Downloading all datasets
+
 * Download into your local hard drive the three folders needed to run MoFuSS locally, available from our [Zenodo Repository.](https://zenodo.org/records/14517562)
 * Uncompress "demand" and "admin_regions" into your local hard drive, avoiding to create unnecesarry fodlers, such as demand/demand/...
 * Create local folder were you expect to run MoFuSS, e.g. "MoFuSS_Malawi_1km"; unzippe LULCC.zio inside this folder; once again, preventing of creating uneccesarry subfolders e.g. LULCC/LULCC/...
