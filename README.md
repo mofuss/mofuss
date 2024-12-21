@@ -52,14 +52,14 @@ If you wish to download all or some MoFuSS datasets from scratch, or replace spe
 #### Running Stage 1
 All R scripts are written to run on Windows and Linux, and would need to be modified to run on MacOS.
 * The sequence of scripts for this stage is the following:
-    * 1. `localhost/scripts/0_set_directories_and_region.R`
+    * 1. `mofuss/localhost/scripts/0_set_directories_and_region.R`
          * Use the hardwired option in the script to set these paths to the locations you selected for the 5 folders in the above step.
-    * 2. `localhost/scripts/1_erase_all_win.R`
-    * 3. `localhost/scripts/2_copy_files.R`
-    * 4. `localhost/scripts/3_demand4IDW_v3.R`
-    * 5. `localhost/scripts/4_produce_growth_and_stock_csv.R`
-    * 6. `localhost/scripts/5_harmonizer_v1.R`
-    * 7. `localhost/scripts/6_scenarios.R`
+    * 2. `mofuss/localhost/scripts/1_erase_all_win.R`
+    * 3. `mofuss/localhost/scripts/2_copy_files.R`
+    * 4. `mofuss/localhost/scripts/3_demand4IDW_v3.R`
+    * 5. `mofuss/localhost/scripts/4_produce_growth_and_stock_csv.R`
+    * 6. `mofuss/localhost/scripts/5_harmonizer_v1.R`
+    * 7. `mofuss/localhost/scripts/6_scenarios.R`
 
 ### Stage 2: HPC processing...
 How to use the tool...
