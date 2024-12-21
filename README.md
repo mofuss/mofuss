@@ -78,25 +78,12 @@ On the contrary... if you would like to...
 
 ### Stage 3: Final Analysis and Report Generation.
 #### Preparing your environment: Setting up Dinamica EGO
-Install... where is it!!!
-
-
-
-YourMoFuSSWorkingDirectory/Dinamica EGO core scripts...
-a
-
-b
-
-c
+* Install Dinamica EGO (It is prefered to use to the older version: 
+* Run `YourMoFuSSWorkingDirectory/7_FW_dyn_lulcc_Sc16b_luc1`
 
 
 #### Retrieve results
-
-#### Ouputs
-
-#### Etc
+All output results are saved in `YourMoFuSSWorkingDirectory/OutBaU/`
 
 
-
-
-
+If you have any feedback on this documentation, please feel free to reach out to us at: aghilardi@ciga.unam.mx.
