@@ -36,20 +36,20 @@ If you wish to download all or some MoFuSS datasets from scratch, or replace spe
     if (!require("pacman")) install.packages("pacman")
     pacman::p_load(readr, dplyr, fasterize, glue, igraph, raster, rgl, sf, tictoc, stars, gitlabr, inline, tidyverse, spam, svDialogs, terra, readxl)
     ```
-* Download into your local hard drive the three folders needed to run MoFuSS locally, available from our [Zenodo repository.](https://zenodo.org/records/14517562)
-* Uncompress demand and admin_regions avoiding to create unnecesarry fodler
-* Create local folder were you expect to run MoFuSS, e.g. "MoFuSS_Malawi_1km"; unzippe LULCC.zio inside this folder; once again, preventing of creating uneccesarry subfolders e.g. LULCC/LULCC
-*
-* and save them directly in the C or D drive. [**Note for Adrian to expand this section, link to Stage 0 and better explain the 5 folders structure**]
-* 
-   * admin_regions
-      * Geographical information
-   * demand_in
-      * Data on the fuel demand
-   * world_1000m_yyyymmdd
-      * Contains mapping data at specified resolution corresponding to the analysis precision level (1000m here)
-   * emissions
-   * rTemp
+* Download into your local hard drive the three folders needed to run MoFuSS locally, available from our [Zenodo Repository.](https://zenodo.org/records/14517562)
+* Uncompress "demand" and "admin_regions" into your local hard drive, avoiding to create unnecesarry fodlers, such as demand/demand/...
+* Create local folder were you expect to run MoFuSS, e.g. "MoFuSS_Malawi_1km"; unzippe LULCC.zio inside this folder; once again, preventing of creating uneccesarry subfolders e.g. LULCC/LULCC/...
+* Create two empty folders named "emissions" and "rTemp"
+* Download the three folders needed to run MoFuSS locally from our Zenodo Repository and save them to your local hard drive.
+* Extract the contents of the "demand" and "admin_regions" folders directly onto your local hard drive. Avoid creating unnecessary subfolders, such as demand/demand/...
+* Create a local folder where you plan to run MoFuSS, e.g., MoFuSS_Malawi_1km. Extract the LULCC.zip file into this folder, ensuring that no unnecessary subfolders are created (e.g., avoid LULCC/LULCC/...).
+* Within your local hard drive, create two empty folders named "emissions" and "rTemp".
+* Ideally, if possible, all five folders should be at the same level within your hard drive, similar to the following example
+   * _D:/MoFuSS_Malawi_1km_
+   * _D:/admin_regions_
+   * _D:/demand_
+   * _D:/emissions_
+   * _D:/rTemp_
 
 #### Running Stage 1
 All R scripts are written to run on Windows and Linux, and would need to be modified to run on MacOS.
