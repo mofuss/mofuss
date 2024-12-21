@@ -1,6 +1,6 @@
 # MoFuSS
-# Version 3
-# Date: Aug 2024
+# Version 4
+# Date: Jan 2025
 
 # 2dolist
 
@@ -8,6 +8,23 @@
 start_from_scratch <- 0 # Set to 0 when the MoFuSS working directory already exists and has data in it
 hardwireddirs <- 0 # Set to 0 when you are choosing all directories
 # rm(list=ls(all=TRUE))
+
+#Detect OS
+os <- Sys.info()["sysname"]
+if (os == "Windows") {cat("Running on Windows\n")
+} else if (os == "Linux") {
+  cat("Running on Linux\n")
+} else if (os == "Darwin") {
+  cat("Running on macOS\n")
+} else {
+  cat("Unknown OS\n")
+}
+
+if (os == "Linux") {
+  cat("Hi Roberto Rangel!")
+} else {
+  cat("Adrian sets win MoFuSS")
+}
 
 if (hardwireddirs == 1) {
   
@@ -322,10 +339,14 @@ if (hardwireddirs == 1) {
       # Define the destination directory
       destination_dir <- paste0(countrydir, "/LULCC/DownloadedDatasets/SourceData",country_name,"/",parameters_file)
       
-      # Copy the file to the destination directory
-      file.copy(from = parameters_file_path, to = destination_dir, overwrite = TRUE)
+      if (identical(destination_dir,parameters_file_path) == TRUE) {
+        message("File already in place within MoFuSS working directory")
+      } else {
+        # Copy the file to the destination directory
+        file.copy(from = parameters_file_path, to = destination_dir, overwrite = TRUE)
+      }
       
-      message("File successfully copied to: ", destination_dir)
+      message("File successfully copied (or read) to (from): ", destination_dir)
     } else {
       message("No valid file selected.")
     }
