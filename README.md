@@ -22,9 +22,9 @@ MoFuSS uses Google Earth Engine for data download, R for data preparation and gr
 
 ### Stage 0: Data Download
 
-If you wish to download all or some MoFuSS datasets from scratch, or replace specific MoFuSS datasets with those you've produced, please refer to the MoFuSS repository: [gee2mofuss](https://github.com/mofuss/gee2mofuss). [**Note that we are still documenting this repository, please contact aghilardi@ciga.unam.mx in case you need support**]
+If you prefer to run 1km simulations for nearly any country or region in the Global South using the provided datasets (recommended), proceed directly to **Stage 1.**
 
-Alternatively, if you prefer to run 1km simulations for nearly any country or region in the Global South using the provided datasets, proceed directly to **Stage 1.**
+Alternatively, if you wish to download all or some MoFuSS datasets from scratch, or replace specific MoFuSS datasets with those you've produced, please refer to the MoFuSS repository: [gee2mofuss](https://github.com/mofuss/gee2mofuss). [**Note that we are still working and documenting this repository, please contact aghilardi@ciga.unam.mx in case you need support**]
 
 ### Stage 1: Local Data Processing
 #### Preparing your environment: RStudio
@@ -45,7 +45,7 @@ Alternatively, if you prefer to run 1km simulations for nearly any country or re
 * Create a local folder where you plan to run MoFuSS, e.g., MoFuSS_Malawi_1km. Extract the LULCC.zip file into this folder, ensuring that no unnecessary subfolders are created (e.g., avoid LULCC/LULCC/...).
 * Within your local hard drive, create two empty folders named "emissions" and "rTemp".
 * Ideally, if possible, all five folders should be at the same level within your hard drive, similar to the following **example**:
-   * 1.- `D:/MoFuSS_Malawi_1km`
+   * 1.- `D:/MoFuSS_Malawi_1km/LULCC/`
    * 2.- `D:/admin_regions`
    * 3.- `D:/demand`
    * 4.- `D:/emissions`
