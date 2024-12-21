@@ -53,7 +53,8 @@ Alternatively, if you wish to download all or some MoFuSS datasets from scratch,
 
 #### Preparing your environment: Setting up parameters
 * Within your local github folder, there are a few parameter tables in .csv and .xlsx: `mofuss/localhost/selected_parameters/`.
-* When running 1km Global South simulations, you'll need to check the one named: "_parameters_world1000m_" and adust all parameters accordingly to your preferences.
+* When running 1km Global South simulations, you'll need to check the one named: "_parameters_world1000m_" and adjust all parameters accordingly to your preferences.
+* Please pay particular attention to the Area of Interest (AoI) of your choice.
 
 #### Running Stage 1
 * All R scripts are written to run on Windows and Linux, and would need to be modified to run on MacOS. The sequence of scripts for this stage is the following:
