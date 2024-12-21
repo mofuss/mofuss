@@ -24,6 +24,8 @@ MoFuSS uses Google Earth Engine for data download, R for data preparation and gr
 
 If you wish to download all or some MoFuSS datasets from scratch, or replace specific MoFuSS datasets with those you've produced, please refer to the MoFuSS repository: [gee2mofuss](https://github.com/mofuss/gee2mofuss). [**Note that we are still documenting this repository, please contact aghilardi@ciga.unam.mx in case you need support**]
 
+On the contrary... if you would like to... 
+
 ### Stage 1: Local Data Processing
 #### Preparing your environment: RStudio
 
