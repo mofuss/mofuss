@@ -24,7 +24,7 @@ MoFuSS uses Google Earth Engine for data download, R for data preparation and gr
 
 If you wish to download all or some MoFuSS datasets from scratch, or replace specific MoFuSS datasets with those you've produced, please refer to the MoFuSS repository: [gee2mofuss](https://github.com/mofuss/gee2mofuss). [**Note that we are still documenting this repository, please contact aghilardi@ciga.unam.mx in case you need support**]
 
-On the contrary... if you would like to... 
+Alternatively, if you prefer to run 1km simulations for nearly any country or region in the Global South using the provided datasets, proceed directly to **Stage 1.**
 
 ### Stage 1: Local Data Processing
 #### Preparing your environment: RStudio
@@ -65,7 +65,7 @@ On the contrary... if you would like to...
    * 6.- `mofuss/localhost/scripts/5_harmonizer_v1.R`
    * 7.- `mofuss/localhost/scripts/6_scenarios.R`
 
-### Stage 2: HPC processing...
+### Stage 2: HPC processing
 * After successfully running all the R scripts, upload the resulting files to [MoFuSS's IDW online tool](https://www.mofuss.unam.mx/idw/) hosted on our HPC clusters.
 * Complete all parameters requested or leave the default ones. Alternatively, if you are operating your own HPC cluster, refer to the [CostDistance repository](https://github.com/mofuss/CostDistance_IDW) for detailed instructions.
 * Files to be ingested by the Cost Distance code:
@@ -76,14 +76,21 @@ On the contrary... if you would like to...
    * 5.- `YourMoFuSSWorkingDirectory/In/locs_c_v.tif`
    * 6.- `YourMoFuSSWorkingDirectory/In/locs_c_w.tif`
 
-### Stage 3: Final Analysis and Report Generation.
-#### Preparing your environment: Setting up Dinamica EGO
-* Install Dinamica EGO (It is prefered to use to the older version: 
-* Run `YourMoFuSSWorkingDirectory/7_FW_dyn_lulcc_Sc16b_luc1`
+### Stage 3: Final Analysis and report generation.
+#### Preparing your environment: Setting up LaTeX for final reports
+* Download and Install MiKTeX. Visit the [MiKTeX download page](https://miktex.org/download) and download the installer suitable for your operating system.
+* Run the Installer. During installation, ensure you select the option to allow MiKTeX to install missing packages automatically. This will enable it to download and install libraries locally when required.
+* Verify Installation. Open a terminal or command prompt and type pdflatex --version to confirm MiKTeX is correctly installed.
+* Optional: Configure Updates. Open the MiKTeX Console, navigate to the "Updates" section, and ensure that your installation is up to date.
 
+#### Preparing your environment: Setting up Dinamica EGO
+* Install Dinamica EGO. It is recommended to use the older version available in the [Zenodo Repository](https://zenodo.org/records/14517562)
+* Open Dinamica EGO Wizard
+* Open and run the file located at: `YourMoFuSSWorkingDirectory/7_FW_dyn_lulcc_Sc16b_luc1.egoml`, and follow the provided instructions on the HTML interface.
 
 #### Retrieve results
-All output results are saved in `YourMoFuSSWorkingDirectory/OutBaU/`
+All output files will be saved in: `YourMoFuSSWorkingDirectory/OutBaU/`
 
 
-If you have any feedback on this documentation, please feel free to reach out to us at: aghilardi@ciga.unam.mx.
+
+👀 If you have any feedback on this documentation, please feel free to reach out to us at: aghilardi@ciga.unam.mx.
