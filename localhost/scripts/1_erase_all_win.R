@@ -77,4 +77,6 @@ unlink("LULCC//*.Rout",force=TRUE)
 unlink("LULCC//*.csv",force=TRUE)
 unlink("LULCC//*.egoml",force=TRUE)
 unlink("LULCC//*.bat",force=TRUE)
+unlink("LULCC//*.sh",force=TRUE)
+
 

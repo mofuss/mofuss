@@ -17,6 +17,9 @@ library(purrr)
 library(tcltk)
 library(dplyr)
 
+# Detect OS
+os <- Sys.info()["sysname"]
+
 if (webmofuss == 0) {
   
   setwd(countrydir)
@@ -101,7 +104,17 @@ if (webmofuss == 0) {
   file.copy(from=paste0(gitlabdir, "/localhost/scripts/LULCC/",batfiles), 
             to=paste0(countrydir, "/LULCC"), 
             overwrite = TRUE)
-  shell(file.path(getwd(), "LULCC/RpathOSsystem2.bat")) # WARNING, "shell" won't read blank spaces - End of Linux integration
+  
+  shfiles <- list.files (paste0(gitlabdir, "/localhost/scripts/LULCC/"), pattern = ".sh")
+  file.copy(from=paste0(gitlabdir, "/localhost/scripts/LULCC/",shfiles), 
+            to=paste0(countrydir, "/LULCC"), 
+            overwrite = TRUE)
+  
+  if (os == "Windows"){
+    shell(file.path(getwd(), "LULCC/RpathOSsystem2.bat")) # WARNING, "shell" won't read blank spaces - End of Linux integration
+  } else if (os == "Linux"){
+    system(file.path(getwd(), "LULCC/RpathOSsystem2.sh"), intern = TRUE)
+  }
   
   # Process .txt to be properly read by Dinamica EGO
   stx = read.table("LULCC/TempTables/Rpath.txt")

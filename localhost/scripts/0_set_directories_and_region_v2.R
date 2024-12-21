@@ -16,7 +16,6 @@ library(tcltk)
 library(dplyr)
 library(readxl)
 
-# Set working directories
 # Detect OS
 os <- Sys.info()["sysname"]
 
@@ -52,18 +51,17 @@ if(.Platform$OS.type == "unix")  {
   country<-tk_choose.files(default=paste0(gitlabdir,"/countries/*.*"))
   country[2]
   res <- str_match(country[2], "countries/(.*?).tif")
-  res[,2]
+  country_name <- res[,2]
 } else {
   country<-choose.files(default=paste0(gitlabdir,"/countries/*.*"))
   country
   res <- str_match(country, "countries\\\\s*(.*?)\\s*.tif")
   res[,2]
+  # Extract the country name
+  country_name <- gsub(pattern = "(.*countries[\\])(.*)(.tif.*)", 
+                       replacement = "\\2",
+                       country)
 }
-
-# Extract the country name
-country_name <- gsub(pattern = "(.*countries[\\])(.*)(.tif.*)", 
-                     replacement = "\\2",
-                     country)
 
 if (start_from_scratch == 1) {
   # Prompt the user to select the "parameters.xlsx" file
