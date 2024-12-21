@@ -114,6 +114,7 @@ if (webmofuss == 0) {
     shell(file.path(getwd(), "LULCC/RpathOSsystem2.bat")) # WARNING, "shell" won't read blank spaces - End of Linux integration
   } else if (os == "Linux"){
     system(file.path(getwd(), "LULCC/RpathOSsystem2.sh"), intern = TRUE)
+    system("bash LULCC/RpathOSsystem2.sh", intern = FALSE)
   }
   
   # Process .txt to be properly read by Dinamica EGO
@@ -127,17 +128,57 @@ if (webmofuss == 0) {
   m
   write.csv(m, "LULCC/TempTables/Rpath.csv",row.names=FALSE)
   
-  # Process .txt to be properly read by Dinamica EGO ----
-  OSstx = read.table("LULCC/TempTables/OS_type.txt")
-  OSstx$V1
-  OSst<-as.character(OSstx$V1)
-  OSm <- matrix(c(1,OSst),ncol = 2, nrow = 1)
-  OSm <- as.data.frame(OSm)
-  OSm$V1 <- as.integer(as.character(OSm$V1))
-  OSm$V2 <- as.integer(as.character(OSm$V2))
-  colnames(OSm)<-c("Key*","OS")
-  str(OSm)
-  write.csv(OSm, "LULCC/TempTables/OStype.csv",row.names=FALSE)
+  
+  if (os == "Windows"){
+    # Process .txt to be properly read by Dinamica EGO ----
+    OSstx = read.table("LULCC/TempTables/OS_type.txt")
+    OSstx$V1
+    OSst<-as.character(OSstx$V1)
+    OSm <- matrix(c(1,OSst),ncol = 2, nrow = 1)
+    OSm <- as.data.frame(OSm)
+    OSm$V1 <- as.integer(as.character(OSm$V1))
+    OSm$V2 <- as.integer(as.character(OSm$V2))
+    colnames(OSm)<-c("Key*","OS")
+    str(OSm)
+    write.csv(OSm, "LULCC/TempTables/OStype.csv",row.names=FALSE)
+    
+  } else if (os == "Linux") {
+    
+    # Process .txt to be properly read by Dinamica EGO ----
+    
+    # Read the OS type from the file
+    OSstx <- read.table("LULCC/TempTables/OS_type.txt", stringsAsFactors = FALSE)
+    
+    # Extract the OS type and ensure it's read as a character
+    OSst <- as.character(OSstx$V1)
+    
+    # Convert the OS type to an integer for consistency
+    OS_code <- ifelse(OSst == "64-bit", 64, ifelse(OSst == "32-bit", 32, NA))
+    
+    # Create a data frame with the required format
+    OSm <- data.frame(`Key*` = 1, OS = OS_code)
+    
+    # Check the structure of the resulting data frame
+    str(OSm)
+    
+    # Write the data frame to a CSV file
+    write.csv(OSm, "LULCC/TempTables/OStype.csv", row.names = FALSE)
+    
+  }
+
+  
+
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
   
   # Fix all pop-ups from the repository!
   # shell.exec("https://gitlab.com/mofuss/mofuss/-/blob/master/localhost/scripts/LULCC/Wizard_imgs/R_found.pdf")
