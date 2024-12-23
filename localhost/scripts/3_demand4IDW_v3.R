@@ -313,6 +313,7 @@ if (byregion == "Global"){
   # lines(adm0_reg, lwd=2)
   pop0_K <- crop(pop0, ext(adm0_reg) + .01)
   pop0_reg <- mask(pop0_K, adm0_reg)
+  # pop0_reg <- pop0_K
   plot(pop0_reg,main=c("Region to be processed"))
   lines(adm0_reg)
   Sys.sleep(10)
