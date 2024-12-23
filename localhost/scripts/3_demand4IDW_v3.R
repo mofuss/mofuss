@@ -205,7 +205,7 @@ if (byregion == "Continental") {
     cat("You cancelled the choice\n")
   } else {
     cat("You selected:\n")
-    print(region.input$res)
+    print(mofuss_region)
   }
 
 } else if (byregion == "Regional") {
@@ -225,7 +225,7 @@ if (byregion == "Continental") {
     cat("You cancelled the choice\n")
   } else {
     cat("You selected:\n")
-    print(region.input$res)
+    print(mofuss_region)
   }
 } else if (byregion == "Country") {
   country_parameters %>%
@@ -240,6 +240,13 @@ if (byregion == "Continental") {
   #                           gui = .GUI
   # )
   # mofuss_region <- region.input$res
+  
+  if (!length(mofuss_region)) {
+    cat("You cancelled the choice\n")
+  } else {
+    cat("You selected:\n")
+    print(mofuss_region)
+  }
   
 } else {
   print("Error")
@@ -306,6 +313,7 @@ if (byregion == "Global"){
   # lines(adm0_reg, lwd=2)
   pop0_K <- crop(pop0, ext(adm0_reg) + .01)
   pop0_reg <- mask(pop0_K, adm0_reg)
+  # pop0_reg <- pop0_K
   plot(pop0_reg,main=c("Region to be processed"))
   lines(adm0_reg)
   Sys.sleep(10)
