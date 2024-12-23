@@ -339,7 +339,7 @@ setwd(admindir)
 
 # Sub-Saharan Africa ----
 # subregionsSSA <- read_excel("subregionsSSA_v4.xlsx")
-subregionsSSA <- read_csv("subregionsSSA_v4.csv")
+subregionsSSA <- readr::read_csv("subregionsSSA_v4.csv")
 subregionsSSA
 unique(subregionsSSA$Subregion)
 sort(unique(subregionsSSA$NAME_0))
