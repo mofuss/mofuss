@@ -1,259 +1,209 @@
 # nolint start: object_name_linter
-# style_file("localhost/scripts/99_marginal_analysis.r")
+# External dependencies you need to install: pandoc, pdflatex
+# You may need to set the PATH to the texbin directory:
+Sys.setenv(PATH=paste("/Library/TeX/texbin", Sys.getenv("PATH"), sep=":"))
+
+if (!require("pacman")) install.packages("pacman")
 library(pacman)
-pacman::p_load(dplyr, ggplot2, readr, purrr, viridis, knitr, stringr, styler, rmarkdown)
+pacman::p_load(dplyr, ggplot2, readr, purrr, viridis, knitr, stringr, styler, rmarkdown, kableExtra, tidyr)
+
+
+source("localhost/scripts/utils/file_utils.R")
+source("localhost/scripts/utils/plot_utils.R")
+source("localhost/scripts/utils/data_utils.R")
+
 setwd("~/mofuss/")
-country <- "tanzania"
-directory_path <- paste0("~/mofuss_data/", country)
-filename_patterns <- c("adm0.csv", "adm1.csv", "adm2.csv", "adm0_fr.csv", "adm1_fr.csv", "adm2_fr.csv", "adm0_frcompl.csv", "adm1_frcompl.csv", "adm2_frcompl.csv")
+
+# Configuration
+col_selector = "mean" # "1mc" to look at the first monte carlo, "mean" to look at the mean of all monte carlos.
+admin_levels <- c("adm0", "adm1") # Modify this to control which levels to process: c("adm0"), c("adm1"), c("adm2"), or any combination
+
+base_patterns <- c("", "_fr", "_frcompl")
+filename_patterns <- unlist(lapply(admin_levels, function(level) {
+    paste0(level, base_patterns, ".csv")
+}))
+
 if (!dir.exists("assets")) {
     dir.create("assets")
 }
-output_file <- paste0("assets/marginal_analysis_results_", country, "_", Sys.Date(), ".md")
-file_conn <- file(output_file, "w")
 
-process_files <- function(directory_path, pattern, y_col) {
-    files <- list.files(
-        path = directory_path,
-        pattern = pattern,
-        full.names = TRUE,
-        recursive = TRUE
-    )
+base_path <- "/Users/ricardopiedrahita/Dropbox/mofuss_data"
+countries <- list.dirs(base_path, full.names = FALSE, recursive = FALSE)
+countries <- countries[!countries %in% c("", "assets")]
 
-    if (length(files) == 0) {
-        stop("No files found matching the pattern")
-    }
+for (country in countries) {
+    directory_path <- file.path(base_path, country)
+    
+    output_file <- paste0("assets/marginal_analysis_results_", country, "_", col_selector, "_", Sys.Date(), ".md")
+    file_conn <- file(output_file, "w")
+    
+    tryCatch({
+        write(paste0("# Marginal Analysis Results for ", toupper(country), "\n\n"), file_conn)
+        write(paste0("Results are for ", col_selector, " of all monte carlos.\n\n"), file_conn)
 
-    combined_df <- tryCatch(
-        {
-            all_data <- list()
-            for (file in files) {
-                cat("Attempting to read:", file, "\n")
-                df <- try({
-                    temp_df <- read_csv(file, show_col_types = FALSE)
-                    temp_df$filename <- basename(file)
-                    temp_df$filepath <- file
-                    temp_df$scenario <- str_extract(file, "(bau|(minus|plus)\\d+)")
-                    temp_df$demand_value <- case_when(
-                        temp_df$scenario == "bau" ~ 0,
-                        str_detect(temp_df$scenario, "minus") ~ -as.numeric(str_extract(temp_df$scenario, "\\d+")),
-                        str_detect(temp_df$scenario, "plus") ~ as.numeric(str_extract(temp_df$scenario, "\\d+")),
-                        TRUE ~ NA_real_
-                    )
+        write("# Introduction\n\n", file_conn)
+        write(paste("This report presents the marginal analysis results for", toupper(country), 
+                   "across different administrative levels and scenarios.\n\n"), file_conn)
+        
+        combined_data_adm0 <- NULL
+        combined_data_adm1 <- NULL
+        combined_data_adm2 <- NULL
+        
+        for (pattern in filename_patterns) {
+            demand_col <- "demand_value"
+            if (col_selector == "mean") {
+                y_col <- case_when(
+                    str_detect(pattern, "frcompl") ~ "Harv_2020_2030_mean",
+                    str_detect(pattern, "fr") ~ "NRB_2020_2030_mean",
+                    TRUE ~ "fNRB"
+                )
+                nrb_col <- "NRB_2020_2030_mean"
+                harvest_col <- "Harv_2020_2030_mean"
+            } else if (col_selector == "1mc") {
+                y_col <- case_when(
+                    str_detect(pattern, "frcompl") ~ "Harv_2020_2030_1MC",
+                    str_detect(pattern, "fr") ~ "NRB_2020_2030_1MC",
+                    TRUE ~ "fNRB1mc"
+                )
+                nrb_col <- "NRB_2020_2030_1MC"
+                harvest_col <- "Harv_2020_2030_1MC"
+            }
 
-                    # Check and rename columns if they exist
-                    if (any(grepl("^NAME_", names(temp_df)))) {
-                        temp_df <- temp_df %>%
-                            rename_with(~ gsub("^NAME_", "ADM_", .), .cols = starts_with("NAME_"))
-                    }
+            x_col <- case_when(
+                str_detect(pattern, "adm0") ~ "ADM_0",
+                str_detect(pattern, "adm1") ~ "ADM_1",
+                str_detect(pattern, "adm2") ~ "ADM_2",
+                TRUE ~ NA_character_
+            )
 
-                    temp_df
-                })
+            if (is.na(x_col)) {
+                stop(paste("Unknown pattern:", pattern))
+            }
 
-                if (!inherits(df, "try-error")) {
-                    all_data[[length(all_data) + 1]] <- df
+            combined_data <- process_files(directory_path, pattern, y_col, x_col)
+            
+            combined_data <- combined_data %>%
+                filter(!is.na(.data[[y_col]]), !is.na(demand_value))
+    
+            if (str_detect(pattern, "adm0")) {
+                if (is.null(combined_data_adm0)) {
+                    combined_data_adm0 <- combined_data
                 } else {
-                    warning(paste("Failed to read file:", file))
+                    combined_data_adm0 <- full_join(
+                        combined_data_adm0,
+                        combined_data,
+                        by = c(x_col, "scenario", demand_col)
+                    )
+                }
+            } else if (str_detect(pattern, "adm1")) {
+                if (is.null(combined_data_adm1)) {
+                    combined_data_adm1 <- combined_data
+                } else {
+                    combined_data_adm1 <- full_join(
+                        combined_data_adm1,
+                        combined_data,
+                        by = c(x_col, "scenario", demand_col)
+                    )
+                }
+            } else if (str_detect(pattern, "adm2")) {
+                if (is.null(combined_data_adm2)) {
+                    combined_data_adm2 <- combined_data
+                } else {
+                    combined_data_adm2 <- full_join(
+                        combined_data_adm2,
+                        combined_data,
+                        by = c(x_col, "scenario", demand_col)
+                    )
                 }
             }
 
-            if (length(all_data) == 0) {
-                stop("No files were successfully read")
-            }
+            plotz <- create_plots(combined_data, x_col, y_col, pattern)
 
-            bind_rows(all_data)
-        },
-        error = function(e) {
-            stop(paste("Error reading files:", e$message))
+            write(paste("\n## Results for", pattern, "\n"), file_conn, append = TRUE)
+            write(paste("\n![", pattern, "](", basename(plotz$boxplot), ")\n"), file_conn, append = TRUE)
+            write(paste("\n![", pattern, "](", basename(plotz$scatter), ")\n"), file_conn, append = TRUE)
+
+            summary_stats <- combined_data %>%
+                group_by(demand_value, scenario) %>%
+                summarise(
+                    mean = mean(.data[[y_col]], na.rm = TRUE),
+                    sd = sd(.data[[y_col]], na.rm = TRUE),
+                    median = median(.data[[y_col]], na.rm = TRUE),
+                    q1 = quantile(.data[[y_col]], 0.25, na.rm = TRUE),
+                    q3 = quantile(.data[[y_col]], 0.75, na.rm = TRUE),
+                    n = n(),
+                    .groups = "drop"
+                )
+
+            write(paste("\nThere are", length(unique(combined_data$filepath)), "unique files from different paths\n"),
+                file_conn,
+                append = TRUE
+            )
+
+            write("\n### Summary Statistics\n", file_conn, append = TRUE)
+            write(knitr::kable(summary_stats, format = "markdown"),
+                file_conn,
+                append = TRUE
+            )
         }
-    )
 
-    return(combined_df)
-}
-
-create_plots <- function(data, x_col, y_col, pattern) {
-    lm_formula <- as.formula(paste(y_col, "~ demand_value"))
-    lm_fit <- lm(lm_formula, data = data)
-    lm_eq <- paste0(
-        "y = ", round(coef(lm_fit)[1], 4), " + ",
-        round(coef(lm_fit)[2], 4), "x\n",
-        "R² = ", round(summary(lm_fit)$r.squared, 4)
-    )
-
-    p <- ggplot(data, aes(x = demand_value, y = .data[[y_col]])) +
-        geom_point(alpha = 0.1, position = position_jitter(width = 0.2)) +
-        geom_boxplot(aes(group = demand_value, fill = scenario), alpha = 0.7) +
-        geom_smooth(method = "lm", color = "red", se = TRUE) +
-        scale_fill_viridis_d() +
-        scale_x_continuous(breaks = sort(unique(data$demand_value))) +
-        xlim(min(data$demand_value) - 5, max(data$demand_value) + 5) +
-        ylim(min(data[[y_col]]) - 0.05, max(data[[y_col]]) + 0.05) +
-        theme(
-            legend.position = "right",
-            legend.title = element_text(size = 10),
-            legend.text = element_text(size = 8),
-            plot.title = element_text(hjust = 0.5)
-        ) +
-        annotate("text",
-            x = min(data$demand_value) - 4,
-            y = max(data[[y_col]]) + 0.03,
-            label = lm_eq,
-            hjust = 0, vjust = 1
-        ) +
-        labs(
-            title = paste(y_col, "Distribution by Demand Scenario -", pattern),
-            x = "Demand Change (%)",
-            y = y_col,
-            fill = "Scenario"
+        data_list <- list(
+            adm0 = if("adm0" %in% admin_levels) combined_data_adm0 else NULL,
+            adm1 = if("adm1" %in% admin_levels) combined_data_adm1 else NULL,
+            adm2 = if("adm2" %in% admin_levels) combined_data_adm2 else NULL
         )
+        
+        cat("\nData list contents:\n")
+        for(level in names(data_list)) {
+            cat(level, ": ", !is.null(data_list[[level]]), "\n")
+        }
+        
+        data_list <- data_list[names(data_list) %in% admin_levels]
+        
+        for (adm_level in names(data_list)) {
+            cat("\nProcessing", adm_level, "...\n")
+            data <- data_list[[adm_level]]
+            
+            if (!is.null(data)) {
+                cat("Data dimensions:", dim(data)[1], "rows,", dim(data)[2], "columns\n")
+                cat("Columns present:", paste(names(data), collapse=", "), "\n")
+                cat("nrb_col:", nrb_col, "\n")
+                cat("harvest_col:", harvest_col, "\n")
+            }
+            
+            if (!is.null(data) && all(c(nrb_col, harvest_col) %in% names(data))) {
+                cat("Starting marginal analysis...\n")
+                marginal_plot_name <- analyze_nrb_vs_harvest(
+                    data = data,
+                    nrb_col = nrb_col,
+                    harvest_col = harvest_col,
+                    demand_col = demand_col,
+                    pattern = adm_level,
+                    x_col = paste0("ADM_", substr(adm_level, 4, 4))
+                )
+                cat("Marginal plot created:", marginal_plot_name, "\n")
+                
+                write(paste("\n## Marginal Analysis Results for", adm_level, "\n"),
+                    file_conn,
+                    append = TRUE
+                )
+                write(paste("\n### Marginal Changes\n"), file_conn, append = TRUE)
+                write(paste("\n![Marginal Analysis](", basename(marginal_plot_name), ")\n"),
+                    file_conn,
+                    append = TRUE
+                )
+            }
+        }
+    render(output_file, output_format = "pdf_document")
 
-    plot_filename_boxplot <- paste0("assets/boxplot_", gsub("\\.csv$", "", pattern), ".png")
-    ggsave(plot_filename_boxplot, p, width = 10, height = 6)
-    p_scatter <- ggplot(data, aes(x = .data[[x_col]], y = .data[[y_col]], color = scenario)) +
-        geom_point(alpha = 0.7, position = position_jitter(width = 0.05)) +
-        scale_color_viridis_d() +
-        labs(
-            title = paste(y_col, "Distribution by Demand Scenario -", pattern),
-            x = x_col,
-            y = y_col,
-            color = "Scenario"
-        )
-
-    plot_filename_scatter <- paste0("assets/scatter_", gsub("\\.csv$", "", pattern), ".png")
-    ggsave(plot_filename_scatter, p_scatter, width = 10, height = 6)
-
-    return(list(boxplot = plot_filename_boxplot, scatter = plot_filename_scatter))
+    }, error = function(e) {
+        cat("\nError:", e$message, "\n")
+    }, finally = {
+        if (!is.null(file_conn) && isOpen(file_conn)) {
+            close(file_conn)
+        }
+    })
 }
 
-# Function to analyze change in NRB over change in harvest with changing demand
-analyze_nrb_vs_harvest <- function(data, nrb_col, harvest_col, demand_col, pattern, x_col) {
-    lm_formula <- as.formula(paste(nrb_col, "~", harvest_col, "+", demand_col))
-    lm_fit <- lm(lm_formula, data = data)
-    lm_eq <- paste0(
-        "y = ", round(coef(lm_fit)[1], 4), " + ",
-        round(coef(lm_fit)[2], 4), "x1 + ",
-        round(coef(lm_fit)[3], 4), "x2\n",
-        "R² = ", round(summary(lm_fit)$r.squared, 4)
-    )
-
-    p <- ggplot(data, aes_string(x = harvest_col, y = nrb_col, color = demand_col)) +
-        geom_point(alpha = 0.5) +
-        geom_smooth(method = "lm", se = TRUE, color = "red") +
-        scale_color_viridis_c() +
-        labs(
-            title = paste("Change in", nrb_col, "over Change in", harvest_col, "with Demand -", pattern),
-            x = paste("Change in", harvest_col),
-            y = paste("Change in", nrb_col),
-            color = "Demand"
-        ) +
-        annotate("text",
-            x = min(data[[harvest_col]]),
-            y = max(data[[nrb_col]]),
-            label = lm_eq,
-            hjust = 0, vjust = 1
-        )
-
-    plot_filename <- paste0("assets/nrb_vs_harvest_", x_col, gsub("\\.csv$", "", pattern), ".png")
-    ggsave(plot_filename, p, width = 10, height = 6)
-
-    return(plot_filename)
-}
-
-combined_data_adm0 <- NULL
-combined_data_adm1 <- NULL
-combined_data_adm2 <- NULL
-
-for (pattern in filename_patterns) {
-    y_col <- case_when(
-        str_detect(pattern, "frcompl") ~ "Harv_2020_2030_mean",
-        str_detect(pattern, "fr") ~ "NRB_2020_2030_mean",
-        TRUE ~ "fNRB"
-    )
-
-    combined_data <- process_files(directory_path, pattern, y_col)
-    x_col <- case_when(
-        str_detect(pattern, "adm0") ~ "ADM_0",
-        str_detect(pattern, "adm1") ~ "ADM_1",
-        str_detect(pattern, "adm2") ~ "ADM_2",
-        TRUE ~ NA_character_
-    )
-
-    if (is.na(x_col)) {
-        stop(paste("Unknown pattern:", pattern))
-    }
-
-    combined_data <- combined_data %>%
-        filter(!is.na(.data[[y_col]]), !is.na(demand_value))
-
-    if (is.null(combined_data_all) && str_detect(pattern, "adm0")) {
-        combined_data_adm0 <- combined_data
-    } else if (is.null(combined_data_all) && str_detect(pattern, "adm1")) {
-        combined_data_adm1 <- combined_data
-    } else if (is.null(combined_data_all) && str_detect(pattern, "adm2")) {
-        combined_data_adm2 <- combined_data
-    } else if (str_detect(pattern, "adm0")) {
-        combined_data_adm0 <- left_join(combined_data_adm0, combined_data, by = x_col)
-    } else if (str_detect(pattern, "adm1")) {
-        combined_data_adm1 <- left_join(combined_data_adm1, combined_data, by = x_col)
-    } else if (str_detect(pattern, "adm2")) {
-        combined_data_adm2 <- left_join(combined_data_adm2, combined_data, by = x_col)
-    }
-
-
-    plotz <- create_plots(combined_data, x_col, y_col, pattern)
-
-    write(paste("\n## Results for", pattern, "\n"), file_conn, append = TRUE)
-    write(paste("\n![", pattern, "](", basename(plotz$boxplot), ")\n"), file_conn, append = TRUE)
-    write(paste("\n![", pattern, "](", basename(plotz$scatter), ")\n"), file_conn, append = TRUE)
-    summary_stats <- combined_data %>%
-        group_by(demand_value, scenario) %>%
-        summarise(
-            mean = mean(.data[[y_col]], na.rm = TRUE),
-            sd = sd(.data[[y_col]], na.rm = TRUE),
-            median = median(.data[[y_col]], na.rm = TRUE),
-            q1 = quantile(.data[[y_col]], 0.25, na.rm = TRUE),
-            q3 = quantile(.data[[y_col]], 0.75, na.rm = TRUE),
-            n = n(),
-            .groups = "drop"
-        )
-
-    write(paste("\nThere are", length(unique(combined_data$filepath)), "unique files from different paths\n"),
-        file_conn,
-        append = TRUE
-    )
-
-    write("\n### Summary Statistics\n", file_conn, append = TRUE)
-    write(knitr::kable(summary_stats, format = "markdown"),
-        file_conn,
-        append = TRUE
-    )
-}
-
-
-# Determine columns based on pattern
-nrb_col <- "NRB_2020_2030_mean"
-harvest_col <- "Harv_2020_2030_mean"
-
-# List of dataframes
-data_list <- list(combined_data_adm0, combined_data_adm1, combined_data_adm2)
-
-for (i in seq_along(data_list)) {
-    data <- data_list[[i]]
-
-    plot_filename <- analyze_nrb_vs_harvest(data, nrb_col, harvest_col, demand_col, pattern, x_col[i])
-
-    # write(paste("\n## NRB vs Harvest Results for", pattern, " - Dataframe", i, "\n"), file_conn, append = TRUE)
-    # write(paste("\n![", pattern, "](", basename(plot_filename), ")\n"), file_conn, append = TRUE)
-}
-
-
-close(file_conn)
 
 # nolint end
-
-render(output_file, output_format = "pdf_document")
-
-options(error = function() {
-    message("An error occurred.")
-    print(last_trace())
-})
