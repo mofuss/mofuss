@@ -338,7 +338,8 @@ ASIA_adm0_db <- ASIA_adm0 %>% st_drop_geometry()
 setwd(admindir)
 
 # Sub-Saharan Africa ----
-subregionsSSA <- read_excel("subregionsSSA_v4.xlsx")
+# subregionsSSA <- read_excel("subregionsSSA_v4.xlsx")
+subregionsSSA <- read_csv("subregionsSSA_v4.csv")
 subregionsSSA
 unique(subregionsSSA$Subregion)
 sort(unique(subregionsSSA$NAME_0))
@@ -874,7 +875,8 @@ SSA_adm2_zimbabwe %>%
   st_write("regions_adm2_p/SSA_adm2_zimbabwe_p.gpkg", delete_layer = TRUE)
 
 # Americas ----
-subregionsLATAM <- read_excel("subregionsLATAM_v3.xlsx")
+# subregionsLATAM <- read_excel("subregionsLATAM_v3.xlsx")
+subregionsLATAM <- read_csv("subregionsLATAM_v3.csv")
 subregionsLATAM
 unique(subregionsLATAM$Subregion)
 
@@ -1099,8 +1101,8 @@ LATAM_adm2_salvador %>%
   st_write("regions_adm2_p/LATAM_adm2_salvador_p.gpkg", delete_layer = TRUE)
 
 # Asia ----
-
-subregionsASIA <- read_excel("subregionsASIA_v5.xlsx")
+# subregionsASIA <- read_excel("subregionsASIA_v5.xlsx")
+subregionsASIA <- read_csv("subregionsASIA_v5.csv")
 subregionsASIA
 unique(subregionsASIA$Subregion)
 unique(subregionsASIA$NAME_0)
@@ -1392,8 +1394,8 @@ ASIA_adm2_pakistan %>%
   st_write("regions_adm2_p/ASIA_adm2_pakistan_p.gpkg", delete_layer = TRUE)
 
 # Oceania----
-
-subregionsOCEANIA <- read_excel("subregionsOCEANIA.xlsx")
+# subregionsOCEANIA <- read_excel("subregionsOCEANIA.xlsx")
+subregionsOCEANIA <- read_csv("subregionsOCEANIA.csv")
 subregionsOCEANIA
 unique(subregionsOCEANIA$Subregion)
 unique(subregionsOCEANIA$NAME_0)
@@ -1443,7 +1445,8 @@ OCEANIA_adm2_papuanewguinea %>%
   st_write("regions_adm2_p/OCEANIA_adm2_papuanewguinea_p.gpkg", delete_layer = TRUE)
 
 # North Africa ----
-subregionsNorAfr <- read_excel("subregionsNorAfri_v3.xlsx")
+# subregionsNorAfr <- read_excel("subregionsNorAfri_v3.xlsx")
+subregionsNorAfr <- read_csv("subregionsNorAfri_v3.csv")
 subregionsNorAfr
 unique(subregionsNorAfr$Subregion)
 unique(NorAfr_adm0$NAME_0)
