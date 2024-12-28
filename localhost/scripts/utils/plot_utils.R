@@ -2,7 +2,7 @@
 library(ggplot2)
 library(viridis)
 
-create_plots <- function(data, x_col, y_col, pattern) {
+create_plots <- function(data, x_col, y_col, pattern, country) {
     lm_formula <- as.formula(paste(y_col, "~ demand_value"))
     lm_fit <- lm(lm_formula, data = data)
     lm_eq <- paste0(
@@ -54,7 +54,7 @@ create_plots <- function(data, x_col, y_col, pattern) {
             fill = "Scenario"
         )
 
-    plot_filename_boxplot <- paste0("assets/boxplot_", gsub("\\.csv$", "", pattern), ".png")
+    plot_filename_boxplot <- file.path("assets", paste0("boxplot_", country, "_", gsub("\\.csv$", "", pattern), ".png"))
     ggsave(plot_filename_boxplot, p, width = 10, height = 6)
 
     p_scatter <- ggplot(data, aes(x = .data[[x_col]], y = .data[[y_col]], color = scenario)) +
@@ -70,13 +70,13 @@ create_plots <- function(data, x_col, y_col, pattern) {
             color = "Scenario"
         )
 
-    plot_filename_scatter <- paste0("assets/scatter_", gsub("\\.csv$", "", pattern), ".png")
+    plot_filename_scatter <- file.path("assets", paste0("scatter_", country, "_", gsub("\\.csv$", "", pattern), ".png"))
     ggsave(plot_filename_scatter, p_scatter, width = 10, height = 6)
 
     return(list(boxplot = plot_filename_boxplot, scatter = plot_filename_scatter))
 }
 
-analyze_nrb_vs_harvest <- function(data, nrb_col, harvest_col, demand_col, pattern, x_col) {
+analyze_nrb_vs_harvest <- function(data, nrb_col, harvest_col, demand_col, pattern, x_col, country) {
     cat("\n=== Starting analyze_nrb_vs_harvest ===\n")
     cat("Pattern:", pattern, "\n")
     cat("x_col:", x_col, "\n")
@@ -143,7 +143,7 @@ analyze_nrb_vs_harvest <- function(data, nrb_col, harvest_col, demand_col, patte
             fill = "Scenario"
         )
 
-    plot_filename <- paste0("assets/marginal_ratio_vs_demand_", x_col, "_", pattern, ".png")
+    plot_filename <- paste0("assets/marginal_ratio_vs_demand_", country, "_", x_col, "_", pattern, ".png")
     cat("\nSaving plot to:", plot_filename, "\n")
     
     tryCatch({
@@ -156,5 +156,100 @@ analyze_nrb_vs_harvest <- function(data, nrb_col, harvest_col, demand_col, patte
     cat("=== Finished analyze_nrb_vs_harvest ===\n\n")
     return(plot_filename)
 } 
+
+
+create_demand_sensitivity_plots <- function(marginal_data, sensitivity_analysis, output_dir) {
+    cat("\n=== Starting create_demand_sensitivity_plots ===\n")
+    
+    slopes_filename <- NULL
+    steps_filename <- NULL
+    curves_filename <- NULL
+    
+    countries <- paste(sort(unique(marginal_data$country)), collapse="_")
+    
+    plots <- list()
+    
+    tryCatch({
+        cat("\nCreating slope visualization plot...\n")
+        p1 <- ggplot(sensitivity_analysis$slopes, 
+                    aes(x = demand_value, y = point_slope, color = country)) +
+            geom_point(alpha = 0.6) +
+            geom_line(aes(group = country)) +
+            facet_wrap(~adm_level, scales = "free_y") +
+            theme(
+                legend.position = "right",
+                axis.text.x = element_text(angle = 45, hjust = 1)
+            ) +
+            labs(
+                title = "Demand Sensitivity Analysis",
+                subtitle = "How marginal ratios change with demand",
+                x = "Demand Change (%)",
+                y = "Point Sensitivity (Δ Ratio / Δ Demand)",
+                color = "Country"
+            )
+        plots$p1 <- p1
+        slopes_filename <- paste0("demand_sensitivity_slopes_", countries, ".png")
+        ggsave(file.path(output_dir, slopes_filename), p1, width = 12, height = 8)
+        cat("Plot 1 created and saved successfully\n")
+    }, error = function(e) {
+        cat("Error creating/saving plot 1:", e$message, "\n")
+    })
+    
+    tryCatch({
+        cat("\nCreating step sensitivity heatmap...\n")
+        p2 <- ggplot(sensitivity_analysis$step_changes %>% filter(!is.na(step_sensitivity)),
+                    aes(x = demand_value, y = country, fill = step_sensitivity)) +
+            geom_tile() +
+            facet_wrap(~adm_level) +
+            scale_fill_viridis_c() +
+            theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+            labs(
+                title = "Demand Step Sensitivity Analysis",
+                subtitle = "Change in Marginal Ratio per Unit Demand Change",
+                x = "Demand Level",
+                y = "Country",
+                fill = "Step Sensitivity"
+            )
+        plots$p2 <- p2
+        steps_filename <- paste0("demand_step_sensitivity_", countries, ".png")
+        ggsave(file.path(output_dir, steps_filename), p2, width = 12, height = 8)
+        cat("Plot 2 created and saved successfully\n")
+    }, error = function(e) {
+        cat("Error creating/saving plot 2:", e$message, "\n")
+    })
+    
+    tryCatch({
+        cat("\nCreating marginal ratio trends plot...\n")
+        p3 <- ggplot(marginal_data, aes(x = demand_value, y = marginal_ratio, color = country)) +
+            geom_point(alpha = 0.3) +
+            geom_smooth(method = "lm", formula = y ~ x, se = TRUE) +
+            facet_wrap(~adm_level, scales = "free_y") +
+            coord_cartesian(
+                ylim = quantile(marginal_data$marginal_ratio, c(0.05, 0.95), na.rm = TRUE)
+            ) +
+            theme(legend.position = "right") +
+            labs(
+                title = "Marginal Ratio Response to Demand Changes",
+                x = "Demand Change from BAU (%)",
+                y = "Marginal NRB/Harvest Ratio (%)",
+                color = "Country"
+            )
+        plots$p3 <- p3
+        curves_filename <- paste0("demand_response_curves_", countries, ".png")
+        ggsave(file.path(output_dir, curves_filename), p3, width = 12, height = 8)
+        cat("Plot 3 created and saved successfully\n")
+    }, error = function(e) {
+        cat("Error creating/saving plot 3:", e$message, "\n")
+    })
+    
+    cat("\n=== Finished create_demand_sensitivity_plots ===\n")
+    
+    return(list(
+        sensitivity_slopes = if(!is.null(slopes_filename)) slopes_filename else NA,
+        step_sensitivity = if(!is.null(steps_filename)) steps_filename else NA,
+        response_curves = if(!is.null(curves_filename)) curves_filename else NA
+    ))
+}
+
 
 # nolint end
