@@ -262,9 +262,11 @@ if (!dir.exists(paste0(countrydir,"/LULCC/DownloadedDatasets/SourceData",country
 }
 
 # Copy input tables from gitlab repo into MoFuSS working folder ----
-friction2copy <- list.files(path = paste0(gitlabdir, "/friction"), 
-                            pattern = "\\.csv$|\\.xlsx$", 
-                            full.names = TRUE)
+friction2copy <- list.files(
+  path = paste0(gitlabdir, "/friction"),
+  pattern = "\\.csv$|\\.xlsx$",
+  full.names = TRUE)
+
 for (f in friction2copy) {
   file.copy(from=f, 
             to=paste0(countrydir,"/LULCC/DownloadedDatasets/SourceData",country_name,"/InTables/"), 
@@ -275,6 +277,21 @@ for (f in friction2copy) {
 growth2copy <- list.files(path = paste0(gitlabdir, "/global_growth"), 
                           pattern = "\\.csv$|\\.xlsx$", 
                           full.names = TRUE)
+
+# Read the Excel file
+country_parameters <- read_excel(destination_dir)
+print(tibble::as_tibble(country_parameters), n=100)
+
+country_parameters %>%
+  dplyr::filter(Var == "GEE_tyRoi") %>%
+  pull(ParCHR) -> GEE_tyRoi
+if (GEE_tyRoi == "world") {
+  print("Global growth parameters tables copied succesfully")
+} else if (GEE_tyRoi != "world") {
+  # Exclude the specific files
+  growth2copy <- growth2copy[!basename(growth2copy) %in% c("growth_parameters_v3_copernicus.csv", "growth_parameters_v3_modis.csv")]
+}
+
 for (g in growth2copy) {
   file.copy(from=g, 
             to=paste0(countrydir,"/LULCC/DownloadedDatasets/SourceData",country_name,"/InTables/"), 
