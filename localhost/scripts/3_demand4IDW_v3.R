@@ -3,6 +3,7 @@
 # Date: Mar 2024
 
 # 2dolist
+# FIX THE MASK ISSUE, THAT WAS PATCHED FOR THE MOMENT!
 
 # Internal parameters
 optimizeD = 0
@@ -30,6 +31,9 @@ library(tibble)
 library(raster)
 library(gdata)
 library(rlang)
+
+# Detect OS
+os <- Sys.info()["sysname"]
 
 setwd(countrydir)
 getwd()
@@ -289,7 +293,11 @@ if (byregion == "Global"){
   print("***NOW RUNNING GLOBAL DEMAND SCENARIOS***")
   adm0_reg <- mofuss_regions0_gpkg
   pop0_K <- crop(pop0, ext(adm0_reg) + .01)
-  pop0_reg <- mask(pop0_K, adm0_reg)
+  if (os == "Windows") {
+    pop0_reg <- mask(pop0_K, adm0_reg) #THIS BREAKS IN UBUNTU
+  } else if(os == "Linux") {
+    pop0_reg <- pop0_K
+  }
   # plot(pop0_reg)
   # lines(adm0_reg)
   
@@ -300,7 +308,11 @@ if (byregion == "Global"){
   # # plot(pop0)
   # # lines(adm0_reg, lwd=2)
   pop0_K <- crop(pop0, ext(adm0_reg) + .01)
-  pop0_reg <- mask(pop0_K, adm0_reg)
+  if (os == "Windows") {
+    pop0_reg <- mask(pop0_K, adm0_reg) #THIS BREAKS IN UBUNTU
+  } else if(os == "Linux") {
+    pop0_reg <- pop0_K
+  }
   plot(pop0_reg,main=c("Region to be processed"))
   lines(adm0_reg)
   Sys.sleep(10)
@@ -312,8 +324,11 @@ if (byregion == "Global"){
   # plot(pop0)
   # lines(adm0_reg, lwd=2)
   pop0_K <- crop(pop0, ext(adm0_reg) + .01)
-  pop0_reg <- mask(pop0_K, adm0_reg) #THIS BREAKS IN UBUNTU
-  # pop0_reg <- pop0_K
+  if (os == "Windows") {
+    pop0_reg <- mask(pop0_K, adm0_reg) #THIS BREAKS IN UBUNTU
+  } else if(os == "Linux") {
+    pop0_reg <- pop0_K
+  }
   plot(pop0_reg,main=c("Region to be processed"))
   lines(adm0_reg)
   Sys.sleep(10)
@@ -323,7 +338,11 @@ if (byregion == "Global"){
   adm0_reg <- mofuss_regions0_gpkg %>% 
     dplyr::filter(NAME_0 == mofuss_region) # Check if multiple countries or values is doable
   pop0_K <- crop(pop0, ext(adm0_reg) + .01)
-  pop0_reg <- mask(pop0_K, adm0_reg)
+  if (os == "Windows") {
+    pop0_reg <- mask(pop0_K, adm0_reg) #THIS BREAKS IN UBUNTU
+  } else if(os == "Linux") {
+    pop0_reg <- pop0_K
+  }
   plot(pop0_reg, main=paste0("You selected ",mofuss_region))
   lines(adm0_reg)
   Sys.sleep(10)
@@ -352,8 +371,11 @@ for (i in adm0_reg$GID_0) { # start of the for loop ----
     dplyr::filter(GID_0 == i)
   
   pop0_K2 <- crop(pop0_reg, ext(ctry_vector) + .01)
-  pop0_ctry_ras <- mask(pop0_K2, ctry_vector)
-  
+  if (os == "Windows") {
+    pop0_ctry_ras <- mask(pop0_K2, ctry_vector)
+  } else if(os == "Linux") {
+    pop0_ctry_ras <- pop0_K2
+  }
   png(file=paste0("pop_maps_byregion/",ctry_name,".png"),
       width=600, height=350)
   plot(pop0_ctry_ras, main=ctry_name, xlab = "Long", ylab = "Lat")
