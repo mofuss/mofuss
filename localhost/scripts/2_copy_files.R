@@ -8,8 +8,8 @@
 # Fix for linux cluster
 
 # Internal parameters
-# Select MoFuSS version
-webmofuss = 0 # "1" is linux based webmofuss in server, "0" is local mofuss run
+# Select MoFuSS platform:
+webmofuss = 0 # "1" is  web-MoFuSS running in our Ubuntu server, "0" is localcal host (Windows or Linux)
 
 # Load libraries ----
 library(stringr)

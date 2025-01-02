@@ -1,25 +1,36 @@
 # MoFuSS
-# Version 3
-# Date: Aug 2024
+# Version 4
+# Date: Jan 2025
 
 # 2dolist
 
 # Internal parameters
 start_from_scratch <- 0 # Set to 0 when the MoFuSS working directory already exists and has data in it
-hardwireddirs <- 1# Set to 0 when you are choosing all directories
 # rm(list=ls(all=TRUE))
+# Select MoFuSS platform:
+webmofuss = 1 # "1" is  web-MoFuSS running in our Ubuntu server, "0" is localcal host (Windows or Linux)
 
-if (hardwireddirs == 1) {
+# Load libraries ----
+library(stringr)
+library(purrr)
+library(tcltk)
+library(dplyr)
+library(readxl)
+
+# Detect OS
+os <- Sys.info()["sysname"]
+
+if (webmofuss == 1) {
   
   # 1km
   gitlabdir <- "C:/Users/aghil/Documents/mofuss"
-  countrydir <- "D:/tanzania_1000m_bau"
-  country <- "C:\\Users\\UNAM\\Documents\\mofuss\\countries\\Global.tif"
+  countrydir <- "D:/malawi_1000m_bau" # RICARDO: AJUSTA ACA
+  country <- "C:\\Users\\aghil\\Documents\\mofuss\\countries\\Global.tif"
   demanddir <- "D:/demand"
   admindir <- "D:/admin_regions"
   emissionsdir <- "D:/emissions"
   rTempdir <- "D:/rTemp"
-  parameters_file_path <- "C:/Users/aghil/Documents/mofuss/selected_parameters/parameters_world1000m.xlsx"
+  parameters_file_path <- "D:/malawi_1000m_bau/LULCC/DownloadedDatasets/SourceDataGlobal/parameters_world1000m.xlsx" # RICARDO: AJUSTA ACA
   
   # Extract the country name
   country_name <- gsub(pattern = "(.*countries[\\])(.*)(.tif.*)", 
@@ -54,6 +65,10 @@ if (hardwireddirs == 1) {
     }
   }
   
+  
+  # Prompt the user to select the "parameters.xlsx" file
+  # parameters_file_path <- tk_choose.files(default = "", caption = "Select the 'parameters.xlsx' file", 
+  #                                         multi = FALSE, filters = matrix(c("Excel Files", "*.xlsx"), 1, 2))
   parameters_file <- basename(parameters_file_path)
   
   # Check if the user selected a file
@@ -61,10 +76,14 @@ if (hardwireddirs == 1) {
     # Define the destination directory
     destination_dir <- paste0(countrydir, "/LULCC/DownloadedDatasets/SourceData",country_name,"/",parameters_file)
     
-    # Copy the file to the destination directory
-    file.copy(from = parameters_file_path, to = destination_dir, overwrite = TRUE)
+    if (identical(destination_dir,parameters_file_path) == TRUE) {
+      message("File already in place within MoFuSS working directory")
+    } else {
+      # Copy the file to the destination directory
+      file.copy(from = parameters_file_path, to = destination_dir, overwrite = TRUE)
+    }
     
-    message("File successfully copied to: ", destination_dir)
+    message("File successfully copied (or read) to (from): ", destination_dir)
   } else {
     message("No valid file selected.")
   }
@@ -87,9 +106,11 @@ if (hardwireddirs == 1) {
   }
   
   # Copy input tables from gitlab repo into MoFuSS working folder ----
-  friction2copy <- list.files(path = paste0(gitlabdir, "/friction"), 
-                              pattern = "\\.csv$|\\.xlsx$", 
-                              full.names = TRUE)
+  friction2copy <- list.files(
+    path = paste0(gitlabdir, "/friction"),
+    pattern = "\\.csv$|\\.xlsx$",
+    full.names = TRUE)
+  
   for (f in friction2copy) {
     file.copy(from=f, 
               to=paste0(countrydir,"/LULCC/DownloadedDatasets/SourceData",country_name,"/InTables/"), 
@@ -100,6 +121,21 @@ if (hardwireddirs == 1) {
   growth2copy <- list.files(path = paste0(gitlabdir, "/global_growth"), 
                             pattern = "\\.csv$|\\.xlsx$", 
                             full.names = TRUE)
+  
+  # Read the Excel file
+  country_parameters <- read_excel(destination_dir)
+  print(tibble::as_tibble(country_parameters), n=100)
+  
+  country_parameters %>%
+    dplyr::filter(Var == "GEE_tyRoi") %>%
+    pull(ParCHR) -> GEE_tyRoi
+  if (GEE_tyRoi == "world") {
+    print("Global growth parameters tables copied succesfully")
+  } else if (GEE_tyRoi != "world") {
+    # Exclude the specific files
+    growth2copy <- growth2copy[!basename(growth2copy) %in% c("growth_parameters_v3_copernicus.csv", "growth_parameters_v3_modis.csv")]
+  }
+  
   for (g in growth2copy) {
     file.copy(from=g, 
               to=paste0(countrydir,"/LULCC/DownloadedDatasets/SourceData",country_name,"/InTables/"), 
@@ -117,35 +153,49 @@ if (hardwireddirs == 1) {
   
 } else {
   
-  # Load libraries ----
-  library(stringr)
-  library(purrr)
-  library(tcltk)
-  library(dplyr)
-  library(readxl)
+  # Function to choose directory
+  choose_gitlab_dir <- function() {
+    if (os == "Windows") {
+      # Use tk_choose.dir for Windows
+      gitlabdir <- tcltk::tk_choose.dir(default = normalizePath("~"), caption = "Choose your local GitLab MoFuSS directory")
+    } else if (os == "Linux") {
+      # Use an alternative for Linux (e.g., `utils::choose.dir`, which works in RStudio)
+      gitlabdir <- rstudioapi::selectDirectory(caption = "Choose your local GitLab MoFuSS directory")
+    } else {
+      stop("Unsupported OS. Directory selection is not implemented for this system.")
+    }
+    
+    # Check if a directory was selected
+    if (is.null(gitlabdir) || gitlabdir == "") {
+      stop("No directory selected. Exiting.")
+    }
+    
+    # Normalize path and return
+    return(normalizePath(gitlabdir))
+  }
   
-  #Set working directories
-  setwd(normalizePath("~"))
-  getwd()
-  setwd(tk_choose.dir(default = getwd(), caption = "Choose your local gitlab mofuss directory"))
-  gitlabdir <- getwd()
+  # Call the function
+  gitlabdir <- choose_gitlab_dir()
   
+  # Save the selected directory as gitlabdir
+  cat("Selected GitLab directory:", gitlabdir, "\n")
+  
+  # Rebuild this chunk
   if(.Platform$OS.type == "unix")  {
     country<-tk_choose.files(default=paste0(gitlabdir,"/countries/*.*"))
     country[2]
     res <- str_match(country[2], "countries/(.*?).tif")
-    res[,2]
+    country_name <- res[,2]
   } else {
     country<-choose.files(default=paste0(gitlabdir,"/countries/*.*"))
     country
     res <- str_match(country, "countries\\\\s*(.*?)\\s*.tif")
     res[,2]
+    # Extract the country name
+    country_name <- gsub(pattern = "(.*countries[\\])(.*)(.tif.*)", 
+                         replacement = "\\2",
+                         country)
   }
-  
-  # Extract the country name
-  country_name <- gsub(pattern = "(.*countries[\\])(.*)(.tif.*)", 
-                       replacement = "\\2",
-                       country)
   
   if (start_from_scratch == 1) {
     # Prompt the user to select the "parameters.xlsx" file
@@ -268,14 +318,6 @@ if (hardwireddirs == 1) {
   choose_directory6()
   rTempdir <- getwd()
   
-}
-
-
-if (hardwireddirs == 1) {
-  
-  "hardwireddirs was set to yes"
-  
-} else { 
   
   setwd(countrydir)
   
@@ -322,10 +364,14 @@ if (hardwireddirs == 1) {
       # Define the destination directory
       destination_dir <- paste0(countrydir, "/LULCC/DownloadedDatasets/SourceData",country_name,"/",parameters_file)
       
-      # Copy the file to the destination directory
-      file.copy(from = parameters_file_path, to = destination_dir, overwrite = TRUE)
+      if (identical(destination_dir,parameters_file_path) == TRUE) {
+        message("File already in place within MoFuSS working directory")
+      } else {
+        # Copy the file to the destination directory
+        file.copy(from = parameters_file_path, to = destination_dir, overwrite = TRUE)
+      }
       
-      message("File successfully copied to: ", destination_dir)
+      message("File successfully copied (or read) to (from): ", destination_dir)
     } else {
       message("No valid file selected.")
     }
@@ -350,9 +396,11 @@ if (hardwireddirs == 1) {
   }
   
   # Copy input tables from gitlab repo into MoFuSS working folder ----
-  friction2copy <- list.files(path = paste0(gitlabdir, "/friction"), 
-                              pattern = "\\.csv$|\\.xlsx$", 
-                              full.names = TRUE)
+  friction2copy <- list.files(
+    path = paste0(gitlabdir, "/friction"),
+    pattern = "\\.csv$|\\.xlsx$",
+    full.names = TRUE)
+  
   for (f in friction2copy) {
     file.copy(from=f, 
               to=paste0(countrydir,"/LULCC/DownloadedDatasets/SourceData",country_name,"/InTables/"), 
@@ -363,6 +411,21 @@ if (hardwireddirs == 1) {
   growth2copy <- list.files(path = paste0(gitlabdir, "/global_growth"), 
                             pattern = "\\.csv$|\\.xlsx$", 
                             full.names = TRUE)
+  
+  # Read the Excel file
+  country_parameters <- read_excel(destination_dir)
+  print(tibble::as_tibble(country_parameters), n=100)
+  
+  country_parameters %>%
+    dplyr::filter(Var == "GEE_tyRoi") %>%
+    pull(ParCHR) -> GEE_tyRoi
+  if (GEE_tyRoi == "world") {
+    print("Global growth parameters tables copied succesfully")
+  } else if (GEE_tyRoi != "world") {
+    # Exclude the specific files
+    growth2copy <- growth2copy[!basename(growth2copy) %in% c("growth_parameters_v3_copernicus.csv", "growth_parameters_v3_modis.csv")]
+  }
+  
   for (g in growth2copy) {
     file.copy(from=g, 
               to=paste0(countrydir,"/LULCC/DownloadedDatasets/SourceData",country_name,"/InTables/"), 
@@ -379,5 +442,3 @@ if (hardwireddirs == 1) {
   }
   
 }
-
-

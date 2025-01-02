@@ -2,6 +2,16 @@
 # Version 3
 # Date: Mar 2024
 
+# 2dolist
+# URGENTLY fix this very old and outdated chunck to make it 
+# work smoothly with GEE at varying scales!!
+# Fix for linux cluster
+
+# Internal parameters
+# Select MoFuSS platform:
+webmofuss = 0 # "1" is  web-MoFuSS running in our Ubuntu server, "0" is localcal host (Windows or Linux)
+
+# Load libraries ----
 library(tcltk)
 
 # choose_directory = function(caption = "Choose the country to erase -and zip-") {
