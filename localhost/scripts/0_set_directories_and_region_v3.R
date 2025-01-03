@@ -17,6 +17,7 @@ library(purrr)
 library(tcltk)
 library(dplyr)
 library(readxl)
+library(readr)
 
 # Detect OS
 os <- Sys.info()["sysname"]
@@ -31,7 +32,8 @@ if (webmofuss == 1) {
   admindir <- "/home/mofuss/admin_regions"
   emissionsdir <- "/home/mofuss/emissions"
   rTempdir <- "/home/mofuss/rTemp"
-  parameters_file_path <- "/home/mofuss/MDG_1000m_Linuxtest/LULCC/DownloadedDatasets/SourceDataGlobal/parameters_world1000m.xlsx"
+  parameters_file_path <- "/home/mofuss/MDG_1000m_Linuxtest/LULCC/DownloadedDatasets/SourceDataGlobal/parameters_world1000m.csv"
+  #parameters_file_path <- "/home/mofuss/MDG_1000m_Linuxtest/LULCC/DownloadedDatasets/SourceDataGlobal/parameters_world1000m.xlsx"
   
   # # Extract the country name
   # country_name <- gsub(pattern = "(.*countries[\\])(.*)(.tif.*)", 
@@ -51,7 +53,8 @@ if (webmofuss == 1) {
   parameters_file <- basename(parameters_file_path)
   
   # Read parameters table ----
-  country_parameters_prelim <- read_excel(parameters_file_path) 
+  country_parameters_prelim <- read_csv(parameters_file_path)
+  # country_parameters_prelim <- read_excel(parameters_file_path) 
   print(tibble::as_tibble(country_parameters_prelim), n=100)
   
   country_parameters_prelim %>%
@@ -163,10 +166,6 @@ if (webmofuss == 1) {
   growth2copy <- list.files(path = paste0(gitlabdir, "/global_growth"), 
                             pattern = "\\.csv$|\\.xlsx$", 
                             full.names = TRUE)
-  
-  # Read the Excel file
-  country_parameters <- read_excel(destination_dir)
-  print(tibble::as_tibble(country_parameters), n=100)
   
   country_parameters %>%
     dplyr::filter(Var == "GEE_tyRoi") %>%
