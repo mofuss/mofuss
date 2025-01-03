@@ -1,6 +1,6 @@
 # MoFuSS
-# Version 3
-# Date: Mar 2024
+# Version 4
+# Date: Jan 2025
 
 # 2dolist
 # URGENTLY fix this very old and outdated chunck to make it 
@@ -13,6 +13,9 @@ webmofuss = 0 # "1" is  web-MoFuSS running in our Ubuntu server, "0" is localcal
 
 # Load libraries ----
 library(tcltk)
+
+# Detect OS
+os <- Sys.info()["sysname"]
 
 # choose_directory = function(caption = "Choose the country to erase -and zip-") {
 #   if(.Platform$OS.type == "unix")  {

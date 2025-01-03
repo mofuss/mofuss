@@ -3,6 +3,7 @@
 # Date: Jan 2025
 
 # 2dolist
+# Select webmofuss == 1 automatically
 
 # Internal parameters
 start_from_scratch <- 0 # Set to 0 when the MoFuSS working directory already exists and has data in it
