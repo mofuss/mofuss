@@ -1,21 +1,5 @@
 {
     "debugBreakpointsState": {
-        "breakpoints": [
-            {
-                "id": 0,
-                "path": "~/Documents/mofuss/localhost/scripts/0_set_directories_and_region_v3.R",
-                "line_number": 516,
-                "function_steps": "",
-                "function_name": "toplevel",
-                "state": 2,
-                "editor_state": 2,
-                "editor_line_number": 516,
-                "is_pending_debug_completion": true,
-                "needs_updated_steps": true,
-                "type": 1,
-                "is_package_breakpoint": false,
-                "package_name": ""
-            }
-        ]
+        "breakpoints": []
     }
 }
