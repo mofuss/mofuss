@@ -11,7 +11,7 @@
 # Internal parameters
 attdecay = 1.15  # decay rate of attraction kernels
 # Select MoFuSS platform:
-webmofuss = 1 # "1" is  web-MoFuSS running in our Ubuntu server, "0" is localcal host (Windows or Linux)
+webmofuss = 0 # "1" is  web-MoFuSS running in our Ubuntu server, "0" is localcal host (Windows or Linux)
 
 # Load packages ----
 library(readr)

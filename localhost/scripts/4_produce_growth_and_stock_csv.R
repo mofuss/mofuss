@@ -13,7 +13,7 @@
 rmax_over_K_ratio <- 0.04 #This fix automatic LUC with wrong.... REVISAR K!!!
 charcoal_harv_threshold <- 1 # t/ha
 # Select MoFuSS platform:
-webmofuss = 1 # "1" is  web-MoFuSS running in our Ubuntu server, "0" is localcal host (Windows or Linux)
+webmofuss = 0 # "1" is  web-MoFuSS running in our Ubuntu server, "0" is localcal host (Windows or Linux)
 
 # Load libraries ----
 library(readxl)
