@@ -9,7 +9,7 @@
 start_from_scratch <- 0 # Set to 0 when the MoFuSS working directory already exists and has data in it
 # rm(list=ls(all=TRUE))
 # Select MoFuSS platform:
-webmofuss = 1 # "1" is  web-MoFuSS running in our Ubuntu server, "0" is localcal host (Windows or Linux)
+webmofuss = 0 # "1" is  web-MoFuSS running in our Ubuntu server, "0" is localcal host (Windows or Linux)
 if (start_from_scratch == 1){webmofuss = 0}
 
 # Load libraries ----
