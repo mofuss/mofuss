@@ -10,8 +10,8 @@
 
 # Internal parameters
 attdecay = 1.15  # decay rate of attraction kernels
-# Select MoFuSS version
-webmofuss = 0 # "1" is linux based webmofuss in server, "0" is local mofuss run
+# Select MoFuSS platform:
+webmofuss = 1 # "1" is  web-MoFuSS running in our Ubuntu server, "0" is localcal host (Windows or Linux)
 
 # Load packages ----
 library(readr)
@@ -45,8 +45,12 @@ parameters_directory <- paste0(getwd(),"/LULCC/DownloadedDatasets/SourceData",co
 # Use list.files() to find the file that matches the pattern
 parameters_name <- list.files(path = parameters_directory, pattern = "^parameters.*\\.xlsx$", full.names = TRUE)
 
-# Read the Excel file
-country_parameters <- read_excel(parameters_name)
+# Read parameters table ----
+if (webmofuss == 1){
+  country_parameters <- read_csv(paste0("LULCC/DownloadedDatasets/SourceData",country_name,"/",parameters_file))
+} else if (webmofuss == 0){
+  country_parameters <- read_excel(paste0("LULCC/DownloadedDatasets/SourceData",country_name,"/",parameters_file))
+}
 print(tibble::as_tibble(country_parameters), n=100)
 
 country_parameters %>%
@@ -111,29 +115,20 @@ country_parameters %>%
   dplyr::filter(Var == "Model") %>%
   pull(ParCHR) -> Model
 
-if (webmofuss == 0) {
-  
-  setwd(countrydir)
-  
-  # Clean temps - keep inelegant list of unlinks as its the easiest layout for the moment ####
-  unlink("Debugging//*.*",force=TRUE)
-  unlink("Temp//*.*",force=TRUE)
-  unlink("HTML_animation*//*", recursive = TRUE,force=TRUE)
-  unlink("Out*//*", recursive = TRUE,force=TRUE)
-  unlink("LaTeX//*.pdf",force=TRUE)
-  unlink("LaTeX//*.mp4",force=TRUE)
-  # unlink("Summary_Report//*.*",force=TRUE)
-  
-  Country<-readLines("LULCC/TempTables/Country.txt")
-  
-} else {
-  
-  "This is webmofuss 4 Edgar"
-  
-}
+setwd(countrydir)
+
+# Clean temps - keep inelegant list of unlinks as its the easiest layout for the moment ####
+unlink("Debugging//*.*",force=TRUE)
+unlink("Temp//*.*",force=TRUE)
+unlink("HTML_animation*//*", recursive = TRUE,force=TRUE)
+unlink("Out*//*", recursive = TRUE,force=TRUE)
+unlink("LaTeX//*.pdf",force=TRUE)
+unlink("LaTeX//*.mp4",force=TRUE)
+# unlink("Summary_Report//*.*",force=TRUE)
+
+Country<-readLines("LULCC/TempTables/Country.txt")
 
 # Read supply parameters table, checking if its delimiter is comma or semicolon ####
-
 if (file.exists("LULCC/TempTables/growth_parameters1.csv") == TRUE) {
   read_csv("LULCC/TempTables/growth_parameters1.csv") %>% 
     {if(is.null(.$TOF[1])) read_csv2("LULCC/TempTables/growth_parameters1.csv") else .} -> growth_parameters1
@@ -313,239 +308,231 @@ if (file.exists("LULCC/TempTables/growth_parameters3.csv") == TRUE) {
   write.csv(dataTOFvsFOR3,"LULCC/TempTables//TOFvsFOR_Categories3.csv",row.names = FALSE)
 }
 
-if (webmofuss == 0) {
+# Dinamica external scripts ----
+# Dirs for system ----
+gitlabdir.sys <- gsub("/", "\\", gitlabdir, fixed=TRUE)
+countrydir.sys <- gsub("/", "\\", countrydir, fixed=TRUE)
+
+# Friction ----
+# WARNING: MARITIME AND ATRACTION LAYERS NEED TO BE FLESHED OUT AND DEBUG AS OF JULY 2023
+if (friction == "R"){ 
   
-  # Dinamica external scripts ----
-  # Dirs for system ----
-  gitlabdir.sys <- gsub("/", "\\", gitlabdir, fixed=TRUE)
-  countrydir.sys <- gsub("/", "\\", countrydir, fixed=TRUE)
+  unlink("in/fricc_w.tif")
+  unlink("in/fricc_v.tif")
+  unlink("in/*.xml")
   
-  # Friction ----
-  # WARNING: MARITIME AND ATRACTION LAYERS NEED TO BE FLESHED OUT AND DEBUG AS OF JULY 2023
-  if (friction == "R"){ 
+  # Vehicle friction
+  # roads <-  raster("LULCC/SourceData/InRaster/roads.tif")
+  # raster::unique(roads)
+  # rivers <-  raster("LULCC/SourceData/InRaster/rivers.tif")
+  # raster::unique(rivers)
+  
+  # rivers
+  if (maritime == "YES") {
+    rivers_c <- raster("LULCC/TempRaster/rivers_c.tif")
+    # unique(rivers_c)
+    rivers_rectable <- read_csv("LULCC/TempTables/Friction_rivers_reclass_r.csv")
+    rivers_reclass.m <- reclassify(rivers_c,
+                                   as.data.frame(rivers_rectable),
+                                   right=NA)
+    rivers_reclass.m[is.na(rivers_reclass.m[])] <- 0
     
-    unlink("in/fricc_w.tif")
-    unlink("in/fricc_v.tif")
-    unlink("in/*.xml")
+    # Add maritime chunk
+    maritime_c <- raster("LULCC/TempRaster/maritime_c.tif")
+    maritime_c[is.na(maritime_c[])] <- 0
+    rivers_reclass <- overlay(maritime_c, rivers_reclass.m,  
+                              fun = function(x,y) {ifelse(x==1, x*0.8, y)} ) #empezar por aca
     
-    # Vehicle friction
-    # roads <-  raster("LULCC/SourceData/InRaster/roads.tif")
-    # raster::unique(roads)
-    # rivers <-  raster("LULCC/SourceData/InRaster/rivers.tif")
-    # raster::unique(rivers)
     
-    # rivers
-    if (maritime == "YES") {
-      rivers_c <- raster("LULCC/TempRaster/rivers_c.tif")
-      # unique(rivers_c)
-      rivers_rectable <- read_csv("LULCC/TempTables/Friction_rivers_reclass_r.csv")
-      rivers_reclass.m <- reclassify(rivers_c,
-                                     as.data.frame(rivers_rectable),
-                                     right=NA)
-      rivers_reclass.m[is.na(rivers_reclass.m[])] <- 0
-      
-      # Add maritime chunk
-      maritime_c <- raster("LULCC/TempRaster/maritime_c.tif")
-      maritime_c[is.na(maritime_c[])] <- 0
-      rivers_reclass <- overlay(maritime_c, rivers_reclass.m,  
-                                fun = function(x,y) {ifelse(x==1, x*0.8, y)} ) #empezar por aca
-      
-      
-    } else if (maritime == "NO"){
-      rivers_c <- raster("LULCC/TempRaster/rivers_c.tif")
-      # unique(rivers_c)
-      rivers_rectable <- read_csv("LULCC/TempTables/Friction_rivers_reclass_r.csv")
-      rivers_reclass_prelakes <- reclassify(rivers_c,
-                                            as.data.frame(rivers_rectable),
-                                            right=NA)
-      rivers_reclass_prelakes[is.na(rivers_reclass_prelakes[])] <- 0
-      # writeRaster(rivers_reclass_prelakes, "In/rivers_reclass_prelakes.tif", overwrite = TRUE)
-      
-    }
+  } else if (maritime == "NO"){
+    rivers_c <- raster("LULCC/TempRaster/rivers_c.tif")
+    # unique(rivers_c)
+    rivers_rectable <- read_csv("LULCC/TempTables/Friction_rivers_reclass_r.csv")
+    rivers_reclass_prelakes <- reclassify(rivers_c,
+                                          as.data.frame(rivers_rectable),
+                                          right=NA)
+    rivers_reclass_prelakes[is.na(rivers_reclass_prelakes[])] <- 0
+    # writeRaster(rivers_reclass_prelakes, "In/rivers_reclass_prelakes.tif", overwrite = TRUE)
     
-    # lakes
-    if (maritime == "YES") {
-      lakes_c <- raster("LULCC/TempRaster/lakes_c.tif")
-      # unique(rivers_c)
-      lakes_rectable <- read_csv("LULCC/TempTables/Friction_lakes_reclass_r.csv")
-      lakes_reclass.m <- reclassify(lakes_c,
-                                    as.data.frame(lakes_rectable),
-                                    right=NA)
-      lakes_reclass.m[is.na(lakes_reclass.m[])] <- 0
-      
-      # Add maritime chunk
-      maritime_c <- raster("LULCC/TempRaster/maritime_c.tif")
-      maritime_c[is.na(maritime_c[])] <- 0
-      lakes_reclass <- overlay(lakes_c, lakes_reclass.m,  
-                               fun = function(x,y) {ifelse(x==1, x*0.8, y)} ) #empezar por aca
-      
-    } else if (maritime == "NO"){
-      lakes_c <- raster("LULCC/TempRaster/lakes_c.tif")
-      # unique(rivers_c)
-      lakes_rectable <- read_csv("LULCC/TempTables/Friction_lakes_reclass_r.csv")
-      lakes_reclass <- reclassify(lakes_c,
+  }
+  
+  # lakes
+  if (maritime == "YES") {
+    lakes_c <- raster("LULCC/TempRaster/lakes_c.tif")
+    # unique(rivers_c)
+    lakes_rectable <- read_csv("LULCC/TempTables/Friction_lakes_reclass_r.csv")
+    lakes_reclass.m <- reclassify(lakes_c,
                                   as.data.frame(lakes_rectable),
                                   right=NA)
-      lakes_reclass[is.na(lakes_reclass[])] <- 0
-      # writeRaster(lakes_reclass, "In/lakes_reclass.tif", overwrite = TRUE)
+    lakes_reclass.m[is.na(lakes_reclass.m[])] <- 0
+    
+    # Add maritime chunk
+    maritime_c <- raster("LULCC/TempRaster/maritime_c.tif")
+    maritime_c[is.na(maritime_c[])] <- 0
+    lakes_reclass <- overlay(lakes_c, lakes_reclass.m,  
+                             fun = function(x,y) {ifelse(x==1, x*0.8, y)} ) #empezar por aca
+    
+  } else if (maritime == "NO"){
+    lakes_c <- raster("LULCC/TempRaster/lakes_c.tif")
+    # unique(rivers_c)
+    lakes_rectable <- read_csv("LULCC/TempTables/Friction_lakes_reclass_r.csv")
+    lakes_reclass <- reclassify(lakes_c,
+                                as.data.frame(lakes_rectable),
+                                right=NA)
+    lakes_reclass[is.na(lakes_reclass[])] <- 0
+    # writeRaster(lakes_reclass, "In/lakes_reclass.tif", overwrite = TRUE)
+    
+  }
+  
+  rivers_reclass <- overlay(lakes_reclass, rivers_reclass_prelakes, 
+                            fun = function(x,y) {ifelse(x > 0, x, y)})
+  # writeRaster(rivers_reclass, "In/rivers_reclass.tif", overwrite = TRUE)
+  
+  # roads
+  roads_c <- raster("LULCC/TempRaster/roads_c.tif")
+  # unique(roads_c)
+  drivingoverroads_rectable <- read_csv("LULCC/TempTables/Friction_drivingoverroads_r.csv")
+  roads_reclass_preborder <- reclassify(roads_c,
+                                        as.data.frame(drivingoverroads_rectable),
+                                        right=NA)
+  # roads_reclass_preborder[is.na(roads_reclass_preborder[])] <- 0
+  # writeRaster(roads_reclass_preborder, "In/roads_reclass_preborder.tif", overwrite = TRUE)
+  
+  # borders
+  borders_c <- raster("LULCC/TempRaster/borders_c.tif")
+  # unique(borders_c)
+  borders_rectable <- read_csv("LULCC/TempTables/Friction_borders_reclass_r.csv")
+  borders_reclass <- reclassify(borders_c,
+                                as.data.frame(borders_rectable),
+                                right=NA)
+  borders_reclass[is.na(borders_reclass[])] <- 0
+  # writeRaster(borders_reclass, "In/borders_reclass.tif", overwrite = TRUE)
+  
+  roads_reclass <- overlay(borders_reclass, roads_reclass_preborder, 
+                           fun = function(x,y) {ifelse(x > 0, x, y)})
+  roads_reclass[is.na(roads_reclass[])] <- 0
+  # writeRaster(roads_reclass, "In/roads_reclass.tif", overwrite = TRUE)
+  
+  
+  # slope
+  DEM_c <- raster("LULCC/TempRaster/DEM_c.tif")
+  slope_c <-  terrain(DEM_c, opt=c('slope'), unit='degrees', neighbors=8) # Prender luego de terminar de debuggear!
+  # slope_c <- raster("LULCC/TempRaster/Slope_din.tif")
+  walkingcrosscountry_table <- read_csv("LULCC/TempTables/Friction_walkingcrosscountry_r.csv")
+  slope_reclass <- reclassify(slope_c,
+                              as.data.frame(walkingcrosscountry_table))
+  slope_reclass[is.na(slope_reclass[])] <- 0
+  # writeRaster(slope_reclass, "In/slope_reclass.tif", overwrite = TRUE)
+  
+  rivers_O_Wslope <- overlay(rivers_reclass, slope_reclass, 
+                             fun = function(x,y) {ifelse(x > 0, x, y)} )
+  # writeRaster(rivers_O_Wslope, "In/rivers_O_Wslope.tif", overwrite = TRUE)
+  
+  fricc_vv <- overlay(roads_reclass, rivers_O_Wslope, 
+                      fun = function(x,y) {ifelse(x > 0, x, y)} )
+  # writeRaster(fricc_vv, "In/fricc_vv.tif", overwrite = TRUE)
+  
+  # Walking friction
+  walkingoverroads_table <- read_csv("LULCC/TempTables/Friction_walkingoverroads_r.csv")
+  slopeoverroads<-reclassify(roads_c,c(-Inf,Inf,0)) %>%
+    stack(.,slope_c) %>%
+    calc(., sum) %>%
+    reclassify(.,as.data.frame(walkingoverroads_table))
+  slopeoverroads[is.na(slopeoverroads[])] <- 0
+  
+  fricc_ww <- overlay(slopeoverroads, rivers_O_Wslope, 
+                      fun = function(x,y) {ifelse(x > 0, x, y)} )
+  
+  if (attraction2 == "YES") { # Adjusted for East Africa 10 to 1000 km
+    
+    cb0 <- raster("LULCC/TempRaster/attraction_cb0.tif")
+    cb1 <- raster("LULCC/TempRaster/attraction_cb1.tif")
+    cb2 <- raster("LULCC/TempRaster/attraction_cb2.tif")
+    cb3 <- raster("LULCC/TempRaster/attraction_cb3.tif")
+    cb4 <- raster("LULCC/TempRaster/attraction_cb4.tif")
+    
+    fun_att <- function(x,y) {ifelse(!is.na(x), y/attdecay, y)} # Adjusted for East Africa 10 to 1000 km
+    
+    fricc_v10000 <- overlay(cb0, fricc_vv,
+                            fun = fun_att) %>%
+      overlay(cb1, .,
+              fun = fun_att) %>%
+      overlay(cb2, .,
+              fun = fun_att) %>%
+      overlay(cb3, .,
+              fun = fun_att) %>%
+      overlay(cb4, .,
+              fun = fun_att)
+    
+    # Save slope and friction geotiffs
+    if (maritime == "YES") {
+      fricc_w.m <- reclassify(fricc_ww, cbind(-Inf, 0, NA), right=TRUE)
+      maritime_c.r <- maritime_c * 999999
+      fricc_w <- overlay(fricc_w.m, maritime_c.r,
+                         fun = function(x,y) {ifelse(is.na(y), x, x+y)} )
+      fricc_v <- reclassify(fricc_v10000, cbind(-Inf, 0, NA), right=TRUE)
+      
+      writeRaster(slope_c, "LULCC/TempRaster/Slope.tif", overwrite = TRUE)
+      writeRaster(fricc_w, "In/fricc_w.tif", overwrite = TRUE)
+      writeRaster(fricc_v, "In/fricc_v.tif", overwrite = TRUE)
+      
+    } else if (maritime == "NO"){
+      
+      fricc_w <- reclassify(fricc_ww, cbind(-Inf, 0, NA), right=TRUE)
+      fricc_v <- reclassify(fricc_v10000, cbind(-Inf, 0, NA), right=TRUE)
+      
+      writeRaster(slope_c, "LULCC/TempRaster/Slope.tif", overwrite = TRUE)
+      writeRaster(fricc_w, "In/fricc_w.tif", overwrite = TRUE)
+      writeRaster(fricc_v, "In/fricc_v.tif", overwrite = TRUE)
       
     }
     
-    rivers_reclass <- overlay(lakes_reclass, rivers_reclass_prelakes, 
-                              fun = function(x,y) {ifelse(x > 0, x, y)})
-    # writeRaster(rivers_reclass, "In/rivers_reclass.tif", overwrite = TRUE)
+  } else if (attraction2 == "NO") {
     
-    # roads
-    roads_c <- raster("LULCC/TempRaster/roads_c.tif")
-    # unique(roads_c)
-    drivingoverroads_rectable <- read_csv("LULCC/TempTables/Friction_drivingoverroads_r.csv")
-    roads_reclass_preborder <- reclassify(roads_c,
-                                          as.data.frame(drivingoverroads_rectable),
-                                          right=NA)
-    # roads_reclass_preborder[is.na(roads_reclass_preborder[])] <- 0
-    # writeRaster(roads_reclass_preborder, "In/roads_reclass_preborder.tif", overwrite = TRUE)
-    
-    # borders
-    borders_c <- raster("LULCC/TempRaster/borders_c.tif")
-    # unique(borders_c)
-    borders_rectable <- read_csv("LULCC/TempTables/Friction_borders_reclass_r.csv")
-    borders_reclass <- reclassify(borders_c,
-                                  as.data.frame(borders_rectable),
-                                  right=NA)
-    borders_reclass[is.na(borders_reclass[])] <- 0
-    # writeRaster(borders_reclass, "In/borders_reclass.tif", overwrite = TRUE)
-    
-    roads_reclass <- overlay(borders_reclass, roads_reclass_preborder, 
-                             fun = function(x,y) {ifelse(x > 0, x, y)})
-    roads_reclass[is.na(roads_reclass[])] <- 0
-    # writeRaster(roads_reclass, "In/roads_reclass.tif", overwrite = TRUE)
-    
-    
-    # slope
-    DEM_c <- raster("LULCC/TempRaster/DEM_c.tif")
-    slope_c <-  terrain(DEM_c, opt=c('slope'), unit='degrees', neighbors=8) # Prender luego de terminar de debuggear!
-    # slope_c <- raster("LULCC/TempRaster/Slope_din.tif")
-    walkingcrosscountry_table <- read_csv("LULCC/TempTables/Friction_walkingcrosscountry_r.csv")
-    slope_reclass <- reclassify(slope_c,
-                                as.data.frame(walkingcrosscountry_table))
-    slope_reclass[is.na(slope_reclass[])] <- 0
-    # writeRaster(slope_reclass, "In/slope_reclass.tif", overwrite = TRUE)
-    
-    rivers_O_Wslope <- overlay(rivers_reclass, slope_reclass, 
-                               fun = function(x,y) {ifelse(x > 0, x, y)} )
-    # writeRaster(rivers_O_Wslope, "In/rivers_O_Wslope.tif", overwrite = TRUE)
-    
-    fricc_vv <- overlay(roads_reclass, rivers_O_Wslope, 
-                        fun = function(x,y) {ifelse(x > 0, x, y)} )
-    # writeRaster(fricc_vv, "In/fricc_vv.tif", overwrite = TRUE)
-    
-    # Walking friction
-    walkingoverroads_table <- read_csv("LULCC/TempTables/Friction_walkingoverroads_r.csv")
-    slopeoverroads<-reclassify(roads_c,c(-Inf,Inf,0)) %>%
-      stack(.,slope_c) %>%
-      calc(., sum) %>%
-      reclassify(.,as.data.frame(walkingoverroads_table))
-    slopeoverroads[is.na(slopeoverroads[])] <- 0
-    
-    fricc_ww <- overlay(slopeoverroads, rivers_O_Wslope, 
-                        fun = function(x,y) {ifelse(x > 0, x, y)} )
-    
-    if (attraction2 == "YES") { # Adjusted for East Africa 10 to 1000 km
+    if (maritime == "YES") {
+      fricc_w.m <- reclassify(fricc_ww, cbind(-Inf, 0, NA), right=TRUE)
+      maritime_c.r <- maritime_c * 999999
+      fricc_w <- overlay(fricc_w.m, maritime_c.r,
+                         fun = function(x,y) {ifelse(is.na(y), x, x+y)} )
+      fricc_v <- reclassify(fricc_vv, cbind(-Inf, 0, NA), right=TRUE)
       
-      cb0 <- raster("LULCC/TempRaster/attraction_cb0.tif")
-      cb1 <- raster("LULCC/TempRaster/attraction_cb1.tif")
-      cb2 <- raster("LULCC/TempRaster/attraction_cb2.tif")
-      cb3 <- raster("LULCC/TempRaster/attraction_cb3.tif")
-      cb4 <- raster("LULCC/TempRaster/attraction_cb4.tif")
+      writeRaster(slope_c, "LULCC/TempRaster/Slope.tif", overwrite = TRUE)
+      writeRaster(fricc_w, "In/fricc_w.tif", overwrite = TRUE)
+      writeRaster(fricc_v, "In/fricc_v.tif", overwrite = TRUE)
       
-      fun_att <- function(x,y) {ifelse(!is.na(x), y/attdecay, y)} # Adjusted for East Africa 10 to 1000 km
+    } else if (maritime == "NO") {
       
-      fricc_v10000 <- overlay(cb0, fricc_vv,
-                              fun = fun_att) %>%
-        overlay(cb1, .,
-                fun = fun_att) %>%
-        overlay(cb2, .,
-                fun = fun_att) %>%
-        overlay(cb3, .,
-                fun = fun_att) %>%
-        overlay(cb4, .,
-                fun = fun_att)
+      fricc_w <- reclassify(fricc_ww, cbind(-Inf, 0, NA), right=TRUE)
+      fricc_v <- reclassify(fricc_vv, cbind(-Inf, 0, NA), right=TRUE)
       
-      # Save slope and friction geotiffs
-      if (maritime == "YES") {
-        fricc_w.m <- reclassify(fricc_ww, cbind(-Inf, 0, NA), right=TRUE)
-        maritime_c.r <- maritime_c * 999999
-        fricc_w <- overlay(fricc_w.m, maritime_c.r,
-                           fun = function(x,y) {ifelse(is.na(y), x, x+y)} )
-        fricc_v <- reclassify(fricc_v10000, cbind(-Inf, 0, NA), right=TRUE)
-        
-        writeRaster(slope_c, "LULCC/TempRaster/Slope.tif", overwrite = TRUE)
-        writeRaster(fricc_w, "In/fricc_w.tif", overwrite = TRUE)
-        writeRaster(fricc_v, "In/fricc_v.tif", overwrite = TRUE)
-        
-      } else if (maritime == "NO"){
-        
-        fricc_w <- reclassify(fricc_ww, cbind(-Inf, 0, NA), right=TRUE)
-        fricc_v <- reclassify(fricc_v10000, cbind(-Inf, 0, NA), right=TRUE)
-        
-        writeRaster(slope_c, "LULCC/TempRaster/Slope.tif", overwrite = TRUE)
-        writeRaster(fricc_w, "In/fricc_w.tif", overwrite = TRUE)
-        writeRaster(fricc_v, "In/fricc_v.tif", overwrite = TRUE)
-        
-      }
+      writeRaster(slope_c, "LULCC/TempRaster/Slope.tif", overwrite = TRUE)
+      writeRaster(fricc_w, "In/fricc_w.tif", overwrite = TRUE)
+      writeRaster(fricc_v, "In/fricc_v.tif", overwrite = TRUE)
       
-    } else if (attraction2 == "NO") {
-      
-      if (maritime == "YES") {
-        fricc_w.m <- reclassify(fricc_ww, cbind(-Inf, 0, NA), right=TRUE)
-        maritime_c.r <- maritime_c * 999999
-        fricc_w <- overlay(fricc_w.m, maritime_c.r,
-                           fun = function(x,y) {ifelse(is.na(y), x, x+y)} )
-        fricc_v <- reclassify(fricc_vv, cbind(-Inf, 0, NA), right=TRUE)
-        
-        writeRaster(slope_c, "LULCC/TempRaster/Slope.tif", overwrite = TRUE)
-        writeRaster(fricc_w, "In/fricc_w.tif", overwrite = TRUE)
-        writeRaster(fricc_v, "In/fricc_v.tif", overwrite = TRUE)
-        
-      } else if (maritime == "NO") {
-        
-        fricc_w <- reclassify(fricc_ww, cbind(-Inf, 0, NA), right=TRUE)
-        fricc_v <- reclassify(fricc_vv, cbind(-Inf, 0, NA), right=TRUE)
-        
-        writeRaster(slope_c, "LULCC/TempRaster/Slope.tif", overwrite = TRUE)
-        writeRaster(fricc_w, "In/fricc_w.tif", overwrite = TRUE)
-        writeRaster(fricc_v, "In/fricc_v.tif", overwrite = TRUE)
-        
-        unlink("in/*.xml")
-        # plot(fricc_w)
-        # plot(fricc_v)
-        
-      }
+      unlink("in/*.xml")
+      # plot(fricc_w)
+      # plot(fricc_v)
       
     }
     
-  } else if (friction == "Dinamica"){
-    unlink("in/fricc_w.tif")
-    unlink("in/fricc_v.tif")
-    unlink("in/*.xml")
-    frictions51 <- paste0('"C:\\Program Files\\Dinamica EGO\\DinamicaConsole.exe\" -processors 0 -log-level 4 ','\"', countrydir.sys, '\\Friction3.egoml"')
-    cat(frictions51)
-    system(frictions51)  
   }
   
-  # IDW  ----
-  if (idw_debug == "YES") {
-    IDW51 <- paste0('"C:\\Program Files\\Dinamica EGO\\DinamicaConsole.exe\" -processors 0 -log-level 4 ','\"', countrydir.sys, '\\IDW_Sc3.egoml"')
-    cat(IDW51)
-    system(IDW51)
-  } else {
-    "Do nothing"
-  }
-  
+} else if (friction == "Dinamica"){
+  unlink("in/fricc_w.tif")
+  unlink("in/fricc_v.tif")
+  unlink("in/*.xml")
+  frictions51 <- paste0('"C:\\Program Files\\Dinamica EGO\\DinamicaConsole.exe\" -processors 0 -log-level 4 ','\"', countrydir.sys, '\\Friction3.egoml"')
+  cat(frictions51)
+  system(frictions51)  
+}
+
+# IDW  ----
+if (idw_debug == "YES") {
+  IDW51 <- paste0('"C:\\Program Files\\Dinamica EGO\\DinamicaConsole.exe\" -processors 0 -log-level 4 ','\"', countrydir.sys, '\\IDW_Sc3.egoml"')
+  cat(IDW51)
+  system(IDW51)
 } else {
-  
-  "This is webmofuss 4 Edgar"
-  
+  "Do nothing"
 }
 
 # End ----

@@ -14,8 +14,8 @@ w2 = 100000 #500000
 w3 = 150000 #750000
 w4 = 200000 #1000000
 
-# Select MoFuSS version
-webmofuss = 0 # "1" is linux based webmofuss in server, "0" is local mofuss run
+# Select MoFuSS platform:
+webmofuss = 1 # "1" is  web-MoFuSS running in our Ubuntu server, "0" is localcal host (Windows or Linux)
 
 # Load libraries ----
 library(readr)
@@ -36,6 +36,7 @@ library(svDialogs)
 library(terra)
 library(readxl)
 library(purrr)
+library(tcltk)
 
 setwd(countrydir)
 getwd()
@@ -52,8 +53,12 @@ parameters_directory <- paste0(getwd(),"/LULCC/DownloadedDatasets/SourceData",co
 # Use list.files() to find the file that matches the pattern
 parameters_name <- list.files(path = parameters_directory, pattern = "^parameters.*\\.xlsx$", full.names = TRUE)
 
-# Read the Excel file
-country_parameters <- read_excel(parameters_name)
+# Read parameters table ----
+if (webmofuss == 1){
+  country_parameters <- read_csv(paste0("LULCC/DownloadedDatasets/SourceData",country_name,"/",parameters_file))
+} else if (webmofuss == 0){
+  country_parameters <- read_excel(paste0("LULCC/DownloadedDatasets/SourceData",country_name,"/",parameters_file))
+}
 print(tibble::as_tibble(country_parameters), n=100)
 
 country_parameters %>%
@@ -247,11 +252,10 @@ if (GEpoly == 1) {
     # shell.exec("https://gitlab.com/mofuss/mofuss/-/blob/master/windows/scripts/LULCC/Wizard_imgs/NoKMLs.pdf")
   } else {
     if (length(list.files("LULCC/SourceData/InVector_GCS", ".kml")) > 1) {
-      # shell.exec("https://gitlab.com/mofuss/mofuss/-/blob/master/windows/scripts/LULCC/Wizard_imgs/ManyKMLs.pdf")
-      #thisdir<-getwd()
-      #setwd(file.path(getwd(), "SourceData/InVector_GCS/"))
-      nrbpoly<-choose.files(default=paste0(getwd(),"/LULCC/SourceData/InVector_GCS/*")) 
-      #setwd(thisdir)
+      rm(nrbpoly)
+      nrbpoly <- tk_choose.files(default = paste0(getwd(), "/LULCC/SourceData/InVector_GCS/*"))
+      # Filter out invalid paths (like wildcards)
+      nrbpoly <- nrbpoly[!grepl("\\*$", nrbpoly)]
     } else { 
       nrbpoly<-paste0("LULCC/SourceData/InVector_GCS/",list.files("LULCC/SourceData/InVector_GCS", ".kml"))
     }
@@ -263,9 +267,15 @@ if (GEpoly == 1) {
                         pull(ParCHR), country_parameters %>%
                         dplyr::filter(Var == "ext_analysis_NAME") %>%
                         pull(ParCHR))
-  bind_cols (polykml, dfx) %>%
-    st_zm() %>%
-    subset(select=-c(Name,Description)) -> userarea_GCS
+  if (webmofuss == 1){
+    bind_cols (polykml, dfx) %>%
+      st_zm() %>%
+      subset(select=-c(Name,description)) -> userarea_GCS
+  } else if (webmofuss == 0){
+    bind_cols (polykml, dfx) %>%
+      st_zm() %>%
+      subset(select=-c(Name,Description)) -> userarea_GCS
+    }
   userarea <- st_transform(userarea_GCS, epsg_pcs)
   
   # Vector masks and extents Google Polygon

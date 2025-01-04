@@ -10,7 +10,8 @@ optimizeD = 0
 temdirdefined = 1
 urb_shift_factor <- 1 # Only works with byregion == Country (Check code lines 89-91 before adjusting this).
 # For Nepal use 10.
-webmofuss = 0 # "1" is linux based webmofuss in server, "0" is local mofuss run
+# Select MoFuSS platform:
+webmofuss = 1 # "1" is  web-MoFuSS running in our Ubuntu server, "0" is localcal host (Windows or Linux)
 
 # Load libraries ----
 library(terra)
@@ -50,8 +51,12 @@ parameters_directory <- paste0(getwd(),"/LULCC/DownloadedDatasets/SourceData",co
 # Use list.files() to find the file that matches the pattern
 parameters_name <- list.files(path = parameters_directory, pattern = "^parameters.*\\.xlsx$", full.names = TRUE)
 
-# Read the Excel file
-country_parameters <- read_excel(parameters_name)
+# Read parameters table ----
+if (webmofuss == 1){
+  country_parameters <- read_csv(paste0("LULCC/DownloadedDatasets/SourceData",country_name,"/",parameters_file))
+} else if (webmofuss == 0){
+  country_parameters <- read_excel(paste0("LULCC/DownloadedDatasets/SourceData",country_name,"/",parameters_file))
+}
 print(tibble::as_tibble(country_parameters), n=100)
 
 country_parameters %>%

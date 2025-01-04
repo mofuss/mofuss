@@ -12,6 +12,8 @@
 # Internal parameters
 rmax_over_K_ratio <- 0.04 #This fix automatic LUC with wrong.... REVISAR K!!!
 charcoal_harv_threshold <- 1 # t/ha
+# Select MoFuSS platform:
+webmofuss = 1 # "1" is  web-MoFuSS running in our Ubuntu server, "0" is localcal host (Windows or Linux)
 
 # Load libraries ----
 library(readxl)
@@ -36,8 +38,12 @@ parameters_directory <- paste0(getwd(),"/LULCC/DownloadedDatasets/SourceData",co
 # Use list.files() to find the file that matches the pattern
 parameters_name <- list.files(path = parameters_directory, pattern = "^parameters.*\\.xlsx$", full.names = TRUE)
 
-# Read the Excel file
-country_parameters <- read_excel(parameters_name)
+# Read parameters table ----
+if (webmofuss == 1){
+  country_parameters <- read_csv(paste0("LULCC/DownloadedDatasets/SourceData",country_name,"/",parameters_file))
+} else if (webmofuss == 0){
+  country_parameters <- read_excel(paste0("LULCC/DownloadedDatasets/SourceData",country_name,"/",parameters_file))
+}
 print(tibble::as_tibble(country_parameters), n=100)
 
 country_parameters %>%
