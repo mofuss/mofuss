@@ -12,7 +12,7 @@ run_ms = "Yes" # Run ms_simplfy?
 newadminlevel = 3 # Use 3, 4, or 5 depending on the desired admin level.
 # Any different value will bypass this and keep the original adm0, adm1 and adm2.
 # Select MoFuSS platform:
-webmofuss = 1 # "1" is  web-MoFuSS running in our Ubuntu server, "0" is localcal host (Windows or Linux)
+webmofuss = 0 # "1" is  web-MoFuSS running in our Ubuntu server, "0" is localcal host (Windows or Linux)
 
 # Load packages ----
 library(sf)
