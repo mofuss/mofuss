@@ -1,0 +1,28 @@
+{
+    "id": "6FA9CB37",
+    "path": "~/Documents/mofuss/localhost/scripts/5_harmonizer_v1.R",
+    "project_path": "localhost/scripts/5_harmonizer_v1.R",
+    "type": "r_source",
+    "hash": "0",
+    "contents": "",
+    "dirty": false,
+    "created": 1734743678266.0,
+    "source_on_save": false,
+    "relative_order": 7,
+    "properties": {
+        "source_window_id": "",
+        "Source": "Source",
+        "docOutlineVisible": "1",
+        "docOutlineSize": "226",
+        "cursorPosition": "17,14",
+        "scrollLine": "0"
+    },
+    "folds": "",
+    "lastKnownWriteTime": 1736019846,
+    "encoding": "UTF-8",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1736019846724,
+    "read_only": false,
+    "read_only_alternatives": []
+}
