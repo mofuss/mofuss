@@ -36,8 +36,10 @@ Alternatively, if you wish to download all or some MoFuSS datasets from scratch,
     * Use pacman if desired:
     ```
     if (!require("pacman")) install.packages("pacman")
-    pacman::p_load(readr, dplyr, fasterize, glue, igraph, raster, rgl, sf, tictoc, stars, gitlabr, inline, tidyverse, spam, svDialogs, terra, readxl)
+    pacman::p_load(dplyr, fasterize, fs, gdata, gitlabr, glue, hacksaw, igraph, inline, mapview, purrr, raster, readr, readxl, rgl, rlang, rmapshaper, sf, spam, stars, stringr, svDialogs, tcltk, terra, tibble, tictoc, tidyterra, tidyverse)
     ```
+    Please note that `rmapshaper` needs [Node.js](https://nodejs.org/) to be installed.
+  
 #### Preparing your environment: Downloading all datasets
 
 * Download the three folders needed to run MoFuSS locally from our [Zenodo Repository](https://zenodo.org/records/14517562) and save them to your local hard drive.
