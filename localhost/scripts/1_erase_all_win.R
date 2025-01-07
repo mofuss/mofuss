@@ -3,9 +3,7 @@
 # Date: Jan 2025
 
 # 2dolist
-# URGENTLY fix this very old and outdated chunck to make it 
-# work smoothly with GEE at varying scales!!
-# Fix for linux cluster
+# Select webmofuss == 1 automatically
 
 # Internal parameters
 # Select MoFuSS platform:
@@ -16,22 +14,6 @@ library(tcltk)
 
 # Detect OS
 os <- Sys.info()["sysname"]
-
-# choose_directory = function(caption = "Choose the country to erase -and zip-") {
-#   if(.Platform$OS.type == "unix")  {
-#     setwd(tk_choose.dir("/", caption = caption))
-#   } else {
-#     setwd(choose.dir("/", caption = caption)) 
-#   }
-# }
-# 
-# choose_directory()
-# countrydir <- getwd()
-
-# writeLines(gitlabdir,paste0(gitlabdir,"/gitlabdir.txt"), useBytes=T)
-# gitlabdir <- readLines(paste0(gitlabdir,"/gitlabdir.txt"))
-# writeLines(countrydir,paste0(gitlabdir,"/countrydir.txt"), useBytes=T)
-# countrydir <- readLines(paste0(gitlabdir,"/countrydir.txt"))
 
 setwd(countrydir)
 

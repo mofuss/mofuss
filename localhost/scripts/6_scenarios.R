@@ -535,5 +535,5 @@ if (idw_debug == "YES") {
   "Do nothing"
 }
 
-# End ----
+# End of script ----
 

@@ -8,7 +8,7 @@
 # Select webmofuss == 1 automatically
 
 # Internal parameters
-run_ms = "Yes" # Run ms_simplfy?
+run_ms = "Yes" # Run ms_simplify?
 newadminlevel = 3 # Use 3, 4, or 5 depending on the desired admin level.
 # Any different value will bypass this and keep the original adm0, adm1 and adm2.
 # Select MoFuSS platform:
@@ -1610,3 +1610,4 @@ file.copy(from="regions_adm0/mofuss_regions0.gpkg",
           to=paste0(demanddir,"/demand_in"),
           overwrite = TRUE)
 
+# End of script ----
