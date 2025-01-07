@@ -96,6 +96,9 @@ It is needed to run the following script **just once in each new node** (i.e. ne
 #### Retrieve results
 All output files will be saved in: `YourMoFuSSWorkingDirectory/OutBaU/`
 
-
+### Changing your area of interest
+When changing the Area of Interest you might keep working on the same MoFuSS directory in which case all previous results will be overwritten. Or just create a new folder to run the new simulations.
+* 1.- You first need to adust the parameters in `YourMoFuSSWorkingDirectory/LULCC/DownloadedDatasets/SourceData*/parameters_*.csv (or xlsx)` accordingly.
+* 2.- Re-run from Stage 1 but starting in script # 4.- `mofuss/localhost/scripts/3_demand4IDW_v3.R`
 
 👀 If you have any feedback on this documentation, please feel free to reach out to us at: aghilardi@ciga.unam.mx.
