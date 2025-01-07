@@ -57,25 +57,27 @@ Alternatively, if you wish to download all or some MoFuSS datasets from scratch,
 * Please pay particular attention to the Area of Interest (AoI) of your choice.
 
 #### Running Stage 1
-* All R scripts are written to run on Windows and Linux, and would need to be modified to run on MacOS. The sequence of scripts for this stage is the following:
-   * 1.- `mofuss/localhost/scripts/0_set_directories_and_region_v2.R`
-   * 2.- `mofuss/localhost/scripts/1_erase_all_win.R`
-   * 3.- `mofuss/localhost/scripts/2_copy_files.R`
+* All R scripts are written to run on Linux and Windows, and would need to be modified to run on MacOS. The sequence of scripts for this stage is the following:
+   * 1.- `mofuss/localhost/scripts/0_set_directories_and_region_v3.R`
+   * 2.- `mofuss/localhost/scripts/1_erase_all_v1.R`
+   * 3.- `mofuss/localhost/scripts/2_copy_files_v1.R`
    * 4.- `mofuss/localhost/scripts/3_demand4IDW_v3.R`
    * 5.- `mofuss/localhost/scripts/4_produce_growth_and_stock_csv.R`
    * 6.- `mofuss/localhost/scripts/5_harmonizer_v1.R`
    * 7.- `mofuss/localhost/scripts/6_scenarios.R`
+ 
+It is needed to run the following script **just once in each new node** (i.e. new computer): `mofuss/localhost/scripts/preprocessing4globaldatasets/1apre_GADM_admin_wp_v5.R`. It should be run after 1.- `mofuss/localhost/scripts/0_set_directories_and_region_v3.R`, and is not linked to any Area of Interest; it just prepares the administrative layers for any 1000m or 100m simulation to be run. 
 
 ### Stage 2: HPC processing
 * After successfully running all the R scripts, upload the resulting files to [MoFuSS's IDW online tool](https://www.mofuss.unam.mx/idw/) hosted on our HPC clusters.
 * Complete all parameters requested or leave the default ones. Alternatively, if you are operating your own HPC cluster, refer to the [CostDistance repository](https://github.com/mofuss/CostDistance_IDW) for detailed instructions.
 * Files to be ingested by the Cost Distance code:
-   * 1.- `YourMoFuSSWorkingDirectory/In/DemandScenarios/BaU_fwch_v.csv`
-   * 2.- `YourMoFuSSWorkingDirectory/In/DemandScenarios/BaU_fwch_w.csv`
-   * 3.- `YourMoFuSSWorkingDirectory/In/fricc_v.tif`
-   * 4.- `YourMoFuSSWorkingDirectory/In/fricc_w.tif`
-   * 5.- `YourMoFuSSWorkingDirectory/In/locs_c_v.tif`
-   * 6.- `YourMoFuSSWorkingDirectory/In/locs_c_w.tif`
+   * 1.- `YourMoFuSSWorkingDirectory/In/fricc_v.tif`
+   * 2.- `YourMoFuSSWorkingDirectory/In/fricc_w.tif`
+   * 3.- `YourMoFuSSWorkingDirectory/In/locs_c_v.tif`
+   * 4.- `YourMoFuSSWorkingDirectory/In/locs_c_w.tif`
+   * 5.- `YourMoFuSSWorkingDirectory/In/DemandScenarios/BaU_fwch_v.csv`
+   * 6.- `YourMoFuSSWorkingDirectory/In/DemandScenarios/BaU_fwch_w.csv`
 
 ### Stage 3: Final Analysis and report generation.
 #### Preparing your environment: Setting up LaTeX for final reports
