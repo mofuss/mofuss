@@ -2,14 +2,14 @@
 # Version 3
 # Date: Mar 2024
 
-# 2dolist
+# 2dolist ----
 # Fix automatic bugs from the modis/copernicus 2 growth1 and 2 respectively at this stage to keep the process as clean as possible in the 
 # pre_script during the basic construction of the tables.
 # Try modis and copernicus f course and re run again from 4th script for all regions
 
-# IF GLOBAL COPY THE TABLE FROM GLOBAL!!!
+# IF GLOBAL COPY THE TABLE FROM GLOBAL!!! -ready
 
-# Internal parameters
+# Internal parameters ----
 rmax_over_K_ratio <- 0.04 #This fix automatic LUC with wrong.... REVISAR K!!!
 charcoal_harv_threshold <- 1 # t/ha
 # Select MoFuSS platform:

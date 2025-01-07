@@ -2,13 +2,13 @@
 # Version 3
 # Date: Mar 2024
 
-# 2dolist
+# 2dolist ----
 # URGENTLY fix this very old and outdated chunck to make it 
 # work smoothly with GEE at varying scales!!
 # Fix for linux cluster
 # Read validation dataset and based on that turn on/off deforestation module in dinamica
 
-# Internal parameters
+# Internal parameters ----
 attdecay = 1.15  # decay rate of attraction kernels
 # Select MoFuSS platform:
 webmofuss = 1 # "1" is  web-MoFuSS running in our Ubuntu server, "0" is localcal host (Windows or Linux)

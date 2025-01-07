@@ -2,10 +2,10 @@
 # Version 3
 # Date: Mar 2024
 
-# 2dolist
-# FIX THE MASK ISSUE, THAT WAS PATCHED FOR THE MOMENT!
+# 2dolist ----
+# FIX THE MASK ISSUE WITH LINUX, THAT WAS PATCHED FOR THE MOMENT!
 
-# Internal parameters
+# Internal parameters ----
 optimizeD = 0
 temdirdefined = 1
 urb_shift_factor <- 1 # Only works with byregion == Country (Check code lines 89-91 before adjusting this).

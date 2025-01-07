@@ -2,12 +2,12 @@
 # Version 3
 # Date: Mar 2024
 
-# 2dolist
+# 2dolist ----
 # URGENTLY fix this very old and outdated chunck to make it 
 # work smoothly with GEE at varying scales!!
 # Fix for linux cluster
 
-# Internal parameters
+# Internal parameters ----
 # Select MoFuSS platform:
 webmofuss <- 1 # "1" is web-MoFuSS running in our Ubuntu server, "0" is localhost (Windows or Linux)
 

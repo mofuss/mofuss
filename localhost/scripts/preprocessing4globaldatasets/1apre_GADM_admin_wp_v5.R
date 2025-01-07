@@ -4,10 +4,10 @@
 # This script load the GADM datasets for levels 0, 1 and 2 and selects those countries
 # with complete info in both the WHO and HRSL population maps. For Nepal use 3
 
-# 2dolist
+# 2dolist ----
 # Select webmofuss == 1 automatically
 
-# Internal parameters
+# Internal parameters ----
 run_ms = "Yes" # Run ms_simplify?
 newadminlevel = 3 # Use 3, 4, or 5 depending on the desired admin level.
 # Any different value will bypass this and keep the original adm0, adm1 and adm2.

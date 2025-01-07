@@ -2,11 +2,11 @@
 # Version 3
 # Date: Mar 2024
 
-# 2dolist
+# 2dolist ----
 # Fix for linux cluster
 # Land Use Land Cover Module
 
-# Internal parameters
+# Internal parameters ----
 # Attraction buffer zones (in linear meters)
 w0 = 0 
 w1 = 50000 #250000
