@@ -2,14 +2,14 @@
 # Version 3
 # Date: Mar 2024
 
-# 2dolist
+# 2dolist ----
 # URGENTLY fix this very old and outdated chunck to make it 
 # work smoothly with GEE at varying scales!!
 # Fix for linux cluster
 
-# Internal parameters
+# Internal parameters ----
 # Select MoFuSS platform:
-webmofuss = 0 # "1" is  web-MoFuSS running in our Ubuntu server, "0" is localcal host (Windows or Linux)
+webmofuss <- 1 # "1" is web-MoFuSS running in our Ubuntu server, "0" is localhost (Windows or Linux)
 
 # Load libraries ----
 library(stringr)
@@ -20,97 +20,64 @@ library(dplyr)
 # Detect OS
 os <- Sys.info()["sysname"]
 
+# Set working directory
 setwd(countrydir)
 
-# Clean temps - keep inelegant list of unlinks as its an easier layout for the moment ----
-unlink("Debugging", recursive= TRUE, force=TRUE)
-unlink("DebuggingBaU", recursive= TRUE, force=TRUE)
-unlink("DebuggingICS", recursive= TRUE, force=TRUE)
-unlink("HTML_animation_OutBaU", recursive= TRUE, force=TRUE)
-unlink("HTML_animation_OutICS", recursive= TRUE, force=TRUE)
-unlink("Logs", recursive= TRUE, force=TRUE)
-unlink("OutBaU", recursive= TRUE, force=TRUE)
-unlink("OutICS", recursive= TRUE, force=TRUE)
-unlink("Summary_Report", recursive= TRUE, force=TRUE)
-unlink("Temp", recursive= TRUE, force=TRUE)
-unlink("TempBaU", recursive= TRUE, force=TRUE)
-unlink("TempICS", recursive= TRUE, force=TRUE)
-unlink("In", recursive= TRUE, force=TRUE)
+# Clean temps ----
+directories_to_remove <- c(
+  "Debugging", "DebuggingBaU", "DebuggingICS", "HTML_animation_OutBaU", "HTML_animation_OutICS", 
+  "Logs", "OutBaU", "OutICS", "Summary_Report", "Temp", "TempBaU", "TempICS", "In",
+  "LULCC/InVector", "LULCC/Out_lulcc", "LULCC/SourceData", "LULCC/TempRaster", "LULCC/TempTables",
+  "LULCC/TempVector", "LULCC/TempVector_GCS"
+)
 
-unlink("LULCC/InVector", recursive= TRUE, force=TRUE)
-unlink("LULCC/Out_lulcc", recursive= TRUE, force=TRUE)
-unlink("LULCC/SourceData", recursive= TRUE, force=TRUE)
-unlink("LULCC/TempRaster", recursive= TRUE, force=TRUE)
-unlink("LULCC/TempTables", recursive= TRUE, force=TRUE)
-unlink("LULCC/TempVector", recursive= TRUE, force=TRUE)
-unlink("LULCC/TempVector_GCS", recursive= TRUE, force=TRUE)
+file_patterns_to_remove <- c(
+  "*.Rout", "*.txt", "*.log", "*.aux", "*.lof", "*.lot", "*.out", "*.toc",
+  "LaTeX//*.pdf", "LaTeX//*.mp4", "LaTeX//*.csv", "LaTeX//SimLength.txt", "LaTeX//MCruns.txt",
+  "LULCC//*.Rout", "LULCC//*.csv", "LULCC//*.egoml"
+)
 
-unlink("*.Rout",force=TRUE)
-unlink("*.txt",force=TRUE)
-unlink("*.log",force=TRUE)
-unlink("*.aux",force=TRUE)
-unlink("*.lof",force=TRUE)
-unlink("*.lot",force=TRUE)
-unlink("*.out",force=TRUE)
-unlink("*.toc",force=TRUE)
-unlink("LaTeX//*.pdf",force=TRUE)
-unlink("LaTeX//*.mp4",force=TRUE)
-unlink("LaTeX//*.csv",force=TRUE)
-unlink("LaTeX//SimLength.txt",force=TRUE)
-unlink("LaTeX//MCruns.txt",force=TRUE)
-unlink("LULCC//*.Rout",force=TRUE)
-# unlink("LULCC//*.txt",force=TRUE)
-unlink("LULCC//*.csv",force=TRUE)
-unlink("LULCC//*.egoml",force=TRUE)	
+# Remove directories
+lapply(directories_to_remove, unlink, recursive = TRUE, force = TRUE)
 
-# Create mofuss dir structure
-# dir.create("Debugging")
-# dir.create("DebuggingBaU")
-# dir.create("DebuggingICS")
-dir.create("HTML_animation_OutBaU")
-dir.create("HTML_animation_OutICS")
-dir.create("Logs")
-dir.create("OutBaU")
-dir.create("OutICS")
-dir.create("Summary_Report")
-dir.create("Temp")
-dir.create("In")
-dir.create("In/DemandScenarios")
+# Remove files matching patterns
+lapply(file_patterns_to_remove, unlink, force = TRUE)
 
-dir.create("LULCC/InVector")
-# dir.create("LULCC/Out_lulcc")
-dir.create("LULCC/SourceData")
-dir.create("LULCC/SourceData/InRaster")
-dir.create("LULCC/SourceData/InRaster_GCS")
-dir.create("LULCC/SourceData/InTables")
-dir.create("LULCC/SourceData/InVector")
-dir.create("LULCC/SourceData/InVector_GCS")
+# Create MoFuSS directory structure ----
+dirs_to_create <- c(
+  "HTML_animation_OutBaU", "HTML_animation_OutICS", "Logs", "OutBaU", "OutICS", "Summary_Report", "Temp",
+  "In", "In/DemandScenarios", "LULCC/InVector", "LULCC/SourceData", "LULCC/SourceData/InRaster",
+  "LULCC/SourceData/InRaster_GCS", "LULCC/SourceData/InTables", "LULCC/SourceData/InVector",
+  "LULCC/SourceData/InVector_GCS", "LULCC/TempRaster", "LULCC/TempTables", "LULCC/TempVector",
+  "LULCC/TempVector_GCS", "LULCC/Wizard_imgs"
+)
 
-dir.create("LULCC/TempRaster")
-dir.create("LULCC/TempTables")
-dir.create("LULCC/TempVector")
-dir.create("LULCC/TempVector_GCS")
+lapply(dirs_to_create, dir.create, showWarnings = FALSE, recursive = TRUE)
 
-dir.create("LULCC/Wizard_imgs")
+# Additional clean-up
+unlink("Out_lulcc//*.*", force = TRUE)
+unlink("TempRaster//*.*", force = TRUE)
+unlink("TempVector//*.*", force = TRUE)
+unlink("TempVector_GCS//*.*", force = TRUE)
 
-unlink("Out_lulcc//*.*",force=TRUE)
-unlink("TempRaster//*.*",force=TRUE)
-unlink("TempVector//*.*",force=TRUE)
-unlink("TempVector_GCS//*.*",force=TRUE)
+# Copy batch and shell files ----
+batch_files <- list.files(paste0(gitlabdir, "/localhost/scripts/LULCC/"), pattern = ".bat")
+sh_files <- list.files(paste0(gitlabdir, "/localhost/scripts/LULCC/"), pattern = ".sh")
 
-batfiles <- list.files (paste0(gitlabdir, "/localhost/scripts/LULCC/"), pattern = ".bat")
-file.copy(from=paste0(gitlabdir, "/localhost/scripts/LULCC/",batfiles), 
-          to=paste0(countrydir, "/LULCC"), 
-          overwrite = TRUE)
+lapply(batch_files, function(file) file.copy(
+  from = paste0(gitlabdir, "/localhost/scripts/LULCC/", file),
+  to = paste0(countrydir, "/LULCC"), overwrite = TRUE
+))
 
-shfiles <- list.files (paste0(gitlabdir, "/localhost/scripts/LULCC/"), pattern = ".sh")
-file.copy(from=paste0(gitlabdir, "/localhost/scripts/LULCC/",shfiles), 
-          to=paste0(countrydir, "/LULCC"), 
-          overwrite = TRUE)
+lapply(sh_files, function(file) file.copy(
+  from = paste0(gitlabdir, "/localhost/scripts/LULCC/", file),
+  to = paste0(countrydir, "/LULCC"), overwrite = TRUE
+))
 
-if (os == "Windows"){
-  shell(file.path(getwd(), "LULCC/RpathOSsystem2.bat")) # WARNING, "shell" won't read blank spaces - End of Linux integration
-} else if (os == "Linux"){
+# Execute OS-specific commands
+if (os == "Windows") {
+  shell(file.path(getwd(), "LULCC/RpathOSsystem2.bat"))
+} else if (os == "Linux") {
   system(file.path(getwd(), "LULCC/RpathOSsystem2.sh"), intern = TRUE)
   system("bash LULCC/RpathOSsystem2.sh", intern = FALSE)
 }
@@ -125,7 +92,6 @@ m$V1 <- as.integer(as.character(m$V1))
 colnames(m)<-c("Key*","Rpath")
 m
 write.csv(m, "LULCC/TempTables/Rpath.csv",row.names=FALSE)
-
 
 if (os == "Windows"){
   # Process .txt to be properly read by Dinamica EGO ----
@@ -224,6 +190,7 @@ src.dir <- paste0("LULCC/DownloadedDatasets/SourceData",country)
 
 dir.names <- dir(src.dir)
 dir.names <- dir.names[!dir.names %in% "DemandScenarios"]
+
 for (RO in dir.names){ #for (RO in dir.names[c(-1,-7)] ){
   src.dir <- paste0("LULCC/DownloadedDatasets/SourceData",country,"/",RO,"/")
   dest.dir <- paste0("LULCC/SourceData/",RO,"/")

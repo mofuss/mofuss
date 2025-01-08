@@ -110,6 +110,11 @@ cty <- as.character(ctry$V1)
 mcty <- data.frame(`Key*` = 1, Country = cty)
 write.csv(mcty, "LULCC/TempTables/Country.csv", row.names = FALSE)
 
+# dversion<-"v1" #Reemplazar como parametro en un futuro, por ahora son todos v1
+# sourcedatafile<-paste0(cty,"_MoFuSS_Dataset_",dversion,".zip")
+
+country <- readLines("LULCC/TempTables/Country.txt")
+
 # Clean and prepare datasets ----
 unlink("DownloadedDatasets//*.zip", force = TRUE)
 unlink("SourceData//*.*", recursive = TRUE, force = TRUE)
