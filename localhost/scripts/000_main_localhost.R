@@ -5,7 +5,7 @@
 # 2dolist ----
 
 # Internal parameters ----
-runGADM <- 1
+runGADM <- 0
 
 # Load libraries ----
 library(rprojroot)
