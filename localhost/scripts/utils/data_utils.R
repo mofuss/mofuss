@@ -113,18 +113,19 @@ add_mozambique_variation <- function(data, country, add_random_variation, filena
 }
 
 
-collect_marginal_data <- function(data, country, admin_level, x_col, nrb_col, harvest_col) {
+collect_marginal_data <- function(data, country, admin_level, fnrb_col, nrb_col, harvest_col) {
     
     bau_values <- data %>%
         filter(scenario == "bau") %>%
-        select(all_of(c(x_col, nrb_col, harvest_col))) %>%
+        select(all_of(c(fnrb_col, nrb_col, harvest_col))) %>%
         rename(
             nrb_bau = all_of(nrb_col),
             harvest_bau = all_of(harvest_col)
-        )
+        ) %>%
+        select(nrb_bau, harvest_bau)
     
     marginal_data <- data %>%
-        left_join(bau_values, by = x_col) %>%
+        crossing(bau_values) %>%
         mutate(
             marginal_nrb = .data[[nrb_col]] - nrb_bau,
             marginal_harvest = .data[[harvest_col]] - harvest_bau,
@@ -134,9 +135,10 @@ collect_marginal_data <- function(data, country, admin_level, x_col, nrb_col, ha
                 TRUE ~ 100 * marginal_nrb / marginal_harvest
             ),
             country = country,
-            admin_level = admin_level
+            admin_level = admin_level,
+            calculated_fnrb = .data[[nrb_col]] / .data[[harvest_col]],
+            fnrb = .data[[fnrb_col]]
         ) %>%
-        filter(scenario != "bau") %>%
         select(-ends_with(".x"), -ends_with(".y")) %>%
         distinct()
 
@@ -148,17 +150,19 @@ collect_marginal_data <- function(data, country, admin_level, x_col, nrb_col, ha
             mean_marginal_nrb = mean(marginal_nrb, na.rm = TRUE),
             mean_marginal_harvest = mean(marginal_harvest, na.rm = TRUE),
             mean_marginal_ratio = mean(marginal_ratio, na.rm = TRUE),
-            median_marginal_ratio = median(marginal_ratio, na.rm = TRUE),
-            sd_marginal_ratio = sd(marginal_ratio, na.rm = TRUE),
+            # median_marginal_ratio = median(marginal_ratio, na.rm = TRUE),
+            # sd_marginal_ratio = sd(marginal_ratio, na.rm = TRUE),
             
             # Additional summary statistics
             mean_nrb = mean(.data[[nrb_col]], na.rm = TRUE),
-            sd_nrb = sd(.data[[nrb_col]], na.rm = TRUE),
-            median_nrb = median(.data[[nrb_col]], na.rm = TRUE),
+            # sd_nrb = sd(.data[[nrb_col]], na.rm = TRUE),
+            # median_nrb = median(.data[[nrb_col]], na.rm = TRUE),
             mean_harvest = mean(.data[[harvest_col]], na.rm = TRUE),
-            sd_harvest = sd(.data[[harvest_col]], na.rm = TRUE),
-            median_harvest = median(.data[[harvest_col]], na.rm = TRUE),
-            n = n(),
+            # sd_harvest = sd(.data[[harvest_col]], na.rm = TRUE),
+            # median_harvest = median(.data[[harvest_col]], na.rm = TRUE),
+            mean_fnrb = mean(fnrb, na.rm = TRUE),
+            # sd_fnrb = sd(.data[[fnrb_col]], na.rm = TRUE),
+            # median_fnrb = median(.data[[fnrb_col]], na.rm = TRUE),
             .groups = "drop"
         )
 

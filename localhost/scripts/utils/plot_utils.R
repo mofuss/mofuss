@@ -55,13 +55,13 @@ create_plots <- function(data, x_col, y_col, filename_pattern, country, output_d
             hjust = 0, vjust = 1
         ) +
         labs(
-            title = paste(y_col, "Distribution by Demand Scenario -", filename_pattern),
+            title = paste(country," ",y_col, "Distribution by Demand Scenario -", filename_pattern),
             x = "Demand Change (%)",
             y = y_col,
             fill = "Scenario"
         )
 
-    plot_filename_boxplot <- file.path(output_dir, paste0("boxplot_", country, "_", gsub("\\.csv$", "", filename_pattern), ".png"))
+    plot_filename_boxplot <- file.path(output_dir, paste0("boxplot_",y_col, "_", country, "_", gsub("\\.csv$", "", filename_pattern), ".png"))
     ggsave(plot_filename_boxplot, p, width = 10, height = 6)
 
     p_scatter <- ggplot(data, aes(x = .data[[x_col]], y = .data[[y_col]], color = scenario)) +
@@ -71,13 +71,13 @@ create_plots <- function(data, x_col, y_col, filename_pattern, country, output_d
             axis.text.x = element_text(angle = 45, hjust = 1)
         ) +
         labs(
-            title = paste(y_col, "Distribution by Demand Scenario -", filename_pattern),
+            title = paste(country, " ", y_col, "Distribution by Demand Scenario -", filename_pattern),
             x = x_col,
             y = y_col,
             color = "Scenario"
         )
 
-    plot_filename_scatter <- file.path(output_dir, paste0("scatter_", country, "_", gsub("\\.csv$", "", filename_pattern), ".png"))
+    plot_filename_scatter <- file.path(output_dir, paste0("scatter_",y_col, "_", country, "_", gsub("\\.csv$", "", filename_pattern), ".png"))
     ggsave(plot_filename_scatter, p_scatter, width = 10, height = 6)
 
     return(list(boxplot = plot_filename_boxplot, scatter = plot_filename_scatter))
@@ -87,7 +87,7 @@ analyze_nrb_vs_harvest <- function(marginal_data, nrb_col, harvest_col, demand_c
     
     p_nrb <- ggplot(marginal_data, aes(x = demand_value, y = marginal_nrb)) +
         geom_point(aes(color = scenario), alpha = 0.5, na.rm = TRUE) +
-        geom_smooth(method = "lm", color = "blue", se = TRUE, na.rm = TRUE, formula = y ~ x) +
+        geom_smooth(method = "loess", color = "blue", se = TRUE, na.rm = TRUE, formula = y ~ x) +
         scale_color_viridis_d(drop = FALSE) +
         theme(
             legend.position = "none",
@@ -101,7 +101,7 @@ analyze_nrb_vs_harvest <- function(marginal_data, nrb_col, harvest_col, demand_c
 
     p_harvest <- ggplot(marginal_data, aes(x = demand_value, y = marginal_harvest)) +
         geom_point(aes(color = scenario), alpha = 0.6, na.rm = TRUE) +
-        geom_smooth(method = "lm", color = "green", se = TRUE, na.rm = TRUE, formula = y ~ x) +
+        geom_smooth(method = "loess", color = "green", se = TRUE, na.rm = TRUE, formula = y ~ x) +
         scale_color_viridis_d(drop = FALSE) +
         theme(
             legend.position = "none",
@@ -113,17 +113,21 @@ analyze_nrb_vs_harvest <- function(marginal_data, nrb_col, harvest_col, demand_c
             y = "Marginal Harvest"
         )
 
-    p_ratio <- ggplot(marginal_data, aes(x = demand_value, y = marginal_ratio)) +
+    p_ratio <- marginal_data %>%
+        filter(!scenario == "bau") %>%
+        ggplot(aes(x = demand_value, y = marginal_ratio)) +
         geom_point(aes(color = scenario), alpha = 0.6, na.rm = TRUE) +
-        geom_boxplot(aes(group = demand_value, fill = scenario), alpha = 0.3, na.rm = TRUE) +
-        geom_smooth(method = "lm", color = "red", se = TRUE, na.rm = TRUE, formula = y ~ x) +
+        geom_smooth(method = "loess", color = "red", se = TRUE, na.rm = TRUE) +
         scale_color_viridis_d(drop = FALSE) +
         scale_fill_viridis_d(drop = FALSE) +
-        coord_cartesian(ylim = quantile(marginal_data$marginal_ratio, c(0.01, 0.99), na.rm = TRUE)) +
         theme(
             legend.position = "bottom",
+            legend.box = "horizontal",
+            legend.box.just = "center",
             axis.text.x = element_text(angle = 45, hjust = 1)
         ) +
+        guides(color = guide_legend(nrow = 1),
+               fill = guide_legend(nrow = 1)) +
         labs(
             title = "Marginal NRB/Harvest Ratio vs Demand",
             x = "Demand Change (%)",
@@ -202,8 +206,9 @@ create_demand_sensitivity_plots <- function(combined_data, sensitivity_results, 
         theme(legend.position = "right") +
         labs(
             title = "Marginal Ratio Response to Demand Changes",
+            subtitle = "Ratio = 100 * (NRB - BAU_NRB)/(Harvest - BAU_Harvest)",
             x = "Demand Change from BAU (%)",
-            y = "Marginal NRB/Harvest Ratio (%)",
+            y = "Marginal NRB/Marginal Harvest * 100 (%)",
             color = "Country"
         )
     plots$p3 <- p3

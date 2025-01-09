@@ -43,7 +43,6 @@ for (country in countries) {
     if (country != countries[1]) {
         writeLines("\n\\newpage\n", file_conn)
     }
-    
     writeLines(paste0("# Marginal Analysis Results for ", toupper(country), "\n\n"), file_conn)
     writeLines(paste0("Results are for ", col_selector, " of all monte carlos.\n\n"), file_conn)
 
@@ -52,7 +51,7 @@ for (country in countries) {
     combined_data_adm2 <- NULL
 
     for (admin_level in admin_levels) {
-        c(nrb_col, harvest_col, fnrb_col, x_col) %<-% get_column_names(col_selector,admin_level)
+        c(harvest_col,nrb_col, fnrb_col, x_col) %<-% get_column_names(col_selector,admin_level)
         admin_filename_pattern <- paste0(admin_level, ".*", filename_pattern)
         
         data <- process_files(directory_path, admin_filename_pattern, nrb_col, harvest_col, fnrb_col, x_col)
@@ -63,39 +62,37 @@ for (country in countries) {
             filter(!is.na(.data[[y_col]]), !is.na(demand_value))
 
             plotz <- create_plots(data, x_col, y_col, admin_level, country, output_dir = output_dir)
-
             write(paste("\n![", filename_pattern, "](", basename(plotz$boxplot), ")\n"), file_conn, append = TRUE)
             write(paste("\n![", filename_pattern, "](", basename(plotz$scatter), ")\n"), file_conn, append = TRUE)
-
-            # Get combined marginal and summary statistics
-            marginal_data_list <- collect_marginal_data(data, country, admin_level, x_col, nrb_col, harvest_col)
-            all_country_results[[paste(country, admin_level, sep = "_")]] <- marginal_data_list
-
-
-            write(paste("\n### Combined Summary and Marginal Analysis for", country, "-", admin_level, "\n"), file_conn, append = TRUE)
-            write(knitr::kable(marginal_data_list$summary, format = "markdown"),
-                file_conn,
-                append = TRUE
-            )
-
-            write_log("\nAnalyzing NRB vs Harvest for", country, "-", admin_level)
-            marginal_plot_filename <- analyze_nrb_vs_harvest(
-                marginal_data = marginal_data_list$full_data,
-                nrb_col = nrb_col,
-                harvest_col = harvest_col,
-                demand_col = demand_col,
-                pattern = admin_level,
-                x_col = x_col,
-                country = country,
-                output_dir = output_dir
-            )
-            
-            write(paste("\n![", marginal_plot_filename, "](", basename(marginal_plot_filename), ")\n"), file_conn, append = TRUE)
         }
+        
+        # Get combined marginal and summary statistics
+        marginal_data_list <- collect_marginal_data(data=data, country=country, admin_level=admin_level, fnrb_col=fnrb_col, nrb_col=nrb_col, harvest_col=harvest_col)
+        all_country_results[[paste(country, admin_level, sep = "_")]] <- marginal_data_list
+
+        write(paste("\n### Combined Summary and Marginal Analysis for", country, "-", admin_level, "\n"), file_conn, append = TRUE)
+        write(knitr::kable(marginal_data_list$summary, format = "markdown", digits = 2),
+            file_conn,
+            append = TRUE
+        )
+
+        write_log("\nAnalyzing NRB vs Harvest for", country, "-", admin_level)
+        marginal_plot_filename <- analyze_nrb_vs_harvest(
+            marginal_data = marginal_data_list$full_data,
+            nrb_col = nrb_col,
+            harvest_col = harvest_col,
+            demand_col = demand_col,
+            pattern = admin_level,
+            x_col = x_col,
+            country = country,
+            output_dir = output_dir
+        )
+        
+        write(paste("\n![", marginal_plot_filename, "](", basename(marginal_plot_filename), ")\n"), file_conn, append = TRUE)
     }
 }
 
-# # Make sure the file connection is still open, it seems to close sometimes.
+# Make sure the file connection is still open, it seems to close sometimes.
 if (!isOpen(file_conn)) {
     write_log("File connection was closed, reopening...")
     file_conn <- file(output_file, "a")
@@ -115,8 +112,25 @@ if (length(all_country_results) > 0) {
     })) %>% distinct()
     
 
+    formatted_data <- combined_data %>%
+        select(country, admin_level, demand_value, marginal_ratio, nrb_col, harvest_col, fnrb_col) %>%
+        distinct() %>%
+        mutate(
+            across(where(is.character), ~str_replace_all(., "_", " ")),
+            across(where(is.character), str_to_title)
+        )
+
+    formatted_colnames <- names(formatted_data) %>%
+        str_replace_all("_", " ") %>%
+        str_to_title()
+
     writeLines("\n## Combined Data Summary\n", file_conn)
-    writeLines(knitr::kable(combined_data %>% select(country, admin_level, demand_value, marginal_ratio, nrb_col, harvest_col,fnrb_col) %>% distinct(), format = "markdown"), file_conn)
+    writeLines(knitr::kable(formatted_data, 
+        format = "markdown", 
+        digits = 2, 
+        col.names = formatted_colnames,
+        align = rep(c('l', 'r'), length.out = ncol(formatted_data))  # left align text, right align numbers
+    ), file_conn)
     
     sensitivity_results <- analyze_demand_sensitivity(combined_data)
     
@@ -139,11 +153,11 @@ if (length(all_country_results) > 0) {
     
     writeLines("\n## Country-Level Sensitivity Rankings\n", file_conn)
     writeLines("The following table shows how sensitive each country is to demand changes:\n\n", file_conn)
-    writeLines(knitr::kable(sensitivity_tables$sensitivity_ranking, format = "markdown"), file_conn)
+    writeLines(knitr::kable(sensitivity_tables$sensitivity_ranking, format = "markdown", digits = 2), file_conn)
     
     writeLines("\n## Most Sensitive Demand Transitions\n", file_conn)
     writeLines("These are the demand level transitions that showed the largest changes in marginal ratios:\n\n", file_conn)
-    writeLines(knitr::kable(sensitivity_tables$critical_transitions, format = "markdown"), file_conn)
+    writeLines(knitr::kable(sensitivity_tables$critical_transitions, format = "markdown", digits = 2), file_conn)
     
     flush(file_conn)
 }
