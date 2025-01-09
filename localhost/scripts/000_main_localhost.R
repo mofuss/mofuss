@@ -47,10 +47,10 @@ source(paste0(scriptsmofuss,"/4_produce_growth_and_stock_csv.R"))
 cat("4_produce_growth_and_stock_csv.R sourced successfully.\n")
 
 cat("Sourcing _harmonizer_v1.R...\n")
-# source(paste0(scriptsmofuss,"/5_harmonizer_v1.R"))
+source(paste0(scriptsmofuss,"/5_harmonizer_v1.R"))
 cat("_harmonizer_v1.R sourced successfully.\n")
 
 cat("Sourcing 6_scenarios.R...\n")
-# source(paste0(scriptsmofuss,"/6_scenarios.R"))
+source(paste0(scriptsmofuss,"/6_scenarios.R"))
 cat("6_scenarios.R sourced successfully.\n")
 
