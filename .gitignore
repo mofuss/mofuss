@@ -2,5 +2,6 @@
 .RData
 .Rproj
 .Rproj.user
+.env
 0_set_directories_and_region_RICMOFUSS.R
 
