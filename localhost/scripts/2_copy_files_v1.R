@@ -147,7 +147,7 @@ lapply(file.names.DS, function(RO.DS) {
 files2copy <- c(
   "ffmpeg32/", "ffmpeg64/", "LaTeX/", "friction3.egoml", "IDW_Sc3.egoml",
   "7_FW_dyn_lulcc_Sc16b_luc1.egoml", "7_FW_dyn_lulcc_Sc16b_luc2.egoml",
-  "7_FW_dyn_lulcc_Sc16b_luc1_lucbet.egoml", "7_FW_dyn_lulcc_Sc16b_luc2.lucbet.egoml",
+  # "7_FW_dyn_lulcc_Sc16b_luc1_lucbet.egoml", "7_FW_dyn_lulcc_Sc16b_luc2.lucbet.egoml",
   "debugging/0_debugv1.R", "debugging/0_debugv2.R", "rnorm2.R", "NRB_graphs_datasets2.R",
   "maps_animations5.R", "finalogs.R", "bypass_maps_animations.R"
 )

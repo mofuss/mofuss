@@ -1,0 +1,124 @@
+Var,ParCHR
+MAP PROJECTIONS,
+epsg_gcs,4326
+epsg_pcs,3395
+proj_authority,EPSG
+proj_gcs,proj=longlat +datum=WGS84 +no_defs +type=crs
+proj_pcs,proj=merc +lon_0=0 +k=1 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs +type=crs
+GEE to MoFuSS,
+GEE_tyRoi,world
+GEE_country,MDG
+GEE_scale,1000
+AGB stats for K,
+pdecil,0.95
+POPULATION MAP,
+pop_ver,WorldPop
+pop_map_name,wp_global1000m_gcs.tif
+pop_map_yr,2020
+demand_col,fuel_tons3
+SCENARIO,
+scenario_ver,BaU
+idw_debug,NO
+friction,R
+END YEAR OF SIMULATION,
+end_year,2050
+REGION TO BE PROCESSED,
+byregion,Country
+region2BprocessedCont,SSA
+region2BprocessedReg,SSA_adm0_madagascar
+region2BprocessedCtry,Rwanda
+AREA OF INTEREST,
+GEpoly,0
+ext_analysis_ID,ID
+ext_analysis_NAME,NAME_0
+add_subadmin,NO
+ext_analysis_ID_1,ID
+ext_analysis_NAME_1,NAME_1
+ext_analysis_ID_2,ID
+ext_analysis_NAME_2,NAME_2
+DIGITAL TERRAIN ELEVATION MODEL,
+DTEM_in_GCS,NO
+DTEM_name,DTEM_pcs.tif
+LAND USE COVER MAPS,
+LULCt1map,YES
+LULCt2map,YES
+LULCt3map,NO
+LULCt1map_yr,2010
+LULCt2map_yr,2015
+LULCt3map_yr,"c(2010,2020,2030)"
+LULCt1map_name,modis_lc_type1_pcs.tif
+LULCt2map_name,cgls_lc100_pcs.tif
+LULCt3map_name,
+LULCt1map_in_GCS,NO
+LULCt2map_in_GCS,NO
+LULCt3map_in_GCS,
+LULCt1map_in_raster,YES
+LULCt2map_in_raster,YES
+LULCt3map_in_raster,
+LULCt1map_fieldname,Value
+LULCt2map_fieldname,Value
+LULCt3map_fieldname,
+GFW LOSS GAIN AND COVER MAPS,
+gain_name,gain_pcs.tif
+lossyear_name,lossyear_pcs.tif
+treecover_name,treecover2000_pcs.tif
+ABOVEGROUND BIOMASS MAPS,
+AGB1map,YES
+AGB2map,NO
+AGB3map,NO
+AGB1map_yr,2010
+AGB2map_yr,
+AGB3map_yr,
+AGB1map_name,AGB2010_pcs.tif
+AGB2map_name,
+AGB3map_name,
+AGB1map_fieldname,
+AGB2map_fieldname,
+AGB3map_fieldname,
+AGB1map_uncer_name,AGB2010uncer_pcs.tif
+NATURAL PROTECTED AREAS,
+npa_raster,YES
+npa_name_r,npa_pcs.tif
+npa_name,npa_pcs.gpkg
+npa_fieldname,WDPAID
+RIVERS,
+rivers_raster,YES
+rivers_name_r,hydrorivers7_pcs.tif
+rivers_name,hydrorivers7_pcs.gpkg
+rivers_fieldname, ORD_FLOW
+LAKES AND WATER BODIES,
+lakes_raster,YES
+lakes_name_r,hydrolakes_pcs.tif
+lakes_name,hydrolakes_pcs.gpkg
+lakes_fieldname,dissolveID
+ROADS,
+roads_raster,YES
+roads_name_r,grip5_pcs.tif
+roads_name,grip5_pcs.gpkg
+roads_fieldname,GP_RTP
+BORDERS,
+borders_raster,YES
+borders_name_r,borders_pcs.tif
+borders_name,borders_pcs.gpkg
+borders_fieldname,dissolveID
+OUTPUT MAP SCALE,
+mapscale,5000
+MARITIME ROUTES,
+maritime_lyr,NO
+maritime_name,maritime2.gpkg
+maritime_name_ID,OBJECTID
+CHARCOAL ATTRACTORS,
+attraction_lyr,NO
+attraction_name,attraction.gpkg
+attraction_name_ID,OBJECTID
+GLOBAL ECOLOGICAL ZONES,
+gez_raster,YES
+gez_name_r,gez_pcs.tif
+gez_name,gez_pcs.gpkg
+gez_fieldname,gez_code
+DATA FOR PDF REPORT,
+nameuser,Adrian & Rob
+ads,UNFCCC and TNC
+ads_ctry,"Somerville, US"
+MODEL TYPE,
+Model,Fw

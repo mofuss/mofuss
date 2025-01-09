@@ -35,7 +35,10 @@ getwd()
 country_name
 
 # Read parameters table ----
-country_parameters <- read_excel(paste0("LULCC/DownloadedDatasets/SourceData",country_name,"/",parameters_file))
+read.csv("LULCC/TempTables/Country.csv") %>%
+  dplyr::filter(Key. == "1") %>%
+  pull(Country) -> country_name
+country_parameters <- read_csv(paste0("LULCC/DownloadedDatasets/SourceData",country_name,"/",parameters_file))
 print(tibble::as_tibble(country_parameters), n=100)
 
 country_parameters %>%
