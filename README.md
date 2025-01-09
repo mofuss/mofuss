@@ -36,7 +36,7 @@ Alternatively, if you wish to download all or some MoFuSS datasets from scratch,
     * Use pacman if desired:
     ```
     if (!require("pacman")) install.packages("pacman")
-    pacman::p_load(dplyr, fasterize, fs, gdata, gitlabr, glue, hacksaw, igraph, inline, mapview, purrr, raster, readr, readxl, rgl, rlang, rmapshaper, sf, spam, stars, stringr, svDialogs, tcltk, terra, tibble, tictoc, tidyterra, tidyverse)
+    pacman::p_load(dplyr, fasterize, fs, gdata, gitlabr, glue, hacksaw, igraph, inline, mapview, purrr, raster, readr, readxl, rgl, rlang, rmapshaper, rprojroot, rstudioapi, sf, spam, stars, stringr, svDialogs, tcltk, terra, tibble, tictoc, tidyterra, tidyverse)
     ```
     Please note that `rmapshaper` needs [Node.js](https://nodejs.org/) to be installed.
   
