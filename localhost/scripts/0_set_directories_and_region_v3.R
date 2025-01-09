@@ -8,11 +8,10 @@
 # Internal parameters ----
 start_from_scratch <- 0 # Set to 0 when the MoFuSS working directory already exists and has data in it
 # rm(list=ls(all=TRUE))
-# Select MoFuSS platform:
-#webmofuss = 1 # "1" is  web-MoFuSS running in our Ubuntu server, "0" is localcal host (Windows or Linux)
+# # Select MoFuSS platform:
+# webmofuss = 1 # "1" is  web-MoFuSS running in our Ubuntu server, "0" is localcal host (Windows or Linux)
 if (start_from_scratch == 1){webmofuss = 0}
-
-source(paste0(scriptsmofuss,"00_webmofuss.R"))
+# source(paste0(scriptsmofuss,"00_webmofuss.R"))
 
 # Load libraries ----
 library(stringr)
@@ -52,12 +51,11 @@ if (webmofuss == 1) {
   # Prompt the user to select the "parameters.xlsx" file
   # parameters_file_path <- tk_choose.files(default = "", caption = "Select the 'parameters.xlsx' file", 
   #                                         multi = FALSE, filters = matrix(c("Excel Files", "*.xlsx"), 1, 2))
-  parameters_file <- basename(parameters_file_path)
+  # parameters_file <- basename(parameters_file_path)
   
   # Read parameters table ----
-  country_parameters_prelim <- read_csv(parameters_file_path)
-  # country_parameters_prelim <- read_excel(parameters_file_path) 
-  print(tibble::as_tibble(country_parameters_prelim), n=100)
+  country_parameters <- read_csv(paste0("LULCC/DownloadedDatasets/SourceData",country_name,"/",parameters_file))
+  print(tibble::as_tibble(country_parameters), n=100)
   
   country_parameters_prelim %>%
     dplyr::filter(Var == "byregion") %>%
@@ -224,13 +222,13 @@ if (webmofuss == 1) {
   cat("Selected GitLab directory:", gitlabdir, "\n")
   
   if (start_from_scratch == 1) {
-    # Prompt the user to select the "parameters.xlsx" file
-    parameters_file_path <- tk_choose.files(default = "", caption = "Select the 'parameters.xlsx' file", 
-                                            multi = FALSE, filters = matrix(c("Excel Files", "*.xlsx"), 1, 2))
+    # Prompt the user to select the "parameters" file
+    parameters_file_path <- tk_choose.files(default = "", caption = "Select the 'parameters' file", 
+                                            multi = FALSE, filters = matrix(c("CSV Files", "*.csv"), 1, 2))
     parameters_file <- basename(parameters_file_path)
     
     # Read parameters table ----
-    country_parameters_prelim <- read_excel(parameters_file_path) 
+    country_parameters_prelim <- read_csv(parameters_file_path)
     print(tibble::as_tibble(country_parameters_prelim), n=100)
     
     choose_directory66 = function(caption = "Choose the location where to create your MoFuSS working folder") {
@@ -276,23 +274,6 @@ if (webmofuss == 1) {
     } else {
       cat("Error in AoI selection and/or resolution \n")
     }
-    
-    # # Rebuild this chunk
-    # if(.Platform$OS.type == "unix")  {
-    #   country<-tk_choose.files(default=paste0(gitlabdir,"/countries/*.*"))
-    #   country[2]
-    #   res <- str_match(country[2], "countries/(.*?).tif")
-    #   country_name <- res[,2]
-    # } else {
-    #   country<-choose.files(default=paste0(gitlabdir,"/countries/*.*"))
-    #   country
-    #   res <- str_match(country, "countries\\\\s*(.*?)\\s*.tif")
-    #   res[,2]
-    #   # Extract the country name
-    #   country_name <- gsub(pattern = "(.*countries[\\])(.*)(.tif.*)",
-    #                        replacement = "\\2",
-    #                        country)
-    # }
     
     # Get the current date
     current_date <- format(Sys.Date(), "%Y%m%d")  # Format as YYYYMMDD
@@ -391,13 +372,13 @@ if (webmofuss == 1) {
     
   } else {
     
-    # Prompt the user to select the "parameters.xlsx" file
-    parameters_file_path <- tk_choose.files(default = "", caption = "Select the 'parameters.xlsx' file", 
-                                            multi = FALSE, filters = matrix(c("Excel Files", "*.xlsx"), 1, 2))
+    # Prompt the user to select the "parameters" file
+    parameters_file_path <- tk_choose.files(default = "", caption = "Select the 'parameters' file", 
+                                            multi = FALSE, filters = matrix(c("CSV Files", "*.csv"), 1, 2))
     parameters_file <- basename(parameters_file_path)
     
     # Read parameters table ----
-    country_parameters_prelim <- read_excel(parameters_file_path) 
+    country_parameters_prelim <- read_csv(parameters_file_path)
     print(tibble::as_tibble(country_parameters_prelim), n=100)
     
     country_parameters_prelim %>%
@@ -419,23 +400,6 @@ if (webmofuss == 1) {
     } else {
       cat("Error in AoI selection and/or resolution \n")
     }
-    
-    # # Rebuild this chunk
-    # if(.Platform$OS.type == "unix")  {
-    #   country<-tk_choose.files(default=paste0(gitlabdir,"/countries/*.*"))
-    #   country[2]
-    #   res <- str_match(country[2], "countries/(.*?).tif")
-    #   country_name <- res[,2]
-    # } else {
-    #   country<-choose.files(default=paste0(gitlabdir,"/countries/*.*"))
-    #   country
-    #   res <- str_match(country, "countries\\\\s*(.*?)\\s*.tif")
-    #   res[,2]
-    #   # Extract the country name
-    #   country_name <- gsub(pattern = "(.*countries[\\])(.*)(.tif.*)",
-    #                        replacement = "\\2",
-    #                        country)
-    # }
     
     print("Input datasets already in place")
     
@@ -511,8 +475,8 @@ if (webmofuss == 1) {
                             pattern = "\\.csv$|\\.xlsx$", 
                             full.names = TRUE)
   
-  # Read the Excel file
-  country_parameters <- read_excel(destination_dir)
+  # Read the CSV file
+  country_parameters <- read_csv(destination_dir)
   print(tibble::as_tibble(country_parameters), n=100)
   
   country_parameters %>%

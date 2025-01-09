@@ -14,8 +14,9 @@ w2 = 100000 #500000
 w3 = 150000 #750000
 w4 = 200000 #1000000
 
-# Select MoFuSS platform:
-webmofuss = 1 # "1" is  web-MoFuSS running in our Ubuntu server, "0" is localcal host (Windows or Linux)
+# # Select MoFuSS platform:
+# webmofuss = 1 # "1" is  web-MoFuSS running in our Ubuntu server, "0" is localcal host (Windows or Linux)
+# source(paste0(scriptsmofuss,"00_webmofuss.R"))
 
 # Load libraries ----
 library(readr)
@@ -46,19 +47,7 @@ country_name
 read.csv("LULCC/TempTables/Country.csv") %>%
   dplyr::filter(Key. == "1") %>%
   pull(Country) -> country_name
-
-# Specify the directory where the file is located
-parameters_directory <- paste0(getwd(),"/LULCC/DownloadedDatasets/SourceData",country_name)
-
-# Use list.files() to find the file that matches the pattern
-parameters_name <- list.files(path = parameters_directory, pattern = "^parameters.*\\.xlsx$", full.names = TRUE)
-
-# Read parameters table ----
-if (webmofuss == 1){
-  country_parameters <- read_csv(paste0("LULCC/DownloadedDatasets/SourceData",country_name,"/",parameters_file))
-} else if (webmofuss == 0){
-  country_parameters <- read_excel(paste0("LULCC/DownloadedDatasets/SourceData",country_name,"/",parameters_file))
-}
+country_parameters <- read_csv(paste0("LULCC/DownloadedDatasets/SourceData",country_name,"/",parameters_file))
 print(tibble::as_tibble(country_parameters), n=100)
 
 country_parameters %>%

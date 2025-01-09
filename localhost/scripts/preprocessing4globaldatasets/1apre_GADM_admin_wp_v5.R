@@ -11,8 +11,9 @@
 run_ms = "Yes" # Run ms_simplify?
 newadminlevel = 3 # Use 3, 4, or 5 depending on the desired admin level.
 # Any different value will bypass this and keep the original adm0, adm1 and adm2.
-# Select MoFuSS platform:
-webmofuss = 1 # "1" is  web-MoFuSS running in our Ubuntu server, "0" is localcal host (Windows or Linux)
+# # Select MoFuSS platform:
+# webmofuss = 1 # "1" is  web-MoFuSS running in our Ubuntu server, "0" is localcal host (Windows or Linux)
+# source(paste0(scriptsmofuss,"00_webmofuss.R"))
 
 # Load packages ----
 library(sf)
@@ -30,11 +31,10 @@ getwd()
 country_name
 
 # Read parameters table ----
-if (webmofuss == 1){
-  country_parameters <- read_csv(paste0("LULCC/DownloadedDatasets/SourceData",country_name,"/",parameters_file))
-} else if (webmofuss == 0){
-  country_parameters <- read_excel(paste0("LULCC/DownloadedDatasets/SourceData",country_name,"/",parameters_file))
-}
+read.csv("LULCC/TempTables/Country.csv") %>%
+  dplyr::filter(Key. == "1") %>%
+  pull(Country) -> country_name
+country_parameters <- read_csv(paste0("LULCC/DownloadedDatasets/SourceData",country_name,"/",parameters_file))
 print(tibble::as_tibble(country_parameters), n=100)
 
 country_parameters %>%

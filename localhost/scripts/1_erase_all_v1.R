@@ -6,10 +6,12 @@
 # Select webmofuss == 1 automatically
 
 # Internal parameters ----
-# Select MoFuSS platform:
+# # Select MoFuSS platform:
 # webmofuss = 1 # "1" is  web-MoFuSS running in our Ubuntu server, "0" is localcal host (Windows or Linux)
+# source(paste0(scriptsmofuss,"00_webmofuss.R"))
+
 # Load libraries ----
-source(paste0(scriptsmofuss,"00_webmofuss.R"))
+
 # Detect OS
 os <- Sys.info()["sysname"]
 
