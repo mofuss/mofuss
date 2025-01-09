@@ -49,8 +49,8 @@ if (webmofuss == 1) {
   # lulccfiles <- "E:/lulcc"
   
   # Read parameters table ----
-  country_parameters <- read_csv(paste0("LULCC/DownloadedDatasets/SourceData",country_name,"/",parameters_file))
-  print(tibble::as_tibble(country_parameters), n=100)
+  country_parameters_prelim <- read_csv(parameters_file_path)
+  #print(tibble::as_tibble(country_parameters_prelim), n=100)
   
   country_parameters_prelim %>%
     dplyr::filter(Var == "byregion") %>%
