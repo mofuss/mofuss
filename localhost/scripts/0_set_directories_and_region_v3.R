@@ -9,8 +9,10 @@
 start_from_scratch <- 0 # Set to 0 when the MoFuSS working directory already exists and has data in it
 # rm(list=ls(all=TRUE))
 # Select MoFuSS platform:
-webmofuss = 1 # "1" is  web-MoFuSS running in our Ubuntu server, "0" is localcal host (Windows or Linux)
+#webmofuss = 1 # "1" is  web-MoFuSS running in our Ubuntu server, "0" is localcal host (Windows or Linux)
 if (start_from_scratch == 1){webmofuss = 0}
+
+source(paste0(scriptsmofuss,"00_webmofuss.R"))
 
 # Load libraries ----
 library(stringr)
@@ -18,7 +20,6 @@ library(purrr)
 library(tcltk)
 library(dplyr)
 library(readxl)
-library(readr)
 
 # Detect OS
 os <- Sys.info()["sysname"]
@@ -26,14 +27,14 @@ os <- Sys.info()["sysname"]
 if (webmofuss == 1) {
   
   # 1km
-  gitlabdir <- "/home/mofuss/Documents/mofuss"
-  countrydir <- "/home/mofuss/global1000m"
+  #gitlabdir <- "/home/mofuss/Documents/mofuss"
+  #countrydir <- "/home/mofuss/global1000m"
   # country <- "C:\\Users\\aghil\\Documents\\mofuss\\countries\\Global.tif"
-  demanddir <- "/home/mofuss/demand"
-  admindir <- "/home/mofuss/admin_regions"
-  emissionsdir <- "/home/mofuss/emissions"
-  rTempdir <- "/home/mofuss/rTemp"
-  parameters_file_path <- "/home/mofuss/global1000m/LULCC/DownloadedDatasets/SourceDataGlobal/parameters_world1000m.csv"
+  #demanddir <- "/home/mofuss/demand"
+  #admindir <- "/home/mofuss/admin_regions"
+  #emissionsdir <- "/home/mofuss/emissions"
+  #rTempdir <- "/home/mofuss/rTemp"
+  #parameters_file_path <- "/home/mofuss/global1000m/LULCC/DownloadedDatasets/SourceDataGlobal/parameters_world1000m.csv"
   #parameters_file_path <- "/home/mofuss/MDG_1000m_Linuxtest/LULCC/DownloadedDatasets/SourceDataGlobal/parameters_world1000m.xlsx"
   
   # # Extract the country name

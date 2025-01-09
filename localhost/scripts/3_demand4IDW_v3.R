@@ -11,8 +11,8 @@ temdirdefined = 1
 urb_shift_factor <- 1 # Only works with byregion == Country (Check code lines 89-91 before adjusting this).
 # For Nepal use 10.
 # Select MoFuSS platform:
-webmofuss = 1 # "1" is  web-MoFuSS running in our Ubuntu server, "0" is localcal host (Windows or Linux)
-
+# webmofuss = 1 # "1" is  web-MoFuSS running in our Ubuntu server, "0" is localcal host (Windows or Linux)
+source(paste0(scriptsmofuss,"00_webmofuss.R"))
 # Load libraries ----
 library(terra)
 terraOptions(steps = 55)
@@ -23,7 +23,7 @@ if (temdirdefined == 1) {
 library(tidyterra)
 library(tidyverse)
 library(sf)
-library(mapview)
+#library(mapview)
 library(readxl)
 library(hacksaw)
 library(tictoc)

@@ -80,23 +80,6 @@ It is needed to run the following script **just once in each new node** (i.e. ne
    * 4.- `YourMoFuSSWorkingDirectory/In/locs_c_w.tif`
    * 5.- `YourMoFuSSWorkingDirectory/In/DemandScenarios/BaU_fwch_v.csv`
    * 6.- `YourMoFuSSWorkingDirectory/In/DemandScenarios/BaU_fwch_w.csv`
-<br><br>
-<figure style="margin-top:20px; margin-bottom:20px;">
-  <figcaption style="font-style:italic; color:red; text-align:center; margin-bottom:10px;">Figure 1: Description of the image goes here.</figcaption>
-  <img src="https://github.com/mofuss/mofuss/blob/main/localhost/scripts/LULCC/Wizard_imgs/IDW_upload.PNG" alt="Alt text" style="width:50%;">
-</figure>
-<figure style="margin-top:20px; margin-bottom:20px;">
-  <figcaption style="font-style:italic; color:red; text-align:center; margin-bottom:10px;">Figure 2: Description of the image goes here.</figcaption>
-  <img src="https://github.com/mofuss/mofuss/blob/main/localhost/scripts/LULCC/Wizard_imgs/IDW_para1.PNG" alt="Alt text" style="width:50%;">
-</figure>
-<figure style="margin-top:20px; margin-bottom:20px;">
-  <figcaption style="font-style:italic; color:red; text-align:center; margin-bottom:10px;">Figure 3: Description of the image goes here.</figcaption>
-  <img src="https://github.com/mofuss/mofuss/blob/main/localhost/scripts/LULCC/Wizard_imgs/IDW_para2.PNG" alt="Alt text" style="width:50%;">
-</figure>
-<br><br>
-
-
-
 
 ### Stage 3: Final Analysis and report generation.
 #### Preparing your environment: Setting up LaTeX for final reports
