@@ -48,11 +48,6 @@ if (webmofuss == 1) {
   # borderdir <- "E:/borders"
   # lulccfiles <- "E:/lulcc"
   
-  # Prompt the user to select the "parameters.xlsx" file
-  # parameters_file_path <- tk_choose.files(default = "", caption = "Select the 'parameters.xlsx' file", 
-  #                                         multi = FALSE, filters = matrix(c("Excel Files", "*.xlsx"), 1, 2))
-  # parameters_file <- basename(parameters_file_path)
-  
   # Read parameters table ----
   country_parameters <- read_csv(paste0("LULCC/DownloadedDatasets/SourceData",country_name,"/",parameters_file))
   print(tibble::as_tibble(country_parameters), n=100)
@@ -76,24 +71,7 @@ if (webmofuss == 1) {
   } else {
     cat("Error in AoI selection and/or resolution \n")
   }
-  
-  # # Rebuild this chunk
-  # if(.Platform$OS.type == "unix")  {
-  #   country<-tk_choose.files(default=paste0(gitlabdir,"/countries/*.*"))
-  #   country[2]
-  #   res <- str_match(country[2], "countries/(.*?).tif")
-  #   country_name <- res[,2]
-  # } else {
-  #   country<-choose.files(default=paste0(gitlabdir,"/countries/*.*"))
-  #   country
-  #   res <- str_match(country, "countries\\\\s*(.*?)\\s*.tif")
-  #   res[,2]
-  #   # Extract the country name
-  #   country_name <- gsub(pattern = "(.*countries[\\])(.*)(.tif.*)",
-  #                        replacement = "\\2",
-  #                        country)
-  # }
-  
+
   print("Input datasets already in place")
   
   # Rename SourceData main directory ----
@@ -131,7 +109,6 @@ if (webmofuss == 1) {
   } else {
     message("No valid file selected.")
   }
-  
   
   # Clean MoFuSS working folder ----
   unlink(paste0(countrydir,"/LULCC/DownloadedDatasets/SourceData",country_name,"/InTables"), recursive= TRUE, force=TRUE)
