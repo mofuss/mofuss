@@ -39,7 +39,6 @@ os <- Sys.info()["sysname"]
 
 setwd(countrydir)
 getwd()
-country_name
 
 # Read parameters table ----
 if (webmofuss == 1) {
