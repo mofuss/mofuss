@@ -29,11 +29,15 @@ getwd()
 country_name
 
 # Read parameters table ----
-read.csv("LULCC/TempTables/Country.csv") %>%
-  dplyr::filter(Key. == "1") %>%
-  pull(Country) -> country_name
-country_parameters <- read_csv(paste0("LULCC/DownloadedDatasets/SourceData",country_name,"/",parameters_file))
-print(tibble::as_tibble(country_parameters), n=100)
+if (webmofuss == 1) {
+  country_parameters <- read_csv(parameters_file_path)
+} else if(webmofuss == 0) {
+  read.csv("LULCC/TempTables/Country.csv") %>%
+    dplyr::filter(Key. == "1") %>%
+    pull(Country) -> country_name
+  country_parameters <- read_csv(paste0("LULCC/DownloadedDatasets/SourceData",country_name,"/",parameters_file))
+  print(tibble::as_tibble(country_parameters), n=100)
+}
 
 # # Specify the directory where the file is located
 # parameters_directory <- paste0(getwd(),"/LULCC/DownloadedDatasets/SourceData",country_name)
