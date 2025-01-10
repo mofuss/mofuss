@@ -334,7 +334,7 @@ if (byregion == "Global"){
   # lines(adm0_reg, lwd=2)
   pop0_K <- crop(pop0, ext(adm0_reg) + .01)
   if (os == "Windows") {
-    pop0_reg <- mask(pop0_K, adm0_reg) #THIS BREAKS IN UBUNTU
+    pop0_reg <- mask(pop0_K, adm0_reg) # THIS BREAKS IN UBUNTU NA WINDOWS AS ELL
   } else if(os == "Linux") {
     pop0_reg <- pop0_K
   }
