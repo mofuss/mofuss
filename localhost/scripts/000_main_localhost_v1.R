@@ -11,8 +11,8 @@ library(telegram.bot)
 runGADM <- 0
 
 # Telegram Bot Setup ----
-telegram_token <- "7926603565:AAG7Nb56jbBdZbdBrcZBSs688oupZVk9RwU"  # Replace with your bot token
-chat_id <- "252483477"  # Replace with your chat ID
+telegram_token <- "ADD BOT TOKEN FROM SECRET FOLDER"  # Replace with your bot token
+chat_id <- "ADD CHAT ID FROM SECRET FOLDER"  # Replace with your chat ID
 bot <- Bot(token = telegram_token)
 
 send_telegram_message <- function(message) {
