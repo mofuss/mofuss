@@ -495,7 +495,7 @@ if (webmofuss == 1) {
   country_parameters_prelim <- read_delim(parameters_file_path, delim = delimiter)
   print(tibble::as_tibble(country_parameters_prelim), n=100)
   
-  country_parameters %>%
+  country_parameters_prelim %>%
     dplyr::filter(Var == "GEE_tyRoi") %>%
     pull(ParCHR) -> GEE_tyRoi
   if (GEE_tyRoi == "world") {
