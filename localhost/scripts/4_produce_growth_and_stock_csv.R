@@ -47,8 +47,8 @@ if (webmofuss == 1) {
   # Detect the delimiter
   delimiter <- detect_delimiter(parameters_file_path)
   # Read the CSV file with the detected delimiter
-  country_parameters_prelim <- read_delim(parameters_file_path, delim = delimiter)
-  print(tibble::as_tibble(country_parameters_prelim), n=100)
+  country_parameters <- read_delim(parameters_file_path, delim = delimiter)
+  print(tibble::as_tibble(country_parameters), n=100)
 }
 
 # # Specify the directory where the file is located

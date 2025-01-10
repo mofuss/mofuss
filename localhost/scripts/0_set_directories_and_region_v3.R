@@ -49,18 +49,18 @@ if (webmofuss == 1) {
   # lulccfiles <- "E:/lulcc"
   
   # Read parameters table ----
-  country_parameters_prelim <- read_csv(parameters_file_path)
-  #print(tibble::as_tibble(country_parameters_prelim), n=100)
+  country_parameters <- read_csv(parameters_file_path)
+  #print(tibble::as_tibble(country_parameters), n=100)
   
-  country_parameters_prelim %>%
+  country_parameters %>%
     dplyr::filter(Var == "byregion") %>%
     pull(ParCHR) -> byregion
   
-  country_parameters_prelim %>%
+  country_parameters %>%
     dplyr::filter(Var == "region2BprocessedCtry") %>%
     pull(ParCHR) -> region2BprocessedCtry
   
-  country_parameters_prelim %>%
+  country_parameters %>%
     dplyr::filter(Var == "GEE_scale") %>%
     pull(ParCHR) -> GEE_scale
   
@@ -144,7 +144,7 @@ if (webmofuss == 1) {
                             pattern = "\\.csv$|\\.xlsx$", 
                             full.names = TRUE)
   
-  country_parameters_prelim %>%
+  country_parameters %>%
     dplyr::filter(Var == "GEE_tyRoi") %>%
     pull(ParCHR) -> GEE_tyRoi
   if (GEE_tyRoi == "world") {
@@ -218,8 +218,8 @@ if (webmofuss == 1) {
     # Detect the delimiter
     delimiter <- detect_delimiter(parameters_file_path)
     # Read the CSV file with the detected delimiter
-    country_parameters_prelim <- read_delim(parameters_file_path, delim = delimiter)
-    print(tibble::as_tibble(country_parameters_prelim), n=100)
+    country_parameters <- read_delim(parameters_file_path, delim = delimiter)
+    print(tibble::as_tibble(country_parameters), n=100)
     
     choose_directory66 = function(caption = "Choose the location where to create your MoFuSS working folder") {
       if(.Platform$OS.type == "unix")  {
@@ -231,11 +231,11 @@ if (webmofuss == 1) {
     choose_directory66()
     countrydir_prelim <- getwd()
     
-    country_parameters_prelim %>%
+    country_parameters %>%
       dplyr::filter(Var == "GEE_tyRoi") %>%
       pull(ParCHR) -> GEE_tyRoi
     
-    country_parameters_prelim %>%
+    country_parameters %>%
       dplyr::filter(Var == "GEE_country") %>%
       pull(ParCHR) -> GEE_country
     
@@ -245,15 +245,15 @@ if (webmofuss == 1) {
       regionname <- GEE_country
     }
     
-    country_parameters_prelim %>%
+    country_parameters %>%
       dplyr::filter(Var == "GEE_scale") %>%
       pull(ParCHR) -> GEE_scale
     
-    country_parameters_prelim %>%
+    country_parameters %>%
       dplyr::filter(Var == "byregion") %>%
       pull(ParCHR) -> byregion
     
-    country_parameters_prelim %>%
+    country_parameters %>%
       dplyr::filter(Var == "region2BprocessedCtry") %>%
       pull(ParCHR) -> region2BprocessedCtry
     
@@ -381,18 +381,18 @@ if (webmofuss == 1) {
     # Detect the delimiter
     delimiter <- detect_delimiter(parameters_file_path)
     # Read the CSV file with the detected delimiter
-    country_parameters_prelim <- read_delim(parameters_file_path, delim = delimiter)
-    print(tibble::as_tibble(country_parameters_prelim), n=100)
+    country_parameters <- read_delim(parameters_file_path, delim = delimiter)
+    print(tibble::as_tibble(country_parameters), n=100)
     
-    country_parameters_prelim %>%
+    country_parameters %>%
       dplyr::filter(Var == "byregion") %>%
       pull(ParCHR) -> byregion
     
-    country_parameters_prelim %>%
+    country_parameters %>%
       dplyr::filter(Var == "region2BprocessedCtry") %>%
       pull(ParCHR) -> region2BprocessedCtry
     
-    country_parameters_prelim %>%
+    country_parameters %>%
       dplyr::filter(Var == "GEE_scale") %>%
       pull(ParCHR) -> GEE_scale
     
@@ -492,10 +492,10 @@ if (webmofuss == 1) {
   # Detect the delimiter
   delimiter <- detect_delimiter(parameters_file_path)
   # Read the CSV file with the detected delimiter
-  country_parameters_prelim <- read_delim(parameters_file_path, delim = delimiter)
-  print(tibble::as_tibble(country_parameters_prelim), n=100)
+  country_parameters <- read_delim(parameters_file_path, delim = delimiter)
+  print(tibble::as_tibble(country_parameters), n=100)
   
-  country_parameters_prelim %>%
+  country_parameters %>%
     dplyr::filter(Var == "GEE_tyRoi") %>%
     pull(ParCHR) -> GEE_tyRoi
   if (GEE_tyRoi == "world") {
