@@ -208,7 +208,6 @@ if (webmofuss == 1) {
     detect_delimiter <- function(file_path) {
       # Read the first line of the file
       first_line <- readLines(file_path, n = 1)
-      
       # Check if the first line contains ',' or ';'
       if (grepl(";", first_line)) {
         return(";")
@@ -372,7 +371,6 @@ if (webmofuss == 1) {
     detect_delimiter <- function(file_path) {
       # Read the first line of the file
       first_line <- readLines(file_path, n = 1)
-      
       # Check if the first line contains ',' or ';'
       if (grepl(";", first_line)) {
         return(";")
@@ -484,7 +482,6 @@ if (webmofuss == 1) {
   detect_delimiter <- function(file_path) {
     # Read the first line of the file
     first_line <- readLines(file_path, n = 1)
-    
     # Check if the first line contains ',' or ';'
     if (grepl(";", first_line)) {
       return(";")

@@ -36,13 +36,25 @@ getwd()
 
 # Read parameters table ----
 if (webmofuss == 1) {
-	country_parameters <- read_csv(parameters_file_path)
+  # Read parameters table in webmofuss
+  country_parameters <- read_csv(parameters_file_path)
 } else if(webmofuss == 0) {
-	read.csv("LULCC/TempTables/Country.csv") %>%
-	  dplyr::filter(Key. == "1") %>%
-	  pull(Country) -> country_name
-	country_parameters <- read_csv(paste0("LULCC/DownloadedDatasets/SourceData",country_name,"/",parameters_file))
-	print(tibble::as_tibble(country_parameters), n=100)
+  # Read parameters table (recognizing the delimiter)
+  detect_delimiter <- function(file_path) {
+    # Read the first line of the file
+    first_line <- readLines(file_path, n = 1)
+    # Check if the first line contains ',' or ';'
+    if (grepl(";", first_line)) {
+      return(";")
+    } else {
+      return(",")
+    }
+  }
+  # Detect the delimiter
+  delimiter <- detect_delimiter(parameters_file_path)
+  # Read the CSV file with the detected delimiter
+  country_parameters_prelim <- read_delim(parameters_file_path, delim = delimiter)
+  print(tibble::as_tibble(country_parameters_prelim), n=100)
 }
 
 country_parameters %>%
