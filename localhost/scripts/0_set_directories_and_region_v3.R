@@ -204,8 +204,22 @@ if (webmofuss == 1) {
                                             multi = FALSE, filters = matrix(c("CSV Files", "*.csv"), 1, 2))
     parameters_file <- basename(parameters_file_path)
     
-    # Read parameters table ----
-    country_parameters_prelim <- read_csv(parameters_file_path)
+    # Read parameters table (recognizing the delimiter) ----
+    detect_delimiter <- function(file_path) {
+      # Read the first line of the file
+      first_line <- readLines(file_path, n = 1)
+      
+      # Check if the first line contains ',' or ';'
+      if (grepl(";", first_line)) {
+        return(";")
+      } else {
+        return(",")
+      }
+    }
+    # Detect the delimiter
+    delimiter <- detect_delimiter(parameters_file_path)
+    # Read the CSV file with the detected delimiter
+    country_parameters_prelim <- read_delim(parameters_file_path, delim = delimiter)
     print(tibble::as_tibble(country_parameters_prelim), n=100)
     
     choose_directory66 = function(caption = "Choose the location where to create your MoFuSS working folder") {
@@ -354,8 +368,22 @@ if (webmofuss == 1) {
                                             multi = FALSE, filters = matrix(c("CSV Files", "*.csv"), 1, 2))
     parameters_file <- basename(parameters_file_path)
     
-    # Read parameters table ----
-    country_parameters_prelim <- read_csv(parameters_file_path)
+    # Read parameters table (recognizing the delimiter) ----
+    detect_delimiter <- function(file_path) {
+      # Read the first line of the file
+      first_line <- readLines(file_path, n = 1)
+      
+      # Check if the first line contains ',' or ';'
+      if (grepl(";", first_line)) {
+        return(";")
+      } else {
+        return(",")
+      }
+    }
+    # Detect the delimiter
+    delimiter <- detect_delimiter(parameters_file_path)
+    # Read the CSV file with the detected delimiter
+    country_parameters_prelim <- read_delim(parameters_file_path, delim = delimiter)
     print(tibble::as_tibble(country_parameters_prelim), n=100)
     
     country_parameters_prelim %>%
@@ -452,9 +480,23 @@ if (webmofuss == 1) {
                             pattern = "\\.csv$|\\.xlsx$", 
                             full.names = TRUE)
   
-  # Read the CSV file
-  country_parameters <- read_csv(destination_dir)
-  print(tibble::as_tibble(country_parameters), n=100)
+  # Read parameters table (recognizing the delimiter) ----
+  detect_delimiter <- function(file_path) {
+    # Read the first line of the file
+    first_line <- readLines(file_path, n = 1)
+    
+    # Check if the first line contains ',' or ';'
+    if (grepl(";", first_line)) {
+      return(";")
+    } else {
+      return(",")
+    }
+  }
+  # Detect the delimiter
+  delimiter <- detect_delimiter(parameters_file_path)
+  # Read the CSV file with the detected delimiter
+  country_parameters_prelim <- read_delim(parameters_file_path, delim = delimiter)
+  print(tibble::as_tibble(country_parameters_prelim), n=100)
   
   country_parameters %>%
     dplyr::filter(Var == "GEE_tyRoi") %>%
