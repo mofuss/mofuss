@@ -55,7 +55,6 @@ for (country in countries) {
         admin_filename_pattern <- paste0(admin_level, ".*", filename_pattern)
         
         data <- process_files(directory_path, admin_filename_pattern, nrb_col, harvest_col, fnrb_col, x_col)
-        data <- add_mozambique_variation(data, country, add_random_variation, filename_pattern, col_selector)
         
         for (y_col in c(nrb_col, harvest_col, fnrb_col)) {
             data <- data %>%

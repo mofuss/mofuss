@@ -70,48 +70,6 @@ validate_data_for_marginals <- function(data, value_col, x_col) {
     return(TRUE)
 } 
 
-add_mozambique_variation <- function(data, country, add_random_variation, filename_pattern, col_selector) {
-    if (country != "mozambique" || !add_random_variation) {
-        return(data)
-    }
-    
-    # Handle harvest variation
-    if (str_detect(filename_pattern, "frcompl")) {
-        col_name <- if(str_detect(col_selector, "1mc")) {
-            "Harv_2020_2030_1MC"
-        } else if (str_detect(col_selector, "mean")) {
-            "Harv_2020_2030_mean"
-        }
-        if (!is.null(col_name)) {
-            data <- data %>%
-                mutate(!!col_name := .data[[col_name]] * (1.1 + rnorm(n(), mean = 0, sd = 0.3)))
-        }
-    }
-    
-    # Handle NRB variation
-    if (str_detect(filename_pattern, "fr")) {
-        col_name <- if(str_detect(col_selector, "1mc")) {
-            "NRB_2020_2030_1MC"
-        } else if (str_detect(col_selector, "mean")) {
-            "NRB_2020_2030_mean"
-        }
-        if (!is.null(col_name)) {
-            data <- data %>%
-                mutate(!!col_name := .data[[col_name]] * (1.1 + rnorm(n(), mean = 0, sd = 0.3)))
-        }
-    }
-    # Handle fNRB variation
-    if (str_detect(filename_pattern, "fnrb")) {
-        col_name <- if(str_detect(col_selector, "1mc")) {
-            "fNRB_2020_2030_1MC"
-        } else if (str_detect(col_selector, "mean")) {
-            "fNRB_2020_2030_mean"
-        }
-    }
-    
-    return(data)
-}
-
 
 collect_marginal_data <- function(data, country, admin_level, fnrb_col, nrb_col, harvest_col) {
     
