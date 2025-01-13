@@ -5,6 +5,7 @@
 # 2dolist ----
 # Fix for linux cluster
 # Land Use Land Cover Module
+# Improve add_subadmin YES/NO, che it works as mask == analysis for any of the four scales: Global, Continental, Regional, Country.
 
 # Internal parameters ----
 # Attraction buffer zones (in linear meters)
@@ -322,17 +323,21 @@ if (GEpoly == 1) {
       unique() %>%
       arrange(NAME_0)
     
-    country.input <- dlgList(as.character(countries.list[ , ]),
-                             preselect = "Kenya",
-                             multiple = FALSE, # Check if multiple countries or values is doable
-                             title = "Choose one country to process",
-                             gui = .GUI
-    )
-    mofuss_country <- country.input$res
-    
-    extent_mask0 %>%
-      terra::subset(.$NAME_0 == mofuss_country) %>% #Remember to change in the parameters table
-      st_write("InVector/extent_analysis.gpkg", overwrite = TRUE)
+    if (add_subadmin == "YES"){
+      country.input <- dlgList(as.character(countries.list[ , ]),
+                               preselect = "Kenya",
+                               multiple = FALSE, # Check if multiple countries or values is doable
+                               title = "Choose one country to process",
+                               gui = .GUI
+      )
+      mofuss_country <- country.input$res
+      
+      extent_mask0 %>%
+        terra::subset(.$NAME_0 == mofuss_country) %>% #Remember to change in the parameters table
+        st_write("InVector/extent_analysis.gpkg", overwrite = TRUE)
+    } else if (add_subadmin == "NO"){
+      print("Nothing Happens")
+    }
     
     # ADM LEVEL = 1, when running ADM LEVEL = 0
     mask1list <- paste0("regions_adm1_p/",list.files(path = paste0("regions_adm1_p/"),
@@ -362,7 +367,6 @@ if (GEpoly == 1) {
     
   }
   
-  
   if (byregion == "Regional"){ ## Regional ----
     
     extent_mask0 <- vect(st_read(paste0("regions_adm0_p/",mofuss_region,"_p.gpkg")))
@@ -374,6 +378,7 @@ if (GEpoly == 1) {
       unique() %>%
       arrange(NAME_0)
     
+    if (add_subadmin == "YES"){ 
     country.input <- dlgList(as.character(countries.list[ , ]),
                              preselect = "Kenya",
                              multiple = FALSE, # Check if multiple countries or values is doable
@@ -381,10 +386,14 @@ if (GEpoly == 1) {
                              gui = .GUI
     )
     mofuss_country <- country.input$res
-    
+
     extent_mask0 %>%
       terra::subset(.$NAME_0 == mofuss_country) %>% #Remember to change in the parameters table
       terra::writeVector("InVector/extent_analysis.gpkg", overwrite = TRUE)
+
+    } else if (add_subadmin == "NO"){
+      print("Nothing Happens")
+    }
     
     # ADM LEVEL = 1, when running ADM LEVEL = 0
     mofuss_regions1_gpkg <- vect("regions_adm1_p/mofuss_regions1_p.gpkg")
