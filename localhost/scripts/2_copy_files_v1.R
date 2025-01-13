@@ -83,22 +83,64 @@ if (os == "Windows") {
   system("bash LULCC/RpathOSsystem2.sh", intern = FALSE)
 }
 
-# Process .txt files for Dinamica EGO ----
-stx <- read.table("LULCC/TempTables/Rpath.txt", stringsAsFactors = FALSE)
-st <- as.character(stx$V1)
-m <- data.frame(`Key*` = 1, Rpath = st)
-write.csv(m, "LULCC/TempTables/Rpath.csv", row.names = FALSE)
+# Process .txt to be properly read by Dinamica EGO ----
+stx = read.table("LULCC/TempTables/Rpath.txt")
+stx$V1
+st<-as.character(stx$V1)
+m <- matrix(c(1,st),ncol = 2, nrow = 1)
+m <- as.data.frame(m)
+m$V1 <- as.integer(as.character(m$V1))
+colnames(m)<-c("Key*","Rpath")
+m
+write.csv(m, "LULCC/TempTables/Rpath.csv",row.names=FALSE)
 
 if (os == "Windows") {
-  OSstx <- read.table("LULCC/TempTables/OS_type.txt", stringsAsFactors = FALSE)
-  OSst <- as.character(OSstx$V1)
-  OSm <- data.frame(`Key*` = 1, OS = as.integer(ifelse(OSst == "64-bit", 64, ifelse(OSst == "32-bit", 32, NA))))
-  write.csv(OSm, "LULCC/TempTables/OStype.csv", row.names = FALSE)
+  # Process .txt to be properly read by Dinamica EGO ----
+  OSstx = read.table("LULCC/TempTables/OS_type.txt")
+  OSstx$V1
+  OSst<-as.character(OSstx$V1)
+  OSm <- matrix(c(1,OSst),ncol = 2, nrow = 1)
+  OSm <- as.data.frame(OSm)
+  OSm$V1 <- as.integer(as.character(OSm$V1))
+  OSm$V2 <- as.integer(as.character(OSm$V2))
+  colnames(OSm)<-c("Key*","OS")
+  str(OSm)
+  write.csv(OSm, "LULCC/TempTables/OStype.csv",row.names=FALSE)
+  
+  # # chatGPT:
+  # OSstx <- read.table("LULCC/TempTables/OS_type.txt", stringsAsFactors = FALSE)
+  # OSst <- as.character(OSstx$V1)
+  # OSm <- data.frame(`Key*` = 1, OS = as.integer(ifelse(OSst == "64-bit", 64, ifelse(OSst == "32-bit", 32, NA))))
+  # write.csv(OSm, "LULCC/TempTables/OStype.csv", row.names = FALSE)
+  
+  
+  
 } else if (os == "Linux") {
+  # Process .txt to be properly read by Dinamica EGO ----
+  
+  # Read the OS type from the file
   OSstx <- read.table("LULCC/TempTables/OS_type.txt", stringsAsFactors = FALSE)
+  
+  # Extract the OS type and ensure it's read as a character
   OSst <- as.character(OSstx$V1)
-  OSm <- data.frame(`Key*` = 1, OS = as.integer(ifelse(OSst == "64-bit", 64, ifelse(OSst == "32-bit", 32, NA))))
+  
+  # Convert the OS type to an integer for consistency
+  OS_code <- ifelse(OSst == "64-bit", 64, ifelse(OSst == "32-bit", 32, NA))
+  
+  # Create a data frame with the required format
+  OSm <- data.frame(`Key*` = 1, OS = OS_code)
+  
+  # Check the structure of the resulting data frame
+  str(OSm)
+  
+  # Write the data frame to a CSV file
   write.csv(OSm, "LULCC/TempTables/OStype.csv", row.names = FALSE)
+  
+  # # chatGPT:
+  # OSstx <- read.table("LULCC/TempTables/OS_type.txt", stringsAsFactors = FALSE)
+  # OSst <- as.character(OSstx$V1)
+  # OSm <- data.frame(`Key*` = 1, OS = as.integer(ifelse(OSst == "64-bit", 64, ifelse(OSst == "32-bit", 32, NA))))
+  # write.csv(OSm, "LULCC/TempTables/OStype.csv", row.names = FALSE)
 }
 
 # Process country selection ----
