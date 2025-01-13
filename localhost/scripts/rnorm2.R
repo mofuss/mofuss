@@ -45,7 +45,7 @@ args=(commandArgs(TRUE))
 if(length(args)==0){
   print("No arguments supplied by DINAMICA.")
   ##Supply default values here (to be used when running the script through R directly)
-  MC=30# MonteCarlo runs
+  MC=2# MonteCarlo runs
   IT=2010 # Initial year
   K_MC=1
   TOF_MC=1
@@ -132,11 +132,33 @@ read.csv("LULCC/TempTables/Country.csv") %>%
 parameters_directory <- paste0(getwd(),"/LULCC/DownloadedDatasets/SourceData",country_name)
 
 # Use list.files() to find the file that matches the pattern
-parameters_name <- list.files(path = parameters_directory, pattern = "^parameters.*\\.xlsx$", full.names = TRUE)
+parameters_name <- list.files(path = parameters_directory, pattern = "^parameters.*\\.csv$", full.names = TRUE)
 
 # Read the Excel file
-country_parameters <- read_excel(parameters_name)
+country_parameters <- read_csv(parameters_name)
 print(tibble::as_tibble(country_parameters), n=30)
+
+# if (webmofuss == 1) {
+#   # Read parameters table in webmofuss
+#   country_parameters <- read_csv(parameters_file_path)
+# } else if(webmofuss == 0) {
+#   # Read parameters table (recognizing the delimiter)
+#   detect_delimiter <- function(file_path) {
+#     # Read the first line of the file
+#     first_line <- readLines(file_path, n = 1)
+#     # Check if the first line contains ',' or ';'
+#     if (grepl(";", first_line)) {
+#       return(";")
+#     } else {
+#       return(",")
+#     }
+#   }
+#   # Detect the delimiter
+#   delimiter <- detect_delimiter(parameters_file_path)
+#   # Read the CSV file with the detected delimiter
+#   country_parameters <- read_delim(parameters_file_path, delim = delimiter)
+#   print(tibble::as_tibble(country_parameters), n=100)
+# }
 
 # country_parameters %>%
 #   dplyr::filter(Var == "LULCt1map") %>%
