@@ -82,15 +82,15 @@ It is needed to run the following script **just once in each new node** (i.e. ne
    * 6.- `YourMoFuSSWorkingDirectory/In/DemandScenarios/BaU_fwch_w.csv`
 <br><br>
 <figure style="margin-top:20px; margin-bottom:20px;">
-  <figcaption style="font-style:italic; color:red; text-align:center; margin-bottom:10px;">Figure 1: Description of the image goes here.</figcaption>
+  <figcaption style="font-style:italic; color:red; text-align:center; margin-bottom:10px;">Figure 1: Load the six files in the correct order as shown here.</figcaption>
   <img src="https://github.com/mofuss/mofuss/blob/main/localhost/scripts/LULCC/Wizard_imgs/IDW_upload.PNG" alt="Alt text" style="width:50%;">
 </figure>
 <figure style="margin-top:20px; margin-bottom:20px;">
-  <figcaption style="font-style:italic; color:red; text-align:center; margin-bottom:10px;">Figure 2: Description of the image goes here.</figcaption>
+  <figcaption style="font-style:italic; color:red; text-align:center; margin-bottom:10px;">Figure 2: Tune IDW parameters or leave default values.</figcaption>
   <img src="https://github.com/mofuss/mofuss/blob/main/localhost/scripts/LULCC/Wizard_imgs/IDW_para1.PNG" alt="Alt text" style="width:50%;">
 </figure>
 <figure style="margin-top:20px; margin-bottom:20px;">
-  <figcaption style="font-style:italic; color:red; text-align:center; margin-bottom:10px;">Figure 3: Description of the image goes here.</figcaption>
+  <figcaption style="font-style:italic; color:red; text-align:center; margin-bottom:10px;">Figure 3: Add the years to be run, 1-41 is recomended: 2010-2050.</figcaption>
   <img src="https://github.com/mofuss/mofuss/blob/main/localhost/scripts/LULCC/Wizard_imgs/IDW_para2.PNG" alt="Alt text" style="width:50%;">
 </figure>
 <br><br>
@@ -115,14 +115,12 @@ All output files will be saved in: `YourMoFuSSWorkingDirectory/OutBaU/`
 
 ### Changing your area of interest
 When changing the Area of Interest you might keep working on the same MoFuSS directory in which case all previous results will be overwritten. Or just create a new folder to run the new simulations.
-* 1.- You first need to adust the parameters in `YourMoFuSSWorkingDirectory/LULCC/DownloadedDatasets/SourceData*/parameters_*.csv (or xlsx)` accordingly.
-* 2.- Re-run from Stage 1 but starting in script # 4.- `mofuss/localhost/scripts/3_demand4IDW_v3.R`
-
-👀 If you have any feedback on this documentation, please feel free to reach out to us at: aghilardi@ciga.unam.mx.
-
-### Changing your area of interest
-When changing the Area of Interest you might keep working on the same MoFuSS directory in which case all previous results will be overwritten. Or just create a new folder to run the new simulations.
-* 1.- You first need to adust the parameters in `YourMoFuSSWorkingDirectory/LULCC/DownloadedDatasets/SourceData*/parameters_*.csv (or xlsx)` accordingly.
+* 1.- You first need to adust the parameters in `YourMoFuSSWorkingDirectory/LULCC/DownloadedDatasets/SourceData*/parameters_*.csv`.
+   * a) For 1000m simulations, you need to adjust the following variables in the section: **Region to be processed**:
+      * a.1) `byregion`, being the options: `Continental`, `Regional`, `Country`
+      * a.2) Depending on the previous selection, you need to adjust `region2BprocessedCont` or `region2BprocessedReg`, or `region2BprocessedCtry` accordingly. The options for each case can be found [here](https://github.com/mofuss/mofuss/tree/main/parameters).
+      * Note: If you need a new region built from a different set of countries, please contact aghilardi@ciga.unam.mx.
+   * b) Alternatively, you can generate a brand new and functional parameters .csv table from the [MoFuSS-US tool[(https://www.mofuss.unam.mx/webmofuss/).
 * 2.- Re-run from Stage 1 but starting in script # 4.- `mofuss/localhost/scripts/3_demand4IDW_v3.R`
 
 👀 If you have any feedback on this documentation, please feel free to reach out to us at: aghilardi@ciga.unam.mx.
