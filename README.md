@@ -36,7 +36,7 @@ Alternatively, if you wish to download all or some MoFuSS datasets from scratch,
     * Use pacman if desired:
     ```
     if (!require("pacman")) install.packages("pacman")
-    pacman::p_load(dplyr, fasterize, fs, gdata, gitlabr, glue, hacksaw, igraph, inline, mapview, purrr, raster, readr, readxl, rgl, rlang, rmapshaper, rprojroot, rstudioapi, sf, spam, stars, stringr, svDialogs, tcltk, terra, tibble, tictoc, tidyterra, tidyverse)
+    pacman::p_load(dplyr, fasterize, fs, gdata, gitlabr, glue, hacksaw, igraph, inline, mapview, purrr, raster, readr, readxl, rgl, rlang, rmapshaper, sf, spam, stars, stringr, svDialogs, tcltk, terra, tibble, tictoc, tidyterra, tidyverse)
     ```
     Please note that `rmapshaper` needs [Node.js](https://nodejs.org/) to be installed.
   
@@ -80,6 +80,23 @@ It is needed to run the following script **just once in each new node** (i.e. ne
    * 4.- `YourMoFuSSWorkingDirectory/In/locs_c_w.tif`
    * 5.- `YourMoFuSSWorkingDirectory/In/DemandScenarios/BaU_fwch_v.csv`
    * 6.- `YourMoFuSSWorkingDirectory/In/DemandScenarios/BaU_fwch_w.csv`
+<br><br>
+<figure style="margin-top:20px; margin-bottom:20px;">
+  <figcaption style="font-style:italic; color:red; text-align:center; margin-bottom:10px;">Figure 1: Description of the image goes here.</figcaption>
+  <img src="https://github.com/mofuss/mofuss/blob/main/localhost/scripts/LULCC/Wizard_imgs/IDW_upload.PNG" alt="Alt text" style="width:50%;">
+</figure>
+<figure style="margin-top:20px; margin-bottom:20px;">
+  <figcaption style="font-style:italic; color:red; text-align:center; margin-bottom:10px;">Figure 2: Description of the image goes here.</figcaption>
+  <img src="https://github.com/mofuss/mofuss/blob/main/localhost/scripts/LULCC/Wizard_imgs/IDW_para1.PNG" alt="Alt text" style="width:50%;">
+</figure>
+<figure style="margin-top:20px; margin-bottom:20px;">
+  <figcaption style="font-style:italic; color:red; text-align:center; margin-bottom:10px;">Figure 3: Description of the image goes here.</figcaption>
+  <img src="https://github.com/mofuss/mofuss/blob/main/localhost/scripts/LULCC/Wizard_imgs/IDW_para2.PNG" alt="Alt text" style="width:50%;">
+</figure>
+<br><br>
+
+
+
 
 ### Stage 3: Final Analysis and report generation.
 #### Preparing your environment: Setting up LaTeX for final reports
@@ -95,6 +112,13 @@ It is needed to run the following script **just once in each new node** (i.e. ne
 
 #### Retrieve results
 All output files will be saved in: `YourMoFuSSWorkingDirectory/OutBaU/`
+
+### Changing your area of interest
+When changing the Area of Interest you might keep working on the same MoFuSS directory in which case all previous results will be overwritten. Or just create a new folder to run the new simulations.
+* 1.- You first need to adust the parameters in `YourMoFuSSWorkingDirectory/LULCC/DownloadedDatasets/SourceData*/parameters_*.csv (or xlsx)` accordingly.
+* 2.- Re-run from Stage 1 but starting in script # 4.- `mofuss/localhost/scripts/3_demand4IDW_v3.R`
+
+👀 If you have any feedback on this documentation, please feel free to reach out to us at: aghilardi@ciga.unam.mx.
 
 ### Changing your area of interest
 When changing the Area of Interest you might keep working on the same MoFuSS directory in which case all previous results will be overwritten. Or just create a new folder to run the new simulations.
