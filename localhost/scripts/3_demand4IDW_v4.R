@@ -124,8 +124,12 @@ country_parameters %>%
   pull(ParCHR) -> demand_col
 
 country_parameters %>%
-  dplyr::filter(Var == "GEpoly") %>%
-  pull(ParCHR) -> GEpoly
+  dplyr::filter(Var == "aoi_poly") %>%
+  pull(ParCHR) -> aoi_poly
+
+country_parameters %>%
+  dplyr::filter(Var == "aoi_poly_file") %>%
+  pull(ParCHR) -> aoi_poly_file
 
 setwd(demanddir)
 
@@ -204,11 +208,11 @@ countries.list <-  mofuss_regions0 %>%
   arrange(NAME_0)
 
 # Select a region
-if (GEpoly == 1) {
-  # Handle the case where GEpoly is 1, regardless of byregion
-  cat("GEpoly is set to 1. This overrides other conditions.\n")
+if (aoi_poly == 1) {
+  # Handle the case where aoi_poly is 1, regardless of byregion
+  cat("aoi_poly is set to 1. This overrides other conditions.\n")
   # Define file paths
-  kml_file_path <- Sys.glob(paste0(countrydir,"/LULCC/SourceData/InVector_GCS/*.kml"))
+  kml_file_path <- Sys.glob(paste0(countrydir,"/LULCC/SourceData/InVector_GCS/",aoi_poly_file))
     # Read the SpatVector files
   kml_data <- vect(kml_file_path) # Read the .kml file
   # plot(kml_data)
@@ -247,7 +251,7 @@ if (GEpoly == 1) {
   cat("The GID_0 with the largest overlap is:", largest_overlap$GID_0, "\n")
   cat("Overlapping area:", largest_overlap$total_area, "km²\n") 
 
-} else if (byregion == "Continental" & GEpoly == 0) {
+} else if (byregion == "Continental" & aoi_poly == 0) {
   country_parameters %>%
     dplyr::filter(Var == "region2BprocessedCont") %>%
     pull(ParCHR) -> mofuss_region
@@ -259,7 +263,7 @@ if (GEpoly == 1) {
     print(mofuss_region)
   }
   
-} else if (byregion == "Regional" & GEpoly == 0) {
+} else if (byregion == "Regional" & aoi_poly == 0) {
   country_parameters %>%
     dplyr::filter(Var == "region2BprocessedReg") %>%
     pull(ParCHR) -> mofuss_region
@@ -270,7 +274,7 @@ if (GEpoly == 1) {
     cat("You selected:\n")
     print(mofuss_region)
   }
-} else if (byregion == "Country" & GEpoly == 0) {
+} else if (byregion == "Country" & aoi_poly == 0) {
   country_parameters %>%
     dplyr::filter(Var == "region2BprocessedCtry") %>%
     pull(ParCHR) -> mofuss_region
@@ -322,9 +326,9 @@ furb_who <- whodb %>% # algo pasa con algunas librerias rio abajo que rompen est
 # La suma total en la resolución nativa: HRSL: 56,861,964.76; GPW: 44,953,897.44.
 pop0 <- rast(poprast) #in base year
 
-if (GEpoly == 1) {
-  # Handle the case where GEpoly is 1, regardless of byregion
-  cat("GEpoly is set to 1. This overrides other conditions.\n")
+if (aoi_poly == 1) {
+  # Handle the case where aoi_poly is 1, regardless of byregion
+  cat("aoi_poly is set to 1. This overrides other conditions.\n")
   print("***NOW RUNNING GLOBAL DEMAND SCENARIOS - Polygon***")
   adm0_reg <- mofuss_regions0_gpkg %>% 
     dplyr::filter(GID_0 == mofuss_region_kml) # Check if multiple countries or values is doable
@@ -338,7 +342,7 @@ if (GEpoly == 1) {
   lines(adm0_reg)
   Sys.sleep(10)
   
-} else if (byregion == "Global" & GEpoly == 0) {
+} else if (byregion == "Global" & aoi_poly == 0) {
   print("***NOW RUNNING GLOBAL DEMAND SCENARIOS - Global***")
   adm0_reg <- mofuss_regions0_gpkg
   pop0_K <- crop(pop0, ext(adm0_reg) + .01)
@@ -350,7 +354,7 @@ if (GEpoly == 1) {
   # plot(pop0_reg)
   # lines(adm0_reg)
   
-} else if (byregion == "Continental" & GEpoly == 0) {
+} else if (byregion == "Continental" & aoi_poly == 0) {
   print("***NOW RUNNING CONTINENTAL DEMAND SCENARIOS - Continental***")
   adm0_reg <- mofuss_regions0_gpkg %>%
     dplyr::filter(grepl(paste0(mofuss_region,"*"), mofuss_reg))
@@ -366,7 +370,7 @@ if (GEpoly == 1) {
   lines(adm0_reg)
   Sys.sleep(10)
   
-} else if (byregion == "Regional" & GEpoly == 0) {
+} else if (byregion == "Regional" & aoi_poly == 0) {
   print("***NOW RUNNING REGION DEMAND SCENARIOS - Country***")
   adm0_reg <- mofuss_regions0_gpkg %>% 
     dplyr::filter(grepl(mofuss_region, mofuss_reg))
@@ -382,7 +386,7 @@ if (GEpoly == 1) {
   lines(adm0_reg)
   Sys.sleep(10)
   
-} else if (byregion == "Country" & GEpoly == 0) {
+} else if (byregion == "Country" & aoi_poly == 0) {
   print("***NOW RUNNING COUNTRY DEMAND SCENARIOS***")
   adm0_reg <- mofuss_regions0_gpkg %>% 
     dplyr::filter(NAME_0 == mofuss_region) # Check if multiple countries or values is doable

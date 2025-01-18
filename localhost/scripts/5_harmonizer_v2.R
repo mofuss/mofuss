@@ -118,9 +118,9 @@ country_parameters %>%
   as.integer(.) -> resolution
 
 country_parameters %>%
-  dplyr::filter(Var == "GEpoly") %>%
+  dplyr::filter(Var == "aoi_poly") %>%
   pull(ParCHR) %>%
-  as.integer(.) -> GEpoly
+  as.integer(.) -> aoi_poly
 
 country_parameters %>%
   dplyr::filter(Var == "scenario_ver") %>%
@@ -135,20 +135,67 @@ country_parameters %>%
   pull(ParCHR) -> add_subadmin
 
 # Select a region
-if (byregion == "Continental") {
+if (aoi_poly == 1) {
+  # Handle the case where aoi_poly is 1, regardless of byregion
+  cat("aoi_poly is set to 1. This overrides other conditions.\n")
+  # Define file paths
+  kml_file_path <- Sys.glob(paste0(countrydir,"/LULCC/SourceData/InVector_GCS/",aoi_poly_file))
+  # Read the SpatVector files
+  kml_data <- vect(kml_file_path) # Read the .kml file
+  # plot(kml_data)
+  # Reassign the CRS of kml_data to match mofuss_regions0_gpkg
+  crs(kml_data) <- crs(mofuss_regions0_gpkg)
+  # Ensure both layers are in the same projection
+  if (!crs(mofuss_regions0_gpkg) == crs(kml_data)) {
+    stop("Projections do not match!")
+  }
+  # Intersect the two layers to calculate the overlapping areas
+  overlap <- try(intersect(kml_data, mofuss_regions0_gpkg), silent = TRUE)
+  # Check if the result is valid
+  if (inherits(overlap, "try-error") || is.null(overlap) || length(overlap) == 0) {
+    stop("No valid overlap found between the KML file and the GPKG regions.")
+  }
+  # Add an area column for the overlap polygons
+  overlap$area <- expanse(overlap, unit = "km") # Area in square kilometers
+  # Group by the `GID_0` and sum the overlapping areas for each GID_0
+  overlap_summary <- as.data.frame(overlap) %>%
+    group_by(GID_0) %>%
+    summarise(total_area = sum(area, na.rm = TRUE))
+  # Check if overlap_summary is empty
+  if (nrow(overlap_summary) == 0) {
+    stop("No overlapping regions found.")
+  }
+  # Find the GID_0 with the largest total overlapping area
+  largest_overlap <- overlap_summary[which.max(overlap_summary$total_area), ]
+  
+  # Find the NAME_0 corresponding to the largest_overlap GID_0
+  matching_row <- mofuss_regions0_gpkg[mofuss_regions0_gpkg$GID_0 == largest_overlap$GID_0, ]
+  # Extract the NAME_0 value
+  mofuss_region <- matching_row$NAME_0
+  mofuss_region_kml <- matching_row$GID_0
+  
+  # Print the result
+  cat("The GID_0 with the largest overlap is:", largest_overlap$GID_0, "\n")
+  cat("Overlapping area:", largest_overlap$total_area, "km²\n") 
+  
+} else if (byregion == "Continental" & aoi_poly == 0) {
   country_parameters %>%
     dplyr::filter(Var == "region2BprocessedCont") %>%
     pull(ParCHR) -> mofuss_region
-} else if (byregion == "Regional") {
+  
+} else if (byregion == "Regional" & aoi_poly == 0) {
   country_parameters %>%
     dplyr::filter(Var == "region2BprocessedReg") %>%
     pull(ParCHR) -> mofuss_region
-} else if (byregion == "Country") {
+  
+} else if (byregion == "Country" & aoi_poly == 0) {
   country_parameters %>%
     dplyr::filter(Var == "region2BprocessedCtry") %>%
     pull(ParCHR) -> mofuss_region
+  
 } else {
-  print("Error")
+  # Handle any other conditions if necessary
+  cat("No specific conditions met.\n")
 }
 
 # Define paths and patterns to delete
@@ -242,30 +289,15 @@ readLines("LULCC/TempTables/UserData.txt")
 
 # AoI SELECTION **STARTS** ----
 
-if (GEpoly == 1) {
-  
-  # # Define source and destination directories
-  # source_dir <- paste0(countrydir, "/LULCC/SourceData/InVector_GCS/")
-  # destination_dir <- paste0(countrydir, "/LULCC/SourceData/InVector_GCS/")
-  # # List all .kml files in the source directory
-  # kml_files <- list.files(path = source_dir, pattern = "\\.kml$", full.names = TRUE)
-  # # Copy the files to the destination directory
-  # file.copy(from = kml_files, to = destination_dir, overwrite = TRUE)
-  
-  
-  if (length(list.files("LULCC/SourceData/InVector_GCS", ".kml")) == 0) {
-    # shell.exec("https://gitlab.com/mofuss/mofuss/-/blob/master/windows/scripts/LULCC/Wizard_imgs/NoKMLs.pdf")
-  } else {
-    if (length(list.files("LULCC/SourceData/InVector_GCS", ".kml")) > 1) {
-      rm(nrbpoly)
-      nrbpoly <- tk_choose.files(default = paste0(getwd(), "/LULCC/SourceData/InVector_GCS/*"))
-      # Filter out invalid paths (like wildcards)
-      nrbpoly <- nrbpoly[!grepl("\\*$", nrbpoly)]
-    } else { 
-      nrbpoly<-paste0("LULCC/SourceData/InVector_GCS/",list.files("LULCC/SourceData/InVector_GCS", ".kml"))
-    }
-  }
-  polykml = st_read(nrbpoly) 
+if (aoi_poly == 1) {
+  # Handle the case where aoi_poly is 1, regardless of byregion
+  cat("aoi_poly is set to 1. This overrides other conditions.\n")
+  # Define file paths
+  kml_file_path <- Sys.glob(paste0(countrydir,"/LULCC/SourceData/InVector_GCS/",aoi_poly_file))
+  # Read the SpatVector files
+  # kml_data <- vect(kml_file_path) # Read the .kml file (Terra)
+  polykml <- st_read(kml_file_path) # Read the .kml file (SF)
+
   dfx =  data.frame(1,"GoogleEarthPoly")
   colnames(dfx) <- c( country_parameters %>%
                         dplyr::filter(Var == "ext_analysis_ID") %>%
@@ -304,7 +336,7 @@ if (GEpoly == 1) {
   st_write (analysisshp_GCS,"LULCC/TempVector_GCS/ext_analysis_gcs.gpkg", delete_layer=TRUE)
   st_write(mask, "LULCC/SourceData/InVector/extent_mask.gpkg", delete_layer=TRUE)
   
-} else if (GEpoly == 0) {
+} else if (aoi_poly == 0) {
   
   setwd(admindir)
   
@@ -598,7 +630,7 @@ mask_r_m <- crop(mask_r, extent(userarea_r)) %>%
 
 writeRaster(mask_r_m, filename="LULCC/TempRaster/admin_c.tif", datatype="INT2S", overwrite=TRUE)
 
-if (GEpoly != 1) {
+if (aoi_poly != 1) {
   userarea_ras1 <- fasterize(userarea1, userarea_ras,
                              field = country_parameters %>%
                                dplyr::filter(Var == "ext_analysis_ID_1") %>%
