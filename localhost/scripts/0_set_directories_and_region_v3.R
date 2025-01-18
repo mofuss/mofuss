@@ -496,11 +496,11 @@ if (webmofuss == 1) {
   print(tibble::as_tibble(country_parameters), n=100)
   
   country_parameters %>%
-    dplyr::filter(Var == "GEE_tyRoi") %>%
-    pull(ParCHR) -> GEE_tyRoi
-  if (GEE_tyRoi == "world") {
+    dplyr::filter(Var == "GEE_scale") %>%
+    pull(ParCHR) -> GEE_scale
+  if (GEE_scale == 1000) {
     print("Global growth parameters tables copied succesfully")
-  } else if (GEE_tyRoi != "world") {
+  } else if (GEE_scale != 1000) {
     # Exclude the specific files
     growth2copy <- growth2copy[!basename(growth2copy) %in% c("growth_parameters_v3_copernicus.csv", "growth_parameters_v3_modis.csv")]
   }
