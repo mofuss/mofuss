@@ -25,10 +25,11 @@ end_year,2050
 REGION TO BE PROCESSED,
 byregion,Country
 region2BprocessedCont,SSA
-region2BprocessedReg,SSA_adm0_madagascar
+region2BprocessedReg,SSA_adm0_malambique
 region2BprocessedCtry,Rwanda
 AREA OF INTEREST,
-GEpoly,0
+aoi_poly,1
+aoi_poly_file,Honduras_exampleAoI.kml
 ext_analysis_ID,ID
 ext_analysis_NAME,NAME_0
 add_subadmin,NO
