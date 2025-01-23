@@ -1,40 +1,37 @@
 # MoFuSS version 4
 # Windows version
 # Date: Jan 2025
+# Description: Each run will produce all BaU and ICS for a given time period and region defined interactively.
 
-# To Do List
+# 2dolist ----
 # 1.- Error: [*] cannot compute with nothing FIRST FIX - puede ser la causa que falten paises
 # 2.- Rob: FUELS CONS + EF + FNRB(BAU)
 # 3.- CONNECT TO fNRB and NRB RESULTS FROM MOFUSS END, now uses fNRB 2020-2030 1MC hardwired in Rob's end
-# 7.- PROPAGATE UNCERTAINTY ASSUMING NO CORRELATION, FROM (3)
-# 10.- Temporal chunk for debugging - wire back to MoFuSS
-# 11 Ideally compare tet a tet with Demand scripts to align homolgous chunks
-# 
-# gitlabdir <- "C:/Users/Adrian Ghilardi/Documents/mofuss"
-# countrydir <- "D:/SSA_adm0_kenya_apr2024" HOW NECESSARY THIS IS?
-# 
+# 4.- PROPAGATE UNCERTAINTY ASSUMING NO CORRELATION, FROM (3)
+# 5.- Temporal chunk for debugging - wire back to MoFuSS
+# 6.- Ideally compare tet a tet with Demand scripts to align homolgous chunks
+# 7.- LINEA 229 scenario.list <- c("BaU") BORRAR!!!
+# 8.- Check for Linux 
+
+# Internal parameters ----
+#***#
+startfromscratch = 1 # WARNING: Will erase all temporal folders along with any temp datasets - never too bad
+eraseallemissions = 0 # WARNING: Will erase all EMISSIONS OUTPUTS FOLDERS - could be bad
+#***#
+
+# Define all folders based on node
 demanddir <- "D:/demand"
 admindir <- "D:/admin_regions"
 emissionsdir <- "D:/emissions"
 rTempdir <- "D:/rTemp"
 
-# LINEA 229 scenario.list <- c("BaU") #BORRAR
+efchratio <- 6 # wood to charcoal yield
 
-# Each run will produce all BaU and ICS for a given time period and region defined interactively.
-
-# Internal parameters ----
-string_pattern_yes <- "mwi_1000m" #String pattern to be searched when selecting folders for the rasters' geocomputation
-string_pattern_no <- "idw" #String pattern to be searched when selecting folders for the rasters' geocomputation
-
-efchratio <- 6
-#***#
-startfromscratch = 1 # WARNING: Will erase all temporal folders along with any temp datasets - never too bad
-eraseallemissions = 0 # WARNING: Will erase all EMISSIONS OUTPUTS FOLDERS - could be bad
-#***#
-optimize = 0
 mergecountries = 1 
 avoidedemissions = 1
 zonalstats = 1
+
+optimize = 0 # geoprocessing optimization
 
 # Erase all plots in R Studio
 Sys.sleep(2)
@@ -67,7 +64,7 @@ library(stringr)
 library(fs)
 library(tcltk)
 
-# Define the directory to search for fNRB values
+# # Define the directory to search for fNRB values
 setwd(tk_choose.dir(default = getwd(), caption = "Define the directory to search"))
 search_path <- getwd()
 # search_path <- "G:/Mi unidad/webpages/2024_MoFuSSGlobal_Datasets/webmofussDS_v2/globalsouth_mofuss_bindingfolder"
@@ -77,8 +74,8 @@ search_path <- getwd()
 # List all directories in the specified path
 all_dirs <- dir_ls(search_path, type = "directory")
 
-# Filter directories that match string_pattern_yes and do not match string_pattern_no
-adm0_dirs <- all_dirs[grepl(string_pattern_yes, all_dirs) & !grepl(string_pattern_no, all_dirs)]
+# Filter directories containing 'adm0'
+adm0_dirs <- all_dirs[grepl("adm0", all_dirs)]
 
 setwd(demanddir)
 

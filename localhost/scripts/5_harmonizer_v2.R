@@ -5,7 +5,7 @@
 # 2dolist ----
 # Fix for linux cluster
 # Land Use Land Cover Module
-# Improve add_subadmin YES/NO, che it works as mask == analysis for any of the four scales: Global, Continental, Regional, Country.
+# Improve add_subadmin YES/NO, check it works as mask == analysis for any of the four scales: Global, Continental, Regional, Country.
 
 # Internal parameters ----
 # Attraction buffer zones (in linear meters)
