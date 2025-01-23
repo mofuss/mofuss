@@ -28,7 +28,11 @@
 # LINEA 229 scenario.list <- c("BaU") #BORRAR
 
 # Each run will produce all BaU and ICS for a given time period and region defined interactively.
-# Parameters ----
+
+# Internal parameters ----
+string_pattern_yes <- "mwi_1000m" #String pattern to be searched when selecting folders for the rasters' geocomputation
+string_pattern_no <- "idw" #String pattern to be searched when selecting folders for the rasters' geocomputation
+
 efchratio <- 6
 #***#
 startfromscratch = 1 # WARNING: Will erase all temporal folders along with any temp datasets - never too bad
@@ -70,7 +74,7 @@ library(stringr)
 library(fs)
 library(tcltk)
 
-# # Define the directory to search for fNRB values
+# Define the directory to search for fNRB values
 setwd(tk_choose.dir(default = getwd(), caption = "Define the directory to search"))
 search_path <- getwd()
 # search_path <- "G:/Mi unidad/webpages/2024_MoFuSSGlobal_Datasets/webmofussDS_v2/globalsouth_mofuss_bindingfolder"
@@ -80,8 +84,8 @@ search_path <- getwd()
 # List all directories in the specified path
 all_dirs <- dir_ls(search_path, type = "directory")
 
-# Filter directories containing 'adm0'
-adm0_dirs <- all_dirs[grepl("adm0", all_dirs)]
+# Filter directories that match string_pattern_yes and do not match string_pattern_no
+adm0_dirs <- all_dirs[grepl(string_pattern_yes, all_dirs) & !grepl(string_pattern_no, all_dirs)]
 
 setwd(demanddir)
 
