@@ -7,7 +7,7 @@
 
 # Internal parameters ----
 fixdir <- 0
-string_pattern_yes <- "mwi_1000m" #String pattern to be searched when selecting folders for the rasters' geocomputation
+string_pattern_yes <- "tza_1000m" #String pattern to be searched when selecting folders for the rasters' geocomputation
 string_pattern_no <- "idw" #String pattern to be searched when selecting folders for the rasters' geocomputation
  
 # Load packages ----
