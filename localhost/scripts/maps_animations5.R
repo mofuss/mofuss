@@ -1724,7 +1724,7 @@ if (fNRB_partition_tables == 1) {
   dir.create("OutBaU/webmofuss_results/") 
   
   # fNRB partition tables and vectors ####
-  if (GEpoly == 1) {
+  if (aoi_poly == 1) {
     admin <- raster("LULCC/TempRaster//admin_c.tif")
     userarea_gpkg <- st_read("LULCC/TempVector/userarea.gpkg")
     
@@ -2418,7 +2418,7 @@ if (fNRB_partition_tables == 1) {
         
         print(paste0(admname," finished for tables"))
         
-        if (GEpoly == 1) {
+        if (aoi_poly == 1) {
           userarea_simpx_fr0 <- userarea_gpkg %>%
             inner_join(.,NRB_fNRB3_fr_madm0, by="ID") %>%
             dplyr::select(-NAME_0.y) %>%
@@ -2572,7 +2572,7 @@ if (fNRB_partition_tables == 1) {
         
         print(paste0(admname," finished for tables"))
         
-        if (GEpoly == 1) {
+        if (aoi_poly == 1) {
           userarea_simpx_fr0 <- userarea_gpkg %>%
             inner_join(.,NRB_fNRB3_fr_madm0, by="ID") %>%
             dplyr::select(-NAME_0.y) %>%
@@ -2738,7 +2738,7 @@ if (fNRB_partition_tables == 1) {
         
         print(paste0(admname," finished for tables"))
         
-        if (GEpoly == 1) {
+        if (aoi_poly == 1) {
           userarea_simpx_fr0 <- userarea_gpkg %>%
             inner_join(.,NRB_fNRB3_fr_madm0, by="ID") %>%
             dplyr::select(-NAME_0.y) %>%
@@ -2916,7 +2916,7 @@ if (fNRB_partition_tables == 1) {
         
         print(paste0(admname," finished for tables"))
         
-        if (GEpoly == 1) {
+        if (aoi_poly == 1) {
           userarea_simpx_fr0 <- userarea_gpkg %>%
             inner_join(.,NRB_fNRB3_fr_madm0, by="ID") %>%
             dplyr::select(-NAME_0.y) %>%
@@ -3102,7 +3102,7 @@ if (fNRB_partition_tables == 1) {
         
         print(paste0(admname," finished for tables"))
         
-        if (GEpoly == 1) {
+        if (aoi_poly == 1) {
           userarea_simpx_fr0 <- userarea_gpkg %>%
             inner_join(.,NRB_fNRB3_fr_madm0, by="ID") %>%
             dplyr::select(-NAME_0.y) %>%
