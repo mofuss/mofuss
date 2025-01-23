@@ -7,7 +7,9 @@
 
 # Internal parameters ----
 fixdir <- 0
-
+string_pattern_yes <- "mwi_1000m" #String pattern to be searched when selecting folders for the rasters' geocomputation
+string_pattern_no <- "idw" #String pattern to be searched when selecting folders for the rasters' geocomputation
+ 
 # Load packages ----
 library(terra)
 library(dplyr)
@@ -18,36 +20,13 @@ library(tcltk)
 library(tibble)
 library(tidyverse)
 
-tic()
+# tic()
 
 if (fixdir == 1){
   
   # Define a particular directory when needed:
   adm0_dirs <- c("E:/RobTests_adm0")
-  # adm0_dirs <- c("E:/ASIA_adm0_central_apr2024")
-  #adm0_dirs <- c("F:/ASIA_adm0_china_apr2024")
-  # adm0_dirs <- c("F:/ASIA_adm0_mongolia_apr2024",
-  #                "F:/ASIA_adm0_nepal_apr2024",
-  #                "F:/SSA_adm0_angola_apr2024",
-  #                "F:/SSA_adm0_benin_apr2024",
-  #                "F:/SSA_adm0_burkinafaso_apr2024",
-  #                "F:/SSA_adm0_central_apr2024",
-  #                "F:/SSA_adm0_chad_apr2024",
-  #                "F:/SSA_adm0_cotedivoire_apr2024",
-  #                "F:/SSA_adm0_eastern_apr2024",
-  #                "F:/SSA_adm0_ghana_apr2024",
-  #                "F:/SSA_adm0_mali_apr2024",
-  #                "F:/SSA_adm0_mauritania_apr2024",
-  #                "F:/SSA_adm0_niger_apr2024",
-  #                "F:/SSA_adm0_northcentral_apr2024",
-  #                "F:/SSA_adm0_senegambia_apr2024",
-  #                "F:/SSA_adm0_southern_apr2024",
-  #                "F:/SSA_adm0_togo_apr2024",
-  #                "F:/SSA_adm0_uganda_apr2024",
-  #                "F:/SSA_adm0_westcentral_apr2024",
-  #                "F:/SSA_adm0_western_apr2024",
-  #                "F:/SSA_adm0_westsouthern_apr2024")
-  
+
 } else {
   
   # Define the directory to search
@@ -57,11 +36,13 @@ if (fixdir == 1){
   # List all directories in the specified path
   all_dirs <- dir_ls(search_path, type = "directory")
   
-  # Filter directories containing 'adm0'
-  adm0_dirs <- all_dirs[grepl("adm0", all_dirs)]
-  print(class(adm0_dirs))
-  adm0_dirs <- as.character(adm0_dirs)
-  print(class(adm0_dirs))  # Should return only "character"
+  # Filter directories that match string_pattern_yes and do not match string_pattern_no
+  adm0_dirs <- all_dirs[grepl(string_pattern_yes, all_dirs) & !grepl(string_pattern_no, all_dirs)]
+  # adm0_dirs <- all_dirs[grepl(string_pattern, all_dirs)]
+  # print(class(adm0_dirs))
+  # adm0_dirs <- as.character(adm0_dirs)
+  # print(class(adm0_dirs))  # Should return only "character"
+  adm0_dirs
   
 }
 
