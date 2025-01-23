@@ -114,7 +114,7 @@ whodb <- read_excel("demand_in/A_LMIC_Estimates_2050_popmedian.xlsx")
 # terra::unique(whodb$iso3)
 
 # Reads a population dataset
-pop_db <- c("HSRL","WorldPop","na1", "na2", "na3")
+pop_db <- c("HSRL","WorldPop")
 popversions.input <- dlg_list(as.character(pop_db), 
                               preselect = "WorldPop",
                               multiple = FALSE,
