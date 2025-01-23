@@ -54,7 +54,7 @@ Alternatively, if you wish to download all or some MoFuSS datasets from scratch,
    * 5.- `D:/rTemp`
 
 #### Preparing your environment: Setting up parameters
-* Within your local github folder, there are a few parameter tables in .csv and .xlsx: `mofuss/localhost/selected_parameters/`.
+* Within your local github folder, there are a few parameter tables in .csv and .xlsx: `mofuss/localhost/parameters/`.
 * When running 1km Global South simulations, you'll need to check the one named: "_parameters_world1000m_" and adjust all parameters accordingly to your preferences.
 * Please pay particular attention to the Area of Interest (AoI) of your choice.
 
