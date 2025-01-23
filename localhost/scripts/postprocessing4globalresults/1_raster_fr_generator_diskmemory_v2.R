@@ -6,7 +6,7 @@
 ## Faltaría 2010-2050
 
 # Internal parameters ----
-fixdir <- 1
+fixdir <- 0
 
 # Load packages ----
 library(terra)
@@ -15,14 +15,15 @@ library(readxl)
 library(tictoc)
 library(fs)
 library(tcltk)
+library(tibble)
+library(tidyverse)
 
 tic()
 
 if (fixdir == 1){
   
   # Define a particular directory when needed:
-  adm0_dirs <- c("D:/tanzania_1000m_bau",
-                 "D:/tanzania_1000m_minus25")
+  adm0_dirs <- c("E:/RobTests_adm0")
   # adm0_dirs <- c("E:/ASIA_adm0_central_apr2024")
   #adm0_dirs <- c("F:/ASIA_adm0_china_apr2024")
   # adm0_dirs <- c("F:/ASIA_adm0_mongolia_apr2024",
@@ -58,11 +59,15 @@ if (fixdir == 1){
   
   # Filter directories containing 'adm0'
   adm0_dirs <- all_dirs[grepl("adm0", all_dirs)]
+  print(class(adm0_dirs))
+  adm0_dirs <- as.character(adm0_dirs)
+  print(class(adm0_dirs))  # Should return only "character"
   
 }
 
 # Loop through each adm0 directory----
 for (dir in adm0_dirs) {
+  dir <- "E:/RobTests_adm0"
   # dir = "D:/SSA_adm0_madagascar_apr2024"
   # dir = "D:/SSA_adm0_zambia_apr2024"
   # dir = ("E:/ASIA_adm0_central_apr2024")
@@ -102,10 +107,10 @@ for (dir in adm0_dirs) {
   parameters_directory <- paste0(getwd(),"/LULCC/DownloadedDatasets/SourceData",country_name)
   
   # Use list.files() to find the file that matches the pattern
-  parameters_name <- list.files(path = parameters_directory, pattern = "^parameters.*\\.xlsx$", full.names = TRUE)
+  parameters_name <- list.files(path = parameters_directory, pattern = "^parameters.*\\.csv$", full.names = TRUE)
   
   # Read the Excel file
-  country_parameters <- read_excel(parameters_name)
+  country_parameters <- read_csv(parameters_name)
   print(tibble::as_tibble(country_parameters), n=100)
   
   country_parameters %>%
