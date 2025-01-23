@@ -11,8 +11,8 @@
 ## Aunque estos salen de dinamica hasta cierto punto, faltaria 2020-final year ###
 
 # Internal parameters
-videoson <- 0
-compilelatex <- 0
+videoson <- 1
+compilelatex <- 1
 uncertaintystacks <- 0
 fNRB_partition_tables <- 1
 mcthreshold <- 30
@@ -59,7 +59,7 @@ args=(commandArgs(TRUE))
 if(length(args)==0){
   print("No arguments supplied by DINAMICA.")
   ##Supply default values here (to be used when running the script through R directly)
-  MC = 10 # MonteCarlo runs
+  MC = 2 # MonteCarlo runs
   IT = 2010 # Initial year
   K_MC=1
   TOF_MC=1
@@ -106,7 +106,7 @@ parameters_name <- list.files(path = parameters_directory, pattern = "^parameter
 
 # Read the Excel file
 country_parameters <- read_csv(parameters_name)
-print(tibble::as_tibble(country_parameters), n=30)
+print(tibble::as_tibble(country_parameters), n=100)
 
 country_parameters %>%
   dplyr::filter(Var == "LULCt1map") %>%
@@ -139,9 +139,9 @@ country_parameters %>%
 STdyn <- end_year - IT
 
 country_parameters %>%
-  dplyr::filter(Var == "GEpoly") %>%
+  dplyr::filter(Var == "aoi_poly") %>%
   pull(ParCHR) %>%
-  as.integer(.) -> GEpoly
+  as.integer(.) -> aoi_poly
 
 if (LULCt1map == "YES") {
   tof_vs_for <- read_csv("LULCC/TempTables/growth_parameters1.csv") %>% 
