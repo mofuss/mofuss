@@ -14,13 +14,10 @@ string_pattern_no <- "idw" #String pattern to be searched when selecting folders
 library(terra)
 library(dplyr)
 library(readxl)
-library(tictoc)
 library(fs)
 library(tcltk)
 library(tibble)
 library(tidyverse)
-
-# tic()
 
 if (fixdir == 1){
   
@@ -48,34 +45,7 @@ if (fixdir == 1){
 
 # Loop through each adm0 directory----
 for (dir in adm0_dirs) {
-  dir <- "E:/RobTests_adm0"
-  # dir = "D:/SSA_adm0_madagascar_apr2024"
-  # dir = "D:/SSA_adm0_zambia_apr2024"
-  # dir = ("E:/ASIA_adm0_central_apr2024")
-  # dir = "F:/ASIA_adm0_china_apr2024"
   print(paste("Processing directory:", dir))
-  
-  # # Initialize lists to store the rasters ----
-  # nrb_bin2010_2020_list <- list()
-  # harvest_st_bin2010_2020_list <- list()
-  # nrb_bin2020_2030_list <- list()
-  # harvest_st_bin2020_2030_list <- list()
-  # nrb_bin2020_2035_list <- list()
-  # harvest_st_bin2020_2035_list <- list()
-  # nrb_bin2020_2050_list <- list()
-  # harvest_st_bin2020_2050_list <- list()
-  # nrb_bin2030_2040_list <- list()
-  # harvest_st_bin2030_2040_list <- list()
-  # nrb_bin2040_2050_list <- list()
-  # harvest_st_bin2040_2050_list <- list()
-  # agb_2010_list <- list()
-  # agb_2020_list <- list()
-  # # agb_2025_list <- list()
-  # agb_2030_list <- list()
-  # agb_2035_list <- list()
-  # agb_2040_list <- list()
-  # agb_2050_list <- list()
-  
   setwd(dir)
   getwd()
   
@@ -1109,10 +1079,3 @@ for (dir in adm0_dirs) {
   unlink("temp_raster_lists", recursive= TRUE, force=TRUE)
   
 }
-
-toc()
-
-
-
-
-
