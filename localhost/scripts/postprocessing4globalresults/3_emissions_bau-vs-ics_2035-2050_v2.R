@@ -14,16 +14,19 @@
 # 8.- Check for Linux 
 
 # Internal parameters ----
+string_pattern_yes <- "mwi_1000m" #String pattern to be searched when selecting folders for the rasters' geocomputation
+string_pattern_no <- "idw" #String pattern to be searched when selecting folders for the rasters' geocomputation
+
 #***#
 startfromscratch = 1 # WARNING: Will erase all temporal folders along with any temp datasets - never too bad
 eraseallemissions = 0 # WARNING: Will erase all EMISSIONS OUTPUTS FOLDERS - could be bad
 #***#
 
 # Define all folders based on node
-demanddir <- "D:/demand"
-admindir <- "D:/admin_regions"
-emissionsdir <- "D:/emissions"
-rTempdir <- "D:/rTemp"
+demanddir <- "E:/demand"
+admindir <- "E:/admin_regions"
+emissionsdir <- "E:/emissions"
+rTempdir <- "E:/rTemp"
 
 efchratio <- 6 # wood to charcoal yield
 
@@ -74,8 +77,9 @@ search_path <- getwd()
 # List all directories in the specified path
 all_dirs <- dir_ls(search_path, type = "directory")
 
-# Filter directories containing 'adm0'
-adm0_dirs <- all_dirs[grepl("adm0", all_dirs)]
+# Filter directories that match string_pattern_yes and do not match string_pattern_no
+adm0_dirs <- all_dirs[grepl(string_pattern_yes, all_dirs) & !grepl(string_pattern_no, all_dirs)]
+adm0_dirs
 
 setwd(demanddir)
 
