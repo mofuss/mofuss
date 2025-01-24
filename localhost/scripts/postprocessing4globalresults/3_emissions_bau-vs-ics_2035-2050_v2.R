@@ -12,7 +12,7 @@
 # 6.- Ideally compare tet a tet with Demand scripts to align homolgous chunks
 # 7.- LINEA 229 scenario.list <- c("BaU") BORRAR!!!
 # 8.- Check for Linux 
-# 9.- Neighboring countries
+# 9.- Neighboring countries when continent or region is selected, something with the croping vect layer, simplified?
 
 # Internal parameters ----
 string_pattern_yes <- "mwi_1000m" #String pattern to be searched when selecting folders for the rasters' geocomputation
