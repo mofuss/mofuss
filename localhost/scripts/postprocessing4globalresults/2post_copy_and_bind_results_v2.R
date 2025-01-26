@@ -3,6 +3,8 @@
 # Date: Apr 2024
 
 # 2dolist
+# Make node list automatic
+# Install googletraffic
 
 # Internal parameters ----
 temdirdefined = 1
@@ -70,6 +72,12 @@ adm0_dirs <- all_dirs[grepl("adm0", all_dirs)]
 #                "E:/ASIA_adm0_pakistan_apr2024")
 
 # Choose local node ----
+
+# # Detect OS and node name
+# os <- Sys.info()["sysname"]
+# node_name <- Sys.info()[["nodename"]]
+# cat(os,node_name)
+
 node.list <- c("Asus ZenBook", "NRBV1", "Win Lanase", "Win CIGA2", "Editorial CIGA", "Alien Yayo")
 node.input <- dlgList(as.character(node.list), 
                       preselect = "Asus ZenBook",
@@ -78,6 +86,8 @@ node.input <- dlgList(as.character(node.list),
                       gui = .GUI
 )
 node <- node.input$res
+
+
 
 if (node == "Asus ZenBook") { # Asus ZenBook ----
   

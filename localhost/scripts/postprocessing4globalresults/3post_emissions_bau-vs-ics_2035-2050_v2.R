@@ -24,26 +24,6 @@ startfromscratch = 1 # WARNING: Will erase all temporal folders along with any t
 eraseallemissions = 0 # WARNING: Will erase all EMISSIONS OUTPUTS FOLDERS - could be bad
 #***#
 
-# Define all folders based on node
-# Detect OS
-os <- Sys.info()["sysname"]
-node <- "linux-c3"
-if (os == "Windows") {
-  #ADD node
-  demanddir <- "E:/demand"
-  admindir <- "E:/admin_regions"
-  emissionsdir <- "E:/emissions"
-  rTempdir <- "E:/rTemp"
-  
-} else if (os == "Linux" & node == "linux-c3"){
-  #ADD node
-  demanddir <- "/home/mofuss/demand"
-  admindir <- "/home/mofuss/admin_regions"
-  emissionsdir <- "/home/mofuss/emissions"
-  rTempdir <- "/home/mofuss/rTemp"
-  
-}
-
 efchratio <- 6 # wood to charcoal yield
 
 mergecountries = 1 
@@ -51,6 +31,33 @@ avoidedemissions = 1
 zonalstats = 1
 
 optimize = 0 # geoprocessing optimization
+
+# Define all folders based on node
+# Detect OS and node name
+os <- Sys.info()["sysname"]
+node_name <- Sys.info()[["nodename"]]
+cat(os,node_name)
+
+if (os == "Windows" & node_name == "XXXXX") {
+  #ADD node
+  demanddir <- "E:/demand"
+  admindir <- "E:/admin_regions"
+  emissionsdir <- "E:/emissions"
+  rTempdir <- "E:/rTemp"
+  
+} else if (os == "Linux" & node_name == "linux-c3"){
+  #ADD node
+  demanddir <- "/home/mofuss/demand"
+  admindir <- "/home/mofuss/admin_regions"
+  emissionsdir <- "/home/mofuss/emissions"
+  rTempdir <- "/home/mofuss/rTemp"
+  
+} else if (os == "Linux" & node_name == "XXXXX"){
+  demanddir <- "/home/mofuss/demand"
+  admindir <- "/home/mofuss/admin_regions"
+  emissionsdir <- "/home/mofuss/emissions"
+  rTempdir <- "/home/mofuss/rTemp"
+}
 
 # Erase all plots in R Studio
 Sys.sleep(2)
