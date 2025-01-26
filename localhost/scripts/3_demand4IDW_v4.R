@@ -35,6 +35,11 @@ library(tictoc)
 library(tidyterra)
 library(tidyverse)
 
+# List all files and directories inside the folder
+contents <- list.files(rTempdir, full.names = TRUE, recursive = TRUE)
+# Delete the contents but keep the folder
+unlink(contents, recursive = TRUE, force = TRUE)
+
 # Detect OS
 os <- Sys.info()["sysname"]
 

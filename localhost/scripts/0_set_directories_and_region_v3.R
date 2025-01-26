@@ -6,7 +6,6 @@
 # Select webmofuss == 1 automatically
 
 # Internal parameters ----
-temdirdefined = 1
 start_from_scratch <- 0 # Set to 0 when the MoFuSS working directory already exists and has data in it
 # rm(list=ls(all=TRUE))
 # # Select MoFuSS platform:

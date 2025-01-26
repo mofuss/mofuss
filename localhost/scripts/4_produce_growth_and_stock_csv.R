@@ -31,6 +31,11 @@ library(readxl)
 library(svDialogs)
 library(tidyverse)
 
+# List all files and directories inside the folder
+contents <- list.files(rTempdir, full.names = TRUE, recursive = TRUE)
+# Delete the contents but keep the folder
+unlink(contents, recursive = TRUE, force = TRUE)
+
 setwd(countrydir)
 getwd()
 country_name

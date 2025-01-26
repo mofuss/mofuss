@@ -25,10 +25,24 @@ eraseallemissions = 0 # WARNING: Will erase all EMISSIONS OUTPUTS FOLDERS - coul
 #***#
 
 # Define all folders based on node
-demanddir <- "E:/demand"
-admindir <- "E:/admin_regions"
-emissionsdir <- "E:/emissions"
-rTempdir <- "E:/rTemp"
+# Detect OS
+os <- Sys.info()["sysname"]
+node <- "linux-c3"
+if (os == "Windows") {
+  #ADD node
+  demanddir <- "E:/demand"
+  admindir <- "E:/admin_regions"
+  emissionsdir <- "E:/emissions"
+  rTempdir <- "E:/rTemp"
+  
+} else if (os == "Linux" & node == "linux-c3"){
+  #ADD node
+  demanddir <- "/home/mofuss/demand"
+  admindir <- "/home/mofuss/admin_regions"
+  emissionsdir <- "/home/mofuss/emissions"
+  rTempdir <- "/home/mofuss/rTemp"
+  
+}
 
 efchratio <- 6 # wood to charcoal yield
 
@@ -72,6 +86,11 @@ library(tibble)
 library(tictoc)
 library(tidyterra)
 library(tidyverse)
+
+# List all files and directories inside the folder
+contents <- list.files(rTempdir, full.names = TRUE, recursive = TRUE)
+# Delete the contents but keep the folder
+unlink(contents, recursive = TRUE, force = TRUE)
 
 # # Define the directory to search for fNRB values
 setwd(tk_choose.dir(default = getwd(), caption = "Define the directory to search"))

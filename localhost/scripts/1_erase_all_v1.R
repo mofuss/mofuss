@@ -6,12 +6,16 @@
 # Select webmofuss == 1 automatically
 
 # Internal parameters ----
-temdirdefined = 1
 # # Select MoFuSS platform:
 # webmofuss = 1 # "1" is  web-MoFuSS running in our Ubuntu server, "0" is localcal host (Windows or Linux)
 # source(paste0(scriptsmofuss,"00_webmofuss.R"))
 
 # Load libraries ----
+
+# List all files and directories inside the folder
+contents <- list.files(rTempdir, full.names = TRUE, recursive = TRUE)
+# Delete the contents but keep the folder
+unlink(contents, recursive = TRUE, force = TRUE)
 
 # Detect OS
 os <- Sys.info()["sysname"]
