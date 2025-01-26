@@ -38,12 +38,12 @@ os <- Sys.info()["sysname"]
 node_name <- Sys.info()[["nodename"]]
 cat(os,node_name)
 
-if (os == "Windows" & node_name == "XXXXX") {
+if (os == "Windows" & node_name == "WINLANASE") {
   #ADD node
-  demanddir <- "E:/demand"
-  admindir <- "E:/admin_regions"
-  emissionsdir <- "E:/emissions"
-  rTempdir <- "E:/rTemp"
+  demanddir <- "F:/demand"
+  admindir <- "F:/admin_regions"
+  emissionsdir <- "F:/emissions"
+  rTempdir <- "F:/rTemp"
   
 } else if (os == "Linux" & node_name == "linux-c3"){
   #ADD node
