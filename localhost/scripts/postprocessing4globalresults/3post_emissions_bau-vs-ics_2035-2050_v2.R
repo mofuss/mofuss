@@ -45,6 +45,13 @@ if (os == "Windows" & node_name == "WINLANASE") {
   emissionsdir <- "F:/emissions"
   rTempdir <- "F:/rTemp"
   
+} else if (os == "Windows" & node_name == "ASUSLAP"){
+  #ADD node
+  demanddir <- "D:/demand"
+  admindir <- "D:/admin_regions"
+  emissionsdir <- "D:/emissions"
+  rTempdir <- "D:/rTemp"
+  
 } else if (os == "Linux" & node_name == "linux-c3"){
   #ADD node
   demanddir <- "/home/mofuss/demand"
@@ -356,6 +363,9 @@ for (scex in scenario.list) { # Start scex loop ----
     adm0_reg <- mofuss_regions0_gpkg
     pop0_K <- crop(pop0, ext(adm0_reg) + .01)
     pop0_reg <- mask(pop0_K, adm0_reg)
+    plot(pop0_reg,main=c("Region to be processed"))
+    lines(adm0_reg)
+    Sys.sleep(10)
     
   } else if (byregion == "Continental"){
     print("***NOW RUNNING CONTINENTAL DEMAND SCENARIOS***")
