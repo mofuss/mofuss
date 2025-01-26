@@ -6,6 +6,7 @@
 # Select webmofuss == 1 automatically
 
 # Internal parameters ----
+temdirdefined = 1
 # # Select MoFuSS platform:
 # webmofuss = 1 # "1" is  web-MoFuSS running in our Ubuntu server, "0" is localcal host (Windows or Linux)
 # source(paste0(scriptsmofuss,"00_webmofuss.R"))

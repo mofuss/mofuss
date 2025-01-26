@@ -5,6 +5,7 @@
 # 2dolist
 
 # Internal parameters ----
+temdirdefined = 1
 processingversion <- "globalsouth_mofuss_bindingfolder/"
 taildir <- "/OutBaU/webmofuss_results/"
 version <- "globalsouth_mofuss_final"
@@ -31,17 +32,23 @@ admtables <- c("adm0","adm1","adm2")
 admvector <- c("adm0","adm1","adm2")
 
 # Load libraries ----
+library(terra)
+# terraOptions(steps = 55)
+if (temdirdefined == 1) {
+  terraOptions(tempdir = rTempdir)
+}
+# terraOptions(memfrac=0.9)
+# terraOptions(progress=0)
+library(dplyr)
+library(fs)
+library(googletraffic)
 library(lwgeom)
 library(progress)
-library(svDialogs)
-library(tidyverse)
-library(sf)
-library(dplyr)
 library(raster)
-library(terra)
-library(googletraffic)
+library(sf)
+library(svDialogs)
 library(tcltk)
-library(fs)
+library(tidyverse)
 library(rmapshaper)
 check_sys_mapshaper()
 system("mapshaper --version")

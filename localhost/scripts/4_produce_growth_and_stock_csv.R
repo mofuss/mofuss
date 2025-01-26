@@ -10,6 +10,7 @@
 # IF GLOBAL COPY THE TABLE FROM GLOBAL!!! -ready
 
 # Internal parameters ----
+temdirdefined = 1
 rmax_over_K_ratio <- 0.04 #This fix automatic LUC with wrong.... REVISAR K!!!
 charcoal_harv_threshold <- 1 # t/ha
 # # Select MoFuSS platform:
@@ -17,12 +18,18 @@ charcoal_harv_threshold <- 1 # t/ha
 # source(paste0(scriptsmofuss,"00_webmofuss.R"))
 
 # Load libraries ----
-library(readxl)
-library(tidyverse)
 library(terra)
+# terraOptions(steps = 55)
+if (temdirdefined == 1) {
+  terraOptions(tempdir = rTempdir)
+}
+# terraOptions(memfrac=0.9)
+# terraOptions(progress=0)
 library(dplyr)
-library(svDialogs)
 library(readr)
+library(readxl)
+library(svDialogs)
+library(tidyverse)
 
 setwd(countrydir)
 getwd()

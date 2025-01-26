@@ -6,15 +6,22 @@
 ## Faltaría 2010-2050
 
 # Internal parameters ----
+temdirdefined = 1
 fixdir <- 0
 string_pattern_yes <- "tza_1000m" #String pattern to be searched when selecting folders for the rasters' geocomputation
 string_pattern_no <- "idw" #String pattern to be searched when selecting folders for the rasters' geocomputation
  
 # Load packages ----
 library(terra)
+# terraOptions(steps = 55)
+if (temdirdefined == 1) {
+  terraOptions(tempdir = rTempdir)
+}
+# terraOptions(memfrac=0.9)
+# terraOptions(progress=0)
 library(dplyr)
-library(readxl)
 library(fs)
+library(readxl)
 library(tcltk)
 library(tibble)
 library(tidyverse)

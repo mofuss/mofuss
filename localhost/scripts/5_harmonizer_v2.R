@@ -8,6 +8,7 @@
 # Improve add_subadmin YES/NO, check it works as mask == analysis for any of the four scales: Global, Continental, Regional, Country.
 
 # Internal parameters ----
+temdirdefined = 1
 # Attraction buffer zones (in linear meters)
 w0 = 0 
 w1 = 50000 #250000
@@ -20,25 +21,31 @@ w4 = 200000 #1000000
 # source(paste0(scriptsmofuss,"00_webmofuss.R"))
 
 # Load libraries ----
-library(readr)
+library(terra)
+# terraOptions(steps = 55)
+if (temdirdefined == 1) {
+  terraOptions(tempdir = rTempdir)
+}
+# terraOptions(memfrac=0.9)
+# terraOptions(progress=0)
 library(dplyr)
 library(fasterize)
+library(gitlabr)
 library(glue)
 library(igraph)
+library(inline)
+library(purrr)
 library(raster)
+library(readr)
+library(readxl)
 library(rgl)
 library(sf)
-library(tictoc)
-library(stars)
-library(gitlabr)
-library(inline)
-library(tidyverse)
 library(spam)
+library(stars)
 library(svDialogs)
-library(terra)
-library(readxl)
-library(purrr)
 library(tcltk)
+library(tictoc)
+library(tidyverse)
 
 setwd(countrydir)
 getwd()

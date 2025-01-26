@@ -16,23 +16,24 @@ urb_shift_factor <- 1 # Only works with byregion == Country (Check code lines 89
 
 # Load libraries ----
 library(terra)
-terraOptions(steps = 55)
+# terraOptions(steps = 55)
 if (temdirdefined == 1) {
   terraOptions(tempdir = rTempdir)
 }
 # terraOptions(memfrac=0.9)
-library(tidyterra)
-library(tidyverse)
-library(sf)
-#library(mapview)
-library(readxl)
+# terraOptions(progress=0)
+library(gdata)
 library(hacksaw)
-library(tictoc)
+#library(mapview)
+library(raster)
+library(readxl)
+library(rlang)
+library(sf)
 library(svDialogs)
 library(tibble)
-library(raster)
-library(gdata)
-library(rlang)
+library(tictoc)
+library(tidyterra)
+library(tidyverse)
 
 # Detect OS
 os <- Sys.info()["sysname"]

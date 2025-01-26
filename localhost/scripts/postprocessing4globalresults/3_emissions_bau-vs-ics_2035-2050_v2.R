@@ -15,7 +15,8 @@
 # 9.- Neighboring countries when continent or region is selected, something with the croping vect layer, simplified?
 
 # Internal parameters ----
-string_pattern_yes <- "mwi_1000m" #String pattern to be searched when selecting folders for the rasters' geocomputation
+temdirdefined = 1
+string_pattern_yes <- "adm0" #String pattern to be searched when selecting folders for the rasters' geocomputation
 string_pattern_no <- "idw" #String pattern to be searched when selecting folders for the rasters' geocomputation
 
 #***#
@@ -48,25 +49,29 @@ Sys.sleep(3)
 
 # Load packages ----
 library(terra)
-terraOptions(steps = 55)
-terraOptions(progress=0)
-library(tidyterra)
-library(tidyverse)
-library(sf)
-library(mapview)
-library(tictoc)
-library(readxl)
-library(hacksaw)
-library(svDialogs)
-library(tibble)
-library(raster)
-library(gdata)
-library(fasterize)
+# terraOptions(steps = 55)
+if (temdirdefined == 1) {
+  terraOptions(tempdir = rTempdir)
+}
+# terraOptions(memfrac=0.9)
+# terraOptions(progress=0)
 # library(compare)
 library(dplyr)
-library(stringr)
+library(fasterize)
 library(fs)
+library(gdata)
+library(hacksaw)
+library(mapview)
+library(raster)
+library(readxl)
+library(sf)
+library(stringr)
+library(svDialogs)
 library(tcltk)
+library(tibble)
+library(tictoc)
+library(tidyterra)
+library(tidyverse)
 
 # # Define the directory to search for fNRB values
 setwd(tk_choose.dir(default = getwd(), caption = "Define the directory to search"))

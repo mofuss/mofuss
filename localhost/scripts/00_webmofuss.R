@@ -7,9 +7,9 @@
 # Internal parameters ----
 
 # Load libraries ----
-library(readxl)
-library(readr)
 library(data.table)
+library(readr)
+library(readxl)
 
 file_path <- ".env"
 if (file.exists(file_path)) {

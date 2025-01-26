@@ -6,15 +6,23 @@
 ## Faltaría 2010-2050
 
 # Internal parameters
+temdirdefined = 1
 fixdir <- 0
 
 # Load packages ----
-library(raster)
+library(terra)
+# terraOptions(steps = 55)
+if (temdirdefined == 1) {
+  terraOptions(tempdir = rTempdir)
+}
+# terraOptions(memfrac=0.9)
+# terraOptions(progress=0)
 library(dplyr)
-library(readxl)
-library(tictoc)
 library(fs)
+library(raster)
+library(readxl)
 library(tcltk)
+library(tictoc)
 
 tic()
 
