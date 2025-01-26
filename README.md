@@ -127,5 +127,5 @@ When changing the Area of Interest you might keep working on the same MoFuSS dir
 
 ## License
 
-This project is licensed under the Apache License 2.0. See the [LICENSE](LICENSE) file for details.
+This project is licensed under the Apache License 2.0. See the [LICENSE](https://github.com/mofuss/mofuss/blob/main/LICENSE) file for details.
 
