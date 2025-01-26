@@ -32,7 +32,7 @@ zonalstats = 1
 
 optimize = 0 # geoprocessing optimization
 
-# Define all folders based on node
+# Define all folders based on node ----
 # Detect OS and node name
 os <- Sys.info()["sysname"]
 node_name <- Sys.info()[["nodename"]]
@@ -208,7 +208,16 @@ region.input <- dlg_list(as.character(region.list),
 byregion <- region.input$res
 
 # Select a region
-if (byregion == "Continental") {
+if (byregion == "Global") {
+  mofuss_region <- "Global"
+  if (!length(mofuss_region)) {
+    cat("You cancelled the choice\n")
+  } else {
+    cat("You selected:\n")
+    print(mofuss_region)
+  }
+
+} else if (byregion == "Continental") {
   cont.list <- continent.list
   region.input <- dlg_list(as.character(cont.list), 
                            preselect = "AFRICA",
@@ -1044,7 +1053,7 @@ for (scex in scenario.list) { # Start scex loop ----
     # Extract the part after the last "_"
     after_last_underscore <- sub(".*_", "", mofuss_region)
     # Concatenate with a hyphen
-    regiontag <- paste0(after_last_underscore,"_",substr(byregion, 1, 3))
+    regiontag <- paste0(after_last_underscore)
   } else if (byregion == "Continental") {
     # Extract the part before the first "_"
     before_first_underscore <- sub("_.*", "", mofuss_region)
@@ -1174,7 +1183,20 @@ if (zonalstats == 1){
   # lastyr = 2035
   
   if (byregion == "Global"){
-    print("fix this chunk!") # Not to be used in the short term really...
+    # print("fix this chunk!") # Not to be used in the short term really...
+    adminnew <- st_read("regions_adm0/mofuss_regions0.gpkg") %>%
+      dplyr::mutate(zone = 1:100)
+    admindb <- adminnew %>% st_drop_geometry()
+    head(adminnew)
+    sort(adminnew$NAME_0)
+    
+    adminnew_p <- st_read("regions_adm0_p/mofuss_regions0_p.gpkg") %>%
+      dplyr::mutate(zone = 1:100) %>%
+      dplyr::mutate(km2_vector = round(st_area(.)/1000000,0)) %>%
+      units::drop_units()  
+    admindb_p <- adminnew_p %>% st_drop_geometry()
+    head(adminnew_p)
+    sort(adminnew_p$NAME_0)
     
   } else if (byregion == "Continental"){
     adminnew <- st_read("regions_adm0/mofuss_regions0.gpkg") %>%
