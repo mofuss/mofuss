@@ -124,3 +124,8 @@ When changing the Area of Interest you might keep working on the same MoFuSS dir
 * 2.- Re-run from Stage 1 but starting in script # 4.- `mofuss/localhost/scripts/3_demand4IDW_v3.R`
 
 👀 If you have any feedback on this documentation, please feel free to reach out to us at: aghilardi@ciga.unam.mx.
+
+## License
+
+This project is licensed under the Apache License 2.0. See the [LICENSE](LICENSE) file for details.
+
