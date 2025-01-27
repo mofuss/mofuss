@@ -92,6 +92,10 @@ library(terra)
 # terraOptions(steps = 55)
 if (temdirdefined == 1) {
   terraOptions(tempdir = rTempdir)
+  # List all files and directories inside the folder
+  contents <- list.files(rTempdir, full.names = TRUE, recursive = TRUE)
+  # Delete the contents but keep the folder
+  unlink(contents, recursive = TRUE, force = TRUE)
 }
 # terraOptions(memfrac=0.9)
 # terraOptions(progress=0)
@@ -112,11 +116,6 @@ library(tibble)
 library(tictoc)
 library(tidyterra)
 library(tidyverse)
-
-# List all files and directories inside the folder
-contents <- list.files(rTempdir, full.names = TRUE, recursive = TRUE)
-# Delete the contents but keep the folder
-unlink(contents, recursive = TRUE, force = TRUE)
 
 # # Define the directory to search for fNRB values
 setwd(tk_choose.dir(default = getwd(), caption = "Define the directory to search"))

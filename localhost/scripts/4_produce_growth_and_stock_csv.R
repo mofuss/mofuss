@@ -15,6 +15,18 @@ rmax_over_K_ratio <- 0.04 #This fix automatic LUC with wrong.... REVISAR K!!!
 charcoal_harv_threshold <- 1 # t/ha
 # # Select MoFuSS platform:
 # webmofuss = 1 # "1" is  web-MoFuSS running in our Ubuntu server, "0" is localcal host (Windows or Linux)
+# Copyright 2025 Stockholm Environment Institute ----
+
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+# http://www.apache.org/licenses/LICENSE-2.0
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 # source(paste0(scriptsmofuss,"00_webmofuss.R"))
 
 # Load libraries ----
@@ -22,6 +34,10 @@ library(terra)
 # terraOptions(steps = 55)
 if (temdirdefined == 1) {
   terraOptions(tempdir = rTempdir)
+  # List all files and directories inside the folder
+  contents <- list.files(rTempdir, full.names = TRUE, recursive = TRUE)
+  # Delete the contents but keep the folder
+  unlink(contents, recursive = TRUE, force = TRUE)
 }
 # terraOptions(memfrac=0.9)
 # terraOptions(progress=0)
@@ -30,11 +46,6 @@ library(readr)
 library(readxl)
 library(svDialogs)
 library(tidyverse)
-
-# List all files and directories inside the folder
-contents <- list.files(rTempdir, full.names = TRUE, recursive = TRUE)
-# Delete the contents but keep the folder
-unlink(contents, recursive = TRUE, force = TRUE)
 
 setwd(countrydir)
 getwd()
