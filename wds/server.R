@@ -1,7 +1,9 @@
 #install.packages("devtools") # I guess you also need this
 #devtools::install_github("ropensci/rnaturalearthhires")
 
-setwd("/home/rrangel/common")
+if (webmofuss == 1){
+  setwd("/home/rrangel/common")
+} 
 
 install_and_load <- function(packages) {
   for (package in packages) {
