@@ -6,7 +6,7 @@ if (webmofuss == 1){
   agbpath = ""
   demandpath = ""
   } else if (webmofuss == 0){
-    #ONLY WORKS IN NRBV1 NODE!"
+    # ONLY WORKS IN NRBV1 NODE as localhost"
   rTempdir_fnrbobs <- "C:/Users/aghil/Documents/rTempdir_fnrbobs"
   agbpath = "E:/agb3rdparties/Pantropical_AGC/"
   demandpath = "D:/demand/demand_in/"

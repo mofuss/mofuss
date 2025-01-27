@@ -3,7 +3,11 @@
 
 if (webmofuss == 1){
   setwd("/home/rrangel/common")
-} 
+  demandpath = ""
+} else if (webmofuss == 0){
+  # ONLY WORKS IN NRBV1 NODE as localhost"
+  demandpath = "D:/demand/demand_in/"
+}
 
 install_and_load <- function(packages) {
   for (package in packages) {
@@ -20,8 +24,8 @@ install_and_load(required_packages)
 
 shinyServer(function(input, output) {
 # Load the data from the CSV file
-		      file_path <- "cons_fuels_years.csv"
-		        proj_file_path <- "cons_fuels_years_proj.csv"
+		      file_path <- paste0(demandpath,"cons_fuels_years.csv")
+		        proj_file_path <- paste0(demandpath,"cons_fuels_years_proj.csv")
 		        data <- read_csv(file_path)
 			  proj_data <- read_csv(proj_file_path)
 
