@@ -7,7 +7,7 @@ if (webmofuss == 1){
   demandpath = ""
   } else if (webmofuss == 0){
     # ONLY WORKS IN NRBV1 NODE as localhost"
-  rTempdir_fnrbobs <- "C:/Users/aghil/Documents/rTempdir_fnrbobs"
+  rTempdir_fnrbobs <- "D:/rTempdir_fnrbobs/"
   agbpath = "E:/agb3rdparties/Pantropical_AGC/"
   demandpath = "D:/demand/demand_in/"
 }
@@ -26,7 +26,7 @@ if (temdirdefined == 1) {
   # List all files and directories inside the folder
   contents <- list.files(rTempdir_fnrbobs, full.names = TRUE, recursive = TRUE)
   # Delete the contents but keep the folder
-  unlink(contents, recursive = TRUE, force = TRUE)
+  # unlink(contents, recursive = TRUE, force = TRUE)
 }
 library(dplyr)
 library(leaflet)
