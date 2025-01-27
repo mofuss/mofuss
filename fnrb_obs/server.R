@@ -1,8 +1,17 @@
+
+
+if (webmofuss == 1){
+  setwd("/home/rrangel/common")
+  rTempdir_fnrbobs = "RUTA EN WEBMOFUSS" # Roberto: necesitas crea rTempdir_fnrbobs (DEBE SER DIFERENTE A rTempdir -de los scripts de mofuss- porque no pueden estar siendo usadas al mismo tiempo)
+} else if (webmofuss == 0){
+  rTempdir_fnrbobs <- "C:/Users/aghil/Documents/rTempdir_fnrbobs"
+}
+
 # 2dolist ----
 
 # Internal parameters ----
+
 temdirdefined = 1 
-rTempdir_fnrbobs = "RUTA EN WEBMOFUSS" # Roberto: necesitas crea rTempdir_fnrbobs (DEBE SER DIFERENTE A rTempdir -de los scripts de mofuss- porque no pueden estar siendo usadas al mismo tiempo)
 
 # Load packages ----
 library(terra)
@@ -23,8 +32,6 @@ library(sf)
 library(shiny)
 # library(shinythemes)
 # library(shinycssloaders)
-
-setwd("/home/rrangel/common")
 
 # Define the server logic
 shinyServer(function(input, output, session) {
