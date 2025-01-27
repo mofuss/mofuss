@@ -3,8 +3,13 @@
 if (webmofuss == 1){
   setwd("/home/rrangel/common")
   rTempdir_fnrbobs = "RUTA EN WEBMOFUSS" # Roberto: necesitas crea rTempdir_fnrbobs (DEBE SER DIFERENTE A rTempdir -de los scripts de mofuss- porque no pueden estar siendo usadas al mismo tiempo)
-} else if (webmofuss == 0){
+  agbpath = ""
+  demandpath = ""
+  } else if (webmofuss == 0){
+    #ONLY WORKS IN NRBV1 NODE!"
   rTempdir_fnrbobs <- "C:/Users/aghil/Documents/rTempdir_fnrbobs"
+  agbpath = "E:/agb3rdparties/Pantropical_AGC/"
+  demandpath = "D:/demand/demand_in/"
 }
 
 # 2dolist ----
@@ -130,8 +135,8 @@ shinyServer(function(input, output, session) {
 												             selected_polygon_vect <- vect(selected_polygon)
 												             
 												             # Load and crop rasters
-												             agb2010CO2 <- rast("ctrees_global_2010_AGC_pantropic_1km_MgC02_ha.tif")
-													           agb20XXCO2 <- rast(paste0("ctrees_global_", endyr, "_AGC_pantropic_1km_MgC02_ha.tif"))
+												             agb2010CO2 <- rast(paste0(agbpath,"ctrees_global_2010_AGC_pantropic_1km_MgC02_ha.tif"))
+													           agb20XXCO2 <- rast(paste0(agbpath,"ctrees_global_", endyr, "_AGC_pantropic_1km_MgC02_ha.tif"))
 													           agb2010 <- agb2010CO2 * 12/44 / 0.47
 														         agb20XX <- agb20XXCO2 * 12/44 / 0.47
 														         
@@ -154,7 +159,7 @@ shinyServer(function(input, output, session) {
 																		             total_agblosses10_XX <- round(total_agblosses10_XX_df[1, 1], 0)
 																		             
 																		             # Load demand data
-																		             data_wf <- read_csv("cons_fuels_years.csv")
+																		             data_wf <- read_csv(paste0(demandpath,"cons_fuels_years.csv"))
 																			           demand_sum <- data_wf %>%
 																					           filter(iso3 == country_code, year >= 2010, year <= endyr,
 																							                 (fuel == "Biomass" & area %in% c("Rural", "Urban")) | 
