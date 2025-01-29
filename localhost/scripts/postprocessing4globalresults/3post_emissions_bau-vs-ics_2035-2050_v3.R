@@ -1240,7 +1240,7 @@ if (avoidedemissions == 1){
       if (sdm == "_mean"){
         AvEm20xx_gcs_tpp <- BaU20xxa - ICS20xxa # tpp stands for tonnes per pixel per period
       } else if (sdm == "_se") {
-        AvEm20xx_gcs_tpp <- ICS20xxa # WARNING !!! PROPAGATE THE ERROR CORRECTLY PLEASE - PLACEHOLDER FOR TNC
+        AvEm20xx_gcs_tpp <- sqrt((BaU20xxa - ICS20xxa)^2)/sqrt(30) # WARNING !!! PROPAGATE THE ERROR CORRECTLY PLEASE - PLACEHOLDER FOR TNC
       }
       terra::writeRaster(AvEm20xx_gcs_tpp, paste0(emissionsdir,"/",lastyr,regiontag,"/AE",lastyr,"_gcs_tpp",sdm,".tif"),
                          filetype = "GTiff", overwrite = T)
@@ -1252,9 +1252,9 @@ if (avoidedemissions == 1){
       BaU20xxb <- rast(paste0(emissionsdir,"/",lastyr,regiontag,"/BaU/emissions_out_BaU/e",firstyr,"-",lastyr,"_BaU_tCO2e",sdm,".tif"))
       ICS20xxb <- rast(paste0(emissionsdir,"/",lastyr,regiontag,"/ICS/emissions_out_ICS/e",firstyr,"-",lastyr,"_ICS_tCO2e",sdm,".tif"))
       if (sdm == "_mean"){
-      AvEm20xx_wm_tpp <- BaU20xxb - ICS20xxb #tpp stands for tonnes per pixel per period
+        AvEm20xx_wm_tpp <- BaU20xxb - ICS20xxb #tpp stands for tonnes per pixel per period
       } else if (sdm == "_se") {
-        AvEm20xx_wm_tpp <- ICS20xxb # WARNING !!! PROPAGATE THE ERROR CORRECTLY PLEASE - PLACEHOLDER FOR TNC
+        AvEm20xx_wm_tpp <- sqrt((BaU20xxb - ICS20xxb)^2)/sqrt(30) # # WARNING !!! PROPAGATE THE ERROR CORRECTLY PLEASE - PLACEHOLDER FOR TNC
       }
       terra::writeRaster(AvEm20xx_wm_tpp, paste0(emissionsdir,"/",lastyr,regiontag,"/AE",lastyr,"_wm_tpp",sdm,".tif"),
                          filetype = "GTiff", overwrite = T)
@@ -1264,7 +1264,7 @@ if (avoidedemissions == 1){
       if (sdm == "_mean"){
         AvEm20xx_wm_thay <- BaU20xxc - ICS20xxc #thay stands for tonnes per hectare per yr
       } else if (sdm == "_se") {
-        AvEm20xx_wm_thay <- ICS20xxc # WARNING !!! PROPAGATE THE ERROR CORRECTLY PLEASE - PLACEHOLDER FOR TNC
+        AvEm20xx_wm_thay <- sqrt((BaU20xxc - ICS20xxc)^2)/sqrt(30) # # WARNING !!! PROPAGATE THE ERROR CORRECTLY PLEASE - PLACEHOLDER FOR TNC
       }
       terra::writeRaster(AvEm20xx_wm_thay, paste0(emissionsdir,"/",lastyr,regiontag,"/AE",lastyr,"_wm_thay",sdm,".tif"),
                          filetype = "GTiff", overwrite = T)
@@ -1274,175 +1274,251 @@ if (avoidedemissions == 1){
       print(paste0("ERROR: One or more files in ",emissionsdir,"/",lastyr,"/ seem to be missing")) # Is this valid? or only one works
     }
     
-  }
-  
-  # Zonal statistics for cross-validation and debugging ----
-  if (zonalstats == 1){
     
-    setwd(admindir)
-    # lastyr = 2035
     
-    if (byregion == "Global"){
-      # print("fix this chunk!") # Not to be used in the short term really...
-      adminnew <- st_read("regions_adm0/mofuss_regions0.gpkg") %>%
-        dplyr::mutate(zone = 1:100)
-      admindb <- adminnew %>% st_drop_geometry()
-      head(adminnew)
-      sort(adminnew$NAME_0)
+    # Zonal statistics for cross-validation and debugging ----
+    if (zonalstats == 1){
       
-      adminnew_p <- st_read("regions_adm0_p/mofuss_regions0_p.gpkg") %>%
-        dplyr::mutate(zone = 1:100) %>%
-        dplyr::mutate(km2_vector = round(st_area(.)/1000000,0)) %>%
-        units::drop_units()
-      admindb_p <- adminnew_p %>% st_drop_geometry()
-      head(adminnew_p)
-      sort(adminnew_p$NAME_0)
+      setwd(admindir)
+      # lastyr = 2035
       
-    } else if (byregion == "Continental"){
-      adminnew <- st_read("regions_adm0/mofuss_regions0.gpkg") %>%
-        dplyr::mutate(zone = 1:100) %>%
-        dplyr::filter(grepl(mofuss_region,mofuss_reg))
-      admindb <- adminnew %>% st_drop_geometry()
-      head(adminnew)
-      sort(adminnew$NAME_0)
+      if (byregion == "Global"){
+        # print("fix this chunk!") # Not to be used in the short term really...
+        adminnew <- st_read("regions_adm0/mofuss_regions0.gpkg") %>%
+          dplyr::mutate(zone = 1:100)
+        admindb <- adminnew %>% st_drop_geometry()
+        head(adminnew)
+        sort(adminnew$NAME_0)
+        
+        adminnew_p <- st_read("regions_adm0_p/mofuss_regions0_p.gpkg") %>%
+          dplyr::mutate(zone = 1:100) %>%
+          dplyr::mutate(km2_vector = round(st_area(.)/1000000,0)) %>%
+          units::drop_units()
+        admindb_p <- adminnew_p %>% st_drop_geometry()
+        head(adminnew_p)
+        sort(adminnew_p$NAME_0)
+        
+      } else if (byregion == "Continental"){
+        adminnew <- st_read("regions_adm0/mofuss_regions0.gpkg") %>%
+          dplyr::mutate(zone = 1:100) %>%
+          dplyr::filter(grepl(mofuss_region,mofuss_reg))
+        admindb <- adminnew %>% st_drop_geometry()
+        head(adminnew)
+        sort(adminnew$NAME_0)
+        
+        adminnew_p <- st_read("regions_adm0_p/mofuss_regions0_p.gpkg") %>%
+          dplyr::mutate(zone = 1:100) %>%
+          dplyr::filter(grepl(mofuss_region,mofuss_reg)) %>%
+          dplyr::mutate(km2_vector = round(st_area(.)/1000000,0)) %>%
+          units::drop_units()
+        admindb_p <- adminnew_p %>% st_drop_geometry()
+        head(adminnew_p)
+        sort(adminnew_p$NAME_0)
+        
+      } else if (byregion == "Regional"){
+        adminnew <- st_read("regions_adm0/mofuss_regions0.gpkg") %>%
+          dplyr::mutate (zone = 1:100) %>%
+          dplyr::filter (mofuss_reg == mofuss_region)
+        admindb <- adminnew %>% st_drop_geometry()
+        sort(adminnew$NAME_0)
+        
+        adminnew_p <- st_read("regions_adm0_p/mofuss_regions0_p.gpkg") %>%
+          dplyr::mutate (zone = 1:100) %>%
+          dplyr::filter (mofuss_reg == mofuss_region) %>%
+          dplyr::mutate(km2_vector = round(st_area(.)/1000000,0)) %>%
+          units::drop_units()
+        admindb_p <- adminnew_p %>% st_drop_geometry()
+        head(adminnew_p)
+        sort(adminnew_p$NAME_0)
+        
+      } else if (byregion == "Country"){
+        adminnew <- st_read("regions_adm0/mofuss_regions0.gpkg") %>%
+          dplyr::mutate (zone = 1:100) %>%
+          dplyr::filter (NAME_0 == mofuss_region)
+        admindb <- adminnew %>% st_drop_geometry()
+        sort(adminnew$NAME_0)
+        
+        adminnew_p <- st_read("regions_adm0_p/mofuss_regions0_p.gpkg") %>%
+          dplyr::mutate (zone = 1:100) %>%
+          dplyr::filter (NAME_0 == mofuss_region) %>%
+          dplyr::mutate(km2_vector = round(st_area(.)/1000000,0)) %>%
+          units::drop_units()
+        admindb_p <- adminnew_p %>% st_drop_geometry()
+        sort(adminnew_p$NAME_0)
+        
+      }
       
-      adminnew_p <- st_read("regions_adm0_p/mofuss_regions0_p.gpkg") %>%
-        dplyr::mutate(zone = 1:100) %>%
-        dplyr::filter(grepl(mofuss_region,mofuss_reg)) %>%
-        dplyr::mutate(km2_vector = round(st_area(.)/1000000,0)) %>%
-        units::drop_units()
-      admindb_p <- adminnew_p %>% st_drop_geometry()
-      head(adminnew_p)
-      sort(adminnew_p$NAME_0)
+      AvEm_gcs_tppr <- raster(paste0(emissionsdir,"/",lastyr,regiontag,"/AE",lastyr,"_gcs_tpp",sdm,".tif"))
+      AvEm_gcs_tpyr <- raster(paste0(emissionsdir,"/",lastyr,regiontag,"/AE",lastyr,"_gcs_tpyr",sdm,".tif"))
+      AvEm_wm_tppr <- raster(paste0(emissionsdir,"/",lastyr,regiontag,"/AE",lastyr,"_wm_tpp",sdm,".tif"))
+      AvEm_wm_thayr <- raster(paste0(emissionsdir,"/",lastyr,regiontag,"/AE",lastyr,"_wm_thay",sdm,".tif"))
       
-    } else if (byregion == "Regional"){
-      adminnew <- st_read("regions_adm0/mofuss_regions0.gpkg") %>%
-        dplyr::mutate (zone = 1:100) %>%
-        dplyr::filter (mofuss_reg == mofuss_region)
-      admindb <- adminnew %>% st_drop_geometry()
-      sort(adminnew$NAME_0)
+      # plot(adminnew)
+      admin_r <- fasterize(adminnew, AvEm_gcs_tppr, field = "zone") # %>% mask(AvEm2035r)
+      admin_rp <- fasterize(adminnew_p, AvEm_wm_tppr, field = "zone") # %>% mask(AvEm2035r)
+      # plot(admin_r)
+      # plot(admin_rp)
       
-      adminnew_p <- st_read("regions_adm0_p/mofuss_regions0_p.gpkg") %>%
-        dplyr::mutate (zone = 1:100) %>%
-        dplyr::filter (mofuss_reg == mofuss_region) %>%
-        dplyr::mutate(km2_vector = round(st_area(.)/1000000,0)) %>%
-        units::drop_units()
-      admindb_p <- adminnew_p %>% st_drop_geometry()
-      head(adminnew_p)
-      sort(adminnew_p$NAME_0)
+      # Summary tables over GCS rasters
+      AvEm_gcs_tppr_sum <- as.data.frame(zonal(AvEm_gcs_tppr, admin_r, 'sum')) %>% # CORRECT SUM FOR SE PROPAGATION
+        dplyr::left_join(.,adminnew, by = "zone") %>%
+        dplyr::select(-zone, -Subregion, -ID, -mofuss_reg,-geom) %>%
+        dplyr::mutate(eMtCO2e = round(sum/1000000,2)) %>% # tonnes to megatonnes
+        dplyr::mutate(eMtCO2e_yr = round(eMtCO2e/simlength,2)) %>% # period to year
+        dplyr::relocate(sum, .after = NAME_0) %>%
+        rename_with(., .fn = ~paste0(firstyr,"-",lastyr,"_tpp"), .cols = all_of("sum"))
+      AvEm_gcs_tppr_sum
+      setwd(emissionsdir)
+      write.csv(AvEm_gcs_tppr_sum,paste0(emissionsdir,"/",lastyr,regiontag,"/AE",lastyr,"_gcs_tpp_sum",sdm,".csv"), row.names=FALSE, quote=FALSE)
       
-    } else if (byregion == "Country"){
-      adminnew <- st_read("regions_adm0/mofuss_regions0.gpkg") %>%
-        dplyr::mutate (zone = 1:100) %>%
-        dplyr::filter (NAME_0 == mofuss_region)
-      admindb <- adminnew %>% st_drop_geometry()
-      sort(adminnew$NAME_0)
+      # Summary tables over PCS rasters
+      AvEm_wm_tppr_areaT <- as.data.frame(zonal(admin_rp, admin_rp, 'count'))
+      AvEm_wm_tppr_sum <- as.data.frame(zonal(AvEm_wm_tppr, admin_rp, 'sum')) %>%
+        dplyr::left_join(.,adminnew_p, by = "zone") %>%
+        dplyr::left_join(.,AvEm_wm_tppr_areaT, by = "zone") %>%
+        dplyr::rename("km2_raster" = "count") %>%
+        dplyr::select(-zone, -Subregion, -ID, -mofuss_reg,-geom) %>%
+        dplyr::mutate(eMtCO2e = round(sum/1000000,2)) %>% # tonnes to megatonnes
+        dplyr::mutate(eMtCO2e_yr = round(eMtCO2e/simlength,2)) %>% # period to year
+        dplyr::mutate(etCO2e_hayr = round(sum/(km2_raster*100)/simlength,4)) %>% # by hectare (entire country) and by year
+        dplyr::relocate(sum, .after = NAME_0) %>%
+        dplyr::relocate(km2_raster, .after = etCO2e_hayr) %>%
+        dplyr::relocate(km2_vector, .after = km2_raster) %>%
+        rename_with(AvEm_wm_tppr_sum, .fn = ~paste0(firstyr,"-",lastyr,"_tpp"), .cols = all_of("sum"))
+      AvEm_wm_tppr_sum
+      write.csv(AvEm_wm_tppr_sum,paste0(emissionsdir,"/",lastyr,regiontag,"/AE",lastyr,"_wm_tpp_sum",sdm,".csv"), row.names=FALSE, quote=FALSE)
       
-      adminnew_p <- st_read("regions_adm0_p/mofuss_regions0_p.gpkg") %>%
-        dplyr::mutate (zone = 1:100) %>%
-        dplyr::filter (NAME_0 == mofuss_region) %>%
-        dplyr::mutate(km2_vector = round(st_area(.)/1000000,0)) %>%
-        units::drop_units()
-      admindb_p <- adminnew_p %>% st_drop_geometry()
-      sort(adminnew_p$NAME_0)
+      AvEm_wm_thayr_areaT <- as.data.frame(zonal(admin_rp, admin_rp, 'count'))
+      AvEm_wm_thayr_areaP <- as.data.frame(zonal(AvEm_wm_thayr, admin_rp, 'count'))
+      AvEm_wm_thayr_sum <- as.data.frame(zonal(AvEm_wm_thayr, admin_rp, 'sum')) %>%
+        dplyr::mutate(e20xx_tpp_eq = sum*100*simlength) %>% # OJO ACA
+        dplyr::left_join(.,adminnew_p, by = "zone") %>%
+        dplyr::left_join(.,AvEm_wm_thayr_areaT, by = "zone") %>%
+        dplyr::rename("km2_raster" = "count") %>%
+        dplyr::left_join(.,AvEm_wm_thayr_areaP, by = "zone") %>%
+        dplyr::rename("km2_raster_pop" = "count") %>%
+        dplyr::select(-zone, -Subregion, -ID, -mofuss_reg,-geom) %>%
+        dplyr::mutate(etCO2e_hayr_xr = round(sum/km2_raster,4)) %>% # for comparison x ref
+        dplyr::relocate(sum, .after = NAME_0) %>%
+        dplyr::relocate(km2_raster, .after = etCO2e_hayr_xr) %>%
+        dplyr::relocate(km2_raster_pop, .after = km2_raster) %>%
+        dplyr::relocate(e20xx_tpp_eq , .after = sum) %>%
+        rename_with(., .fn = ~paste0(firstyr,"-",lastyr,"_thayr"), .cols = all_of("sum"))
+      AvEm_wm_thayr_sum
+      write.csv(AvEm_wm_thayr_sum,paste0(emissionsdir,"/",lastyr,regiontag,"/AE",lastyr,"_wm_thayr_sum",sdm,".csv"), row.names=FALSE, quote=FALSE)
+      
+      
+      ## raster and tables summaries for cross validation ----
+      AvEm_gcs_tpyrt <- rast(paste0(emissionsdir,"/",lastyr,regiontag,"/AE",lastyr,"_gcs_tpyr",sdm,".tif"))
+      exf1 <- round(AvEm_gcs_tpyrt %>%
+                      terra::global(., 'sum', na.rm=TRUE) %>%
+                      pull(sum)/1000000,0)
+      print(paste0(exf1, " mt/yr for ",lastyr," 1.- Sums all non-null pixel values of a raster in GCS depicting tonnes per pixel per year; and convert them in the code to megatonnes per year = annual avoided emissions in SSA in 2050/35"))
+      
+      exf2 <- AvEm_gcs_tppr_sum %>%
+        summarise("X_validation_gcs" = sum(eMtCO2e_yr)) %>%
+        pull(X_validation_gcs) %>%
+        round(.,0)
+      print(paste0(exf2, " mt/yr for ",lastyr," 2.- Sums all rows of a table (from a GCS layer) showing megatonnes per country per year = annual avoided emissions in SSA in 2050/35"))
+      
+      AvEm_wm_tpprt <- rast(paste0(emissionsdir,"/",lastyr,regiontag,"/AE",lastyr,"_wm_tpp",sdm,".tif"))
+      exf3 <- round(AvEm_wm_tpprt %>%
+                      terra::global(., 'sum', na.rm=TRUE) %>%
+                      pull(sum)/1000000/simlength,0)
+      print(paste0(exf3, " mt/yr for ",lastyr," 3.- Sums all non-null pixel values of a raster in PCS depicting tonnes per km2 per period; and convert them in the code to megatonnes per year = annual avoided emissions in SSA in 2050/35"))
+      
+      print(paste0(exf3, " mt/yr for ",lastyr," 4.- Sums all rows of a table (from a PCS layer) showing megatonnes per country per year = annual avoided emissions in SSA in 2050/35"))
+      exf4 <- AvEm_wm_tppr_sum %>%
+        summarise("X_validation_pcs" = sum(eMtCO2e_yr)) %>%
+        pull(X_validation_pcs) %>%
+        round(.,0)
+      
+      AvEm_wm_thayrt <- rast(paste0(emissionsdir,"/",lastyr,regiontag,"/AE",lastyr,"_wm_thay",sdm,".tif"))
+      exf5 <- round(AvEm_wm_thayrt %>%
+                      terra::global(., 'sum', na.rm=TRUE) %>%
+                      pull(sum)*100/1000000,0)
+      print(paste0(exf5, " mt/yr for ",lastyr," 5.- Sums all non-null pixel values of a raster in PCS depicting tonnes per ha per year; and convert them in the code to megatonnes per year = annual avoided emissions in SSA in 2050/35"))
+      
+      exf6 <- round(sum(AvEm_wm_thayr_sum[,3])*100/1000000,0)
+      print(paste0(exf6, " mt/yr for ",lastyr," 6.- Sums all rows of a table (from a PCS layer) showing tonnes per ha per year; and convert them in the code to megatonnes per year = annual avoided emissions in SSA in 2050/35"))
       
     }
-    
-    AvEm_gcs_tppr <- raster(paste0(emissionsdir,"/",lastyr,regiontag,"/AE",lastyr,"_gcs_tpp",sdm,".tif"))
-    AvEm_gcs_tpyr <- raster(paste0(emissionsdir,"/",lastyr,regiontag,"/AE",lastyr,"_gcs_tpyr",sdm,".tif"))
-    AvEm_wm_tppr <- raster(paste0(emissionsdir,"/",lastyr,regiontag,"/AE",lastyr,"_wm_tpp",sdm,".tif"))
-    AvEm_wm_thayr <- raster(paste0(emissionsdir,"/",lastyr,regiontag,"/AE",lastyr,"_wm_thay",sdm,".tif"))
-    
-    # plot(adminnew)
-    admin_r <- fasterize(adminnew, AvEm_gcs_tppr, field = "zone") # %>% mask(AvEm2035r)
-    admin_rp <- fasterize(adminnew_p, AvEm_wm_tppr, field = "zone") # %>% mask(AvEm2035r)
-    # plot(admin_r)
-    # plot(admin_rp)
-    
-    # Summary tables over GCS rasters
-    AvEm_gcs_tppr_sum <- as.data.frame(zonal(AvEm_gcs_tppr, admin_r, 'sum')) %>% # CORRECT SUM FOR SE PROPAGATION
-      dplyr::left_join(.,adminnew, by = "zone") %>%
-      dplyr::select(-zone, -Subregion, -ID, -mofuss_reg,-geom) %>%
-      dplyr::mutate(eMtCO2e = round(sum/1000000,2)) %>% # tonnes to megatonnes
-      dplyr::mutate(eMtCO2e_yr = round(eMtCO2e/simlength,2)) %>% # period to year
-      dplyr::relocate(sum, .after = NAME_0) %>%
-      rename_with(., .fn = ~paste0(firstyr,"-",lastyr,"_tpp"), .cols = all_of("sum"))
-    AvEm_gcs_tppr_sum
-    setwd(emissionsdir)
-    write.csv(AvEm_gcs_tppr_sum,paste0(emissionsdir,"/",lastyr,regiontag,"/AE",lastyr,"_gcs_tpp_sum",sdm,".csv"), row.names=FALSE, quote=FALSE)
-    
-    # Summary tables over PCS rasters
-    AvEm_wm_tppr_areaT <- as.data.frame(zonal(admin_rp, admin_rp, 'count'))
-    AvEm_wm_tppr_sum <- as.data.frame(zonal(AvEm_wm_tppr, admin_rp, 'sum')) %>%
-      dplyr::left_join(.,adminnew_p, by = "zone") %>%
-      dplyr::left_join(.,AvEm_wm_tppr_areaT, by = "zone") %>%
-      dplyr::rename("km2_raster" = "count") %>%
-      dplyr::select(-zone, -Subregion, -ID, -mofuss_reg,-geom) %>%
-      dplyr::mutate(eMtCO2e = round(sum/1000000,2)) %>% # tonnes to megatonnes
-      dplyr::mutate(eMtCO2e_yr = round(eMtCO2e/simlength,2)) %>% # period to year
-      dplyr::mutate(etCO2e_hayr = round(sum/(km2_raster*100)/simlength,4)) %>% # by hectare (entire country) and by year
-      dplyr::relocate(sum, .after = NAME_0) %>%
-      dplyr::relocate(km2_raster, .after = etCO2e_hayr) %>%
-      dplyr::relocate(km2_vector, .after = km2_raster) %>%
-      rename_with(AvEm_wm_tppr_sum, .fn = ~paste0(firstyr,"-",lastyr,"_tpp"), .cols = all_of("sum"))
-    AvEm_wm_tppr_sum
-    write.csv(AvEm_wm_tppr_sum,paste0(emissionsdir,"/",lastyr,regiontag,"/AE",lastyr,"_wm_tpp_sum",sdm,".csv"), row.names=FALSE, quote=FALSE)
-    
-    AvEm_wm_thayr_areaT <- as.data.frame(zonal(admin_rp, admin_rp, 'count'))
-    AvEm_wm_thayr_areaP <- as.data.frame(zonal(AvEm_wm_thayr, admin_rp, 'count'))
-    AvEm_wm_thayr_sum <- as.data.frame(zonal(AvEm_wm_thayr, admin_rp, 'sum')) %>%
-      dplyr::mutate(e20xx_tpp_eq = sum*100*simlength) %>% # OJO ACA
-      dplyr::left_join(.,adminnew_p, by = "zone") %>%
-      dplyr::left_join(.,AvEm_wm_thayr_areaT, by = "zone") %>%
-      dplyr::rename("km2_raster" = "count") %>%
-      dplyr::left_join(.,AvEm_wm_thayr_areaP, by = "zone") %>%
-      dplyr::rename("km2_raster_pop" = "count") %>%
-      dplyr::select(-zone, -Subregion, -ID, -mofuss_reg,-geom) %>%
-      dplyr::mutate(etCO2e_hayr_xr = round(sum/km2_raster,4)) %>% # for comparison x ref
-      dplyr::relocate(sum, .after = NAME_0) %>%
-      dplyr::relocate(km2_raster, .after = etCO2e_hayr_xr) %>%
-      dplyr::relocate(km2_raster_pop, .after = km2_raster) %>%
-      dplyr::relocate(e20xx_tpp_eq , .after = sum) %>%
-      rename_with(., .fn = ~paste0(firstyr,"-",lastyr,"_thayr"), .cols = all_of("sum"))
-    AvEm_wm_thayr_sum
-    write.csv(AvEm_wm_thayr_sum,paste0(emissionsdir,"/",lastyr,regiontag,"/AE",lastyr,"_wm_thayr_sum",sdm,".csv"), row.names=FALSE, quote=FALSE)
-    
-    
-    ## raster and tables summaries for cross validation ----
-    AvEm_gcs_tpyrt <- rast(paste0(emissionsdir,"/",lastyr,regiontag,"/AE",lastyr,"_gcs_tpyr",sdm,".tif"))
-    exf1 <- round(AvEm_gcs_tpyrt %>%
-                    terra::global(., 'sum', na.rm=TRUE) %>%
-                    pull(sum)/1000000,0)
-    print(paste0(exf1, " mt/yr for ",lastyr," 1.- Sums all non-null pixel values of a raster in GCS depicting tonnes per pixel per year; and convert them in the code to megatonnes per year = annual avoided emissions in SSA in 2050/35"))
-    
-    exf2 <- AvEm_gcs_tppr_sum %>%
-      summarise("X_validation_gcs" = sum(eMtCO2e_yr)) %>%
-      pull(X_validation_gcs) %>%
-      round(.,0)
-    print(paste0(exf2, " mt/yr for ",lastyr," 2.- Sums all rows of a table (from a GCS layer) showing megatonnes per country per year = annual avoided emissions in SSA in 2050/35"))
-    
-    AvEm_wm_tpprt <- rast(paste0(emissionsdir,"/",lastyr,regiontag,"/AE",lastyr,"_wm_tpp",sdm,".tif"))
-    exf3 <- round(AvEm_wm_tpprt %>%
-                    terra::global(., 'sum', na.rm=TRUE) %>%
-                    pull(sum)/1000000/simlength,0)
-    print(paste0(exf3, " mt/yr for ",lastyr," 3.- Sums all non-null pixel values of a raster in PCS depicting tonnes per km2 per period; and convert them in the code to megatonnes per year = annual avoided emissions in SSA in 2050/35"))
-    
-    print(paste0(exf3, " mt/yr for ",lastyr," 4.- Sums all rows of a table (from a PCS layer) showing megatonnes per country per year = annual avoided emissions in SSA in 2050/35"))
-    exf4 <- AvEm_wm_tppr_sum %>%
-      summarise("X_validation_pcs" = sum(eMtCO2e_yr)) %>%
-      pull(X_validation_pcs) %>%
-      round(.,0)
-    
-    AvEm_wm_thayrt <- rast(paste0(emissionsdir,"/",lastyr,regiontag,"/AE",lastyr,"_wm_thay",sdm,".tif"))
-    exf5 <- round(AvEm_wm_thayrt %>%
-                    terra::global(., 'sum', na.rm=TRUE) %>%
-                    pull(sum)*100/1000000,0)
-    print(paste0(exf5, " mt/yr for ",lastyr," 5.- Sums all non-null pixel values of a raster in PCS depicting tonnes per ha per year; and convert them in the code to megatonnes per year = annual avoided emissions in SSA in 2050/35"))
-    
-    exf6 <- round(sum(AvEm_wm_thayr_sum[,3])*100/1000000,0)
-    print(paste0(exf6, " mt/yr for ",lastyr," 6.- Sums all rows of a table (from a PCS layer) showing tonnes per ha per year; and convert them in the code to megatonnes per year = annual avoided emissions in SSA in 2050/35"))
-    
   }
 }
+
+# Integrate mean and se into one summary table - THIS IS A PLACEHOLDER FOR TNC - RE CODE THE UNCERTAINTY ANALYSIS
+setwd(paste0(emissionsdir,"/",lastyr,regiontag))
+
+# Function to merge mean and SE tables
+merge_tables <- function(mean_file, se_file, common_cols, value_cols, output_file) {
+  # Read the data
+  mean_df <- read_csv(mean_file)
+  se_df <- read_csv(se_file)
+  
+  # Rename columns in SE table
+  se_df <- se_df %>%
+    rename_with(~ paste0(., "_se"), all_of(value_cols))
+  
+  # Rename columns in Mean table
+  mean_df <- mean_df %>%
+    rename_with(~ paste0(., "_mean"), all_of(value_cols))
+  
+  # Merge tables
+  merged_df <- mean_df %>%
+    left_join(se_df, by = common_cols)
+  
+  # Order columns to keep each mean-se pair together
+  ordered_cols <- c(common_cols, as.vector(t(outer(value_cols, c("_mean", "_se"), paste0))))
+  merged_df <- merged_df %>%
+    select(all_of(ordered_cols))
+  
+  # Save the merged table
+  write_csv(merged_df, output_file)
+  
+  # Delete original mean and SE files
+  # file_delete(c(mean_file, se_file))
+  
+  return(output_file)
+}
+
+# Define the file pairs and variables
+tables <- list(
+  list(
+    mean_file = "AE2035_gcs_tpp_sum_mean.csv",
+    se_file = "AE2035_gcs_tpp_sum_se.csv",
+    common_cols = c("GID_0", "NAME_0"),
+    value_cols = c("2020-2035_tpp", "eMtCO2e", "eMtCO2e_yr"),
+    output_file = "AE2035_gcs_tpp_sum_merged.csv"
+  ),
+  list(
+    mean_file = "AE2035_wm_thayr_sum_mean.csv",
+    se_file = "AE2035_wm_thayr_sum_se.csv",
+    common_cols = c("GID_0", "NAME_0"),
+    value_cols = c("2020-2035_thayr", "e20xx_tpp_eq", "etCO2e_hayr_xr"),
+    output_file = "AE2035_wm_thayr_sum_merged.csv"
+  ),
+  list(
+    mean_file = "AE2035_wm_tpp_sum_mean.csv",
+    se_file = "AE2035_wm_tpp_sum_se.csv",
+    common_cols = c("GID_0", "NAME_0"),
+    value_cols = c("2020-2035_tpp", "eMtCO2e", "eMtCO2e_yr", "etCO2e_hayr"),
+    output_file = "AE2035_wm_tpp_sum_merged.csv"
+  )
+)
+
+# Process each table pair
+for (table in tables) {
+  output <- merge_tables(
+    mean_file = table$mean_file,
+    se_file = table$se_file,
+    common_cols = table$common_cols,
+    value_cols = table$value_cols,
+    output_file = table$output_file
+  )
+  print(paste("Merged table saved:", output))
+}
+
+print("Merging completed and original files deleted!")
+
 
 #End ----
