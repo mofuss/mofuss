@@ -1229,6 +1229,7 @@ print(simlength)
 if (avoidedemissions == 1){
   
   for (sdm in c("_mean", "_se")){
+    # sdm = "_mean"
     # sdm = "_se"
     
     if (file.exists(paste0(emissionsdir,"/",lastyr,regiontag,"/BaU/emissions_out_BaU/e",firstyr,"-",lastyr,"_BaU_tCO2e_gcs",sdm,".tif")) == TRUE &
