@@ -80,6 +80,13 @@ if (os == "Windows" & node_name == "WINLANASE") {
   emissionsdir <- "D:/emissions"
   rTempdir <- "D:/rTemp"
   
+} else if (os == "Windows" & node_name == "EDITORIALCIGA"){
+  #ADD node
+  demanddir <- "E:/demand"
+  admindir <- "E:/admin_regions"
+  emissionsdir <- "E:/emissions"
+  rTempdir <- "E:/rTemp"
+  
 } else if (os == "Linux" & node_name == "linux-c3"){
   #ADD node
   demanddir <- "/home/mofuss/demand"
@@ -87,11 +94,6 @@ if (os == "Windows" & node_name == "WINLANASE") {
   emissionsdir <- "/home/mofuss/emissions"
   rTempdir <- "/home/mofuss/rTemp"
   
-} else if (os == "Linux" & node_name == "XXXXX"){
-  demanddir <- "/home/mofuss/demand"
-  admindir <- "/home/mofuss/admin_regions"
-  emissionsdir <- "/home/mofuss/emissions"
-  rTempdir <- "/home/mofuss/rTemp"
 }
 
 # Erase all plots in R Studio
@@ -1234,9 +1236,9 @@ if (avoidedemissions == 1){
       
       BaU20xxa <- rast(paste0(emissionsdir,"/",lastyr,regiontag,"/BaU/emissions_out_BaU/e",firstyr,"-",lastyr,"_BaU_tCO2e_gcs",sdm,".tif"))
       ICS20xxa <- rast(paste0(emissionsdir,"/",lastyr,regiontag,"/ICS/emissions_out_ICS/e",firstyr,"-",lastyr,"_ICS_tCO2e_gcs",sdm,".tif"))
-      if (sdm == "mean"){
+      if (sdm == "_mean"){
         AvEm20xx_gcs_tpp <- BaU20xxa - ICS20xxa # tpp stands for tonnes per pixel per period
-      } else if (sdm == "se") {
+      } else if (sdm == "_se") {
         AvEm20xx_gcs_tpp <- ICS20xxa # WARNING !!! PROPAGATE THE ERROR CORRECTLY PLEASE - PLACEHOLDER FOR TNC
       }
       terra::writeRaster(AvEm20xx_gcs_tpp, paste0(emissionsdir,"/",lastyr,regiontag,"/AE",lastyr,"_gcs_tpp",sdm,".tif"),
@@ -1248,9 +1250,9 @@ if (avoidedemissions == 1){
       
       BaU20xxb <- rast(paste0(emissionsdir,"/",lastyr,regiontag,"/BaU/emissions_out_BaU/e",firstyr,"-",lastyr,"_BaU_tCO2e",sdm,".tif"))
       ICS20xxb <- rast(paste0(emissionsdir,"/",lastyr,regiontag,"/ICS/emissions_out_ICS/e",firstyr,"-",lastyr,"_ICS_tCO2e",sdm,".tif"))
-      if (sdm == "mean"){
+      if (sdm == "_mean"){
       AvEm20xx_wm_tpp <- BaU20xxb - ICS20xxb #tpp stands for tonnes per pixel per period
-      } else if (sdm == "se") {
+      } else if (sdm == "_se") {
         AvEm20xx_wm_tpp <- ICS20xxb # WARNING !!! PROPAGATE THE ERROR CORRECTLY PLEASE - PLACEHOLDER FOR TNC
       }
       terra::writeRaster(AvEm20xx_wm_tpp, paste0(emissionsdir,"/",lastyr,regiontag,"/AE",lastyr,"_wm_tpp",sdm,".tif"),
@@ -1258,9 +1260,9 @@ if (avoidedemissions == 1){
       
       BaU20xxc <- rast(paste0(emissionsdir,"/",lastyr,regiontag,"/BaU/emissions_out_BaU/e",firstyr,"-",lastyr,"_BaU_tCO2e_thay",sdm,".tif"))
       ICS20xxc <- rast(paste0(emissionsdir,"/",lastyr,regiontag,"/ICS/emissions_out_ICS/e",firstyr,"-",lastyr,"_ICS_tCO2e_thay",sdm,".tif"))
-      if (sdm == "mean"){
+      if (sdm == "_mean"){
         AvEm20xx_wm_thay <- BaU20xxc - ICS20xxc #thay stands for tonnes per hectare per yr
-      } else if (sdm == "se") {
+      } else if (sdm == "_se") {
         AvEm20xx_wm_thay <- ICS20xxc # WARNING !!! PROPAGATE THE ERROR CORRECTLY PLEASE - PLACEHOLDER FOR TNC
       }
       terra::writeRaster(AvEm20xx_wm_thay, paste0(emissionsdir,"/",lastyr,regiontag,"/AE",lastyr,"_wm_thay",sdm,".tif"),
