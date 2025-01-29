@@ -1447,13 +1447,26 @@ if (avoidedemissions == 1){
 }
 
 # Integrate mean and se into one summary table - THIS IS A PLACEHOLDER FOR TNC - RE CODE THE UNCERTAINTY ANALYSIS
-setwd(paste0(emissionsdir,"/",lastyr,regiontag))
 
-# Function to merge mean and SE tables
-merge_tables <- function(mean_file, se_file, common_cols, value_cols, output_file) {
-  # Read the data
-  mean_df <- read_csv(mean_file)
-  se_df <- read_csv(se_file)
+setwd(paste0(lastyr,regiontag))
+
+# Function to merge mean and SE tables while keeping one copy of all "km2" variables
+merge_tables <- function(mean_file, se_file, output_file) {
+  # Read the data without printing column type messages
+  mean_df <- read_csv(mean_file, show_col_types = FALSE)
+  se_df <- read_csv(se_file, show_col_types = FALSE)
+  
+  # Identify common columns (assuming first two are always ID columns)
+  common_cols <- names(mean_df)[1:2]
+  
+  # Identify value columns (excluding common and km2 columns)
+  value_cols <- setdiff(names(mean_df), common_cols)
+  
+  # Identify all "km2" columns
+  km2_cols <- value_cols[grepl("km2", value_cols)]
+  
+  # Remove km2 columns from value_cols to avoid renaming them as mean/se
+  value_cols <- setdiff(value_cols, km2_cols)
   
   # Rename columns in SE table
   se_df <- se_df %>%
@@ -1467,55 +1480,44 @@ merge_tables <- function(mean_file, se_file, common_cols, value_cols, output_fil
   merged_df <- mean_df %>%
     left_join(se_df, by = common_cols)
   
-  # Order columns to keep each mean-se pair together
-  ordered_cols <- c(common_cols, as.vector(t(outer(value_cols, c("_mean", "_se"), paste0))))
-  merged_df <- merged_df %>%
-    select(all_of(ordered_cols))
-  
-  # Save the merged table
-  write_csv(merged_df, output_file)
-  
-  # Delete original mean and SE files
-  # file_delete(c(mean_file, se_file))
-  
-  return(output_file)
+  # Ensure only existing mean-se columns are included
+  mean_se_cols <- as.vector(t(outer(value_cols, c("_mean", "_se"), paste0)))
+  mean_se_cols <- intersect(mean_se_cols, names(merged_df))  # Only keep existing ones
+
+# Order columns: common columns first, then mean-SE pairs, then one copy of "km2" variables
+ordered_cols <- c(common_cols, mean_se_cols, km2_cols)
+
+# Select only existing columns in merged_df
+merged_df <- merged_df %>%
+  select(all_of(intersect(ordered_cols, names(merged_df))))
+
+# Save the merged table
+write_csv(merged_df, output_file)
+
+# Delete original mean and SE files
+# file_delete(c(mean_file, se_file))
+
+return(output_file)
 }
 
-# Define the file pairs and variables
-tables <- list(
-  list(
-    mean_file = "AE2035_gcs_tpp_sum_mean.csv",
-    se_file = "AE2035_gcs_tpp_sum_se.csv",
-    common_cols = c("GID_0", "NAME_0"),
-    value_cols = c("2020-2035_tpp", "eMtCO2e", "eMtCO2e_yr"),
-    output_file = "AE2035_gcs_tpp_sum_merged.csv"
-  ),
-  list(
-    mean_file = "AE2035_wm_thayr_sum_mean.csv",
-    se_file = "AE2035_wm_thayr_sum_se.csv",
-    common_cols = c("GID_0", "NAME_0"),
-    value_cols = c("2020-2035_thayr", "e20xx_tpp_eq", "etCO2e_hayr_xr"),
-    output_file = "AE2035_wm_thayr_sum_merged.csv"
-  ),
-  list(
-    mean_file = "AE2035_wm_tpp_sum_mean.csv",
-    se_file = "AE2035_wm_tpp_sum_se.csv",
-    common_cols = c("GID_0", "NAME_0"),
-    value_cols = c("2020-2035_tpp", "eMtCO2e", "eMtCO2e_yr", "etCO2e_hayr"),
-    output_file = "AE2035_wm_tpp_sum_merged.csv"
-  )
-)
+# Automatically find all mean and SE CSV files
+all_files <- dir(pattern = "AE(2035|2050)_.*_(mean|se)\\.csv")
 
-# Process each table pair
-for (table in tables) {
-  output <- merge_tables(
-    mean_file = table$mean_file,
-    se_file = table$se_file,
-    common_cols = table$common_cols,
-    value_cols = table$value_cols,
-    output_file = table$output_file
-  )
-  print(paste("Merged table saved:", output))
+# Extract unique prefixes (without _mean.csv or _se.csv)
+table_prefixes <- unique(gsub("_(mean|se)\\.csv$", "", all_files))
+
+# Process each detected table pair
+for (prefix in table_prefixes) {
+  mean_file <- paste0(prefix, "_mean.csv")
+  se_file <- paste0(prefix, "_se.csv")
+  output_file <- paste0(prefix, "_merged.csv")
+  
+  if (file_exists(mean_file) & file_exists(se_file)) {
+    output <- merge_tables(mean_file, se_file, output_file)
+    print(paste("Merged table saved:", output))
+  } else {
+    print(paste("Skipping:", prefix, "— missing one of the files"))
+  }
 }
 
 print("Merging completed and original files deleted!")
