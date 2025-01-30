@@ -156,12 +156,29 @@ if (webmofuss == 1) {
                             pattern = "\\.csv$|\\.xlsx$", 
                             full.names = TRUE)
   
+  # Read parameters table (recognizing the delimiter) ----
+  detect_delimiter <- function(file_path) {
+    # Read the first line of the file
+    first_line <- readLines(file_path, n = 1)
+    # Check if the first line contains ',' or ';'
+    if (grepl(";", first_line)) {
+      return(";")
+    } else {
+      return(",")
+    }
+  }
+  # Detect the delimiter
+  delimiter <- detect_delimiter(parameters_file_path)
+  # Read the CSV file with the detected delimiter
+  country_parameters <- read_delim(parameters_file_path, delim = delimiter)
+  print(tibble::as_tibble(country_parameters), n=100)
+  
   country_parameters %>%
-    dplyr::filter(Var == "GEE_tyRoi") %>%
-    pull(ParCHR) -> GEE_tyRoi
-  if (GEE_tyRoi == "world") {
+    dplyr::filter(Var == "GEE_scale") %>%
+    pull(ParCHR) -> GEE_scale
+  if (GEE_scale == 1000) {
     print("Global growth parameters tables copied succesfully")
-  } else if (GEE_tyRoi != "world") {
+  } else if (GEE_scale != 1000) {
     # Exclude the specific files
     growth2copy <- growth2copy[!basename(growth2copy) %in% c("growth_parameters_v3_copernicus.csv", "growth_parameters_v3_modis.csv")]
   }
