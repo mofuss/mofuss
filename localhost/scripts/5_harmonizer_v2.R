@@ -173,7 +173,7 @@ if (aoi_poly == 1) {
     stop("Projections do not match!")
   }
   # Intersect the two layers to calculate the overlapping areas
-  overlap <- try(intersect(kml_data, mofuss_regions0_gpkg), silent = TRUE)
+  overlap <- try(terra::intersect(kml_data, mofuss_regions0_gpkg), silent = TRUE)
   # Check if the result is valid
   if (inherits(overlap, "try-error") || is.null(overlap) || length(overlap) == 0) {
     stop("No valid overlap found between the KML file and the GPKG regions.")
