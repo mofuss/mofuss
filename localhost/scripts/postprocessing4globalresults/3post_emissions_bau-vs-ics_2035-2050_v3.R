@@ -10,8 +10,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# MoFuSS version 4
-# Windows version
+# MoFuSS 
+# Version 4
 # Date: Jan 2025
 # Description: Each run will produce all BaU and ICS for a given time period and region defined interactively.
 
@@ -44,7 +44,7 @@
 
 # Internal parameters ----
 temdirdefined = 1
-string_pattern_yes <- "adm0" #String pattern to be searched when selecting folders for the rasters' geocomputation
+string_pattern_yes <- "SSA_adm0_mozambique_enelproposal_jan2025" #String pattern to be searched when selecting folders for the rasters' geocomputation
 string_pattern_no <- "idw" #String pattern to be searched when selecting folders for the rasters' geocomputation
 
 #***#

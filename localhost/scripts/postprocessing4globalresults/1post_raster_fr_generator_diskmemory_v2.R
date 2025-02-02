@@ -1,6 +1,18 @@
+# Copyright 2025 Stockholm Environment Institute ----
+
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+# http://www.apache.org/licenses/LICENSE-2.0
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 # MoFuSS
 # Version 4
-# Date: Dec 2024
+# Date: Jan 2025
 
 # 2dolist ----
 ## Faltaría 2010-2050
@@ -8,13 +20,16 @@
 # Internal parameters ----
 temdirdefined = 1
 fixdir <- 0
-string_pattern_yes <- "tza_1000m" #String pattern to be searched when selecting folders for the rasters' geocomputation
+string_pattern_yes <- "SSA_adm0_mozambique_enelproposal_jan2025" #String pattern to be searched when selecting folders for the rasters' geocomputation
 string_pattern_no <- "idw" #String pattern to be searched when selecting folders for the rasters' geocomputation
  
 # Load packages ----
 library(terra)
 # terraOptions(steps = 55)
 if (temdirdefined == 1) {
+  # Define the rTemp directory
+  setwd(tk_choose.dir(default = getwd(), caption = "Define the rTemp directory"))
+  rTempdir <- getwd()
   terraOptions(tempdir = rTempdir)
 }
 # terraOptions(memfrac=0.9)
