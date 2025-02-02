@@ -24,6 +24,12 @@ string_pattern_yes <- "1000m" #String pattern to be searched when selecting fold
 string_pattern_no <- "idw" #String pattern to be searched when selecting folders for the rasters' geocomputation
  
 # Load packages ----
+library(dplyr)
+library(fs)
+library(readxl)
+library(tcltk)
+library(tibble)
+library(tidyverse)
 library(terra)
 # terraOptions(steps = 55)
 if (temdirdefined == 1) {
@@ -34,12 +40,6 @@ if (temdirdefined == 1) {
 }
 # terraOptions(memfrac=0.9)
 # terraOptions(progress=0)
-library(dplyr)
-library(fs)
-library(readxl)
-library(tcltk)
-library(tibble)
-library(tidyverse)
 
 if (fixdir == 1){
   
