@@ -19,8 +19,7 @@
 
 # Internal parameters ----
 temdirdefined = 1
-fixdir <- 0
-string_pattern_yes <- "2050" #String pattern to be searched when selecting folders for the rasters' geocomputation
+string_pattern_yes <- "2035" #String pattern to be searched when selecting folders for the rasters' geocomputation
 string_pattern_no <- "Cou" #String pattern to be searched when selecting folders for the rasters' geocomputation
 
 # Load packages ----
@@ -45,29 +44,16 @@ if (temdirdefined == 1) {
 # terraOptions(memfrac=0.9)
 # terraOptions(progress=0)
 
-if (fixdir == 1){
-  
-  # Define a particular directory when needed:
-  adm0_dirs <- c("E:/RobTests_adm0")
-  
-} else {
-  
-  # Define the directory to search
-  setwd(tk_choose.dir(default = getwd(), caption = "Define the emissions directory where results are saved"))
-  search_path <- getwd()
-  
-  # List all directories in the specified path
-  all_dirs <- dir_ls(search_path, type = "directory")
-  
-  # Filter directories that match string_pattern_yes and do not match string_pattern_no
-  emissions_dirs <- all_dirs[grepl(string_pattern_yes, all_dirs) & !grepl(string_pattern_no, all_dirs)]
-  # adm0_dirs <- all_dirs[grepl(string_pattern, all_dirs)]
-  # print(class(adm0_dirs))
-  # adm0_dirs <- as.character(adm0_dirs)
-  # print(class(adm0_dirs))  # Should return only "character"
-  emissions_dirs
-  
-}
+# Define the directory to search
+setwd(tk_choose.dir(default = getwd(), caption = "Define the emissions directory where results are saved"))
+search_path <- getwd()
+
+# List all directories in the specified path
+all_dirs <- dir_ls(search_path, type = "directory")
+
+# Filter directories that match string_pattern_yes and do not match string_pattern_no
+emissions_dirs <- all_dirs[grepl(string_pattern_yes, all_dirs) & !grepl(string_pattern_no, all_dirs)]
+emissions_dirs
 
 # Define the list of files to merge
 tables_to_merge <- c(
@@ -185,7 +171,7 @@ for (sd_path in sd_files) {
     sdperc_class <- classify(
       sdperc_raster, 
       c(0, 33, 66, 100, Inf),  # Breakpoints
-      c(1, 2, 3, 4)  # Categories (1 = High, 2 = Moderate, 3 = Low, 4 = Very Low)
+      c(1, 2, 3, 4)  # Categories (0 = High, 1 = Moderate, 2 = Low, 3 = Very Low)
     )
     
     # # This works better but takes way to long
