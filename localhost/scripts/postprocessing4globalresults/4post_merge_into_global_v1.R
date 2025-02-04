@@ -19,7 +19,7 @@
 
 # Internal parameters ----
 temdirdefined = 1
-string_pattern_yes <- "2035" #String pattern to be searched when selecting folders for the rasters' geocomputation
+string_pattern_yes <- "2050" #String pattern to be searched when selecting folders for the rasters' geocomputation
 string_pattern_no <- "Cou" #String pattern to be searched when selecting folders for the rasters' geocomputation
 
 # Load packages ----
@@ -141,10 +141,10 @@ for (file_name in rasters_to_merge) {
 cat("All mosaicking processes completed!\n")
 
 # SE as percentage of mean ----
-# List all _sd.tif files in the directory
+# List all _se.tif files in the directory
 sd_files <- list.files(merged_dir, pattern = "_se.tif$", full.names = TRUE)
 
-# Loop through each _sd file and find its corresponding _mean file
+# Loop through each _se file and find its corresponding _mean file
 for (sd_path in sd_files) {
   # Derive the corresponding _mean file name
   mean_path <- sub("_se.tif$", "_mean.tif", sd_path)
@@ -159,37 +159,37 @@ for (sd_path in sd_files) {
     mean_raster[mean_raster == 0] <- NA
     
     # Compute absolute percentage SD and round to integers
-    sdperc_raster <- round(abs(sd_raster / mean_raster) * 100, 0)
+    seperc_raster <- round(abs(sd_raster / mean_raster) * 100, 0)
     
-    # Define output filename (_sdperc.tif)
-    output_sdperc <- sub("_se.tif$", "_sdperc.tif", sd_path)
+    # Define output filename (_seperc.tif)
+    output_seperc <- sub("_se.tif$", "_seperc.tif", sd_path)
     
     # Save the percentage standard deviation raster
-    writeRaster(sdperc_raster, output_sdperc, overwrite = TRUE)
+    writeRaster(seperc_raster, output_seperc, overwrite = TRUE)
     
-    # Create a categorical raster based on sdperc_raster values
-    sdperc_class <- classify(
-      sdperc_raster, 
+    # Create a categorical raster based on seperc_raster values
+    seperc_class <- classify(
+      seperc_raster, 
       c(0, 33, 66, 100, Inf),  # Breakpoints
       c(1, 2, 3, 4)  # Categories (0 = High, 1 = Moderate, 2 = Low, 3 = Very Low)
     )
     
     # # This works better but takes way to long
     # # Create categorical raster manually using ifel()
-    # sdperc_class <- sdperc_raster
-    # sdperc_class <- ifel(sdperc_raster > 100, 4, sdperc_class)  # Very Low (>100)
-    # sdperc_class <- ifel(sdperc_raster > 66 & sdperc_raster <= 100, 3, sdperc_class)  # Low (66-100)
-    # sdperc_class <- ifel(sdperc_raster > 33 & sdperc_raster <= 66, 2, sdperc_class)  # Moderate (33-66)
-    # sdperc_class <- ifel(sdperc_raster >= 0 & sdperc_raster <= 33, 1, sdperc_class)  # High (0-33)
+    # seperc_class <- seperc_raster
+    # seperc_class <- ifel(seperc_raster > 100, 4, seperc_class)  # Very Low (>100)
+    # seperc_class <- ifel(seperc_raster > 66 & seperc_raster <= 100, 3, seperc_class)  # Low (66-100)
+    # seperc_class <- ifel(seperc_raster > 33 & seperc_raster <= 66, 2, seperc_class)  # Moderate (33-66)
+    # seperc_class <- ifel(seperc_raster >= 0 & seperc_raster <= 33, 1, seperc_class)  # High (0-33)
     
-    # Define output filename (_sdperc_class.tif)
-    output_class <- sub("_se.tif$", "_sdperc_class.tif", sd_path)
+    # Define output filename (_seperc_class.tif)
+    output_class <- sub("_se.tif$", "_seperc_class.tif", sd_path)
     
     # Save the categorical raster
-    writeRaster(sdperc_class, output_class, overwrite = TRUE)
+    writeRaster(seperc_class, output_class, overwrite = TRUE)
     
     # Print progress
-    cat("Processed and saved:", output_sdperc, "and", output_class, "\n")
+    cat("Processed and saved:", output_seperc, "and", output_class, "\n")
   } else {
     cat("Skipping:", sd_path, "- Corresponding mean file not found.\n")
   }
