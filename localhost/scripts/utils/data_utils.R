@@ -87,18 +87,30 @@ collect_marginal_data <- function(data, country, admin_level, fnrb_col, nrb_col,
         mutate(
             marginal_nrb = .data[[nrb_col]] - nrb_bau,
             marginal_harvest = .data[[harvest_col]] - harvest_bau,
-            marginal_ratio = case_when(
-                scenario == "bau" ~ 0,
+            marginal_fnrb = case_when(
+                scenario == "bau" ~ NA_real_,
                 abs(marginal_harvest) < 1e-10 ~ NA_real_,
                 TRUE ~ 100 * marginal_nrb / marginal_harvest
             ),
             country = country,
             admin_level = admin_level,
-            calculated_fnrb = .data[[nrb_col]] / .data[[harvest_col]],
-            fnrb = .data[[fnrb_col]]
+            calculated_fnrb = 100 * .data[[nrb_col]] / .data[[harvest_col]],
+            fnrb = 100* .data[[fnrb_col]]
         ) %>%
         select(-ends_with(".x"), -ends_with(".y")) %>%
-        distinct()
+        distinct() %>%
+        # Sort by demand value instead of scenario
+        arrange(country, admin_level, demand_value) %>%
+        group_by(country, admin_level) %>%
+        mutate(
+            local_nrb = .data[[nrb_col]] - lag(.data[[nrb_col]]),
+            local_harvest = .data[[harvest_col]] - lag(.data[[harvest_col]]),
+            local_marginal_fnrb = case_when(
+                abs(local_harvest) < 1e-10 ~ NA_real_,
+                TRUE ~ 100 * local_nrb / local_harvest
+            ),
+        ) %>%
+        ungroup()
 
     # Combined summary statistics
     marginal_summary <- marginal_data %>%
@@ -107,9 +119,9 @@ collect_marginal_data <- function(data, country, admin_level, fnrb_col, nrb_col,
             # Original marginal statistics
             mean_marginal_nrb = mean(marginal_nrb, na.rm = TRUE),
             mean_marginal_harvest = mean(marginal_harvest, na.rm = TRUE),
-            mean_marginal_ratio = mean(marginal_ratio, na.rm = TRUE),
-            # median_marginal_ratio = median(marginal_ratio, na.rm = TRUE),
-            # sd_marginal_ratio = sd(marginal_ratio, na.rm = TRUE),
+            mean_marginal_fnrb = mean(marginal_fnrb, na.rm = TRUE),
+            # median_marginal_fnrb = median(marginal_fnrb, na.rm = TRUE),
+            # sd_marginal_fnrb = sd(marginal_fnrb, na.rm = TRUE),
             
             # Additional summary statistics
             mean_nrb = mean(.data[[nrb_col]], na.rm = TRUE),
@@ -173,11 +185,11 @@ analyze_demand_sensitivity <- function(combined_data) {
         group_by(country, admin_level) %>%
         mutate(
             # Calculate point-wise slopes using adjacent points
-            point_slope = (lead(marginal_ratio) - marginal_ratio) / 
+            point_slope = (lead(marginal_fnrb) - marginal_fnrb) / 
                             (lead(demand_value) - demand_value),
             # Calculate local R-squared using rolling window
             local_r_squared = rollapply(
-                marginal_ratio, 
+                marginal_fnrb, 
                 width = 3, 
                 FUN = function(x) {
                     if (length(unique(x)) < 2) return(NA)
@@ -200,7 +212,7 @@ analyze_demand_sensitivity <- function(combined_data) {
     step_changes <- combined_data %>%
         group_by(country, admin_level, demand_value) %>%
         summarise(
-            mean_ratio = mean(marginal_ratio, na.rm = TRUE),
+            mean_ratio = mean(marginal_fnrb, na.rm = TRUE),
             .groups = "drop"
         ) %>%
         arrange(country, admin_level, demand_value) %>%

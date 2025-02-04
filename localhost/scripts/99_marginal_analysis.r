@@ -10,6 +10,7 @@ pacman::p_load(dplyr, ggplot2, readr, purrr, viridis, knitr, stringr, styler, rm
 source("localhost/scripts/utils/file_utils.R")
 source("localhost/scripts/utils/plot_utils.R")
 source("localhost/scripts/utils/data_utils.R")
+source("localhost/scripts/utils/tests.R")
 
 # Configuration
 setwd("~/mofuss/")
@@ -56,21 +57,23 @@ for (country in countries) {
         
         data <- process_files(directory_path, admin_filename_pattern, nrb_col, harvest_col, fnrb_col, x_col)
         
-        for (y_col in c(nrb_col, harvest_col, fnrb_col)) {
-            data <- data %>%
-            filter(!is.na(.data[[y_col]]), !is.na(demand_value))
-
-            plotz <- create_plots(data, x_col, y_col, admin_level, country, output_dir = output_dir)
-            write(paste("\n![", filename_pattern, "](", basename(plotz$boxplot), ")\n"), file_conn, append = TRUE)
-            write(paste("\n![", filename_pattern, "](", basename(plotz$scatter), ")\n"), file_conn, append = TRUE)
-        }
+        data <- data %>%
+            filter(!is.na(demand_value))
+        
+        plotz <- create_plots(data, x_col, c(nrb_col, harvest_col, fnrb_col), 
+                            admin_level, country, output_dir = output_dir)
+        write(paste("\n![", filename_pattern, "](", basename(plotz), ")\n"), 
+              file_conn, append = TRUE)
         
         # Get combined marginal and summary statistics
         marginal_data_list <- collect_marginal_data(data=data, country=country, admin_level=admin_level, fnrb_col=fnrb_col, nrb_col=nrb_col, harvest_col=harvest_col)
         all_country_results[[paste(country, admin_level, sep = "_")]] <- marginal_data_list
 
         write(paste("\n### Combined Summary and Marginal Analysis for", country, "-", admin_level, "\n"), file_conn, append = TRUE)
-        write(knitr::kable(marginal_data_list$summary, format = "markdown", digits = 2),
+        write(knitr::kable(marginal_data_list$summary %>% 
+                          select(-admin_level), 
+                          format = "markdown", 
+                          digits = 2),
             file_conn,
             append = TRUE
         )
@@ -112,7 +115,7 @@ if (length(all_country_results) > 0) {
     
 
     formatted_data <- combined_data %>%
-        select(country, admin_level, demand_value, marginal_ratio, nrb_col, harvest_col, fnrb_col) %>%
+        select(country, admin_level, demand_value, marginal_fnrb, nrb_col, harvest_col, fnrb_col) %>%
         distinct() %>%
         mutate(
             across(where(is.character), ~str_replace_all(., "_", " ")),
@@ -163,5 +166,5 @@ if (length(all_country_results) > 0) {
 
 render(output_file, output_format = "pdf_document")
 
-
+test_fun_fnrb_cals(combined_data)
 # nolint end
