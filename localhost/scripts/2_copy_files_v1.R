@@ -40,8 +40,8 @@ setwd(countrydir)
 directories_to_remove <- c(
   "Debugging", "DebuggingBaU", "DebuggingICS", "HTML_animation_OutBaU", "HTML_animation_OutICS", 
   "Logs", "OutBaU", "OutICS", "Summary_Report", "Temp", "TempBaU", "TempICS", "In",
-  "LULCC/InVector", "LULCC/Out_lulcc", "LULCC/SourceData", "LULCC/TempRaster", "LULCC/TempTables",
-  "LULCC/TempVector", "LULCC/TempVector_GCS"
+  "LULCC/InVector", "LULCC/Out_lulcc", "LULCC/TempRaster", "LULCC/TempTables",
+  "LULCC/TempVector", "LULCC/TempVector_GCS" #, "LULCC/SourceData"
 )
 
 file_patterns_to_remove <- c(
