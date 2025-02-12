@@ -18,6 +18,17 @@
 # Fix for linux cluster
 # Land Use Land Cover Module
 # Improve add_subadmin YES/NO, check it works as mask == analysis for any of the four scales: Global, Continental, Regional, Country.
+# Description VS description 
+# if (webmofuss == 1){
+# bind_cols (polykml, dfx) %>%
+#   st_zm() %>%
+#   subset(select=-c(Name,description)) -> userarea_GCS
+# } else if (webmofuss == 0){
+#   bind_cols (polykml, dfx) %>%
+#     st_zm() %>%
+#     subset(select=-c(Name,description)) -> userarea_GCS
+# }
+# userarea <- st_transform(userarea_GCS, epsg_pcs)
 
 # Internal parameters ----
 temdirdefined = 1
