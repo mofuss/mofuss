@@ -1455,6 +1455,16 @@ if (os == "Windows") {
     
   }
   
+  if (LULCt2map == "YES"){
+    dir.create("LULCC/lucdynamics_luc2")
+    dir.create("LULCC/lucdynamics_luc2/out_lulcc")
+  }
+  
+  if (LULCt3map == "YES"){
+    dir.create("LULCC/lucdynamics_luc3")
+    dir.create("LULCC/lucdynamics_luc3/out_lulcc")
+  }
+  
 }
 
 # End of script ----
