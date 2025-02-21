@@ -29,6 +29,20 @@
 #     subset(select=-c(Name,description)) -> userarea_GCS
 # }
 # userarea <- st_transform(userarea_GCS, epsg_pcs)
+# # Land Use Land Cover Module ####
+# if (webmofuss == 0) {
+#   
+#   if (LULCt1map == "YES"){
+#     dir.create("LULCC/lucdynamics_luc1")
+#     dir.create("LULCC/lucdynamics_luc1/out_lulcc")
+#     lulcc.egoml <- list.files (paste0(gitlabdir, "/localhost/scripts/LULCC/LULCt1_c/"))
+#     file.copy(from=paste0(gitlabdir, "/localhost/scripts/LULCC/LULCt1_c/",lulcc.egoml), 
+#               to=paste0(countrydir, "/LULCC/lucdynamics_luc1"), 
+#               overwrite = TRUE)
+#     system(paste0(countrydir, "/LULCC/lucdynamics_luc1/LULCC_blackbox_scripts2.bat"))
+#     sh: 1: /home/mofuss/haiti_linux-c3/LULCC/lucdynamics_luc1/LULCC_blackbox_scripts2.bat: Permission denied
+
+
 
 # Internal parameters ----
 temdirdefined = 1
@@ -73,6 +87,9 @@ library(svDialogs)
 library(tcltk)
 library(tictoc)
 library(tidyverse)
+
+# Detect OS
+os <- Sys.info()["sysname"]
 
 setwd(countrydir)
 getwd()
@@ -1362,7 +1379,7 @@ file.copy(from = "LULCC/TempRaster/locs_c_v.tif",
 toc()
 
 # Land Use Land Cover Module ####
-if (webmofuss == 0) {
+if (os == "Windows") {  
   
   if (LULCt1map == "YES"){
     dir.create("LULCC/lucdynamics_luc1")
@@ -1394,10 +1411,21 @@ if (webmofuss == 0) {
     system(paste0(countrydir, "/LULCC/lucdynamics_luc3/LULCC_blackbox_scripts2.bat"))
   }
 
+} else if (os == "Linux") {  
   
-} else {
+  print("This is linux dinamica luc module")
+  # if (LULCt1map == "YES"){
+  #   dir.create("LULCC/lucdynamics_luc1")
+  #   dir.create("LULCC/lucdynamics_luc1/out_lulcc")
+  #   lulcc.egoml <- list.files (paste0(gitlabdir, "/localhost/scripts/LULCC/LULCt1_c/"))
+  #   file.copy(from=paste0(gitlabdir, "/localhost/scripts/LULCC/LULCt1_c/",lulcc.egoml), 
+  #             to=paste0(countrydir, "/LULCC/lucdynamics_luc1"), 
+  #             overwrite = TRUE)
+  #   system(paste0(countrydir, "/LULCC/lucdynamics_luc1/LULCC_blackbox_scripts2.bat"))
+  # }
   
-  "This is webmofuss 4 Edgar"
+  
+  
   
 }
 
