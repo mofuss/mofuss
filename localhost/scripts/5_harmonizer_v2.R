@@ -1379,7 +1379,6 @@ file.copy(from = "LULCC/TempRaster/locs_c_v.tif",
 toc()
 
 # Land Use Land Cover Module ####
-os = "Linux"
 if (os == "Windows") {  
   
   if (LULCt1map == "YES"){
@@ -1387,7 +1386,7 @@ if (os == "Windows") {
     dir.create("LULCC/lucdynamics_luc1/out_lulcc")
     lulcc.egoml <- list.files(
       paste0(gitlabdir, "/localhost/scripts/LULCC/LULCt1_c"), 
-      pattern = "\\.(egoml|bat)$", 
+      pattern = "(win241\\.egoml|\\.bat)$", 
       full.names = TRUE
     )
     file.copy(from=lulcc.egoml, 
@@ -1401,7 +1400,7 @@ if (os == "Windows") {
     dir.create("LULCC/lucdynamics_luc2/out_lulcc")
     lulcc.egoml <- list.files(
       paste0(gitlabdir, "/localhost/scripts/LULCC/LULCt2_c"), 
-      pattern = "\\.(egoml|bat)$", 
+      pattern = "(win241\\.egoml|\\.bat)$", 
       full.names = TRUE
     )
     file.copy(from=lulcc.egoml, 
@@ -1415,7 +1414,7 @@ if (os == "Windows") {
     dir.create("LULCC/lucdynamics_luc3/out_lulcc")
     lulcc.egoml <- list.files(
       paste0(gitlabdir, "/localhost/scripts/LULCC/LULCt3_c"), 
-      pattern = "\\.(egoml|bat)$", 
+      pattern = "(win241\\.egoml|\\.bat)$", 
       full.names = TRUE
     )
     file.copy(from=lulcc.egoml, 
@@ -1432,43 +1431,24 @@ if (os == "Windows") {
     dir.create("LULCC/lucdynamics_luc1/out_lulcc")
     lulcc.egoml <- list.files(
       paste0(gitlabdir, "/localhost/scripts/LULCC/LULCt1_c"), 
-      pattern = "\\.(egoml|sh)$",  
+      pattern = "linux\\.egoml$", 
       full.names = TRUE
     )
     file.copy(from=lulcc.egoml,
               to=paste0(countrydir, "/LULCC/lucdynamics_luc1"),
               overwrite = TRUE)
-    system2("bash", args = c(paste0(countrydir, "/LULCC/lucdynamics_luc1/LULCC_blackbox_scripts2.sh")), stdout = TRUE, stderr = TRUE)
+    lulcc.egoml.local <- list.files(
+      paste0(countrydir, "/LULCC/lucdynamics_luc1"), 
+      pattern = "linux\\.egoml$",  
+      full.names = TRUE
+    )
+    
+    # lulcc.egoml.local %>%
+    #   walk(function(i){
+    #     system(glue("~/DinamicaEGO/DinamicaEGO-610-Ubuntu.AppImage ",i))
+    #   })
     
   }
-  
-  lulcc.egoml %>%
-    walk(function(i){
-    system(glue("~/DinamicaEGO/DinamicaEGO-610-Ubuntu.AppImage ",i))
-  })
-  
-  list("~/mofuss/linux/scripts/LULCC/1_Matrix_gain_linux5.egoml",
-       "~/mofuss/linux/scripts/LULCC/1_Matrix_loss_linux5.egoml",
-       "~/mofuss/linux/scripts/LULCC/2_Distance_calc_linux5.egoml",
-       "~/mofuss/linux/scripts/LULCC/3_Ranges_gain_linux5.egoml",
-       "~/mofuss/linux/scripts/LULCC/3_Ranges_loss_linux5.egoml",
-       "~/mofuss/linux/scripts/LULCC/4_Weights_gain_linux5.egoml",
-       "~/mofuss/linux/scripts/LULCC/4_Weights_loss_linux5.egoml",
-       "~/mofuss/linux/scripts/LULCC/5_Correlation_gain_linux5.egoml",
-       "~/mofuss/linux/scripts/LULCC/5_Correlation_loss_linux5.egoml",
-       "~/mofuss/linux/scripts/LULCC/6_Probability_gain_linux5.egoml",
-       "~/mofuss/linux/scripts/LULCC/6_Probability_loss_linux5.egoml",
-       "~/mofuss/linux/scripts/LULCC/7_Simulation_gain_linux5.egoml",
-       "~/mofuss/linux/scripts/LULCC/7_Simulation_loss_linux5.egoml",
-       "~/mofuss/linux/scripts/LULCC/8_Validation_gain_linux5.egoml",
-       "~/mofuss/linux/scripts/LULCC/8_Validation_loss_linux5.egoml") %>% 
-    walk(function(i){
-      system(glue("~/Dinamica/Dinamica.AppImage ",i))
-    })
-  
-  
-  
-  
   
   
 }
