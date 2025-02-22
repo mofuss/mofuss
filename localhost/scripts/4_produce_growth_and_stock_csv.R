@@ -1,20 +1,3 @@
-# MoFuSS
-# Version 3
-# Date: Mar 2024
-
-# 2dolist ----
-# Fix automatic bugs from the modis/copernicus 2 growth1 and 2 respectively at this stage to keep the process as clean as possible in the 
-# pre_script during the basic construction of the tables.
-# Try modis and copernicus f course and re run again from 4th script for all regions
-
-# IF GLOBAL COPY THE TABLE FROM GLOBAL!!! -ready
-
-# Internal parameters ----
-temdirdefined = 1
-rmax_over_K_ratio <- 0.04 #This fix automatic LUC with wrong.... REVISAR K!!!
-charcoal_harv_threshold <- 1 # t/ha
-# # Select MoFuSS platform:
-# webmofuss = 1 # "1" is  web-MoFuSS running in our Ubuntu server, "0" is localcal host (Windows or Linux)
 # Copyright 2025 Stockholm Environment Institute ----
 
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -26,6 +9,26 @@ charcoal_harv_threshold <- 1 # t/ha
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+# MoFuSS
+# Version 4
+# Date: Feb 2025
+
+# 2dolist ----
+# Fix automatic bugs from the modis/copernicus 2 growth1 and 2 respectively at this stage to keep the process as clean as possible in the 
+# pre_script during the basic construction of the tables.
+# Try modis and copernicus f course and re run again from 4th script for all regions
+# IF GLOBAL COPY THE TABLE FROM GLOBAL!!! -ready
+
+# Internal parameters ----
+temdirdefined = 1
+rmax_over_K_ratio <- 0.04 #This fix automatic LUC with wrong.... REVISAR K!!!
+charcoal_harv_threshold <- 1 # t/ha
+knockout_tofs <- 1
+
+# # Select MoFuSS platform:
+# webmofuss = 1 # "1" is  web-MoFuSS running in our Ubuntu server, "0" is localcal host (Windows or Linux)
+
 
 # source(paste0(scriptsmofuss,"00_webmofuss.R"))
 
