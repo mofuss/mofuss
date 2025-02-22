@@ -853,10 +853,8 @@ if (identical(LULCt1map, NA_character_)) {
                     pull(ParCHR))) %>%
       crop(extent(userarea_r)) %>%
       raster::resample(userarea_r, "ngb") %>%
-      mask(userarea_r) %>%
-      writeRaster(filename="LULCC/TempRaster/LULCt1_c.tif", datatype="INT2S", overwrite=TRUE)
-    # -> LULCt1_r_m
-    # writeRaster(LULCt1_r_m, filename="LULCC/TempRaster/LULCt1_c.tif", datatype="INT2S", overwrite=TRUE)
+      mask(userarea_r) -> LULCt1_r_m
+    writeRaster(LULCt1_r_m, filename="LULCC/TempRaster/LULCt1_c.tif", datatype="INT2S", overwrite=TRUE)
     } else {
       "No LULCt1 map available"
     }
