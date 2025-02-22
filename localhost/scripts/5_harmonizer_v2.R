@@ -1443,11 +1443,6 @@ if (os == "Windows") {
       full.names = TRUE
     )
     
-    # lulcc.egoml.local.list <- list("/home/mofuss/haiti_linux-c3/LULCC/lucdynamics_luc1/1_Matrix_gain_linux.egoml",     
-    #                                "/home/mofuss/haiti_linux-c3/LULCC/lucdynamics_luc1/1_Matrix_loss_linux.egoml")     
-    #                                #"/home/mofuss/haiti_linux-c3/LULCC/lucdynamics_luc1/2_Distance_calc_linux.egoml")   
-    
-    
     lulcc.egoml.local %>%
       walk(function(i) {
         system(glue('/opt/dinamicaego/DinamicaEGO-8.3.0-Ubuntu.AppImage "{i}"'))
