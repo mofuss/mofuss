@@ -1484,6 +1484,24 @@ if (os == "Windows") {
   if (LULCt3map == "YES"){
     dir.create("LULCC/lucdynamics_luc3")
     dir.create("LULCC/lucdynamics_luc3/out_lulcc")
+    lulcc.egoml <- list.files(
+      paste0(gitlabdir, "/localhost/scripts/LULCC/LULCt3_c"), 
+      pattern = "linux\\.egoml$", 
+      full.names = TRUE
+    )
+    file.copy(from=lulcc.egoml,
+              to=paste0(countrydir, "/LULCC/lucdynamics_luc3"),
+              overwrite = TRUE)
+    lulcc.egoml.local <- list.files(
+      paste0(countrydir, "/LULCC/lucdynamics_luc3"), 
+      pattern = "linux\\.egoml$",  
+      full.names = TRUE
+    )
+    
+    lulcc.egoml.local %>%
+      walk(function(i) {
+        system(glue('/opt/dinamicaego/DinamicaEGO-8.3.0-Ubuntu.AppImage "{i}"'))
+      })
   }
   
 }
