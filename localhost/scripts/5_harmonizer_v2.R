@@ -808,16 +808,16 @@ writeRaster(lossyear_r_m, filename="LULCC/TempRaster/lossyear_c.tif", datatype="
 
 # memory.limit(size=56000)
 # Loss maps annualizations for LULCC modeling ####
-raster("LULCC/TempRaster/lossyear_c.tif") %>%
-  {.} %in% 1:20 %>% 
+lossyear_r_m %>%
+  {.} %in% 1:20 %>%
   writeRaster(filename="LULCC/TempRaster/lossyear01_20_c.tif", datatype="INT2S", overwrite=TRUE)
 
-raster("LULCC/TempRaster/lossyear_c.tif") %>%
-  {.} %in% 1:10 %>% 
+lossyear_r_m %>% 
+  {.} %in% 1:10 %>%
   writeRaster(filename="LULCC/TempRaster/lossyear01_10_c.tif", datatype="INT2S", overwrite=TRUE)
 
 # Annual losses using apply or map ####
-tic()
+#tic()
 seq(1:20) %>% 
   walk(function(i){
     lossyear_r_m[lossyear_r_m == i] <- 1
@@ -826,7 +826,7 @@ seq(1:20) %>%
     lossyear_r_m %>%
       writeRaster(str_c("LULCC/TempRaster/AnnLoss", str_pad(i, width = 2, pad = "0"),".tif"), datatype = "INT2S",overwrite = T)
     })
-toc()
+#toc()
 
 # Annual losses using apply or map PARALLELIZED --- try in linux ####
 # tic()
@@ -853,8 +853,10 @@ if (identical(LULCt1map, NA_character_)) {
                     pull(ParCHR))) %>%
       crop(extent(userarea_r)) %>%
       raster::resample(userarea_r, "ngb") %>%
-      mask(userarea_r) -> LULCt1_r_m
-    writeRaster(LULCt1_r_m, filename="LULCC/TempRaster/LULCt1_c.tif", datatype="INT2S", overwrite=TRUE)
+      mask(userarea_r) %>%
+      writeRaster(filename="LULCC/TempRaster/LULCt1_c.tif", datatype="INT2S", overwrite=TRUE)
+    # -> LULCt1_r_m
+    # writeRaster(LULCt1_r_m, filename="LULCC/TempRaster/LULCt1_c.tif", datatype="INT2S", overwrite=TRUE)
     } else {
       "No LULCt1 map available"
     }
@@ -1458,6 +1460,25 @@ if (os == "Windows") {
   if (LULCt2map == "YES"){
     dir.create("LULCC/lucdynamics_luc2")
     dir.create("LULCC/lucdynamics_luc2/out_lulcc")
+    lulcc.egoml <- list.files(
+      paste0(gitlabdir, "/localhost/scripts/LULCC/LULCt2_c"), 
+      pattern = "linux\\.egoml$", 
+      full.names = TRUE
+    )
+    file.copy(from=lulcc.egoml,
+              to=paste0(countrydir, "/LULCC/lucdynamics_luc2"),
+              overwrite = TRUE)
+    lulcc.egoml.local <- list.files(
+      paste0(countrydir, "/LULCC/lucdynamics_luc2"), 
+      pattern = "linux\\.egoml$",  
+      full.names = TRUE
+    )
+
+    lulcc.egoml.local %>%
+      walk(function(i) {
+        system(glue('/opt/dinamicaego/DinamicaEGO-8.3.0-Ubuntu.AppImage "{i}"'))
+      })
+    
   }
   
   if (LULCt3map == "YES"){
