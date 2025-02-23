@@ -355,17 +355,20 @@ if (aoi_poly == 1) {
                         pull(ParCHR), country_parameters %>%
                         dplyr::filter(Var == "ext_analysis_NAME") %>%
                         pull(ParCHR))
-  if (webmofuss == 1){
-    bind_cols (polykml, dfx) %>%
-      st_zm() %>%
-      subset(select=-c(Name,description)) -> userarea_GCS
-  } else if (webmofuss == 0){
-    bind_cols (polykml, dfx) %>%
-      st_zm() %>%
-      subset(select=-c(Name,description)) -> userarea_GCS
-    }
+  # if (webmofuss == 1){
+  #   bind_cols (polykml, dfx) %>%
+  #     st_zm() %>%
+  #     subset(select=-c(Name,description)) -> userarea_GCS
+  # } else if (webmofuss == 0){
+  #   bind_cols (polykml, dfx) %>%
+  #     st_zm() %>%
+  #     subset(select=-c(Name,description)) -> userarea_GCS
+  # }
+  userarea_GCS <- bind_cols(polykml, dfx) %>%
+    st_zm() %>%
+    select(-Name, -matches("description", ignore.case = TRUE))
   userarea <- st_transform(userarea_GCS, epsg_pcs)
-  
+
   # Vector masks and extents Google Polygon
   setwd(admindir)
   extent_mask0 <- vect(st_read("regions_adm0_p/mofuss_regions0_p.gpkg")) %>%
