@@ -781,7 +781,6 @@ if (aoi_poly != 1) {
 #   mask(userarea_r)
 # writeRaster(DEM_r_m, filename="LULCC/TempRaster/DEM_c.tif", datatype="INT2S", overwrite=TRUE)
 
-
 # process DEM with TERRA ----
 # unlink("LULCC/TempRaster/DEM_c.tif")  # Deletes the file
 # Check non-NA values in userarea_r (RasterLayer)
