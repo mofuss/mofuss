@@ -786,7 +786,7 @@ if (aoi_poly != 1) {
 # Check non-NA values in userarea_r (RasterLayer)
 # sum(!is.na(values(userarea_r)))  # Counts non-NA values
 # Convert userarea_r from RasterLayer to SpatRaster
-# userarea_r_terra <- rast(userarea_r)
+userarea_r_terra <- rast(userarea_r)
 # global(userarea_r_terra, fun = "notNA")
 
 country_parameters %>%
