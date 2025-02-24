@@ -1,8 +1,7 @@
-.Rhistory
-.RData
-.Rproj
-.Rproj.user
+*.Rhistory
+*.RData
+*.Rproj
+*.Rproj.user
 000_main_localhost_v1.R
 000_main_localhost.R
 0_set_directories_and_region_RICMOFUSS.R
-mofuss.Rproj
