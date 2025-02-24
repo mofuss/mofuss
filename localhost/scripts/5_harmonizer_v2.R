@@ -770,15 +770,34 @@ if (aoi_poly != 1) {
 #################################TERRA#####################################
 ##### VOY POR ACÁ!! Pasar a a Terra
 
-# process DEM ----
+# # process DEM ----
+# country_parameters %>%
+#   dplyr::filter(Var == "DTEM_name") %>%
+#   pull(ParCHR) -> DTEM_name
+# dtem <- raster(paste0("LULCC/SourceData/InRaster/",DTEM_name))
+# DEM_r_m <- dtem %>%
+#   crop(extent(userarea_r)) %>%
+#   raster::resample(userarea_r, "bilinear") %>%
+#   mask(userarea_r)
+# writeRaster(DEM_r_m, filename="LULCC/TempRaster/DEM_c.tif", datatype="INT2S", overwrite=TRUE)
+
+
+# process DEM with TERRA ----
+# unlink("LULCC/TempRaster/DEM_c.tif")  # Deletes the file
+# Check non-NA values in userarea_r (RasterLayer)
+# sum(!is.na(values(userarea_r)))  # Counts non-NA values
+# Convert userarea_r from RasterLayer to SpatRaster
+# userarea_r_terra <- rast(userarea_r)
+# global(userarea_r_terra, fun = "notNA")
+
 country_parameters %>%
   dplyr::filter(Var == "DTEM_name") %>%
   pull(ParCHR) -> DTEM_name
-dtem <- raster(paste0("LULCC/SourceData/InRaster/",DTEM_name))
+dtem <- rast(paste0("LULCC/SourceData/InRaster/",DTEM_name))
 DEM_r_m <- dtem %>%
-  crop(extent(userarea_r)) %>%
-  raster::resample(userarea_r, "bilinear") %>%
-  mask(userarea_r)
+  terra::crop(ext(userarea_r_terra)) %>%             # Crop to the extent of userarea_r
+  terra::resample(userarea_r_terra, method = "bilinear") %>%  # Resample using bilinear interpolation
+  terra::mask(userarea_r_terra)                      # Mask using userarea_r
 writeRaster(DEM_r_m, filename="LULCC/TempRaster/DEM_c.tif", datatype="INT2S", overwrite=TRUE)
 
 # tree cover, forest loss and forest gain ####
