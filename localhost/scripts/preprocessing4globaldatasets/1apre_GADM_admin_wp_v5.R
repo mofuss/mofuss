@@ -13,8 +13,8 @@
 # Internal parameters ----
 run_ms = "Yes" # Run ms_simplify?
 newadminlevel = 3 # Use 3, 4, or 5 depending on the desired admin level. Any different value will bypass this and keep the original adm0, adm1 and adm2.
-# subregionsSSA_v <- "subregionsSSA_v4.csv"
-subregionsSSA_v <- "subregionsSSA_v5FAO.csv"
+subregionsSSA_v <- "subregionsSSA_v4.csv"
+# subregionsSSA_v <- "subregionsSSA_v5FAO.csv"
 subregionsLATAM_v <- "subregionsLATAM_v3.csv"
 subregionsASIA_v <- "subregionsASIA_v5.csv"
 subregionsOCEANIA_v <- "subregionsOCEANIA.csv"
