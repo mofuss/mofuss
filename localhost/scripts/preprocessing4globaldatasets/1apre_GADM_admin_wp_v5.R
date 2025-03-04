@@ -438,7 +438,7 @@ SSA_adm0_togo$mofuss_reg <- "SSA_adm0_togo"
 # SSA_adm0_mozambique <- SSA_adm0_subregions %>% dplyr::filter(Subregion %in% "Mozambique") %>% mutate(ID = 1:nrow(.))
 # SSA_adm0_mozambique$mofuss_reg <- "SSA_adm0_mozambique"
 if (subregionsSSA_v == "subregionsSSA_v5FAO.csv") {
-  SSA_adm0_miombo_mopane <- SSA_adm0_subregions %>% dplyr::filter(Subregion %in% "Miombo-Mopane") %>% mutate(ID = 1:nrow(.))
+  SSA_adm0_miombo_mopane <- SSA_adm0_subregions %>% dplyr::filter(Subregion %in% "Miombo Mopane") %>% mutate(ID = 1:nrow(.))
   SSA_adm0_miombo_mopane$mofuss_reg <- "SSA_adm0_miombo_mopane"
 } else if (subregionsSSA_v != "subregionsSSA_v5FAO.csv") {
   SSA_adm0_angola <- SSA_adm0_subregions %>% dplyr::filter(Subregion %in% "Angola") %>% mutate(ID = 1:nrow(.))
@@ -482,7 +482,7 @@ st_write(SSA_adm0_senegambia, "regions_adm0/SSA_adm0_senegambia.gpkg", delete_la
 st_write(SSA_adm0_togo, "regions_adm0/SSA_adm0_togo.gpkg", delete_layer = TRUE)
 #st_write(SSA_adm0_mozambique, "regions_adm0/SSA_adm0_mozambique.gpkg", delete_layer = TRUE)
 if (subregionsSSA_v == "subregionsSSA_v5FAO.csv") {
-  st_write(SSA_adm0_miombo_mopane, "regions_adm0/SSA_adm0_miombo-mopane.gpkg", delete_layer = TRUE)
+  st_write(SSA_adm0_miombo_mopane, "regions_adm0/SSA_adm0_miombo_mopane.gpkg", delete_layer = TRUE)
 } else if (subregionsSSA_v != "subregionsSSA_v5FAO.csv") {
   st_write(SSA_adm0_angola, "regions_adm0/SSA_adm0_angola.gpkg", delete_layer = TRUE)
   st_write(SSA_adm0_malambique, "regions_adm0/SSA_adm0_malambique.gpkg", delete_layer = TRUE)
@@ -572,7 +572,7 @@ SSA_adm0_togo %>%
 if (subregionsSSA_v == "subregionsSSA_v5FAO.csv") {
   SSA_adm0_miombo_mopane %>%
     st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-    st_write("regions_adm0_p/SSA_adm0_miombo-mopane_p.gpkg", delete_layer = TRUE)
+    st_write("regions_adm0_p/SSA_adm0_miombo_mopane_p.gpkg", delete_layer = TRUE)
 } else if (subregionsSSA_v != "subregionsSSA_v5FAO.csv") {
   SSA_adm0_angola %>%
     st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
@@ -655,7 +655,7 @@ st_write(SSA_adm1_senegambia, "regions_adm1/SSA_adm1_senegambia.gpkg", delete_la
 st_write(SSA_adm1_togo, "regions_adm1/SSA_adm1_togo.gpkg", delete_layer = TRUE)
 #st_write(SSA_adm1_mozambique, "regions_adm1/SSA_adm1_mozambique.gpkg", delete_layer = TRUE)
 if (subregionsSSA_v == "subregionsSSA_v5FAO.csv") {
-  st_write(SSA_adm1_miombo_mopane, "regions_adm1/SSA_adm1_miombo-mopane.gpkg", delete_layer = TRUE)
+  st_write(SSA_adm1_miombo_mopane, "regions_adm1/SSA_adm1_miombo_mopane.gpkg", delete_layer = TRUE)
 } else if (subregionsSSA_v != "subregionsSSA_v5FAO.csv") {
   st_write(SSA_adm1_angola, "regions_adm1/SSA_adm1_angola.gpkg", delete_layer = TRUE)
   st_write(SSA_adm1_malambique, "regions_adm1/SSA_adm1_malambique.gpkg", delete_layer = TRUE)
@@ -747,7 +747,7 @@ SSA_adm1_togo %>%
 if (subregionsSSA_v == "subregionsSSA_v5FAO.csv") {
   SSA_adm1_miombo_mopane %>%
     st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-    st_write("regions_adm1_p/SSA_adm1_miombo-mopane_p.gpkg", delete_layer = TRUE)
+    st_write("regions_adm1_p/SSA_adm1_miombo_mopane_p.gpkg", delete_layer = TRUE)
 } else if (subregionsSSA_v != "subregionsSSA_v5FAO.csv") {
   SSA_adm1_angola %>%
     st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
@@ -839,7 +839,7 @@ st_write(SSA_adm2_senegambia, "regions_adm2/SSA_adm2_senegambia.gpkg", delete_la
 st_write(SSA_adm2_togo, "regions_adm2/SSA_adm2_togo.gpkg", delete_layer = TRUE)
 #st_write(SSA_adm2_mozambique, "regions_adm2/SSA_adm2_mozambique.gpkg", delete_layer = TRUE)
 if (subregionsSSA_v == "subregionsSSA_v5FAO.csv") {
-  st_write(SSA_adm2_miombo_mopane, "regions_adm2/SSA_adm2_miombo-mopane.gpkg", delete_layer = TRUE)
+  st_write(SSA_adm2_miombo_mopane, "regions_adm2/SSA_adm2_miombo_mopane.gpkg", delete_layer = TRUE)
 } else if (subregionsSSA_v != "subregionsSSA_v5FAO.csv") {
   st_write(SSA_adm2_angola, "regions_adm2/SSA_adm2_angola.gpkg", delete_layer = TRUE)
   st_write(SSA_adm2_malambique, "regions_adm2/SSA_adm2_malambique.gpkg", delete_layer = TRUE)
@@ -930,7 +930,7 @@ SSA_adm2_togo %>%
 if (subregionsSSA_v == "subregionsSSA_v5FAO.csv") {
   SSA_adm2_miombo_mopane %>%
     st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-    st_write("regions_adm2_p/SSA_adm2_miombo-mopane_p.gpkg", delete_layer = TRUE)
+    st_write("regions_adm2_p/SSA_adm2_miombo_mopane_p.gpkg", delete_layer = TRUE)
 } else if (subregionsSSA_v != "subregionsSSA_v5FAO.csv") {
   SSA_adm2_angola %>%
     st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
