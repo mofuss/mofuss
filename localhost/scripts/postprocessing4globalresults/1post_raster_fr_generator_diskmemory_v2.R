@@ -13,6 +13,7 @@
 # MoFuSS
 # Version 4
 # Date: Jan 2025
+# Que hace este scripe????
 
 # 2dolist ----
 ## Faltaría 2010-2050

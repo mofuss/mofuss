@@ -1249,6 +1249,19 @@ if (avoidedemissions == 1){
       terra::writeRaster(AvEm20xx_gcs_tpyr, paste0(emissionsdir,"/",lastyr,regiontag,"/AE",lastyr,"_gcs_tpyr",sdm,".tif"),
                          filetype = "GTiff", overwrite = T)
       
+      # Compute pixel area in square meters
+      areaperpixel_m2 <- terra::cellSize(AvEm20xx_gcs_tpp, unit="m")
+      
+      # Convert to hectares (1 ha = 10,000 m²)
+      areaperpixel <- areaperpixel_m2 / 10000
+      
+      # Convert emissions to tonnes per hectare per year
+      AvEm20xx_gcs_thayr <- (AvEm20xx_gcs_tpp / simlength) / areaperpixel
+      
+      # Save the resulting raster
+      terra::writeRaster(AvEm20xx_gcs_thayr, paste0(emissionsdir,"/",lastyr,regiontag,"/AE",lastyr,"_gcs_thayr",sdm,".tif"),
+                         filetype = "GTiff", overwrite = T)
+      
       BaU20xxb <- rast(paste0(emissionsdir,"/",lastyr,regiontag,"/BaU/emissions_out_BaU/e",firstyr,"-",lastyr,"_BaU_tCO2e",sdm,".tif"))
       ICS20xxb <- rast(paste0(emissionsdir,"/",lastyr,regiontag,"/ICS/emissions_out_ICS/e",firstyr,"-",lastyr,"_ICS_tCO2e",sdm,".tif"))
       if (sdm == "_mean"){
