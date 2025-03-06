@@ -1363,6 +1363,7 @@ if (avoidedemissions == 1){
       
       AvEm_gcs_tppr <- raster(paste0(emissionsdir,"/",lastyr,regiontag,"/AE",lastyr,"_gcs_tpp",sdm,".tif"))
       AvEm_gcs_tpyr <- raster(paste0(emissionsdir,"/",lastyr,regiontag,"/AE",lastyr,"_gcs_tpyr",sdm,".tif"))
+      AvEm_gcs_thayr <- raster(paste0(emissionsdir,"/",lastyr,regiontag,"/AE",lastyr,"_gcs_thayr",sdm,".tif"))
       AvEm_wm_tppr <- raster(paste0(emissionsdir,"/",lastyr,regiontag,"/AE",lastyr,"_wm_tpp",sdm,".tif"))
       AvEm_wm_thayr <- raster(paste0(emissionsdir,"/",lastyr,regiontag,"/AE",lastyr,"_wm_thay",sdm,".tif"))
       
@@ -1383,6 +1384,28 @@ if (avoidedemissions == 1){
       AvEm_gcs_tppr_sum
       setwd(emissionsdir)
       write.csv(AvEm_gcs_tppr_sum,paste0(emissionsdir,"/",lastyr,regiontag,"/AE",lastyr,"_gcs_tpp_sum",sdm,".csv"), row.names=FALSE, quote=FALSE)
+      
+      AvEm_gcs_tpyr_sum <- as.data.frame(zonal(AvEm_gcs_tpyr, admin_r, 'sum')) %>% # CORRECT SUM FOR SE PROPAGATION
+        dplyr::left_join(.,adminnew, by = "zone") %>%
+        dplyr::select(-zone, -Subregion, -ID, -mofuss_reg,-geom) %>%
+        dplyr::mutate(eMtCO2e = round(sum/1000000,2)) %>% # tonnes to megatonnes
+        # dplyr::mutate(eMtCO2e_yr = round(eMtCO2e/simlength,2)) %>% # period to year #WARNING - cross check with GCS table
+        dplyr::relocate(sum, .after = NAME_0) %>%
+        rename_with(., .fn = ~paste0(firstyr,"-",lastyr,"_tpyr"), .cols = all_of("sum"))
+      AvEm_gcs_tpyr_sum
+      setwd(emissionsdir)
+      write.csv(AvEm_gcs_tpyr_sum,paste0(emissionsdir,"/",lastyr,regiontag,"/AE",lastyr,"_gcs_tpyr_sum",sdm,".csv"), row.names=FALSE, quote=FALSE)
+      
+      AvEm_gcs_thayr_sum <- as.data.frame(zonal(AvEm_gcs_thayr, admin_r, 'sum')) %>% # CORRECT SUM FOR SE PROPAGATION
+        dplyr::left_join(.,adminnew, by = "zone") %>%
+        dplyr::select(-zone, -Subregion, -ID, -mofuss_reg,-geom) %>%
+        dplyr::mutate(eMtCO2e = round(sum/1000000,2)) %>% # tonnes to megatonnes
+        # dplyr::mutate(eMtCO2e_yr = round(eMtCO2e/simlength,2)) %>% # period to year #WARNING - cross check with GCS table
+        dplyr::relocate(sum, .after = NAME_0) %>%
+        rename_with(., .fn = ~paste0(firstyr,"-",lastyr,"_thayr"), .cols = all_of("sum"))
+      AvEm_gcs_thayr_sum
+      setwd(emissionsdir)
+      write.csv(AvEm_gcs_thayr_sum,paste0(emissionsdir,"/",lastyr,regiontag,"/AE",lastyr,"_gcs_thayr_sum",sdm,".csv"), row.names=FALSE, quote=FALSE)
       
       # Summary tables over PCS rasters
       AvEm_wm_tppr_areaT <- as.data.frame(zonal(admin_rp, admin_rp, 'count'))

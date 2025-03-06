@@ -59,7 +59,9 @@ emissions_dirs
 tables_to_merge <- c(
   paste0("AE",string_pattern_yes,"_wm_tpp_sum_merged.csv"),
   paste0("AE",string_pattern_yes,"_wm_thayr_sum_merged.csv"),
-  paste0("AE",string_pattern_yes,"_gcs_tpp_sum_merged.csv")
+  paste0("AE",string_pattern_yes,"_gcs_tpp_sum_merged.csv"),
+  paste0("AE",string_pattern_yes,"_gcs_tpyr_sum_merged.csv"),
+  paste0("AE",string_pattern_yes,"_gcs_thayr_sum_merged.csv")
 )
 
 # Define the list of files to merge
@@ -68,6 +70,8 @@ rasters_to_merge <- c(
   paste0("AE",string_pattern_yes,"_gcs_tpp_se.tif"),
   paste0("AE",string_pattern_yes,"_gcs_tpyr_mean.tif"),
   paste0("AE",string_pattern_yes,"_gcs_tpyr_se.tif"),
+  paste0("AE",string_pattern_yes,"_gcs_thayr_mean.tif"),
+  paste0("AE",string_pattern_yes,"_gcs_thayr_se.tif"),
   paste0("AE",string_pattern_yes,"_wm_thay_mean.tif"),
   paste0("AE",string_pattern_yes,"_wm_thay_se.tif"),
   paste0("AE",string_pattern_yes,"_wm_tpp_mean.tif"),
