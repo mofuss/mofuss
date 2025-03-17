@@ -1385,28 +1385,6 @@ if (avoidedemissions == 1){
       setwd(emissionsdir)
       write.csv(AvEm_gcs_tppr_sum,paste0(emissionsdir,"/",lastyr,regiontag,"/AE",lastyr,"_gcs_tpp_sum",sdm,".csv"), row.names=FALSE, quote=FALSE)
       
-      AvEm_gcs_tpyr_sum <- as.data.frame(zonal(AvEm_gcs_tpyr, admin_r, 'sum')) %>% # CORRECT SUM FOR SE PROPAGATION
-        dplyr::left_join(.,adminnew, by = "zone") %>%
-        dplyr::select(-zone, -Subregion, -ID, -mofuss_reg,-geom) %>%
-        dplyr::mutate(eMtCO2e = round(sum/1000000,2)) %>% # tonnes to megatonnes
-        # dplyr::mutate(eMtCO2e_yr = round(eMtCO2e/simlength,2)) %>% # period to year #WARNING - cross check with GCS table
-        dplyr::relocate(sum, .after = NAME_0) %>%
-        rename_with(., .fn = ~paste0(firstyr,"-",lastyr,"_tpyr"), .cols = all_of("sum"))
-      AvEm_gcs_tpyr_sum
-      setwd(emissionsdir)
-      write.csv(AvEm_gcs_tpyr_sum,paste0(emissionsdir,"/",lastyr,regiontag,"/AE",lastyr,"_gcs_tpyr_sum",sdm,".csv"), row.names=FALSE, quote=FALSE)
-      
-      AvEm_gcs_thayr_sum <- as.data.frame(zonal(AvEm_gcs_thayr, admin_r, 'sum')) %>% # CORRECT SUM FOR SE PROPAGATION
-        dplyr::left_join(.,adminnew, by = "zone") %>%
-        dplyr::select(-zone, -Subregion, -ID, -mofuss_reg,-geom) %>%
-        dplyr::mutate(eMtCO2e = round(sum/1000000,2)) %>% # tonnes to megatonnes
-        # dplyr::mutate(eMtCO2e_yr = round(eMtCO2e/simlength,2)) %>% # period to year #WARNING - cross check with GCS table
-        dplyr::relocate(sum, .after = NAME_0) %>%
-        rename_with(., .fn = ~paste0(firstyr,"-",lastyr,"_thayr"), .cols = all_of("sum"))
-      AvEm_gcs_thayr_sum
-      setwd(emissionsdir)
-      write.csv(AvEm_gcs_thayr_sum,paste0(emissionsdir,"/",lastyr,regiontag,"/AE",lastyr,"_gcs_thayr_sum",sdm,".csv"), row.names=FALSE, quote=FALSE)
-      
       # Summary tables over PCS rasters
       AvEm_wm_tppr_areaT <- as.data.frame(zonal(admin_rp, admin_rp, 'count'))
       AvEm_wm_tppr_sum <- as.data.frame(zonal(AvEm_wm_tppr, admin_rp, 'sum')) %>%
@@ -1423,26 +1401,6 @@ if (avoidedemissions == 1){
         rename_with(AvEm_wm_tppr_sum, .fn = ~paste0(firstyr,"-",lastyr,"_tpp"), .cols = all_of("sum"))
       AvEm_wm_tppr_sum
       write.csv(AvEm_wm_tppr_sum,paste0(emissionsdir,"/",lastyr,regiontag,"/AE",lastyr,"_wm_tpp_sum",sdm,".csv"), row.names=FALSE, quote=FALSE)
-      
-      AvEm_wm_thayr_areaT <- as.data.frame(zonal(admin_rp, admin_rp, 'count'))
-      AvEm_wm_thayr_areaP <- as.data.frame(zonal(AvEm_wm_thayr, admin_rp, 'count'))
-      AvEm_wm_thayr_sum <- as.data.frame(zonal(AvEm_wm_thayr, admin_rp, 'sum')) %>%
-        dplyr::mutate(e20xx_tpp_eq = sum*100*simlength) %>% # OJO ACA
-        dplyr::left_join(.,adminnew_p, by = "zone") %>%
-        dplyr::left_join(.,AvEm_wm_thayr_areaT, by = "zone") %>%
-        dplyr::rename("km2_raster" = "count") %>%
-        dplyr::left_join(.,AvEm_wm_thayr_areaP, by = "zone") %>%
-        dplyr::rename("km2_raster_pop" = "count") %>%
-        dplyr::select(-zone, -Subregion, -ID, -mofuss_reg,-geom) %>%
-        dplyr::mutate(etCO2e_hayr_xr = round(sum/km2_raster,4)) %>% # for comparison x ref
-        dplyr::relocate(sum, .after = NAME_0) %>%
-        dplyr::relocate(km2_raster, .after = etCO2e_hayr_xr) %>%
-        dplyr::relocate(km2_raster_pop, .after = km2_raster) %>%
-        dplyr::relocate(e20xx_tpp_eq , .after = sum) %>%
-        rename_with(., .fn = ~paste0(firstyr,"-",lastyr,"_thayr"), .cols = all_of("sum"))
-      AvEm_wm_thayr_sum
-      write.csv(AvEm_wm_thayr_sum,paste0(emissionsdir,"/",lastyr,regiontag,"/AE",lastyr,"_wm_thayr_sum",sdm,".csv"), row.names=FALSE, quote=FALSE)
-      
       
       ## raster and tables summaries for cross validation ----
       AvEm_gcs_tpyrt <- rast(paste0(emissionsdir,"/",lastyr,regiontag,"/AE",lastyr,"_gcs_tpyr",sdm,".tif"))

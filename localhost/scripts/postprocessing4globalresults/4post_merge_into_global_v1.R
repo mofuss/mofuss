@@ -53,15 +53,12 @@ all_dirs <- dir_ls(search_path, type = "directory")
 
 # Filter directories that match string_pattern_yes and do not match string_pattern_no
 emissions_dirs <- all_dirs[grepl(string_pattern_yes, all_dirs) & !grepl(string_pattern_no, all_dirs)]
-emissions_dirs
+emissions_dirs #MUST BE AT LEAST TWO?? FIX THIS
 
 # Define the list of files to merge
 tables_to_merge <- c(
   paste0("AE",string_pattern_yes,"_wm_tpp_sum_merged.csv"),
-  paste0("AE",string_pattern_yes,"_wm_thayr_sum_merged.csv"),
-  paste0("AE",string_pattern_yes,"_gcs_tpp_sum_merged.csv"),
-  paste0("AE",string_pattern_yes,"_gcs_tpyr_sum_merged.csv"),
-  paste0("AE",string_pattern_yes,"_gcs_thayr_sum_merged.csv")
+  paste0("AE",string_pattern_yes,"_gcs_tpp_sum_merged.csv")
 )
 
 # Define the list of files to merge
