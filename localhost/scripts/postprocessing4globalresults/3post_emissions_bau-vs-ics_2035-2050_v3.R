@@ -72,6 +72,7 @@ if (os == "Windows" & node_name == "WINLANASE") {
   admindir <- "F:/admin_regions"
   emissionsdir <- "F:/emissions"
   rTempdir <- "F:/rTemp"
+  globalsouth_mofuss_bindingfolder <- "G:/My Drive/webpages/2024_MoFuSSGlobal_Datasets/mofussDS_v2/globalsouth_mofuss_bindingfolder"
   
 } else if (os == "Windows" & node_name == "ASUSLAP"){
   #ADD node
@@ -135,12 +136,10 @@ library(tictoc)
 library(tidyterra)
 library(tidyverse)
 
-# # Define the directory to search for fNRB values
-setwd(tk_choose.dir(default = getwd(), caption = "Define the directory to search"))
-search_path <- getwd()
-# search_path <- "G:/Mi unidad/webpages/2024_MoFuSSGlobal_Datasets/webmofussDS_v2/globalsouth_mofuss_bindingfolder"
-# search_path <- "G:/My Drive/webpages/2024_MoFuSSGlobal_Datasets/webmofussDS_v2/globalsouth_mofuss_bindingfolder"
-# G:\Mi unidad\webpages\2024_MoFuSSGlobal_Datasets\webmofussDS_v2\globalsouth_mofuss_bindingfolder NRV
+# Define the directory to search for fNRB values
+# setwd(tk_choose.dir(default = getwd(), caption = "Define the directory to search"))
+# search_path <- getwd()
+search_path <- globalsouth_mofuss_bindingfolder
 
 # List all directories in the specified path
 all_dirs <- dir_ls(search_path, type = "directory")
@@ -1249,6 +1248,19 @@ if (avoidedemissions == 1){
       terra::writeRaster(AvEm20xx_gcs_tpyr, paste0(emissionsdir,"/",lastyr,regiontag,"/AE",lastyr,"_gcs_tpyr",sdm,".tif"),
                          filetype = "GTiff", overwrite = T)
       
+      # Compute pixel area in square meters
+      areaperpixel_m2 <- terra::cellSize(AvEm20xx_gcs_tpp, unit="m")
+      
+      # Convert to hectares (1 ha = 10,000 m²)
+      areaperpixel <- areaperpixel_m2 / 10000
+      
+      # Convert emissions to tonnes per hectare per year
+      AvEm20xx_gcs_thayr <- (AvEm20xx_gcs_tpp / simlength) / areaperpixel
+      
+      # Save the resulting raster
+      terra::writeRaster(AvEm20xx_gcs_thayr, paste0(emissionsdir,"/",lastyr,regiontag,"/AE",lastyr,"_gcs_thayr",sdm,".tif"),
+                         filetype = "GTiff", overwrite = T)
+      
       BaU20xxb <- rast(paste0(emissionsdir,"/",lastyr,regiontag,"/BaU/emissions_out_BaU/e",firstyr,"-",lastyr,"_BaU_tCO2e",sdm,".tif"))
       ICS20xxb <- rast(paste0(emissionsdir,"/",lastyr,regiontag,"/ICS/emissions_out_ICS/e",firstyr,"-",lastyr,"_ICS_tCO2e",sdm,".tif"))
       if (sdm == "_mean"){
@@ -1350,6 +1362,7 @@ if (avoidedemissions == 1){
       
       AvEm_gcs_tppr <- raster(paste0(emissionsdir,"/",lastyr,regiontag,"/AE",lastyr,"_gcs_tpp",sdm,".tif"))
       AvEm_gcs_tpyr <- raster(paste0(emissionsdir,"/",lastyr,regiontag,"/AE",lastyr,"_gcs_tpyr",sdm,".tif"))
+      AvEm_gcs_thayr <- raster(paste0(emissionsdir,"/",lastyr,regiontag,"/AE",lastyr,"_gcs_thayr",sdm,".tif"))
       AvEm_wm_tppr <- raster(paste0(emissionsdir,"/",lastyr,regiontag,"/AE",lastyr,"_wm_tpp",sdm,".tif"))
       AvEm_wm_thayr <- raster(paste0(emissionsdir,"/",lastyr,regiontag,"/AE",lastyr,"_wm_thay",sdm,".tif"))
       
@@ -1387,26 +1400,6 @@ if (avoidedemissions == 1){
         rename_with(AvEm_wm_tppr_sum, .fn = ~paste0(firstyr,"-",lastyr,"_tpp"), .cols = all_of("sum"))
       AvEm_wm_tppr_sum
       write.csv(AvEm_wm_tppr_sum,paste0(emissionsdir,"/",lastyr,regiontag,"/AE",lastyr,"_wm_tpp_sum",sdm,".csv"), row.names=FALSE, quote=FALSE)
-      
-      AvEm_wm_thayr_areaT <- as.data.frame(zonal(admin_rp, admin_rp, 'count'))
-      AvEm_wm_thayr_areaP <- as.data.frame(zonal(AvEm_wm_thayr, admin_rp, 'count'))
-      AvEm_wm_thayr_sum <- as.data.frame(zonal(AvEm_wm_thayr, admin_rp, 'sum')) %>%
-        dplyr::mutate(e20xx_tpp_eq = sum*100*simlength) %>% # OJO ACA
-        dplyr::left_join(.,adminnew_p, by = "zone") %>%
-        dplyr::left_join(.,AvEm_wm_thayr_areaT, by = "zone") %>%
-        dplyr::rename("km2_raster" = "count") %>%
-        dplyr::left_join(.,AvEm_wm_thayr_areaP, by = "zone") %>%
-        dplyr::rename("km2_raster_pop" = "count") %>%
-        dplyr::select(-zone, -Subregion, -ID, -mofuss_reg,-geom) %>%
-        dplyr::mutate(etCO2e_hayr_xr = round(sum/km2_raster,4)) %>% # for comparison x ref
-        dplyr::relocate(sum, .after = NAME_0) %>%
-        dplyr::relocate(km2_raster, .after = etCO2e_hayr_xr) %>%
-        dplyr::relocate(km2_raster_pop, .after = km2_raster) %>%
-        dplyr::relocate(e20xx_tpp_eq , .after = sum) %>%
-        rename_with(., .fn = ~paste0(firstyr,"-",lastyr,"_thayr"), .cols = all_of("sum"))
-      AvEm_wm_thayr_sum
-      write.csv(AvEm_wm_thayr_sum,paste0(emissionsdir,"/",lastyr,regiontag,"/AE",lastyr,"_wm_thayr_sum",sdm,".csv"), row.names=FALSE, quote=FALSE)
-      
       
       ## raster and tables summaries for cross validation ----
       AvEm_gcs_tpyrt <- rast(paste0(emissionsdir,"/",lastyr,regiontag,"/AE",lastyr,"_gcs_tpyr",sdm,".tif"))

@@ -450,11 +450,11 @@ for (i in adm0_reg$GID_0) { # start of the for loop ----
   } else if(os == "Linux") {
     pop0_ctry_ras <- pop0_K2
   }
-  png(file=paste0("pop_maps_byregion/",ctry_name,".png"),
-      width=600, height=350)
-  plot(pop0_ctry_ras, main=ctry_name, xlab = "Long", ylab = "Lat")
-  lines(ctry_vector, lwd=0.2)
-  Sys.sleep(5)
+  # png(file=paste0("pop_maps_byregion/",ctry_name,".png"),
+  #     width=600, height=350)
+  # plot(pop0_ctry_ras, main=ctry_name, xlab = "Long", ylab = "Lat")
+  # lines(ctry_vector, lwd=0.2)
+  # Sys.sleep(5)
   dev.off()
   
   totpop <- round(global(pop0_ctry_ras, "sum", na.rm=TRUE),0) %>%

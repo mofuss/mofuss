@@ -22,19 +22,56 @@ temdirdefined = 1
 string_pattern_yes <- "2050" #String pattern to be searched when selecting folders for the rasters' geocomputation
 string_pattern_no <- "Cou" #String pattern to be searched when selecting folders for the rasters' geocomputation
 
+
+# Define all folders based on node ----
+# Detect OS and node name
+os <- Sys.info()["sysname"]
+node_name <- Sys.info()[["nodename"]]
+cat(os,node_name)
+
+if (os == "Windows" & node_name == "WINLANASE") {
+  #ADD node
+  demanddir <- "F:/demand"
+  admindir <- "F:/admin_regions"
+  emissionsdir <- "F:/emissions"
+  rTempdir <- "F:/rTemp"
+  
+} else if (os == "Windows" & node_name == "ASUSLAP"){
+  #ADD node
+  demanddir <- "D:/demand"
+  admindir <- "D:/admin_regions"
+  emissionsdir <- "D:/emissions"
+  rTempdir <- "D:/rTemp"
+  
+} else if (os == "Windows" & node_name == "EDITORIALCIGA"){
+  #ADD node
+  demanddir <- "E:/demand"
+  admindir <- "E:/admin_regions"
+  emissionsdir <- "E:/emissions"
+  rTempdir <- "E:/rTemp"
+  
+} else if (os == "Linux" & node_name == "linux-c3"){
+  #ADD node
+  demanddir <- "/home/mofuss/demand"
+  admindir <- "/home/mofuss/admin_regions"
+  emissionsdir <- "/home/mofuss/emissions"
+  rTempdir <- "/home/mofuss/rTemp"
+  
+}
+
+# Erase all plots in R Studio
+Sys.sleep(2)
+for (p in 1:100) {
+  if (length(dev.list()!=0)) {
+    dev.off()
+  }
+}
+Sys.sleep(3)
+
 # Load packages ----
-library(dplyr)
-library(fs)
-library(readr)
-library(tcltk)
-library(tibble)
-library(tidyverse)
 library(terra)
 # terraOptions(steps = 55)
 if (temdirdefined == 1) {
-  # Define the directory to search
-  setwd(tk_choose.dir(default = getwd(), caption = "Define the rTemp directory"))
-  rTempdir <- getwd()
   terraOptions(tempdir = rTempdir)
   # List all files and directories inside the folder
   contents <- list.files(rTempdir, full.names = TRUE, recursive = TRUE)
@@ -43,22 +80,29 @@ if (temdirdefined == 1) {
 }
 # terraOptions(memfrac=0.9)
 # terraOptions(progress=0)
+# library(compare)
+library(dplyr)
+library(fs)
+library(readr)
+library(tcltk)
+library(tibble)
+library(tidyverse)
 
-# Define the directory to search
-setwd(tk_choose.dir(default = getwd(), caption = "Define the emissions directory where results are saved"))
-search_path <- getwd()
+# # Define the directory to search
+# setwd(tk_choose.dir(default = getwd(), caption = "Define the emissions directory where results are saved"))
+# search_path <- getwd()
+search_path <- emissionsdir
 
 # List all directories in the specified path
 all_dirs <- dir_ls(search_path, type = "directory")
 
 # Filter directories that match string_pattern_yes and do not match string_pattern_no
 emissions_dirs <- all_dirs[grepl(string_pattern_yes, all_dirs) & !grepl(string_pattern_no, all_dirs)]
-emissions_dirs
+emissions_dirs #MUST BE AT LEAST TWO?? FIX THIS
 
 # Define the list of files to merge
 tables_to_merge <- c(
   paste0("AE",string_pattern_yes,"_wm_tpp_sum_merged.csv"),
-  paste0("AE",string_pattern_yes,"_wm_thayr_sum_merged.csv"),
   paste0("AE",string_pattern_yes,"_gcs_tpp_sum_merged.csv")
 )
 
@@ -68,6 +112,8 @@ rasters_to_merge <- c(
   paste0("AE",string_pattern_yes,"_gcs_tpp_se.tif"),
   paste0("AE",string_pattern_yes,"_gcs_tpyr_mean.tif"),
   paste0("AE",string_pattern_yes,"_gcs_tpyr_se.tif"),
+  paste0("AE",string_pattern_yes,"_gcs_thayr_mean.tif"),
+  paste0("AE",string_pattern_yes,"_gcs_thayr_se.tif"),
   paste0("AE",string_pattern_yes,"_wm_thay_mean.tif"),
   paste0("AE",string_pattern_yes,"_wm_thay_se.tif"),
   paste0("AE",string_pattern_yes,"_wm_tpp_mean.tif"),
