@@ -6,7 +6,7 @@ proj_authority,EPSG
 proj_gcs,proj=longlat +datum=WGS84 +no_defs +type=crs
 proj_pcs,proj=merc +lon_0=0 +k=1 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs +type=crs
 GEE to MoFuSS,
-GEE_tyRoi,world
+GEE_tyRoi,countries
 GEE_country,MDG
 GEE_scale,1000
 AGB stats for K,
@@ -25,11 +25,12 @@ end_year,2050
 REGION TO BE PROCESSED,
 byregion,Country
 region2BprocessedCont,SSA
-region2BprocessedReg,SSA_adm0_malambique
-region2BprocessedCtry,Rwanda
+region2BprocessedReg,ASIA_adm0_nepal
+region2BprocessedCtry,Côte d'Ivoire
+region2BprocessedCtry_iso,RWA
 AREA OF INTEREST,
-aoi_poly,1
-aoi_poly_file,Honduras_exampleAoI.kml
+aoi_poly,0
+aoi_poly_file,custom_polygon.kml
 ext_analysis_ID,ID
 ext_analysis_NAME,NAME_0
 add_subadmin,NO

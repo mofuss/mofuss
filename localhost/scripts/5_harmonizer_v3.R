@@ -223,7 +223,7 @@ if (aoi_poly == 1) {
   # Find the NAME_0 corresponding to the largest_overlap GID_0
   matching_row <- mofuss_regions0_gpkg[mofuss_regions0_gpkg$GID_0 == largest_overlap$GID_0, ]
   # Extract the NAME_0 value
-  mofuss_region <- matching_row$NAME_0
+  mofuss_region <- matching_row$GID_0
   mofuss_region_kml <- matching_row$GID_0
   
   # Print the result
@@ -242,7 +242,7 @@ if (aoi_poly == 1) {
   
 } else if (byregion == "Country" & aoi_poly == 0) {
   country_parameters %>%
-    dplyr::filter(Var == "region2BprocessedCtry") %>%
+    dplyr::filter(Var == "region2BprocessedCtry_iso") %>%
     pull(ParCHR) -> mofuss_region
   
 } else {
@@ -373,7 +373,7 @@ if (aoi_poly == 1) {
   # Vector masks and extents Google Polygon
   setwd(admindir)
   extent_mask0 <- vect(st_read("regions_adm0_p/mofuss_regions0_p.gpkg")) %>%
-    terra::subset(.$NAME_0 == mofuss_region)
+    terra::subset(.$GID_0 == mofuss_region)
   mask <- st_as_sf(extent_mask0)
   setwd(countrydir)
   # terra::writeVector(extent_mask0, "InVector/extent_mask.gpkg", overwrite = TRUE)
@@ -410,7 +410,7 @@ if (aoi_poly == 1) {
       unique() %>%
       arrange(NAME_0)
     
-    if (add_subadmin == "YES"){
+    if (add_subadmin == "YES"){ # WARNING: THIS CHUNK IS BROKEN AND STILL USES NAME_0 INSTEAD OF GID_0, WON'T WORK IN WEBMOFUSS
       country.input <- dlgList(as.character(countries.list[ , ]),
                                preselect = "Kenya",
                                multiple = FALSE, # Check if multiple countries or values is doable
@@ -418,9 +418,9 @@ if (aoi_poly == 1) {
                                gui = .GUI
       )
       mofuss_country <- country.input$res
-      
       extent_mask0 %>%
-        terra::subset(.$NAME_0 == mofuss_country) %>% #Remember to change in the parameters table
+        terra::subset(.$NAME_0 == mofuss_country) %>%  # Remember to change in the parameters table (!?)
+        sf::st_as_sf() %>%  # Convert to sf object
         st_write("InVector/extent_analysis.gpkg", overwrite = TRUE)
     } else if (add_subadmin == "NO"){
       print("Nothing Happens")
@@ -511,15 +511,15 @@ if (aoi_poly == 1) {
   if (byregion == "Country"){ ## Country ----
     
     extent_mask0 <- vect(st_read("regions_adm0_p/mofuss_regions0_p.gpkg")) %>%
-      terra::subset(.$NAME_0 == mofuss_region)
+      terra::subset(.$GID_0 == mofuss_region)
     terra::writeVector(extent_mask0, "InVector/extent_mask.gpkg", overwrite = TRUE)
     
     extent_mask1 <- vect(st_read("regions_adm1_p/mofuss_regions1_p.gpkg")) %>%
-      terra::subset(.$NAME_0 == mofuss_region)
+      terra::subset(.$GID_0 == mofuss_region)
     terra::writeVector(extent_mask1, "InVector/extent_mask1.gpkg", overwrite = TRUE)
     
     extent_mask2 <- vect(st_read("regions_adm2_p/mofuss_regions2_p.gpkg")) %>%
-      terra::subset(.$NAME_0 == mofuss_region)
+      terra::subset(.$GID_0 == mofuss_region)
     terra::writeVector(extent_mask2, "InVector/extent_mask2.gpkg", overwrite = TRUE)
     
     if (add_subadmin == "YES") {
