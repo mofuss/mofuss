@@ -307,8 +307,6 @@ if (aoi_poly == 1) {
   # Handle any other conditions if necessary
   cat("No specific conditions met.\n")
 }
-  
-
 
 # i="KEN" 
 totpopWHO <- whodb %>% 
