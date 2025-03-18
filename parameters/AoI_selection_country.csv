@@ -1,101 +1,101 @@
-byregion == Country
-Afghanistan
-Algeria
-Angola
-Argentina
-Armenia
-Azerbaijan
-Bangladesh
-Benin
-Bhutan
-Bolivia
-Botswana
-Brazil
-Burkina Faso
-Burundi
-Cabo Verde
-Cambodia
-Cameroon
-Central African Republic
-Chad
-China
-Colombia
-Comoros
-Costa Rica
-Côte d'Ivoire
-Democratic Republic of the Congo
-Djibouti
-Dominican Republic
-Ecuador
-El Salvador
-Equatorial Guinea
-Eritrea
-Ethiopia
-Gabon
-Gambia
-Georgia
-Ghana
-Guatemala
-Guinea
-Guinea-Bissau
-Guyana
-Haiti
-Honduras
-India
-Indonesia
-Iran
-Iraq
-Jamaica
-Jordan
-Kazakhstan
-Kenya
-Kyrgyzstan
-Laos
-Liberia
-Madagascar
-Malawi
-Malaysia
-Mali
-Mauritania
-Mauritius
-México
-Mongolia
-Morocco
-Mozambique
-Myanmar
-Namibia
-Nepal
-Nicaragua
-Niger
-Nigeria
-Pakistan
-Panama
-Papua New Guinea
-Paraguay
-Peru
-Philippines
-Republic of the Congo
-Rwanda
-São Tomé and Príncipe
-Senegal
-Sierra Leone
-Somalia
-South Africa
-South Sudan
-Sri Lanka
-Sudan
-Swaziland
-Syria
-Tajikistan
-Tanzania
-Thailand
-Timor-Leste
-Togo
-Tunisia
-Turkey
-Turkmenistan
-Uganda
-Uzbekistan
-Vietnam
-Zambia
-Zimbabwe
+byregion == Country,NAME_0,GID_0
+Afghanistan,Afghanistan,AFG
+Algeria,Algeria,DZA
+Angola,Angola,AGO
+Argentina,Argentina,ARG
+Armenia,Armenia,ARM
+Azerbaijan,Azerbaijan,AZE
+Bangladesh,Bangladesh,BGD
+Benin,Benin,BEN
+Bhutan,Bhutan,BTN
+Bolivia,Bolivia,BOL
+Botswana,Botswana,BWA
+Brazil,Brazil,BRA
+Burkina Faso,Burkina Faso,BFA
+Burundi,Burundi,BDI
+Cabo Verde,Cabo Verde,CPV
+Cambodia,Cambodia,KHM
+Cameroon,Cameroon,CMR
+Central African Republic,Central African Republic,CAF
+Chad,Chad,TCD
+China,China,CHN
+Colombia,Colombia,COL
+Comoros,Comoros,COM
+Costa Rica,Costa Rica,CRI
+Côte d'Ivoire,Côte d'Ivoire,CIV
+Democratic Republic of the Congo,Democratic Republic of the Congo,COD
+Djibouti,Djibouti,DJI
+Dominican Republic,Dominican Republic,DOM
+Ecuador,Ecuador,ECU
+El Salvador,El Salvador,SLV
+Equatorial Guinea,Equatorial Guinea,GNQ
+Eritrea,Eritrea,ERI
+Ethiopia,Ethiopia,ETH
+Gabon,Gabon,GAB
+Gambia,Gambia,GMB
+Georgia,Georgia,GEO
+Ghana,Ghana,GHA
+Guatemala,Guatemala,GTM
+Guinea,Guinea,GIN
+Guinea-Bissau,Guinea-Bissau,GNB
+Guyana,Guyana,GUY
+Haiti,Haiti,HTI
+Honduras,Honduras,HND
+India,India,IND
+Indonesia,Indonesia,IDN
+Iran,Iran,IRN
+Iraq,Iraq,IRQ
+Jamaica,Jamaica,JAM
+Jordan,Jordan,JOR
+Kazakhstan,Kazakhstan,KAZ
+Kenya,Kenya,KEN
+Kyrgyzstan,Kyrgyzstan,KGZ
+Laos,Laos,LAO
+Liberia,Liberia,LBR
+Madagascar,Madagascar,MDG
+Malawi,Malawi,MWI
+Malaysia,Malaysia,MYS
+Mali,Mali,MLI
+Mauritania,Mauritania,MRT
+Mauritius,Mauritius,MUS
+México,México,MEX
+Mongolia,Mongolia,MNG
+Morocco,Morocco,MAR
+Mozambique,Mozambique,MOZ
+Myanmar,Myanmar,MMR
+Namibia,Namibia,NAM
+Nepal,Nepal,NPL
+Nicaragua,Nicaragua,NIC
+Niger,Niger,NER
+Nigeria,Nigeria,NGA
+Pakistan,Pakistan,PAK
+Panama,Panama,PAN
+Papua New Guinea,Papua New Guinea,PNG
+Paraguay,Paraguay,PRY
+Peru,Peru,PER
+Philippines,Philippines,PHL
+Republic of the Congo,Republic of the Congo,COG
+Rwanda,Rwanda,RWA
+São Tomé and Príncipe,São Tomé and Príncipe,STP
+Senegal,Senegal,SEN
+Sierra Leone,Sierra Leone,SLE
+Somalia,Somalia,SOM
+South Africa,South Africa,ZAF
+South Sudan,South Sudan,SSD
+Sri Lanka,Sri Lanka,LKA
+Sudan,Sudan,SDN
+Swaziland,Swaziland,SWZ
+Syria,Syria,SYR
+Tajikistan,Tajikistan,TJK
+Tanzania,Tanzania,TZA
+Thailand,Thailand,THA
+Timor-Leste,Timor-Leste,TLS
+Togo,Togo,TGO
+Tunisia,Tunisia,TUN
+Turkey,Turkey,TUR
+Turkmenistan,Turkmenistan,TKM
+Uganda,Uganda,UGA
+Uzbekistan,Uzbekistan,UZB
+Vietnam,Vietnam,VNM
+Zambia,Zambia,ZMB
+Zimbabwe,Zimbabwe,ZWE
