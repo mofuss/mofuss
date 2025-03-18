@@ -167,6 +167,7 @@ lucavailablemaps
 
 for (lucinputdataset in lucavailablemaps) {
 # lucinputdataset = "copernicus"
+# lucinputdataset = "modis"
 setwd(countrydir)
 
 # Prepare the rural urban mask ----

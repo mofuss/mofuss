@@ -219,8 +219,8 @@ regions.list <- mofuss_regions0 %>%
   dplyr::select(mofuss_reg) %>%
   terra::unique()
 
-countries.list <-  mofuss_regions0 %>%
-  dplyr::select(NAME_0) %>%
+countries.list <- mofuss_regions0 %>%
+  dplyr::select(NAME_0, GID_0) %>%
   terra::unique() %>%
   arrange(NAME_0)
 
@@ -261,7 +261,7 @@ if (aoi_poly == 1) {
   # Find the NAME_0 corresponding to the largest_overlap GID_0
   matching_row <- mofuss_regions0_gpkg[mofuss_regions0_gpkg$GID_0 == largest_overlap$GID_0, ]
   # Extract the NAME_0 value
-  mofuss_region <- matching_row$NAME_0
+  mofuss_region <- matching_row$GID_0
   mofuss_region_kml <- matching_row$GID_0
 
     # Print the result
@@ -293,7 +293,7 @@ if (aoi_poly == 1) {
   }
 } else if (byregion == "Country" & aoi_poly == 0) {
   country_parameters %>%
-    dplyr::filter(Var == "region2BprocessedCtry") %>%
+    dplyr::filter(Var == "region2BprocessedCtry_iso") %>%
     pull(ParCHR) -> mofuss_region
   
   if (!length(mofuss_region)) {
@@ -406,7 +406,7 @@ if (aoi_poly == 1) {
 } else if (byregion == "Country" & aoi_poly == 0) {
   print("***NOW RUNNING COUNTRY DEMAND SCENARIOS***")
   adm0_reg <- mofuss_regions0_gpkg %>% 
-    dplyr::filter(NAME_0 == mofuss_region) # Check if multiple countries or values is doable
+    dplyr::filter(GID_0 == mofuss_region) # Check if multiple countries or values is doable
   pop0_K <- crop(pop0, ext(adm0_reg) + .01)
   if (os == "Windows") {
     pop0_reg <- mask(pop0_K, adm0_reg) #THIS BREAKS IN UBUNTU
@@ -430,14 +430,14 @@ unique(adm0_reg$GID_0)
 # Will be much faster but less easy to debug
 
 for (i in adm0_reg$GID_0) { # start of the for loop ----
-  #i ="MWI"
+  #i ="CIV"
   print(i)
   ctry_furb <- furb_who %>%
     dplyr::filter(GID_0 == i) %>%
     pull(furb)
-  ctry_name <- furb_who %>%
-    dplyr::filter(GID_0 == i) %>%
-    pull(NAME_0)
+  # ctry_name <- furb_who %>%
+  #   dplyr::filter(GID_0 == i) %>%
+  #   pull(NAME_0)
   who_ctry_pop <- totpopWHO %>%
     dplyr::filter(iso3 == i) %>%
     pull(sum_pop)
@@ -450,11 +450,11 @@ for (i in adm0_reg$GID_0) { # start of the for loop ----
   } else if(os == "Linux") {
     pop0_ctry_ras <- pop0_K2
   }
-  # png(file=paste0("pop_maps_byregion/",ctry_name,".png"),
-  #     width=600, height=350)
-  # plot(pop0_ctry_ras, main=ctry_name, xlab = "Long", ylab = "Lat")
-  # lines(ctry_vector, lwd=0.2)
-  # Sys.sleep(5)
+  png(file=paste0("pop_maps_byregion/",i,".png"),
+      width=600, height=350)
+  plot(pop0_ctry_ras, main=i, xlab = "Long", ylab = "Lat")
+  lines(ctry_vector, lwd=0.2)
+  Sys.sleep(5)
   dev.off()
   
   totpop <- round(global(pop0_ctry_ras, "sum", na.rm=TRUE),0) %>%
@@ -601,7 +601,7 @@ for (i in adm0_reg$GID_0) { # start of the for loop ----
                                      `2` = "Urban"))
   }
   
-  plot(rururbpopulationR_plot, main=ctry_name)
+  plot(rururbpopulationR_plot, main=i)
   lines(ctry_vector, lwd=2)
   terra::writeRaster(rururbpopulationR, paste0("pop_temp/",pop_ver,"_",i,"_",yr,"_rururbR.tif"), filetype = "GTiff", overwrite = TRUE)
   
