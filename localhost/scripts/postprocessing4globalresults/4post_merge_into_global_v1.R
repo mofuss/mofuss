@@ -19,8 +19,8 @@
 
 # Internal parameters ----
 temdirdefined = 1
-string_pattern_yes <- "2050" #String pattern to be searched when selecting folders for the rasters' geocomputation
-string_pattern_no <- "Cou" #String pattern to be searched when selecting folders for the rasters' geocomputation
+string_pattern_yes <- "2035" # String pattern to be searched when selecting folders for the rasters' geocomputation
+string_pattern_no <- "Cou" # String pattern to be searched when selecting folders for the rasters' geocomputation
 
 
 # Define all folders based on node ----
@@ -98,7 +98,13 @@ all_dirs <- dir_ls(search_path, type = "directory")
 
 # Filter directories that match string_pattern_yes and do not match string_pattern_no
 emissions_dirs <- all_dirs[grepl(string_pattern_yes, all_dirs) & !grepl(string_pattern_no, all_dirs)]
-emissions_dirs #MUST BE AT LEAST TWO?? FIX THIS
+emissions_dirs 
+if (length(emissions_dirs) < 2) {
+  stop("You need at least two folders for mosaiking")
+}
+
+# Continue with your mosaiking process...
+print("Proceeding with mosaiking...")
 
 # Define the list of files to merge
 tables_to_merge <- c(

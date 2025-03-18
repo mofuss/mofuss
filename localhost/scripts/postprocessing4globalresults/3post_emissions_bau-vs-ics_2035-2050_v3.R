@@ -1432,9 +1432,6 @@ if (avoidedemissions == 1){
                       pull(sum)*100/1000000,0)
       print(paste0(exf5, " mt/yr for ",lastyr," 5.- Sums all non-null pixel values of a raster in PCS depicting tonnes per ha per year; and convert them in the code to megatonnes per year = annual avoided emissions in SSA in 2050/35"))
       
-      exf6 <- round(sum(AvEm_wm_thayr_sum[,3])*100/1000000,0)
-      print(paste0(exf6, " mt/yr for ",lastyr," 6.- Sums all rows of a table (from a PCS layer) showing tonnes per ha per year; and convert them in the code to megatonnes per year = annual avoided emissions in SSA in 2050/35"))
-      
     }
   }
 }
