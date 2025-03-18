@@ -72,6 +72,7 @@ if (os == "Windows" & node_name == "WINLANASE") {
   admindir <- "F:/admin_regions"
   emissionsdir <- "F:/emissions"
   rTempdir <- "F:/rTemp"
+  globalsouth_mofuss_bindingfolder <- "G:/My Drive/webpages/2024_MoFuSSGlobal_Datasets/mofussDS_v2/globalsouth_mofuss_bindingfolder"
   
 } else if (os == "Windows" & node_name == "ASUSLAP"){
   #ADD node
@@ -135,12 +136,10 @@ library(tictoc)
 library(tidyterra)
 library(tidyverse)
 
-# # Define the directory to search for fNRB values
-setwd(tk_choose.dir(default = getwd(), caption = "Define the directory to search"))
-search_path <- getwd()
-# search_path <- "G:/Mi unidad/webpages/2024_MoFuSSGlobal_Datasets/webmofussDS_v2/globalsouth_mofuss_bindingfolder"
-# search_path <- "G:/My Drive/webpages/2024_MoFuSSGlobal_Datasets/webmofussDS_v2/globalsouth_mofuss_bindingfolder"
-# G:\Mi unidad\webpages\2024_MoFuSSGlobal_Datasets\webmofussDS_v2\globalsouth_mofuss_bindingfolder NRV
+# Define the directory to search for fNRB values
+# setwd(tk_choose.dir(default = getwd(), caption = "Define the directory to search"))
+# search_path <- getwd()
+search_path <- globalsouth_mofuss_bindingfolder
 
 # List all directories in the specified path
 all_dirs <- dir_ls(search_path, type = "directory")
