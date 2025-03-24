@@ -59,7 +59,7 @@ args=(commandArgs(TRUE))
 if(length(args)==0){
   print("No arguments supplied by DINAMICA.")
   ##Supply default values here (to be used when running the script through R directly)
-  MC = 2 # MonteCarlo runs
+  MC = 30 # MonteCarlo runs
   IT = 2010 # Initial year
   K_MC=1
   TOF_MC=1
@@ -2186,7 +2186,7 @@ if (fNRB_partition_tables == 1) {
         
         harvest_st_bin2020_2050 <- stackApply(stackharv_bin2020_2050, indices=1, fun=sum)
         # harv_mean <- stackApply(stackhar_mc1, indices=1, fun=mean)
-        harv_sum_bin2020_2050<- as.data.frame(zonal(harvest_st_bin2020_2050, admm, 'sum')) %>%
+        harv_sum_bin2020_2050 <- as.data.frame(zonal(harvest_st_bin2020_2050, admm, 'sum')) %>%
           as.data.table() %>%
           setnames(.,"sum", "Harv_2020_2050") %>%
           dplyr::select(!zone)
@@ -2266,7 +2266,7 @@ if (fNRB_partition_tables == 1) {
         NRBzon_fr <- merge(nrb_sum_fr, harv_sum_fr, by = "zone") %>%
           # dplyr::rename(NRB_2010_2020 = x,
           #               Harv_2010_2020 = y) %>%
-          dplyr::mutate(across(everything(), ~as.integer(as.numeric(trimws(.x))))) %>%
+          dplyr::mutate(across(everything(), ~as.numeric(trimws(.x)))) %>%
           dplyr::mutate(fNRB_2010_2020 = NRB_2010_2020/Harv_2010_2020*100) %>%
           round(.,0) 
         
@@ -2280,7 +2280,7 @@ if (fNRB_partition_tables == 1) {
         }  
       } else if (STdyn == 20){
         NRBzon_fr <- merge(nrb_sum_fr, harv_sum_fr, by = "zone") %>%
-          dplyr::mutate(across(everything(), ~as.integer(as.numeric(trimws(.x))))) %>%
+          dplyr::mutate(across(everything(), ~as.numeric(trimws(.x)))) %>%
           dplyr::mutate(fNRB_2010_2030 = NRB_2010_2030/Harv_2010_2030*100,
                         fNRB_2020_2030 = NRB_2020_2030/Harv_2020_2030*100,
                         fNRB_2010_2020 = NRB_2010_2020/Harv_2010_2020*100) %>%
@@ -2297,7 +2297,7 @@ if (fNRB_partition_tables == 1) {
         
       } else if (STdyn == 25){
         NRBzon_fr <- merge(nrb_sum_fr, harv_sum_fr, by = "zone") %>%
-          dplyr::mutate(across(everything(), ~as.integer(as.numeric(trimws(.x))))) %>%
+          dplyr::mutate(across(everything(), ~as.numeric(trimws(.x)))) %>%
           dplyr::mutate(fNRB_2010_2035 = NRB_2010_2035/Harv_2010_2035*100,
                         fNRB_2020_2035 = NRB_2020_2035/Harv_2020_2035*100,
                         fNRB_2010_2020 = NRB_2010_2020/Harv_2010_2020*100) %>%
@@ -2313,7 +2313,7 @@ if (fNRB_partition_tables == 1) {
         }  
       } else if (STdyn == 30){
         NRBzon_fr <- merge(nrb_sum_fr, harv_sum_fr, by = "zone") %>%
-          dplyr::mutate(across(everything(), ~as.integer(as.numeric(trimws(.x))))) %>%
+          dplyr::mutate(across(everything(), ~as.numeric(trimws(.x)))) %>%
           dplyr::mutate(fNRB_2010_2040 = NRB_2010_2040/Harv_2010_2040*100,
                         fNRB_2020_2040 = NRB_2020_2040/Harv_2020_2040*100,
                         fNRB_2010_2020 = NRB_2010_2020/Harv_2010_2020*100,
@@ -2331,14 +2331,16 @@ if (fNRB_partition_tables == 1) {
         }  
       } else if (STdyn == 40){
         NRBzon_fr <- merge(nrb_sum_fr, harv_sum_fr, by = "zone") %>%
-          dplyr::mutate(across(everything(), ~as.integer(as.numeric(trimws(.x))))) %>%
-          dplyr::mutate(fNRB_2010_2050 = NRB_2010_2050/Harv_2010_2050*100,
-                        fNRB_2020_2050 = NRB_2020_2050/Harv_2020_2050*100,
-                        fNRB_2010_2020 = NRB_2010_2020/Harv_2010_2020*100,
-                        fNRB_2020_2030 = NRB_2020_2030/Harv_2020_2030*100,
-                        fNRB_2030_2040 = NRB_2030_2040/Harv_2030_2040*100,
-                        fNRB_2040_2050 = NRB_2040_2050/Harv_2040_2050*100) %>%
-          round(.,0) 
+          dplyr::mutate(across(everything(), ~as.numeric(trimws(.x)))) %>%
+          dplyr::mutate(
+            fNRB_2010_2050 = NRB_2010_2050 / Harv_2010_2050 * 100,
+            fNRB_2020_2050 = NRB_2020_2050 / Harv_2020_2050 * 100,
+            fNRB_2010_2020 = NRB_2010_2020 / Harv_2010_2020 * 100,
+            fNRB_2020_2030 = NRB_2020_2030 / Harv_2020_2030 * 100,
+            fNRB_2030_2040 = NRB_2030_2040 / Harv_2030_2040 * 100,
+            fNRB_2040_2050 = NRB_2040_2050 / Harv_2040_2050 * 100
+          ) %>%
+          dplyr::mutate(across(starts_with("fNRB_"), \(x) round(x, 0)))
         
         NRBzon_fr$MC <- j  # maybe you want to keep track of which iteration produced it?
         NRBzon_frlist[[j]] <- NRBzon_fr # add it to your list

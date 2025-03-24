@@ -882,9 +882,16 @@ for (scex in scenario.list) { # Start scex loop ----
           found_in_csv <- TRUE
           break  # Exit the directory loop since 'i' was found
         }
-        
       }
     }
+    
+    ####JUST TO FIND MISSING COUNTRIES######
+    # If never found, stop execution
+    if (!found_in_csv) {
+      stop(paste("GID_0", i, "was not found in any CSV."))
+    }
+    ########################################
+    
     
     # If 'i' wasn't found in any of the directories, skip to the next country
     if (!found_in_csv) {
