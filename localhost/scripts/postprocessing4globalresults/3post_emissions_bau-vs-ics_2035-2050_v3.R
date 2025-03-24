@@ -870,14 +870,19 @@ for (scex in scenario.list) { # Start scex loop ----
         if (i %in% summary_data$GID_0) {
           message(paste("Found GID_0", i, "in", csv_path))
           
-          # Retrieve the values from row 1 for 'fNRB_2020_2030_mean' and 'fNRB_2020_2050_mean'
-          fnrb_2020_2030_mean <- summary_data$fNRB_2020_2030_mean[1] # Calcular fnrb_2020_2035!!!
-          fnrb_2020_2030_se <- summary_data$fNRB_2020_2030_se[1] # Calcular fnrb_2020_2035!!!
-          fnrb_2020_2050_mean <- summary_data$fNRB_2020_2050_mean[1]
-          fnrb_2020_2050_se <- summary_data$fNRB_2020_2050_se[1]
+          # Filter the matching row
+          matched_row <- summary_data[summary_data$GID_0 == i, ]
+          
+          # Retrieve the values from the matching row
+          fnrb_2020_2030_mean <- matched_row$fNRB_2020_2030_mean
+          fnrb_2020_2030_se <- matched_row$fNRB_2020_2030_se
+          fnrb_2020_2050_mean <- matched_row$fNRB_2020_2050_mean
+          fnrb_2020_2050_se <- matched_row$fNRB_2020_2050_se
+          
           found_in_csv <- TRUE
           break  # Exit the directory loop since 'i' was found
         }
+        
       }
     }
     
