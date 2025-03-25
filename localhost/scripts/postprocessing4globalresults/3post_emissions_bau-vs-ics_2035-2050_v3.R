@@ -457,7 +457,7 @@ for (scex in scenario.list) { # Start scex loop ----
   firstyr > yr
   
   for (i in adm0_reg$GID_0) { ## start 1st subscex loop ----
-    # i = "PNG"
+    # i = "SDN"
     print(i)
     
     # Search for 'i' in all directories within adm0_dirs
@@ -885,12 +885,12 @@ for (scex in scenario.list) { # Start scex loop ----
       }
     }
     
-    ####JUST TO FIND MISSING COUNTRIES######
-    # If never found, stop execution
-    if (!found_in_csv) {
-      stop(paste("GID_0", i, "was not found in any CSV."))
-    }
-    ########################################
+    # ####JUST TO FIND MISSING COUNTRIES######
+    # # If never found, stop execution
+    # if (!found_in_csv) {
+    #   stop(paste("GID_0", i, "was not found in any CSV."))
+    # }
+    # ########################################
     
     
     # If 'i' wasn't found in any of the directories, skip to the next country
