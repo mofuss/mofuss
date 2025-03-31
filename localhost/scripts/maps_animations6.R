@@ -1750,14 +1750,6 @@ if (fNRB_partition_tables == 1) {
     ecoregions_gpkg <- st_read("LULCC/SourceData/InVector/ecoregions.gpkg") # Why not TempVector?
 
     country_parameters %>%
-      dplyr::filter(Var == "ecoregions_ID") %>%
-      pull(ParCHR) -> ecoregions_ID
-    
-    country_parameters %>%
-      dplyr::filter(Var == "ecoregions_NAME") %>%
-      pull(ParCHR) -> ecoregions_NAME
-    
-    country_parameters %>%
       dplyr::filter(Var == "ext_analysis_ID") %>%
       pull(ParCHR) -> ext_analysis_ID
     
@@ -1780,6 +1772,14 @@ if (fNRB_partition_tables == 1) {
     country_parameters %>%
       dplyr::filter(Var == "ext_analysis_NAME_2") %>%
       pull(ParCHR) -> ext_analysis_NAME_2
+    
+    country_parameters %>%
+      dplyr::filter(Var == "ecoregions_ID") %>%
+      pull(ParCHR) -> ecoregions_ID
+    
+    country_parameters %>%
+      dplyr::filter(Var == "ecoregions_NAME") %>%
+      pull(ParCHR) -> ecoregions_NAME
     
     adminlevel <- c(admin, admin1, admin2, ecoregions)
     admin_name <- c("adm0", "adm1", "adm2", "ecoregions")
