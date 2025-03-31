@@ -21,7 +21,7 @@
 # Internal parameters ----
 temdirdefined = 1
 fixdir <- 0
-string_pattern_yes <- "1000m" #String pattern to be searched when selecting folders for the rasters' geocomputation
+string_pattern_yes <- "Miombo-Mopane" #String pattern to be searched when selecting folders for the rasters' geocomputation
 string_pattern_no <- "idw" #String pattern to be searched when selecting folders for the rasters' geocomputation
  
 # Load packages ----

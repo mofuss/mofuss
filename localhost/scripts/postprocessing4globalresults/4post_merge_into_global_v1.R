@@ -57,6 +57,13 @@ if (os == "Windows" & node_name == "WINLANASE") {
   emissionsdir <- "/home/mofuss/emissions"
   rTempdir <- "/home/mofuss/rTemp"
   
+} else if (os == "Windows" & node_name == "NRBV1"){
+  #ADD node
+  demanddir <- "D:/demand"
+  admindir <- "D:/admin_regions"
+  emissionsdir <- "D:/emissions"
+  rTempdir <- "D:/rTemp"
+  
 }
 
 # Erase all plots in R Studio

@@ -44,8 +44,8 @@
 
 # Internal parameters ----
 temdirdefined = 1
-string_pattern_yes <- "adm0" #Use adm0 as default. String pattern to be searched when selecting folders for the rasters' geocomputation
-string_pattern_no <- "idw" #Use "idw" as default. String pattern to be searched when selecting folders for the rasters' geocomputation
+string_pattern_yes <- "1000m" #Use adm0 as default. String pattern to be searched when selecting folders for the rasters' geocomputation
+string_pattern_no <- "ecoregions" #Use "idw" as default. String pattern to be searched when selecting folders for the rasters' geocomputation
 
 #***#
 startfromscratch = 1 # WARNING: Will erase all temporal folders along with any temp datasets - never too bad
@@ -95,6 +95,13 @@ if (os == "Windows" & node_name == "WINLANASE") {
   emissionsdir <- "/home/mofuss/emissions"
   rTempdir <- "/home/mofuss/rTemp"
   
+} else if (os == "Windows" & node_name == "NRBV1"){
+  #ADD node
+  demanddir <- "D:/demand"
+  admindir <- "D:/admin_regions"
+  emissionsdir <- "D:/emissions"
+  rTempdir <- "D:/rTemp"
+  
 }
 
 # Erase all plots in R Studio
@@ -137,9 +144,12 @@ library(tidyterra)
 library(tidyverse)
 
 # Define the directory to search for fNRB values
-# setwd(tk_choose.dir(default = getwd(), caption = "Define the directory to search"))
-# search_path <- getwd()
-search_path <- globalsouth_mofuss_bindingfolder
+if (exists("globalsouth_mofuss_bindingfolder") && dir.exists(globalsouth_mofuss_bindingfolder)) {
+  search_path <- globalsouth_mofuss_bindingfolder
+} else {
+  setwd(tk_choose.dir(default = getwd(), caption = "Define the directory to search"))
+  search_path <- getwd()
+}
 
 # List all directories in the specified path
 all_dirs <- dir_ls(search_path, type = "directory")
