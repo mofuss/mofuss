@@ -1683,7 +1683,12 @@ file.copy(from="regions_adm0/mofuss_regions0.gpkg",
 # Ecoregions 2017 ----
 # Read input layers
 mofuss_regions04crop <- st_read("regions_adm0/mofuss_regions0.gpkg")
-ecoregions_raw <- st_read("ecoregions2017.gpkg")
+ecoregions_raw <- st_read("ecoregions2017.gpkg") %>% 
+  dplyr::select(-BIOME_NUM, -BIOME_NAME, -REALM, -ECO_BIOME_, -NNH, -ECO_ID,
+                -SHAPE_LENG, -SHAPE_AREA, -COLOR, -COLOR_BIO, -COLOR_NNH,
+                -LICENSE) %>%
+  mutate(ID = 1:nrow(.))
+
 all(st_is_valid(ecoregions_raw))
 # Find the invalid geometries
 which(!st_is_valid(ecoregions_raw))
@@ -1707,10 +1712,10 @@ ecoregions_p <- ecoregions_intersected %>%
 st_write(ecoregions_p,"ecoregions_p/ecoregions2017_p.gpkg", 
          layer = "ecoregions_mofuss", delete_layer = TRUE)
 
-# Check categories for certain terms (FAO's project in thei case)
-ecoregions %>%
-  filter(grepl("miombo|mopane|baikiaea woodlands", ECO_NAME, ignore.case = TRUE)) %>%
-  pull(ECO_NAME) %>%
-  unique()
+# # Check categories for certain terms (FAO's project in thei case)
+# ecoregions %>%
+#   filter(grepl("miombo|mopane|baikiaea woodlands", ECO_NAME, ignore.case = TRUE)) %>%
+#   pull(ECO_NAME) %>%
+#   unique()
 
 # End of script ----

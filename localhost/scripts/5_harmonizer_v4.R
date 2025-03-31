@@ -43,7 +43,9 @@
 #     sh: 1: /home/mofuss/haiti_linux-c3/LULCC/lucdynamics_luc1/LULCC_blackbox_scripts2.bat: Permission denied
 # AGB maps ---- # ADD TWO MORE MAPS
 # 
-# FIX ECOREGIONS FOR REGIONAL AND AOI == 1LINES 464 - 467
+# FIX ECOREGIONS FOR REGIONAL AND AOI == 1 and subadmin =YES LINES 464 - 467
+#
+# AGB maps ---- # ADD TWO MORE MAPS
 
 
 
@@ -397,7 +399,7 @@ if (aoi_poly == 1) {
   
   setwd(admindir)
   
-  unlink("InVector/extent_*.*")
+  unlink("InVector/*.*")
   
   if (byregion == "Continental"){ ## Continent ---- THIS LEVEL REQUIERS TO BE UPDATED!!!
     
@@ -739,7 +741,7 @@ ecoregions_ras <- rasterize(
   ecoregions0,
   userarea_ras,
   field = country_parameters %>%
-    filter(Var == "ecoregions_NAME") %>%
+    filter(Var == "ecoregions_ID") %>%
     pull(ParCHR)
 )
 

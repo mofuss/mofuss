@@ -1,4 +1,3 @@
-# MDG
 # MoFuSS
 # Version 3
 # Date: Mar 2024
@@ -1743,10 +1742,20 @@ if (fNRB_partition_tables == 1) {
     admin <- raster("LULCC/TempRaster/admin_c.tif")
     admin1 <- raster("LULCC/TempRaster/admin_c1.tif")
     admin2 <- raster("LULCC/TempRaster/admin_c2.tif")
+    ecoregions <- raster("LULCC/TempRaster/ecoregions_c.tif")
     
     userarea_gpkg <- st_read("LULCC/TempVector/userarea.gpkg")
     userarea_gpkg1 <- st_read("LULCC/TempVector/userarea1.gpkg")
     userarea_gpkg2 <- st_read("LULCC/TempVector/userarea2.gpkg")
+    ecoregions_gpkg <- st_read("LULCC/SourceData/InVector/ecoregions.gpkg") # Why not TempVector?
+
+    country_parameters %>%
+      dplyr::filter(Var == "ecoregions_ID") %>%
+      pull(ParCHR) -> ecoregions_ID
+    
+    country_parameters %>%
+      dplyr::filter(Var == "ecoregions_NAME") %>%
+      pull(ParCHR) -> ecoregions_NAME
     
     country_parameters %>%
       dplyr::filter(Var == "ext_analysis_ID") %>%
@@ -1772,8 +1781,8 @@ if (fNRB_partition_tables == 1) {
       dplyr::filter(Var == "ext_analysis_NAME_2") %>%
       pull(ParCHR) -> ext_analysis_NAME_2
     
-    adminlevel <- c(admin, admin1, admin2)
-    admin_name <- c("adm0", "adm1", "adm2")
+    adminlevel <- c(admin, admin1, admin2, ecoregions)
+    admin_name <- c("adm0", "adm1", "adm2", "ecoregions")
   }
   
   # # Only the following bins are possible from the 3_demand4IDW_v1 script
@@ -1784,12 +1793,12 @@ if (fNRB_partition_tables == 1) {
   # STdyn = 40 # 2050
   
   foreach(admm = adminlevel, admname = admin_name) %do% {
-    #admm <- adminlevel[[1]] # Only the first admin level
-    #admname <- admin_name[[1]]
+    # admm <- adminlevel[[2]] # Only the first admin level
+    # admname <- admin_name[[2]]
     NRBzon_frlist <- list()
     # MC=2
     for (j in 1:MC) {
-      # j = 1
+      #j = 1
       print(j)
       
       # NRB 
@@ -2357,7 +2366,6 @@ if (fNRB_partition_tables == 1) {
     } # for (j in 1:MC) {
     
     # Integrate tables with all the above datasets ----
-    
     if (STdyn == 10){ # STdyn == 10 summary----
       print(10)
       
@@ -3125,7 +3133,6 @@ if (fNRB_partition_tables == 1) {
           print(paste0(admname," finished for vector layers"))
         }
         
-        
       } else if (admname == "adm1") {
         NRB_fNRB2_frcompl_madm1 <- userarea_gpkg1 %>%
           st_drop_geometry() %>%
@@ -3183,83 +3190,43 @@ if (fNRB_partition_tables == 1) {
         st_write(userarea_simpx_fr2, "OutBaU/webmofuss_results/mofuss_adm2_fr.gpkg", delete_layer = TRUE)
         print(paste0(admname," finished for vector layers"))
         
+      } else if (admname == "ecoregions") { # Copy for other years
+        NRB_fNRB2_frcompl_meco2 <- ecoregions_gpkg %>%
+          st_drop_geometry() %>%
+          merge(., NRB_fNRB2_fr, by.x = ecoregions_ID, by.y = "zone") %>%
+          dplyr::select(-GID_0, -GID_1, -GID_2) %>%
+          replace(is.na(.), 0)
+        write.csv(NRB_fNRB2_frcompl_madm2, "LULCC/TempTables/summary_ecoregions_frcompl.csv", row.names=FALSE, quote=FALSE)
+        write.csv(NRB_fNRB2_frcompl_madm2, "OutBaU/webmofuss_results/summary_ecoregions_frcompl.csv", row.names=FALSE, quote=FALSE)
+        
+        NRB_fNRB3_fr_madm2 <- NRB_fNRB2_frcompl_madm2 %>%
+          dplyr::select(-matches("_2010_2050|_2010_2020"), -ends_with("_sd")) %>%
+          dplyr::relocate(NRB_2020_2050_1MC, .after = zone_1MC) %>%
+          dplyr::relocate(Harv_2020_2050_1MC, .after = NRB_2040_2050_1MC) %>%
+          dplyr::select(-ends_with("_1MC"))
+        write.csv(NRB_fNRB3_fr_madm2, "LULCC/TempTables/summary_ecoregions_fr.csv", row.names=FALSE, quote=FALSE)
+        write.csv(NRB_fNRB3_fr_madm2, "OutBaU/webmofuss_results/summary_ecoregions_fr.csv", row.names=FALSE, quote=FALSE)
+        
+        print(paste0(admname," finished for tables"))
+        
+        userarea_simpx_fr2 <- ecoregions_gpkg %>%
+          inner_join(.,NRB_fNRB3_fr_madm2, by="ID") %>%
+          dplyr::select(-NAME_0.y, -NAME_1.y, -NAME_2.y) %>%
+          dplyr::rename(NAME_0 = NAME_0.x,
+                        NAME_1 = NAME_1.x,
+                        NAME_2 = NAME_2.x,) %>%
+          replace(is.na(.), 0)
+        st_write(userarea_simpx_fr2, "OutBaU/webmofuss_results/mofuss_ecoregions_fr.gpkg", delete_layer = TRUE)
+        print(paste0(admname," finished for vector layers"))
+        
       }
       
     } else {
       print("error with simulation length")  
     }
     
-    
   } # foreach(admm = adminlevel, admname = admin_name) %do% {
   
 } # if (fNRB_partition_tables == 1) {
 
 # END ----
-
-
-# ECOREGIONS CHUNK ----
-
-# https://ecoregions.appspot.com/
-
-country_parameters %>%
-  dplyr::filter(Var == "epsg_gcs") %>%
-  pull(ParCHR) -> epsg_gcs
-
-country_parameters %>%
-  dplyr::filter(Var == "epsg_pcs") %>%
-  pull(ParCHR) -> epsg_pcs
-
-country_parameters %>%
-  dplyr::filter(Var == "proj_authority") %>%
-  pull(ParCHR) -> proj_authority
-
-country_parameters %>%
-  dplyr::filter(Var == "proj_gcs") %>%
-  pull(ParCHR) -> proj_gcs
-
-country_parameters %>%
-  dplyr::filter(Var == "proj_pcs") %>%
-  pull(ParCHR) -> proj_pcs
-
-
-paste0(getwd(),"LULCC/DownloadedDatasets/SourceDataGlobal/InVector_GCS/Ecoregions2017.shp")
-
-if (ecoregions == 1) {
-
-  admin <- raster("LULCC/TempRaster/admin_c.tif")
-  admin1 <- raster("LULCC/TempRaster/admin_c1.tif")
-  admin2 <- raster("LULCC/TempRaster/admin_c2.tif")
-  
-  userarea_gpkg <- st_read("LULCC/TempVector/userarea.gpkg")
-  userarea_gpkg1 <- st_read("LULCC/TempVector/userarea1.gpkg")
-  userarea_gpkg2 <- st_read("LULCC/TempVector/userarea2.gpkg")
-  
-  country_parameters %>%
-    dplyr::filter(Var == "ext_analysis_ID") %>%
-    pull(ParCHR) -> ext_analysis_ID
-  
-  country_parameters %>%
-    dplyr::filter(Var == "ext_analysis_NAME") %>%
-    pull(ParCHR) -> ext_analysis_NAME
-  
-  country_parameters %>%
-    dplyr::filter(Var == "ext_analysis_ID_1") %>%
-    pull(ParCHR) -> ext_analysis_ID_1
-  
-  country_parameters %>%
-    dplyr::filter(Var == "ext_analysis_NAME_1") %>%
-    pull(ParCHR) -> ext_analysis_NAME_1
-  
-  country_parameters %>%
-    dplyr::filter(Var == "ext_analysis_ID_2") %>%
-    pull(ParCHR) -> ext_analysis_ID_2
-  
-  country_parameters %>%
-    dplyr::filter(Var == "ext_analysis_NAME_2") %>%
-    pull(ParCHR) -> ext_analysis_NAME_2
-  
-
-}
-
-
-

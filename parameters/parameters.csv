@@ -26,11 +26,13 @@ REGION TO BE PROCESSED,
 byregion,Country
 region2BprocessedCont,SSA
 region2BprocessedReg,ASIA_adm0_nepal
-region2BprocessedCtry,Côte d'Ivoire
-region2BprocessedCtry_iso,RWA
+region2BprocessedCtry,Zambia
+region2BprocessedCtry_iso,ZMB
 AREA OF INTEREST,
 aoi_poly,0
-aoi_poly_file,custom_polygon.kml
+aoi_poly_file,Zambia_exampleAoI.kml
+ecoregions_ID,ID
+ecoregions_NAME,ECO_NAME
 ext_analysis_ID,ID
 ext_analysis_NAME,NAME_0
 add_subadmin,NO
