@@ -105,6 +105,8 @@ unlink("regions_adm0_p/", recursive=TRUE)
 unlink("regions_adm1_p/", recursive=TRUE)
 unlink("regions_adm2_P/", recursive=TRUE)
 unlink("InVector/", recursive=TRUE)
+unlink("ecoregions/", recursive=TRUE)
+unlink("ecoregions_p/", recursive=TRUE)
 
 if (!dir.exists("regions_adm0")) {dir.create("regions_adm0")}
 if (!dir.exists("regions_adm1")) {dir.create("regions_adm1")} 
@@ -112,8 +114,9 @@ if (!dir.exists("regions_adm2")) {dir.create("regions_adm2")}
 if (!dir.exists("regions_adm0_p")) {dir.create("regions_adm0_p")}
 if (!dir.exists("regions_adm1_p")) {dir.create("regions_adm1_p")} 
 if (!dir.exists("regions_adm2_p")) {dir.create("regions_adm2_p")} 
-if (!dir.exists("InVector")) {dir.create("InVector")} 
-
+if (!dir.exists("InVector")) {dir.create("InVector")}
+if (!dir.exists("ecoregions")) {dir.create("ecoregions")}
+if (!dir.exists("ecoregions_p")) {dir.create("ecoregions_p")}
 
 # Read global GADM for admin 0, 1 and 2 and resolve the 9 disputed territories for the three cases
 recodedisputed <- function(adm_lyr){
@@ -1676,5 +1679,38 @@ st_read("regions_adm2/mofuss_regions2.gpkg") %>%
 file.copy(from="regions_adm0/mofuss_regions0.gpkg",
           to=paste0(demanddir,"/demand_in"),
           overwrite = TRUE)
+
+# Ecoregions 2017 ----
+# Read input layers
+mofuss_regions04crop <- st_read("regions_adm0/mofuss_regions0.gpkg")
+ecoregions_raw <- st_read("ecoregions2017.gpkg")
+all(st_is_valid(ecoregions_raw))
+# Find the invalid geometries
+which(!st_is_valid(ecoregions_raw))
+# Try fixing them
+ecoregions_fixed <- st_make_valid(ecoregions_raw)
+all(st_is_valid(ecoregions_fixed))  # Should return TRUE now
+ecoregions <- ecoregions_fixed
+
+# Intersect and drop Z/M
+ecoregions_intersected <- ecoregions %>%
+  st_intersection(mofuss_regions04crop) %>%
+  st_zm(drop = TRUE, what = "ZM")
+
+# Save to GPKG
+st_write(ecoregions_intersected, "ecoregions/ecoregions2017.gpkg",
+         layer = "ecoregions_mofuss", delete_layer = TRUE)
+
+# Project ecoregions
+ecoregions_p <- ecoregions_intersected %>% 
+  st_transform(paste0(proj_authority,":",epsg_pcs))
+st_write(ecoregions_p,"ecoregions_p/ecoregions2017_p.gpkg", 
+         layer = "ecoregions_mofuss", delete_layer = TRUE)
+
+# Check categories for certain terms (FAO's project in thei case)
+ecoregions %>%
+  filter(grepl("miombo|mopane|baikiaea woodlands", ECO_NAME, ignore.case = TRUE)) %>%
+  pull(ECO_NAME) %>%
+  unique()
 
 # End of script ----
