@@ -1017,11 +1017,11 @@ if (SumTables == 1) {
   
   if (MC < mcthreshold) {
     NRB_fNRB2 <- NRB_fNRB2x %>%
-      dplyr::mutate(across(ends_with("sd"), ~ (.x = NA)))
-    NRB_fNRB2
+      dplyr::mutate(across(ends_with(c("sd", "se")), ~ NA))
   } else {
     NRB_fNRB2 <- NRB_fNRB2x
   }
+  
   
   write.csv(NRB_fNRB2, "LULCC/TempTables/summary_adm0.csv", row.names=FALSE, quote=FALSE)
   write.csv(NRB_fNRB2, "OutBaU/webmofuss_results/summary_adm0.csv", row.names=FALSE, quote=FALSE)
@@ -1080,11 +1080,11 @@ if (SumTables == 1) {
   
   if (MC < mcthreshold) {
     userarea0_simp <- userarea0_simpx %>%
-      dplyr::mutate(across(ends_with("sd"), ~ (.x = NA)))
-    userarea0_simp
+      dplyr::mutate(across(ends_with(c("sd", "se")), ~ NA))
   } else {
     userarea0_simp <- userarea0_simpx
   }
+  
   
   st_write(userarea0_simp, "OutBaU/webmofuss_results/mofuss_regions0.gpkg", delete_layer = TRUE)
   
@@ -1166,11 +1166,11 @@ if (SumTables == 1) {
     
     if (MC < mcthreshold) {
       NRB_fNRB21 <- NRB_fNRB21x %>%
-        dplyr::mutate(across(ends_with("sd"), ~ (.x = NA)))
-      NRB_fNRB21
+        dplyr::mutate(across(ends_with(c("sd", "se")), ~ NA))
     } else {
       NRB_fNRB21 <- NRB_fNRB21x
     }
+    
     write.csv(NRB_fNRB21, "LULCC/TempTables/summary_adm1.csv", row.names=FALSE, quote=FALSE)
     write.csv(NRB_fNRB21, "OutBaU/webmofuss_results/summary_adm1.csv", row.names=FALSE, quote=FALSE)
     
@@ -1227,8 +1227,7 @@ if (SumTables == 1) {
     
     if (MC < mcthreshold) {
       userarea1_simp <- userarea1_simpx %>%
-        dplyr::mutate(across(ends_with("sd"), ~ (.x = NA)))
-      userarea1_simp
+        dplyr::mutate(across(ends_with(c("sd", "se")), ~ NA))
     } else {
       userarea1_simp <- userarea1_simpx
     }
@@ -1315,8 +1314,7 @@ if (SumTables == 1) {
       
       if (MC < mcthreshold) {
         NRB_fNRB22 <- NRB_fNRB22x %>%
-          dplyr::mutate(across(ends_with("sd"), ~ (.x = NA)))
-        NRB_fNRB22
+          dplyr::mutate(across(ends_with(c("sd", "se")), ~ NA))
       } else {
         NRB_fNRB22 <- NRB_fNRB22x
       }
@@ -1378,7 +1376,7 @@ if (SumTables == 1) {
       
       if (MC < mcthreshold) {
         userarea2_simp <- userarea2_simpx %>%
-          dplyr::mutate(across(ends_with("sd"), ~ (.x = NA)))
+          dplyr::mutate(across(ends_with(c("sd", "se")), ~ NA))
         userarea2_simp
       } else {
         userarea2_simp <- userarea2_simpx
@@ -1793,8 +1791,8 @@ if (fNRB_partition_tables == 1) {
   # STdyn = 40 # 2050
   
   foreach(admm = adminlevel, admname = admin_name) %do% {
-    # admm <- adminlevel[[2]] # Only the first admin level
-    # admname <- admin_name[[2]]
+    #admm <- adminlevel[[4]] # Only the first admin level
+    #admname <- admin_name[[4]]
     NRBzon_frlist <- list()
     # MC=2
     for (j in 1:MC) {
@@ -2403,7 +2401,7 @@ if (fNRB_partition_tables == 1) {
                       fNRB_2010_2020_se = fNRB_2010_2020_sd/sqrt(se_ncell100km)) %>%
         round(.,0)
       
-      if (MC > mcthreshold) {
+      if (MC < mcthreshold) {
         NRBzonfr_stats <- NRBzonfr_statsx %>%
           dplyr::mutate(across(ends_with(c("sd", "se")), ~ NA))
       } else {
@@ -2555,7 +2553,7 @@ if (fNRB_partition_tables == 1) {
                       fNRB_2020_2030_se = fNRB_2020_2030_sd/sqrt(se_ncell100km)) %>%
         round(.,0)
       
-      if (MC > mcthreshold) {
+      if (MC < mcthreshold) {
         NRBzonfr_stats <- NRBzonfr_statsx %>%
           dplyr::mutate(across(ends_with(c("sd", "se")), ~ NA))
       } else {
@@ -2719,7 +2717,7 @@ if (fNRB_partition_tables == 1) {
                       fNRB_2020_2035_se = fNRB_2020_2035_sd/sqrt(se_ncell100km)) %>%
         round(.,0)
       
-      if (MC > mcthreshold) {
+      if (MC < mcthreshold) {
         NRBzonfr_stats <- NRBzonfr_statsx %>%
           dplyr::mutate(across(ends_with(c("sd", "se")), ~ NA))
       } else {
@@ -2897,7 +2895,7 @@ if (fNRB_partition_tables == 1) {
                       fNRB_2030_2040_se = fNRB_2030_2040_sd/sqrt(se_ncell100km)) %>%
         round(.,0)
       
-      if (MC > mcthreshold) {
+      if (MC < mcthreshold) {
         NRBzonfr_stats <- NRBzonfr_statsx %>%
           dplyr::mutate(across(ends_with(c("sd", "se")), ~ NA))
       } else {
@@ -3083,7 +3081,7 @@ if (fNRB_partition_tables == 1) {
         round(.,0)
       names(NRBzonfr_statsx)
       
-      if (MC > mcthreshold) {
+      if (MC < mcthreshold) {
         NRBzonfr_stats <- NRBzonfr_statsx %>%
           dplyr::mutate(across(ends_with(c("sd", "se")), ~ NA))
       } else {
@@ -3194,27 +3192,32 @@ if (fNRB_partition_tables == 1) {
         NRB_fNRB2_frcompl_meco2 <- ecoregions_gpkg %>%
           st_drop_geometry() %>%
           merge(., NRB_fNRB2_fr, by.x = ecoregions_ID, by.y = "zone") %>%
-          dplyr::select(-GID_0, -GID_1, -GID_2) %>%
+          dplyr::select(-OBJECTID, -ID.1) %>%
           replace(is.na(.), 0)
-        write.csv(NRB_fNRB2_frcompl_madm2, "LULCC/TempTables/summary_ecoregions_frcompl.csv", row.names=FALSE, quote=FALSE)
-        write.csv(NRB_fNRB2_frcompl_madm2, "OutBaU/webmofuss_results/summary_ecoregions_frcompl.csv", row.names=FALSE, quote=FALSE)
+        write.csv(NRB_fNRB2_frcompl_meco2, "LULCC/TempTables/summary_ecoregions_frcompl.csv", row.names=FALSE, quote=FALSE)
+        write.csv(NRB_fNRB2_frcompl_meco2, "OutBaU/webmofuss_results/summary_ecoregions_frcompl.csv", row.names=FALSE, quote=FALSE)
         
-        NRB_fNRB3_fr_madm2 <- NRB_fNRB2_frcompl_madm2 %>%
+        NRB_fNRB3_fr_meco2 <- NRB_fNRB2_frcompl_meco2 %>%
           dplyr::select(-matches("_2010_2050|_2010_2020"), -ends_with("_sd")) %>%
           dplyr::relocate(NRB_2020_2050_1MC, .after = zone_1MC) %>%
           dplyr::relocate(Harv_2020_2050_1MC, .after = NRB_2040_2050_1MC) %>%
           dplyr::select(-ends_with("_1MC"))
-        write.csv(NRB_fNRB3_fr_madm2, "LULCC/TempTables/summary_ecoregions_fr.csv", row.names=FALSE, quote=FALSE)
-        write.csv(NRB_fNRB3_fr_madm2, "OutBaU/webmofuss_results/summary_ecoregions_fr.csv", row.names=FALSE, quote=FALSE)
+        write.csv(NRB_fNRB3_fr_meco2, "LULCC/TempTables/summary_ecoregions_fr.csv", row.names=FALSE, quote=FALSE)
+        write.csv(NRB_fNRB3_fr_meco2, "OutBaU/webmofuss_results/summary_ecoregions_fr.csv", row.names=FALSE, quote=FALSE)
         
         print(paste0(admname," finished for tables"))
         
+        
+        ### OJO CON ESTA PARTE - Y COPIAR Y PEGAR PARA STDYN RESTANTES
         userarea_simpx_fr2 <- ecoregions_gpkg %>%
-          inner_join(.,NRB_fNRB3_fr_madm2, by="ID") %>%
-          dplyr::select(-NAME_0.y, -NAME_1.y, -NAME_2.y) %>%
-          dplyr::rename(NAME_0 = NAME_0.x,
-                        NAME_1 = NAME_1.x,
-                        NAME_2 = NAME_2.x,) %>%
+          inner_join(.,NRB_fNRB3_fr_meco2, by="ID") %>%
+          dplyr::select(-OBJECTID, -ECO_NAME.y, -NNH_NAME.y, -GID_0.y, -NAME_0.y, -Subregion.y, -mofuss_reg.y) %>%
+          dplyr::rename(ECO_NAME = ECO_NAME.x,
+                        NNH_NAME = NNH_NAME.x,
+                        GID_0 = GID_0.x,
+                        NAME_0 = NAME_0.x,
+                        Subregion = Subregion.x,
+                        mofuss_reg = mofuss_reg.x) %>%
           replace(is.na(.), 0)
         st_write(userarea_simpx_fr2, "OutBaU/webmofuss_results/mofuss_ecoregions_fr.gpkg", delete_layer = TRUE)
         print(paste0(admname," finished for vector layers"))

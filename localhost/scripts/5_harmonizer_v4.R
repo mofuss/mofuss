@@ -534,7 +534,9 @@ if (aoi_poly == 1) {
     ecoregions0 <- vect("ecoregions_p/ecoregions2017_p.gpkg", layer = "ecoregions_mofuss") %>%
       terra::subset(.$GID_0 == mofuss_region)
     terra::writeVector(ecoregions0, "InVector/ecoregions.gpkg", overwrite = TRUE)
-    
+    # Save as shapefile
+    writeVector(ecoregions0, filename = paste0(countrydir,"/LULCC/SourceData/InVector/ecoregions.shp"), filetype = "ESRI Shapefile", overwrite = TRUE)
+
     if (add_subadmin == "YES") {
       
       adm1.list <- extent_mask1 %>%
@@ -577,12 +579,7 @@ if (aoi_poly == 1) {
   file.copy(from=paste0(admindir,"/InVector/extent_mask.gpkg"),
             to=paste0(countrydir,"/LULCC/SourceData/InVector"),
             overwrite = TRUE)
-  
-  file.copy(from=paste0(admindir,"/InVector/ecoregions.gpkg"),
-            to=paste0(countrydir,"/LULCC/SourceData/InVector"),
-            overwrite = TRUE)
-  
-  
+
   # file.copy(from=paste0(admindir,"/InVector/extent_analysis.gpkg"),
   #           to=paste0(countrydir,"/LULCC/SourceData/InVector"),
   #           overwrite = TRUE)
@@ -605,6 +602,11 @@ if (aoi_poly == 1) {
   #           to=paste0(countrydir,"/LULCC/SourceData/InVector"),
   #           overwrite = TRUE)
   
+  
+  file.copy(from=paste0(admindir,"/InVector/ecoregions.gpkg"),
+            to=paste0(countrydir,"/LULCC/SourceData/InVector"),
+            overwrite = TRUE)
+
   if (add_subadmin == "YES") {
     #ADM 0
     file.copy(from=paste0(admindir,"/InVector/extent_analysis.gpkg"),

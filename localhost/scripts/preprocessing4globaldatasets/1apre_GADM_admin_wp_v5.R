@@ -1683,11 +1683,16 @@ file.copy(from="regions_adm0/mofuss_regions0.gpkg",
 # Ecoregions 2017 ----
 # Read input layers
 mofuss_regions04crop <- st_read("regions_adm0/mofuss_regions0.gpkg")
+# ecoregions_raw <- st_read("ecoregions2017.gpkg") %>% 
+#   dplyr::select(-OBJECTID, -BIOME_NUM, -BIOME_NAME, -REALM, -ECO_BIOME_, -NNH, -ECO_ID,
+#                 -SHAPE_LENG, -SHAPE_AREA, -COLOR, -COLOR_BIO, -COLOR_NNH,
+#                 -LICENSE) %>%
+#   mutate(ECO_ID = 1:nrow(.))
+
 ecoregions_raw <- st_read("ecoregions2017.gpkg") %>% 
-  dplyr::select(-BIOME_NUM, -BIOME_NAME, -REALM, -ECO_BIOME_, -NNH, -ECO_ID,
+  dplyr::select(-OBJECTID, -BIOME_NUM, -BIOME_NAME, -REALM, -ECO_BIOME_, -NNH,
                 -SHAPE_LENG, -SHAPE_AREA, -COLOR, -COLOR_BIO, -COLOR_NNH,
-                -LICENSE) %>%
-  mutate(ID = 1:nrow(.))
+                -LICENSE) 
 
 all(st_is_valid(ecoregions_raw))
 # Find the invalid geometries
@@ -1695,10 +1700,9 @@ which(!st_is_valid(ecoregions_raw))
 # Try fixing them
 ecoregions_fixed <- st_make_valid(ecoregions_raw)
 all(st_is_valid(ecoregions_fixed))  # Should return TRUE now
-ecoregions <- ecoregions_fixed
 
 # Intersect and drop Z/M
-ecoregions_intersected <- ecoregions %>%
+ecoregions_intersected <- ecoregions_fixed %>%
   st_intersection(mofuss_regions04crop) %>%
   st_zm(drop = TRUE, what = "ZM")
 
@@ -1713,7 +1717,7 @@ st_write(ecoregions_p,"ecoregions_p/ecoregions2017_p.gpkg",
          layer = "ecoregions_mofuss", delete_layer = TRUE)
 
 # # Check categories for certain terms (FAO's project in thei case)
-# ecoregions %>%
+# ecoregions_intersected %>%
 #   filter(grepl("miombo|mopane|baikiaea woodlands", ECO_NAME, ignore.case = TRUE)) %>%
 #   pull(ECO_NAME) %>%
 #   unique()
