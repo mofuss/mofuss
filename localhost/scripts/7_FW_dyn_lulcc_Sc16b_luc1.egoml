@@ -1,6 +1,6 @@
 <?xml version="1.0" standalone="yes" ?>
 <script>
-    <property key="dff.date" value="Mon Jan 13 12:46:54 2025" />
+    <property key="dff.date" value="Tue Apr 01 20:29:44 2025" />
     <property key="dff.version" value="2.4.1.20140602" />
     <property key="metadata.author" value="Designed and coded by Adrian Ghilardi (UNAM) and Rob Bailis (SEI)." />
     <property key="metadata.description" value='&quot;MoFuSS&quot; is a dynamic model that simulates the effects of fuelwood harvesting on vegetation, accounting for savings in non-renewable woody biomass from reduced consumption due to an external intervention, such as an improved cookstove (ICS) or fuel substitution project.' />
@@ -4503,7 +4503,7 @@
             <containerfunctor name="CreateString">
                 <property key="dff.container.collapsed" value="no" />
                 <property key="dff.functor.alias" value="createString3474" />
-                <inputport name="format">&quot;R CMD BATCH --no-save \&quot;--args MC=&lt;v1&gt; IT=&lt;v2&gt; K_MC=&lt;v4&gt; TOF_MC=&lt;v5&gt; Ini_st_MC=&lt;v6&gt; Ini_st.factor.percentage=&lt;v7&gt; COVER_MAP=&lt;v8&gt; rmax_MC=&lt;v9&gt; DEF_FW=&lt;v10&gt; IL=&lt;v11&gt; STdyn=&lt;v12&gt; Harv.Pix.W=&lt;v14&gt; Prune.W=&lt;v15&gt; Harv.Pix.V=&lt;v16&gt; Prune.V=&lt;v17&gt; Harv.Pix_MC=&lt;v18&gt; Prune_MC=&lt;v19&gt; MaxAGB=&lt;v22&gt; MaxAGB_lastMC=&lt;v23&gt; MaxAGB_firstMC=&lt;v24&gt; AGBmap=&lt;v26&gt; SumTables=&lt;v27&gt; OSType=&lt;v28&gt; BaUvsICS=&apos;&lt;s29&gt;&apos; resolution=&lt;v30&gt; RerunMC=&lt;v31&gt; cutoff_yrs=&lt;v32&gt;\&quot; -- maps_animations5.R&quot;</inputport>
+                <inputport name="format">&quot;R CMD BATCH --no-save \&quot;--args MC=&lt;v1&gt; IT=&lt;v2&gt; K_MC=&lt;v4&gt; TOF_MC=&lt;v5&gt; Ini_st_MC=&lt;v6&gt; Ini_st.factor.percentage=&lt;v7&gt; COVER_MAP=&lt;v8&gt; rmax_MC=&lt;v9&gt; DEF_FW=&lt;v10&gt; IL=&lt;v11&gt; STdyn=&lt;v12&gt; Harv.Pix.W=&lt;v14&gt; Prune.W=&lt;v15&gt; Harv.Pix.V=&lt;v16&gt; Prune.V=&lt;v17&gt; Harv.Pix_MC=&lt;v18&gt; Prune_MC=&lt;v19&gt; MaxAGB=&lt;v22&gt; MaxAGB_lastMC=&lt;v23&gt; MaxAGB_firstMC=&lt;v24&gt; AGBmap=&lt;v26&gt; SumTables=&lt;v27&gt; OSType=&lt;v28&gt; BaUvsICS=&apos;&lt;s29&gt;&apos; resolution=&lt;v30&gt; RerunMC=&lt;v31&gt; cutoff_yrs=&lt;v32&gt;\&quot; -- maps_animations6.R&quot;</inputport>
                 <outputport name="result" id="v321" />
                 <functor name="NumberValue">
                     <property key="dff.functor.alias" value="numberValue3493" />
