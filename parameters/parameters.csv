@@ -31,7 +31,7 @@ region2BprocessedCtry_iso,ZMB
 AREA OF INTEREST,
 aoi_poly,0
 aoi_poly_file,Zambia_exampleAoI.kml
-ecoregions_ID,ID
+ecoregions_ID,ECO_ID
 ecoregions_NAME,ECO_NAME
 ext_analysis_ID,ID
 ext_analysis_NAME,NAME_0
