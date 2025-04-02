@@ -2496,6 +2496,37 @@ if (fNRB_partition_tables == 1) {
         st_write(userarea_simpx_fr2, "OutBaU/webmofuss_results/mofuss_adm2_fr.gpkg", delete_layer = TRUE)
         print(paste0(admname," finished for vector layers"))
         
+      } else if (admname == "ecoregions") {
+        NRB_fNRB2_frcompl_meco2 <- ecoregions_gpkg %>%
+          st_drop_geometry() %>%
+          merge(., NRB_fNRB2_fr, by.x = ecoregions_ID, by.y = "zone") %>%
+          replace(is.na(.), 0)
+        write.csv(NRB_fNRB2_frcompl_meco2, "LULCC/TempTables/summary_ecoregions_frcompl.csv", row.names=FALSE, quote=FALSE)
+        write.csv(NRB_fNRB2_frcompl_meco2, "OutBaU/webmofuss_results/summary_ecoregions_frcompl.csv", row.names=FALSE, quote=FALSE)
+        
+        NRB_fNRB3_fr_meco2 <- NRB_fNRB2_frcompl_meco2 %>%
+          dplyr::select(-matches("_2010_2050|_2010_2020"), -ends_with("_sd")) %>%
+          dplyr::relocate(NRB_2020_2050_1MC, .after = zone_1MC) %>%
+          dplyr::relocate(Harv_2020_2050_1MC, .after = NRB_2040_2050_1MC) %>%
+          dplyr::select(-ends_with("_1MC"))
+        write.csv(NRB_fNRB3_fr_meco2, "LULCC/TempTables/summary_ecoregions_fr.csv", row.names=FALSE, quote=FALSE)
+        write.csv(NRB_fNRB3_fr_meco2, "OutBaU/webmofuss_results/summary_ecoregions_fr.csv", row.names=FALSE, quote=FALSE)
+        
+        print(paste0(admname," finished for tables"))
+        
+        userarea_simpx_fr2 <- ecoregions_gpkg %>%
+          inner_join(.,NRB_fNRB3_fr_meco2, by="ECO_ID") %>%
+          dplyr::select(-ECO_NAME.y, -NNH_NAME.y, -GID_0.y, -NAME_0.y, -Subregion.y, -mofuss_reg.y, -ID.y) %>%
+          dplyr::rename(ECO_NAME = ECO_NAME.x,
+                        NNH_NAME = NNH_NAME.x,
+                        GID_0 = GID_0.x,
+                        NAME_0 = NAME_0.x,
+                        Subregion = Subregion.x,
+                        ID = ID.x,
+                        mofuss_reg = mofuss_reg.x) %>%
+          replace(is.na(.), 0)
+        st_write(userarea_simpx_fr2, "OutBaU/webmofuss_results/mofuss_ecoregions_fr.gpkg", delete_layer = TRUE)
+        print(paste0(admname," finished for vector layers"))
       }
       
       
@@ -2654,6 +2685,37 @@ if (fNRB_partition_tables == 1) {
         st_write(userarea_simpx_fr2, "OutBaU/webmofuss_results/mofuss_adm2_fr.gpkg", delete_layer = TRUE)
         print(paste0(admname," finished for vector layers"))
         
+      } else if (admname == "ecoregions") {
+        NRB_fNRB2_frcompl_meco2 <- ecoregions_gpkg %>%
+          st_drop_geometry() %>%
+          merge(., NRB_fNRB2_fr, by.x = ecoregions_ID, by.y = "zone") %>%
+          replace(is.na(.), 0)
+        write.csv(NRB_fNRB2_frcompl_meco2, "LULCC/TempTables/summary_ecoregions_frcompl.csv", row.names=FALSE, quote=FALSE)
+        write.csv(NRB_fNRB2_frcompl_meco2, "OutBaU/webmofuss_results/summary_ecoregions_frcompl.csv", row.names=FALSE, quote=FALSE)
+        
+        NRB_fNRB3_fr_meco2 <- NRB_fNRB2_frcompl_meco2 %>%
+          dplyr::select(-matches("_2010_2050|_2010_2020"), -ends_with("_sd")) %>%
+          dplyr::relocate(NRB_2020_2050_1MC, .after = zone_1MC) %>%
+          dplyr::relocate(Harv_2020_2050_1MC, .after = NRB_2040_2050_1MC) %>%
+          dplyr::select(-ends_with("_1MC"))
+        write.csv(NRB_fNRB3_fr_meco2, "LULCC/TempTables/summary_ecoregions_fr.csv", row.names=FALSE, quote=FALSE)
+        write.csv(NRB_fNRB3_fr_meco2, "OutBaU/webmofuss_results/summary_ecoregions_fr.csv", row.names=FALSE, quote=FALSE)
+        
+        print(paste0(admname," finished for tables"))
+        
+        userarea_simpx_fr2 <- ecoregions_gpkg %>%
+          inner_join(.,NRB_fNRB3_fr_meco2, by="ECO_ID") %>%
+          dplyr::select(-ECO_NAME.y, -NNH_NAME.y, -GID_0.y, -NAME_0.y, -Subregion.y, -mofuss_reg.y, -ID.y) %>%
+          dplyr::rename(ECO_NAME = ECO_NAME.x,
+                        NNH_NAME = NNH_NAME.x,
+                        GID_0 = GID_0.x,
+                        NAME_0 = NAME_0.x,
+                        Subregion = Subregion.x,
+                        ID = ID.x,
+                        mofuss_reg = mofuss_reg.x) %>%
+          replace(is.na(.), 0)
+        st_write(userarea_simpx_fr2, "OutBaU/webmofuss_results/mofuss_ecoregions_fr.gpkg", delete_layer = TRUE)
+        print(paste0(admname," finished for vector layers"))
       }
       
       
@@ -3002,6 +3064,37 @@ if (fNRB_partition_tables == 1) {
         st_write(userarea_simpx_fr2, "OutBaU/webmofuss_results/mofuss_adm2_fr.gpkg", delete_layer = TRUE)
         print(paste0(admname," finished for vector layers"))
         
+      } else if (admname == "ecoregions") {
+        NRB_fNRB2_frcompl_meco2 <- ecoregions_gpkg %>%
+          st_drop_geometry() %>%
+          merge(., NRB_fNRB2_fr, by.x = ecoregions_ID, by.y = "zone") %>%
+          replace(is.na(.), 0)
+        write.csv(NRB_fNRB2_frcompl_meco2, "LULCC/TempTables/summary_ecoregions_frcompl.csv", row.names=FALSE, quote=FALSE)
+        write.csv(NRB_fNRB2_frcompl_meco2, "OutBaU/webmofuss_results/summary_ecoregions_frcompl.csv", row.names=FALSE, quote=FALSE)
+        
+        NRB_fNRB3_fr_meco2 <- NRB_fNRB2_frcompl_meco2 %>%
+          dplyr::select(-matches("_2010_2050|_2010_2020"), -ends_with("_sd")) %>%
+          dplyr::relocate(NRB_2020_2050_1MC, .after = zone_1MC) %>%
+          dplyr::relocate(Harv_2020_2050_1MC, .after = NRB_2040_2050_1MC) %>%
+          dplyr::select(-ends_with("_1MC"))
+        write.csv(NRB_fNRB3_fr_meco2, "LULCC/TempTables/summary_ecoregions_fr.csv", row.names=FALSE, quote=FALSE)
+        write.csv(NRB_fNRB3_fr_meco2, "OutBaU/webmofuss_results/summary_ecoregions_fr.csv", row.names=FALSE, quote=FALSE)
+        
+        print(paste0(admname," finished for tables"))
+        
+        userarea_simpx_fr2 <- ecoregions_gpkg %>%
+          inner_join(.,NRB_fNRB3_fr_meco2, by="ECO_ID") %>%
+          dplyr::select(-ECO_NAME.y, -NNH_NAME.y, -GID_0.y, -NAME_0.y, -Subregion.y, -mofuss_reg.y, -ID.y) %>%
+          dplyr::rename(ECO_NAME = ECO_NAME.x,
+                        NNH_NAME = NNH_NAME.x,
+                        GID_0 = GID_0.x,
+                        NAME_0 = NAME_0.x,
+                        Subregion = Subregion.x,
+                        ID = ID.x,
+                        mofuss_reg = mofuss_reg.x) %>%
+          replace(is.na(.), 0)
+        st_write(userarea_simpx_fr2, "OutBaU/webmofuss_results/mofuss_ecoregions_fr.gpkg", delete_layer = TRUE)
+        print(paste0(admname," finished for vector layers"))
       }
       
       
@@ -3188,15 +3281,14 @@ if (fNRB_partition_tables == 1) {
         st_write(userarea_simpx_fr2, "OutBaU/webmofuss_results/mofuss_adm2_fr.gpkg", delete_layer = TRUE)
         print(paste0(admname," finished for vector layers"))
         
-      } else if (admname == "ecoregions") { # Copy for other years
+      } else if (admname == "ecoregions") {
         NRB_fNRB2_frcompl_meco2 <- ecoregions_gpkg %>%
           st_drop_geometry() %>%
           merge(., NRB_fNRB2_fr, by.x = ecoregions_ID, by.y = "zone") %>%
-          dplyr::select(-OBJECTID, -ID.1) %>%
           replace(is.na(.), 0)
         write.csv(NRB_fNRB2_frcompl_meco2, "LULCC/TempTables/summary_ecoregions_frcompl.csv", row.names=FALSE, quote=FALSE)
         write.csv(NRB_fNRB2_frcompl_meco2, "OutBaU/webmofuss_results/summary_ecoregions_frcompl.csv", row.names=FALSE, quote=FALSE)
-        
+
         NRB_fNRB3_fr_meco2 <- NRB_fNRB2_frcompl_meco2 %>%
           dplyr::select(-matches("_2010_2050|_2010_2020"), -ends_with("_sd")) %>%
           dplyr::relocate(NRB_2020_2050_1MC, .after = zone_1MC) %>%
@@ -3207,21 +3299,19 @@ if (fNRB_partition_tables == 1) {
         
         print(paste0(admname," finished for tables"))
         
-        
-        ### OJO CON ESTA PARTE - Y COPIAR Y PEGAR PARA STDYN RESTANTES
         userarea_simpx_fr2 <- ecoregions_gpkg %>%
-          inner_join(.,NRB_fNRB3_fr_meco2, by="ID") %>%
-          dplyr::select(-OBJECTID, -ECO_NAME.y, -NNH_NAME.y, -GID_0.y, -NAME_0.y, -Subregion.y, -mofuss_reg.y) %>%
+          inner_join(.,NRB_fNRB3_fr_meco2, by="ECO_ID") %>%
+          dplyr::select(-ECO_NAME.y, -NNH_NAME.y, -GID_0.y, -NAME_0.y, -Subregion.y, -mofuss_reg.y, -ID.y) %>%
           dplyr::rename(ECO_NAME = ECO_NAME.x,
                         NNH_NAME = NNH_NAME.x,
                         GID_0 = GID_0.x,
                         NAME_0 = NAME_0.x,
                         Subregion = Subregion.x,
+                        ID = ID.x,
                         mofuss_reg = mofuss_reg.x) %>%
           replace(is.na(.), 0)
         st_write(userarea_simpx_fr2, "OutBaU/webmofuss_results/mofuss_ecoregions_fr.gpkg", delete_layer = TRUE)
         print(paste0(admname," finished for vector layers"))
-        
       }
       
     } else {
