@@ -16,6 +16,21 @@
 
 # 2dolist ----
 # FIX THE MASK ISSUE WITH LINUX, THAT WAS PATCHED FOR THE MOMENT!
+# ALLOW OTHER SCENRIOS:
+# cons_fuels_years_charc_and_urb_fw_only
+# cons_fuels_years_rural_fw_only
+# if (scenario_ver == "BaU") {
+#   wfdb <- read_csv("demand_in/cons_fuels_years.csv") # UPDATE WITH NEW DATASET WITH THREE OPTIONS
+#   head(wfdb)
+#   # terra::unique(wfdb$fuel)
+#   # demand_col <- "fuel_tons3" #"fuel_tons1" #"fuel_tons2" #"fuel_tons3"
+# } else if (scenario_ver == "ICS") {
+#   wfdb <- read_csv("demand_in/cons_fuels_years_proj.csv") # UPDATE WITH NEW DATASET WITH THREE OPTIONS
+#   head(wfdb)
+#   # terra::unique(wfdb$fuel)
+#   # demand_col <- "fuel_tons3" #"fuel_tons1" #"fuel_tons2" #"fuel_tons3"
+# }
+# print(scenario_ver) # save as text to recover later down the river
 
 # Internal parameters ----
 optimizeD = 0
@@ -187,7 +202,18 @@ if (scenario_ver == "BaU") {
   head(wfdb)
   # terra::unique(wfdb$fuel)
   # demand_col <- "fuel_tons3" #"fuel_tons1" #"fuel_tons2" #"fuel_tons3"
+} else if (scenario_ver == "BAU_vehicle_only") {
+  wfdb <- read_csv("demand_in/cons_fuels_years_charc_and_urb_fw_only.csv") # UPDATE WITH NEW DATASET WITH THREE OPTIONS
+  head(wfdb)
+  # terra::unique(wfdb$fuel)
+  # demand_col <- "fuel_tons3" #"fuel_tons1" #"fuel_tons2" #"fuel_tons3"
+} else if (scenario_ver == "BAU_walking_only") {
+  wfdb <- read_csv("demand_in/cons_fuels_years_rural_fw_only.csv") # UPDATE WITH NEW DATASET WITH THREE OPTIONS
+  head(wfdb)
+  # terra::unique(wfdb$fuel)
+  # demand_col <- "fuel_tons3" #"fuel_tons1" #"fuel_tons2" #"fuel_tons3"
 }
+
 print(scenario_ver) # save as text to recover later down the river
 
 setwd(countrydir)
