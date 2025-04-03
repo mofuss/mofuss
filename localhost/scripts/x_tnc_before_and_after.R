@@ -1,7 +1,10 @@
 # TNC before and after
 
 library(terra)
+#WINLANASE
 AE20102035_oldraster <- rast("G:/My Drive/webpages/2024_MoFuSSGlobal_Datasets/mofussDS_emissions4tnc/old_datasets/EmissionsTNC/2035/AE2035_gcs_tpp.tif")
+#NRBV1
+AE20102035_oldraster <- rast("G:/Mi unidad/webpages/2024_MoFuSSGlobal_Datasets/mofussDS_emissions4tnc/old_datasets/EmissionsTNC/2035/AE2035_gcs_tpp.tif")
 # Mask negative values and sum only positive ones
 sumold_positive_values <- global(AE20102035_oldraster * (AE20102035_oldraster > 0), "sum", na.rm = TRUE)
 sumold <- round(sumold_positive_values/1000000/26,0)
