@@ -379,9 +379,9 @@ if (aoi_poly == 1) {
   extent_mask0 <- vect(st_read("regions_adm0_p/mofuss_regions0_p.gpkg")) %>%
     terra::subset(.$GID_0 == mofuss_region)
   mask <- st_as_sf(extent_mask0)
-  setwd(countrydir)
   # terra::writeVector(extent_mask0, "InVector/extent_mask.gpkg", overwrite = TRUE)
-
+  setwd(countrydir)
+  
   # mask <- userarea
   analysisshp <- st_intersection(mask, userarea)
   analysisshp_GCS <- st_transform(analysisshp, epsg_gcs)
@@ -395,6 +395,14 @@ if (aoi_poly == 1) {
   st_write (analysisshp_GCS,"LULCC/TempVector_GCS/ext_analysis_gcs.gpkg", delete_layer=TRUE)
   st_write(mask, "LULCC/SourceData/InVector/extent_mask.gpkg", delete_layer=TRUE)
   
+  setwd(admindir)
+  ecoregions0 <- vect("ecoregions_p/ecoregions2017_p.gpkg", layer = "ecoregions_mofuss") %>%
+    terra::subset(.$GID_0 == mofuss_region)
+  terra::writeVector(ecoregions0, "InVector/ecoregions.gpkg", overwrite = TRUE)
+  # Save as shapefile
+  writeVector(ecoregions0, filename = paste0(countrydir,"/LULCC/SourceData/InVector/ecoregions.shp"), filetype = "ESRI Shapefile", overwrite = TRUE)
+  setwd(countrydir)
+  
 } else if (aoi_poly == 0) {
   
   setwd(admindir)
@@ -407,6 +415,12 @@ if (aoi_poly == 1) {
       dplyr::filter(grepl(mofuss_region,mofuss_reg)) %>%
       dplyr::mutate(ID = seq(1:nrow(.)))
     st_write(extent_mask0, "InVector/extent_mask.gpkg", overwrite = TRUE)
+    
+    ecoregions0 <- vect("ecoregions_p/ecoregions2017_p.gpkg", layer = "ecoregions_mofuss") %>%
+      terra::subset(.$GID_0 == mofuss_region)
+    terra::writeVector(ecoregions0, "InVector/ecoregions.gpkg", overwrite = TRUE)
+    # Save as shapefile
+    writeVector(ecoregions0, filename = paste0(countrydir,"/LULCC/SourceData/InVector/ecoregions.shp"), filetype = "ESRI Shapefile", overwrite = TRUE)
     
     countries.list <- extent_mask0 %>%
       as.data.frame() %>%
@@ -463,10 +477,11 @@ if (aoi_poly == 1) {
     extent_mask0 <- vect(st_read(paste0("regions_adm0_p/",mofuss_region,"_p.gpkg")))
     terra::writeVector(extent_mask0, "InVector/extent_mask.gpkg", overwrite = TRUE)
     
-    # names(ecoregions0)
-    # ecoregions0 <- vect("ecoregions_p/ecoregions2017_p.gpkg", layer = "ecoregions_mofuss") %>%
-    #   terra::subset(.$GID_0 == mofuss_region)
-    # terra::writeVector(ecoregions0, "InVector/ecoregions.gpkg", overwrite = TRUE)
+    ecoregions0 <- vect("ecoregions_p/ecoregions2017_p.gpkg", layer = "ecoregions_mofuss") %>%
+      terra::subset(.$GID_0 == mofuss_region)
+    terra::writeVector(ecoregions0, "InVector/ecoregions.gpkg", overwrite = TRUE)
+    # Save as shapefile
+    writeVector(ecoregions0, filename = paste0(countrydir,"/LULCC/SourceData/InVector/ecoregions.shp"), filetype = "ESRI Shapefile", overwrite = TRUE)
     
     countries.list <- extent_mask0 %>%
       as.data.frame() %>%
@@ -751,7 +766,7 @@ ecoregions_ras <- rasterize(
 crs(ecoregions_ras) <- paste0("+",proj_pcs)
 
 # Crop and mask the raster
-ecoregions_ras_m <- mask(crop(ecoregions_ras, userarea_r), userarea_r)
+ecoregions_ras_m <- terra::mask(crop(ecoregions_ras, userarea_r), userarea_r)
 
 # Ensure CRS is maintained
 crs(ecoregions_ras_m) <- paste0("+",proj_pcs)
