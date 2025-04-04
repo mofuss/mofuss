@@ -202,12 +202,12 @@ if (scenario_ver == "BaU") {
   head(wfdb)
   # terra::unique(wfdb$fuel)
   # demand_col <- "fuel_tons3" #"fuel_tons1" #"fuel_tons2" #"fuel_tons3"
-} else if (scenario_ver == "BAU_vehicle_only") {
+} else if (scenario_ver == "BaU_vehicle_only") {
   wfdb <- read_csv("demand_in/cons_fuels_years_charc_and_urb_fw_only.csv") # UPDATE WITH NEW DATASET WITH THREE OPTIONS
   head(wfdb)
   # terra::unique(wfdb$fuel)
   # demand_col <- "fuel_tons3" #"fuel_tons1" #"fuel_tons2" #"fuel_tons3"
-} else if (scenario_ver == "BAU_walking_only") {
+} else if (scenario_ver == "BaU_walking_only") {
   wfdb <- read_csv("demand_in/cons_fuels_years_rural_fw_only.csv") # UPDATE WITH NEW DATASET WITH THREE OPTIONS
   head(wfdb)
   # terra::unique(wfdb$fuel)
@@ -1148,9 +1148,18 @@ head(wf_w_db4idw_prezero)
 
 ### Take out zero here! Walking ----
 # Calculate the row sums for the specified columns
-rowSumsSubsetW <- rowSums(wf_w_db4idw_prezero[,grep("^[0-9]{4}_fw_w$", names(wf_w_db4idw_prezero))])
-# Filter out rows where the sum is equal to 0
-wf_w_db4idw <- wf_w_db4idw_prezero[rowSumsSubsetW >= 0.1, ]
+target_colsw <- grep("^[0-9]{4}_fw_w$", names(wf_w_db4idw_prezero))
+rowSumsSubsetW <- rowSums(wf_w_db4idw_prezero[, target_colsw])
+
+# Check if all rows were filtered out
+if (all(rowSumsSubsetW < 0.1)) {
+  # Replace all values in the target columns with 0.2
+  wf_w_db4idw <- wf_w_db4idw_prezero
+  wf_w_db4idw[, target_colsw] <- 0.2
+} else {
+  # Keep only rows where the sum is >= 0.1
+  wf_w_db4idw <- wf_w_db4idw_prezero[rowSumsSubsetW >= 0.1, ]
+}
 
 # Creates a raster based in locs IDs - check the snaps
 # ext_wf_w <- ext(wf_w_st[[1]])
@@ -1233,10 +1242,22 @@ head(wf_v_db4idw_prezero)
 
 ### Take out zero here! Vehicle ----
 # Calculate the row sums for the specified columns
-rowSumsSubsetV <- rowSums(wf_v_db4idw_prezero[,grep("^[0-9]{4}_fw_v$", names(wf_v_db4idw_prezero))])
-# Filter out rows where the sum is equal to 0
-wf_v_db4idw <- wf_v_db4idw_prezero[rowSumsSubsetV >= 0.1, ]
+target_colsv <- grep("^[0-9]{4}_fw_v$", names(wf_v_db4idw_prezero))
+rowSumsSubsetV <- rowSums(wf_v_db4idw_prezero[, target_colsv])
 
+# Check if all rows were filtered out
+if (all(rowSumsSubsetV < 0.1)) {
+  # Replace all values in the target columns with 0.2
+  wf_v_db4idw <- wf_v_db4idw_prezero
+  wf_v_db4idw[, target_colsv] <- 0.2
+} else {
+  # Keep only rows where the sum is >= 0.1
+  wf_v_db4idw <- wf_v_db4idw_prezero[rowSumsSubsetV >= 0.1, ]
+}
+
+# Creates a raster based in locs IDs - check the snaps
+# ext_wf_w <- ext(wf_w_st[[1]])
+# extalign <- terra::align(ext_wf_w, wf_w_st[[1]],snap="near")
 newlocs_v <- wf_v_db4idw %>%
   dplyr::select(x,y,ID)
 locs_raster_v <- rast(newlocs_v, type="xyz", crs=crs(wf_v_st[[1]]), digits=0)

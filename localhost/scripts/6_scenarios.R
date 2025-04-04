@@ -161,7 +161,7 @@ if (file.exists("LULCC/TempTables/growth_parameters3.csv") == TRUE) {
 }
 
 #save user data as txt for down stream uses
-writeLines(paste0(SceCode,"_scenario"), "LULCC/TempTables/SceCode.txt", useBytes=T)
+writeLines(paste0(substr(SceCode, 1, 3),"_scenario"), "LULCC/TempTables/SceCode.txt", useBytes=T)
 readLines("LULCC/TempTables/SceCode.txt")
 #userarea_GCS<-st_read("TempVector_GCS/userarea_GCS.shp")
 #userarea<-st_read("TempVector/userarea.shp")
@@ -180,8 +180,8 @@ for (j in (c("v","w"))) {
   db_locs <- as.data.frame(getValues(locs_c))
   db_locs_f<-db_locs[complete.cases(db_locs),]
   
-  DemSce_semicolon<-read.csv(paste0("In/DemandScenarios/",SceCode,"_fwch_",j,".csv"), sep=";", stringsAsFactors=FALSE)
-  DemSce_comma<-read.csv(paste0("In/DemandScenarios/",SceCode,"_fwch_",j,".csv"), sep=",", stringsAsFactors=FALSE)
+  DemSce_semicolon<-read.csv(paste0("In/DemandScenarios/",substr(SceCode, 1, 3),"_fwch_",j,".csv"), sep=";", stringsAsFactors=FALSE)
+  DemSce_comma<-read.csv(paste0("In/DemandScenarios/",substr(SceCode, 1, 3),"_fwch_",j,".csv"), sep=",", stringsAsFactors=FALSE)
   if (is.null(DemSce_semicolon$X2027_ch_v[1])) { # Read in the arguments listed at the command line in DINAMICA'S "Run external process"
     DemSceX<-DemSce_comma
   } else {
