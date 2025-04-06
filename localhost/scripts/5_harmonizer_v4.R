@@ -482,7 +482,16 @@ if (aoi_poly == 1) {
       terra::subset(.$mofuss_reg == mofuss_region)
     terra::writeVector(ecoregions0, "InVector/ecoregions.gpkg", overwrite = TRUE)
     # Save as shapefile
-    writeVector(ecoregions0, filename = paste0(countrydir,"/LULCC/SourceData/InVector/ecoregions.shp"), filetype = "ESRI Shapefile", overwrite = TRUE)
+    # Define full shapefile path without extension
+    shp_path <- paste0(countrydir, "/LULCC/SourceData/InVector/ecoregions")
+    
+    # Delete existing files if they exist
+    shp_extensions <- c(".shp", ".shx", ".dbf", ".prj", ".cpg")
+    shp_files <- paste0(shp_path, shp_extensions)
+    file.remove(shp_files[file.exists(shp_files)])
+    
+    # Now write the shapefile
+    writeVector(ecoregions0, filename = paste0(shp_path, ".shp"), filetype = "ESRI Shapefile")
     
     countries.list <- extent_mask0 %>%
       as.data.frame() %>%
@@ -551,7 +560,16 @@ if (aoi_poly == 1) {
       terra::subset(.$GID_0 == mofuss_region)
     terra::writeVector(ecoregions0, "InVector/ecoregions.gpkg", overwrite = TRUE)
     # Save as shapefile
-    writeVector(ecoregions0, filename = paste0(countrydir,"/LULCC/SourceData/InVector/ecoregions.shp"), filetype = "ESRI Shapefile", overwrite = TRUE)
+    # Define full shapefile path without extension
+    shp_path <- paste0(countrydir, "/LULCC/SourceData/InVector/ecoregions")
+    
+    # Delete existing files if they exist
+    shp_extensions <- c(".shp", ".shx", ".dbf", ".prj", ".cpg")
+    shp_files <- paste0(shp_path, shp_extensions)
+    file.remove(shp_files[file.exists(shp_files)])
+    
+    # Now write the shapefile
+    writeVector(ecoregions0, filename = paste0(shp_path, ".shp"), filetype = "ESRI Shapefile")
 
     if (add_subadmin == "YES") {
       
@@ -1083,11 +1101,12 @@ if (identical(country_parameters %>%
   npa_raster <- rast(paste0("LULCC/SourceData/InRaster/", country_parameters %>%
                               filter(Var == "npa_name_r") %>%
                               pull(ParCHR)))
-  # Crop, resample, and mask
-  npa_c <- mask(
-    resample(
-      crop(npa_raster, userarea_r), 
-      userarea_r, method = "near"
+  
+  #Crop, resample, and mask
+  npa_c <- terra::mask(
+    terra::resample(
+      terra::crop(npa_raster, userarea_r), 
+      userarea_r, method = "near"  # valid only if you're using terra >= 1.7
     ), 
     userarea_r
   )
@@ -1166,9 +1185,9 @@ if (identical(rivers_raster_param, NA_character_)) {  # Variable exists but has 
                                  filter(Var == "rivers_name_r") %>%
                                  pull(ParCHR)))
   
-  rivers_c <- mask(
-    resample(
-      crop(rivers_raster, userarea_r), 
+  rivers_c <- terra::mask(
+    terra::resample(
+      terra::crop(rivers_raster, userarea_r), 
       userarea_r, method = "near"
     ), 
     userarea_r
@@ -1243,9 +1262,9 @@ if (identical(lakes_raster_param, NA_character_)) {  # Variable exists but has n
                                 filter(Var == "lakes_name_r") %>%
                                 pull(ParCHR)))
   
-  lakes_c <- mask(
-    resample(
-      crop(lakes_raster, userarea_r), 
+  lakes_c <- terra::mask(
+    terra::resample(
+      terra::crop(lakes_raster, userarea_r), 
       userarea_r, method = "near"
     ), 
     userarea_r
@@ -1320,9 +1339,9 @@ if (identical(roads_raster_param, NA_character_)) {  # Variable exists but has n
                                 filter(Var == "roads_name_r") %>%
                                 pull(ParCHR)))
   
-  roads_c <- mask(
-    resample(
-      crop(roads_raster, userarea_r), 
+  roads_c <- terra::mask(
+    terra::resample(
+      terra::crop(roads_raster, userarea_r), 
       userarea_r, method = "near"
     ), 
     userarea_r
@@ -1396,9 +1415,9 @@ if (identical(borders_raster_param, NA_character_)) {  # Variable exists but has
                                   filter(Var == "borders_name_r") %>%
                                   pull(ParCHR)))
   
-  borders_c <- mask(
-    resample(
-      crop(borders_raster, userarea_r), 
+  borders_c <- terra::mask(
+    terra::resample(
+      terra::crop(borders_raster, userarea_r), 
       userarea_r, method = "near"
     ), 
     userarea_r
