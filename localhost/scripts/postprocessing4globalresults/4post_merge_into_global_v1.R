@@ -19,7 +19,7 @@
 
 # Internal parameters ----
 temdirdefined = 1
-string_pattern_yes <- "2035" # String pattern to be searched when selecting folders for the rasters' geocomputation
+string_pattern_yes <- "2050" # String pattern to be searched when selecting folders for the rasters' geocomputation
 string_pattern_no <- "Cou" # String pattern to be searched when selecting folders for the rasters' geocomputation
 
 

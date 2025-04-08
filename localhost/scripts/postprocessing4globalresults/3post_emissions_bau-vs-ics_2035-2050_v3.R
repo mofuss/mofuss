@@ -41,6 +41,13 @@
 ### ----
 # 11.- Integrate mean and SE in the same table
 
+# adminnew <- st_read("regions_adm0/mofuss_regions0.gpkg") %>%
+#   dplyr::mutate(zone = 1:99) %>% # WATCHOUT ABOUT THIS! AUTOMATE LAST VALUE (e.g. 99 or 100)
+#   dplyr::filter(grepl(mofuss_region,mofuss_reg))
+# admindb <- adminnew %>% st_drop_geometry()
+# head(adminnew)
+# sort(adminnew$NAME_0)
+
 
 # Internal parameters ----
 temdirdefined = 1
@@ -1252,7 +1259,7 @@ if (avoidedemissions == 1){
   for (sdm in c("_mean", "_se")){
     # sdm = "_mean"
     # sdm = "_se"
-    
+     
     if (file.exists(paste0(emissionsdir,"/",lastyr,regiontag,"/BaU/emissions_out_BaU/e",firstyr,"-",lastyr,"_BaU_tCO2e_gcs",sdm,".tif")) == TRUE &
         file.exists(paste0(emissionsdir,"/",lastyr,regiontag,"/ICS/emissions_out_ICS/e",firstyr,"-",lastyr,"_ICS_tCO2e_gcs",sdm,".tif")) == TRUE) {
       
@@ -1334,14 +1341,14 @@ if (avoidedemissions == 1){
         
       } else if (byregion == "Continental"){
         adminnew <- st_read("regions_adm0/mofuss_regions0.gpkg") %>%
-          dplyr::mutate(zone = 1:100) %>%
+          dplyr::mutate(zone = 1:100) %>% # WATCHOUT ABOUT THIS! AUTOMATE LAST VALUE (e.g. 99 or 100)
           dplyr::filter(grepl(mofuss_region,mofuss_reg))
         admindb <- adminnew %>% st_drop_geometry()
         head(adminnew)
         sort(adminnew$NAME_0)
         
         adminnew_p <- st_read("regions_adm0_p/mofuss_regions0_p.gpkg") %>%
-          dplyr::mutate(zone = 1:100) %>%
+          dplyr::mutate(zone = 1:100) %>% # WATCHOUT ABOUT THIS! AUTOMATE LAST VALUE (e.g. 99 or 100)
           dplyr::filter(grepl(mofuss_region,mofuss_reg)) %>%
           dplyr::mutate(km2_vector = round(st_area(.)/1000000,0)) %>%
           units::drop_units()
