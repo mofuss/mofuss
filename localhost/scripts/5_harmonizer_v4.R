@@ -194,12 +194,23 @@ country_parameters %>%
 if (aoi_poly == 1) {
   # Handle the case where aoi_poly is 1, regardless of byregion
   cat("aoi_poly is set to 1. This overrides other conditions.\n")
+  
+  country_parameters %>%
+    dplyr::filter(Var == "aoi_poly_file") %>%
+    pull(ParCHR) -> aoi_poly_file
+  
   # Define file paths
   kml_file_path <- Sys.glob(paste0(countrydir,"/LULCC/SourceData/InVector_GCS/",aoi_poly_file))
   # Read the SpatVector files
   kml_data <- vect(kml_file_path) # Read the .kml file
   # plot(kml_data)
   # Reassign the CRS of kml_data to match mofuss_regions0_gpkg
+  
+  # Re-read mofuss_regions0_gpkg for the case the object does not exist
+  if (!exists("mofuss_regions0_gpkg")) {
+    mofuss_regions0_gpkg <- vect(st_read(paste0(demanddir,"/demand_in/mofuss_regions0.gpkg")))
+  }
+  
   crs(kml_data) <- crs(mofuss_regions0_gpkg)
   # Ensure both layers are in the same projection
   if (!crs(mofuss_regions0_gpkg) == crs(kml_data)) {
@@ -383,7 +394,8 @@ if (aoi_poly == 1) {
   setwd(admindir)
   extent_mask0 <- vect(st_read("regions_adm0_p/mofuss_regions0_p.gpkg")) %>%
     terra::subset(.$GID_0 == mofuss_region)
-  mask <- st_as_sf(extent_mask0)
+  mask <- st_as_sf(extent_mask0) %>%
+    dplyr::mutate(ID = 1)
   # terra::writeVector(extent_mask0, "InVector/extent_mask.gpkg", overwrite = TRUE)
   setwd(countrydir)
   
