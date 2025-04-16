@@ -1607,7 +1607,7 @@ library(tictoc)
 #library(mapview)
 library(tidyverse)
 library(readxl)
-library(hacksaw)
+# library(hacksaw)
 library(rmapshaper)
   
 # Using the system mapshaper - COULD NOT INSTALL IT IN WIN10!!!
