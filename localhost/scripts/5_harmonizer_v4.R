@@ -348,6 +348,11 @@ readLines("LULCC/TempTables/UserData.txt")
 if (aoi_poly == 1) {
   # Handle the case where aoi_poly is 1, regardless of byregion
   cat("aoi_poly is set to 1. This overrides other conditions.\n")
+  
+  country_parameters %>%
+    dplyr::filter(Var == "aoi_poly_file") %>%
+    pull(ParCHR) -> aoi_poly_file
+  
   # Define file paths
   kml_file_path <- Sys.glob(paste0(countrydir,"/LULCC/SourceData/InVector_GCS/",aoi_poly_file))
   # Read the SpatVector files
@@ -371,7 +376,7 @@ if (aoi_poly == 1) {
   # }
   userarea_GCS <- bind_cols(polykml, dfx) %>%
     st_zm() %>%
-    select(-Name, -matches("description", ignore.case = TRUE))
+    dplyr::select(-Name, -matches("description", ignore.case = TRUE))
   userarea <- st_transform(userarea_GCS, epsg_pcs)
 
   # Vector masks and extents Google Polygon

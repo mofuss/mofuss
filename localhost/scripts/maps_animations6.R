@@ -10,8 +10,8 @@
 ## Aunque estos salen de dinamica hasta cierto punto, faltaria 2020-final year ###
 
 # Internal parameters
-videoson <- 0
-compilelatex <- 0
+videoson <- 1
+compilelatex <- 1
 uncertaintystacks <- 0
 fNRB_partition_tables <- 1
 mcthreshold <- 30
