@@ -11,7 +11,7 @@
 
 # Internal parameters
 videoson <- 1
-compilelatex <- 1
+compilelatex <- 0
 uncertaintystacks <- 0
 fNRB_partition_tables <- 1
 mcthreshold <- 30
