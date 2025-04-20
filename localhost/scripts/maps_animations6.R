@@ -58,7 +58,7 @@ args=(commandArgs(TRUE))
 if(length(args)==0){
   print("No arguments supplied by DINAMICA.")
   ##Supply default values here (to be used when running the script through R directly)
-  MC = 30 # MonteCarlo runs
+  MC = 2 # MonteCarlo runs
   IT = 2010 # Initial year
   K_MC=1
   TOF_MC=1
@@ -141,6 +141,22 @@ country_parameters %>%
   dplyr::filter(Var == "aoi_poly") %>%
   pull(ParCHR) %>%
   as.integer(.) -> aoi_poly
+
+country_parameters %>%
+  dplyr::filter(Var == "ext_analysis_ID") %>%
+  pull(ParCHR) -> ext_analysis_ID
+
+country_parameters %>%
+  dplyr::filter(Var == "ext_analysis_NAME") %>%
+  pull(ParCHR) -> ext_analysis_NAME
+
+country_parameters %>%
+  dplyr::filter(Var == "ecoregions_ID") %>%
+  pull(ParCHR) -> ecoregions_ID
+
+country_parameters %>%
+  dplyr::filter(Var == "ecoregions_NAME") %>%
+  pull(ParCHR) -> ecoregions_NAME
 
 if (LULCt1map == "YES") {
   tof_vs_for <- read_csv("LULCC/TempTables/growth_parameters1.csv") %>% 
@@ -1726,14 +1742,6 @@ if (fNRB_partition_tables == 1) {
     ecoregions <- raster("LULCC/TempRaster/ecoregions_c.tif")
     userarea_gpkg <- st_read("LULCC/TempVector/userarea.gpkg")
     ecoregions_gpkg <- st_read("LULCC/SourceData/InVector/ecoregions.gpkg") # Why not TempVector?
-    
-    country_parameters %>%
-      dplyr::filter(Var == "ext_analysis_ID") %>%
-      pull(ParCHR) -> ext_analysis_ID
-    
-    country_parameters %>%
-      dplyr::filter(Var == "ext_analysis_NAME") %>%
-      pull(ParCHR) -> ext_analysis_NAME
     
     adminlevel <- c(admin, ecoregions)
     admin_name <- c("adm0", "ecoregions")

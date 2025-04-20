@@ -426,7 +426,7 @@ if (aoi_poly == 1) {
   setwd(admindir)
   ecoregions0 <- vect("ecoregions_p/ecoregions2017_p.gpkg", layer = "ecoregions_mofuss") %>%
     terra::subset(.$GID_0 == mofuss_region)
-  terra::writeVector(ecoregions0, "InVector/ecoregions.gpkg", overwrite = TRUE)
+  terra::writeVector(ecoregions0, paste0(countrydir,"/LULCC/SourceData/InVector/ecoregions.gpkg"), overwrite = TRUE)
   # Save as shapefile
   writeVector(ecoregions0, filename = paste0(countrydir,"/LULCC/SourceData/InVector/ecoregions.shp"), filetype = "ESRI Shapefile", overwrite = TRUE)
   setwd(countrydir)
