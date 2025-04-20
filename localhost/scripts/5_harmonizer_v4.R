@@ -90,6 +90,7 @@ library(spam)
 library(stars)
 library(svDialogs)
 library(tcltk)
+library(terra)
 library(tictoc)
 library(tidyverse)
 
@@ -222,21 +223,31 @@ if (aoi_poly == 1) {
   if (inherits(overlap, "try-error") || is.null(overlap) || length(overlap) == 0) {
     stop("No valid overlap found between the KML file and the GPKG regions.")
   }
-  # Add an area column for the overlap polygons
-  overlap$area <- expanse(overlap, unit = "km") # Area in square kilometers
-  # Group by the `GID_0` and sum the overlapping areas for each GID_0
-  overlap_summary <- as.data.frame(overlap) %>%
-    group_by(GID_0) %>%
-    summarise(total_area = sum(area, na.rm = TRUE))
+  
+  # Calculate area
+  overlap$area <- terra::expanse(overlap, unit = "km")
+  
+  # Extract
+  overlap_df <- as.data.frame(overlap)
+  
+  # Build summary
+  overlap_summary <- overlap_df %>%
+    dplyr::select(GID_0, area) %>%
+    dplyr::mutate(total_area = area) %>%
+    dplyr::select(GID_0, total_area)
   # Check if overlap_summary is empty
   if (nrow(overlap_summary) == 0) {
     stop("No overlapping regions found.")
   }
-  # Find the GID_0 with the largest total overlapping area
-  largest_overlap <- overlap_summary[which.max(overlap_summary$total_area), ]
   
-  # Find the NAME_0 corresponding to the largest_overlap GID_0
+  # Find largest
+  largest_overlap <- overlap_summary %>%
+    arrange(desc(total_area)) %>%
+    slice_head(n = 1)
+  
+  # Match to country
   matching_row <- mofuss_regions0_gpkg[mofuss_regions0_gpkg$GID_0 == largest_overlap$GID_0, ]
+
   # Extract the NAME_0 value
   mofuss_region <- matching_row$GID_0
   mofuss_region_kml <- matching_row$GID_0

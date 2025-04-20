@@ -1723,7 +1723,9 @@ if (fNRB_partition_tables == 1) {
   # fNRB partition tables and vectors ####
   if (aoi_poly == 1) {
     admin <- raster("LULCC/TempRaster//admin_c.tif")
+    ecoregions <- raster("LULCC/TempRaster/ecoregions_c.tif")
     userarea_gpkg <- st_read("LULCC/TempVector/userarea.gpkg")
+    ecoregions_gpkg <- st_read("LULCC/SourceData/InVector/ecoregions.gpkg") # Why not TempVector?
     
     country_parameters %>%
       dplyr::filter(Var == "ext_analysis_ID") %>%
@@ -1733,8 +1735,8 @@ if (fNRB_partition_tables == 1) {
       dplyr::filter(Var == "ext_analysis_NAME") %>%
       pull(ParCHR) -> ext_analysis_NAME
     
-    adminlevel <- c(admin)
-    admin_name <- c("adm0")
+    adminlevel <- c(admin, ecoregions)
+    admin_name <- c("adm0", "ecoregions")
     
   } else {
     admin <- raster("LULCC/TempRaster/admin_c.tif")
