@@ -464,13 +464,13 @@ if (max_FOR!=0) {
         r1max<-data_FOR[i,3]
         r1maxsd<-data_FOR[i,4]*rmax_MC
         LULC_ID_FOR<-data_FOR[i,1]
-        r1<-rtnorm(MC,mean=r1max,sd=r1maxsd,lower=r1max/10)
-        r1[1]<-r1max 
+        r1<-(rtnorm(MC,mean=r1max,sd=r1maxsd,lower=r1max/10))/10 # OJO OJO OJO OJO 
+        r1[1]<-r1max/10 # OJO OJO OJO OJO 
         
         # Adjust the font size for the histogram titles
         cex_main1 <- 0.3 + (15 / max(nchar(lulc1_name), 15))
         
-        hist((r1*100),nclass=15,xlab="rmax",ylab="Frequency",main=lulc1_name,sub=expression("% yr"^{-1}*""),col="grey",cex.main = cex_main1)
+        hist((r1*100),nclass=15,xlab="r",ylab="frequency",main=lulc1_name,sub=expression("% yr"^{-1}*""),col="grey",cex.main = cex_main1) # OJO OJO OJO OJO
         
         r1<-as.data.frame(r1)
         colnames(r1)<-paste("LULC_rmax",LULC_ID_FOR,sep="")
