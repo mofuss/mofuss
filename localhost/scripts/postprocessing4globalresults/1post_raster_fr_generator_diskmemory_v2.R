@@ -21,7 +21,7 @@
 # Internal parameters ----
 temdirdefined = 1
 fixdir <- 0
-string_pattern_yes <- "zwe_1000m" #String pattern to be searched when selecting folders for the rasters' geocomputation
+string_pattern_yes <- "linux-c3" #String pattern to be searched when selecting folders for the rasters' geocomputation
 string_pattern_no <- "idw" #String pattern to be searched when selecting folders for the rasters' geocomputation
  
 # Load packages ----
