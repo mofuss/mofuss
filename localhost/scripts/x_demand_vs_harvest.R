@@ -1,3 +1,7 @@
+unlink("D:/demand/demand_in/summary_adm0_with_demand.xlsx", force = TRUE)
+unlink("D:/demand/demand_in/summary_by_region.csv", force = TRUE)
+Sys.sleep(15)
+
 # Load necessary libraries
 library(dplyr)
 library(readr)
@@ -136,7 +140,7 @@ adjustments <- tibble::tibble(
              0.90, 0.94, 0.90, 0.90, 0.90,
              0.90, 0.90, 0.90, 0.90, 0.90,
              0.94, 0.94, 0.94, 0.95, 0.95
-             ) # reductions <1, rises >1
+  ) # reductions <1, rises >1
 )
 
 # Apply the adjustments
@@ -153,8 +157,6 @@ final_table <- final_table %>%
                                   round((Demand_2020_2030 - Harv_2020_2030_mean) / Demand_2020_2030 * 100, 1),
                                   NA)
   )
-
-
 
 
 # Step 9: Create subtotal rows for each mofuss_reg
@@ -217,7 +219,6 @@ table_with_subtotals <- purrr::map_dfr(grouped_tables, function(group) {
 # 9.5 Overwrite final_table
 final_table <- table_with_subtotals
 
-
 # Step 10: Save final table with bold, gray subtotal rows, autofit columns, and freeze header
 # Create workbook
 wb <- createWorkbook()
@@ -248,7 +249,76 @@ freezePane(wb, sheet = "Sheet1", firstActiveRow = 2, firstActiveCol = 7)
 # Save workbook
 saveWorkbook(wb, "D:/demand/demand_in/summary_adm0_with_demand.xlsx", overwrite = TRUE)
 
+# ---- Step 11: Create second sheet with continent and global summaries ----
+
+# Helper function to propagate SE when summing independent values
+propagate_se_sum <- function(se_vals) {
+  sqrt(sum(se_vals^2, na.rm = TRUE))
+}
+
+# Helper function to propagate SE for a ratio f = A / B
+propagate_se_ratio <- function(mean_A, se_A, mean_B, se_B) {
+  f <- mean_A / mean_B
+  rel_se_sq <- (se_A / mean_A)^2 + (se_B / mean_B)^2
+  f_se <- sqrt(rel_se_sq) * f
+  return(f_se)
+}
+
+# Tag each row with a continent based on mofuss_reg
+continent_tags <- c("ASIA", "LATAM", "SSA", "OCEANIA")
+final_table$continent <- sapply(final_table$mofuss_reg, function(x) {
+  tag <- continent_tags[sapply(continent_tags, function(ct) grepl(ct, x, ignore.case = TRUE))]
+  if (length(tag) > 0) tag else NA
+})
+
+# Filter out subtotal rows
+data_no_subtotals <- final_table %>%
+  filter(NAME_0 != "Subtotal")
+
+# Summarize by continent
+continent_summary <- data_no_subtotals %>%
+  filter(!is.na(continent)) %>%
+  group_by(continent) %>%
+  summarize(
+    NRB_2020_2030_mean = sum(NRB_2020_2030_mean, na.rm = TRUE),
+    NRB_2020_2030_se = propagate_se_sum(NRB_2020_2030_se),
+    Harv_2020_2030_mean = sum(Harv_2020_2030_mean, na.rm = TRUE),
+    Harv_2020_2030_se = propagate_se_sum(Harv_2020_2030_se),
+    .groups = "drop"
+  ) %>%
+  mutate(
+    fNRB_2020_2030_mean = round(100 * (NRB_2020_2030_mean / Harv_2020_2030_mean), 2),
+    fNRB_2020_2030_se = round(100 * propagate_se_ratio(NRB_2020_2030_mean, NRB_2020_2030_se,
+                                                       Harv_2020_2030_mean, Harv_2020_2030_se), 2),
+    NRB_2020_2030_mean = round(NRB_2020_2030_mean, 0),
+    NRB_2020_2030_se = round(NRB_2020_2030_se, 0),
+    Harv_2020_2030_mean = round(Harv_2020_2030_mean, 0),
+    Harv_2020_2030_se = round(Harv_2020_2030_se, 0)
+  )
 
 
+# Global summary
+world_summary <- data_no_subtotals %>%
+  summarize(
+    continent = "WORLD",
+    NRB_2020_2030_mean = sum(NRB_2020_2030_mean, na.rm = TRUE),
+    NRB_2020_2030_se = propagate_se_sum(NRB_2020_2030_se),
+    Harv_2020_2030_mean = sum(Harv_2020_2030_mean, na.rm = TRUE),
+    Harv_2020_2030_se = propagate_se_sum(Harv_2020_2030_se)
+  ) %>%
+  mutate(
+    fNRB_2020_2030_mean = round(100 * (NRB_2020_2030_mean / Harv_2020_2030_mean), 2),
+    fNRB_2020_2030_se = round(100 * propagate_se_ratio(NRB_2020_2030_mean, NRB_2020_2030_se,
+                                                       Harv_2020_2030_mean, Harv_2020_2030_se), 2),
+    NRB_2020_2030_mean = round(NRB_2020_2030_mean, 0),
+    NRB_2020_2030_se = round(NRB_2020_2030_se, 0),
+    Harv_2020_2030_mean = round(Harv_2020_2030_mean, 0),
+    Harv_2020_2030_se = round(Harv_2020_2030_se, 0)
+  )
 
 
+# Combine
+region_summary <- bind_rows(continent_summary, world_summary)
+
+# ---- Step 12: Save to CSV instead of Excel ----
+write_csv(region_summary, "D:/demand/demand_in/summary_by_region.csv")
