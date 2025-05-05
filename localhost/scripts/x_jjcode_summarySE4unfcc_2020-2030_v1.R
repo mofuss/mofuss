@@ -16,36 +16,19 @@
 # Que hace este scripe????
 
 # 2dolist
-# Make node list automatic
-# Install googletraffic
 
 # Internal parameters ----
 temdirdefined = 1
+MC = 3
 processingversion <- "globalsouth_mofuss_bindingfolder_global_se/"
-# taildir <- "/OutBaU/webmofuss_results/"
-# version <- "globalsouth_mofuss_final"
-# #cleanlocal <- 1 # This will completely clean the final results folder
 replace_node_files <- 0 # This will erase and overwrite all webmofuss results from each region into the GDrive folder
+
 # rasters <- 1
-# shapefiles <- 1
-# longnames <- 0 # Turn on in case you want the script to automatically shorten all names into unique ones, instead of choosing columns and renaming them
-# 
-# simplifypolys <- 1
-# chunk_size <- 2 # Use 2 to fix Zimbabwe - Number of features to include in each chunk. Adjust based on your system's memory capacity and feature complexity
-# # Define the keep value and other parameters
-# useextrasimppara <- 1
-# keep_value <- 0.8  # Retain 80% of the points, adjust as needed
-# keep_shapes <- TRUE  # Ensure small shapes are not removed
-# snap_tolerance <- 0.01  # Adjust snapping tolerance, lower values preserve more detail
 
 # endyr <- "2050" # 2035/
 # scenario <- "bau" # sce1/
 # montecarlo <- 30
 # bins <- 1
-
-# admtables <- c("adm0","adm1","adm2")
-# admvector <- c("adm0","adm1","adm2")
-
 
 # Define all folders based on node ----
 # Detect OS and node name
@@ -66,6 +49,9 @@ if (os == "Windows" & node_name == "WINLANASE") {
   admindir <- "D:/admin_regions"
   emissionsdir <- "D:/emissions"
   rTempdir <- "D:/rTemp"
+  Gdrivedir <- "G:/Mi unidad/webpages/2024_MoFuSSGlobal_Datasets/webmofussDS_v2/" # Update based on every node
+  source_dirs <- basename(adm0_dirs)
+  destination_dirs <- paste0(Gdrivedir,processingversion,node_name)
   
 } else if (os == "Windows" & node_name == "EDITORIALCIGA"){
   #ADD node
@@ -99,8 +85,6 @@ for (p in 1:100) {
 }
 Sys.sleep(3)
 
-
-
 # Load libraries ----
 library(terra)
 # terraOptions(steps = 55)
@@ -119,9 +103,9 @@ library(sf)
 library(svDialogs)
 library(tcltk)
 library(tidyverse)
-library(rmapshaper)
-check_sys_mapshaper()
-system("mapshaper --version")
+# library(rmapshaper)
+# check_sys_mapshaper()
+# system("mapshaper --version")
 
 # Define the directory to search
 setwd(tk_choose.dir(default = getwd(), caption = "Define the directory to search"))
@@ -138,90 +122,6 @@ adm0_dirs <- all_dirs[grepl("adm0", all_dirs)]
 #                "E:/ASIA_adm0_india_apr2024",
 #                "E:/ASIA_adm0_middleeast_apr2024",
 #                "E:/ASIA_adm0_pakistan_apr2024")
-
-# Choose local node ----
-
-# # Detect OS and node name
-# os <- Sys.info()["sysname"]
-# node_name <- Sys.info()[["nodename"]]
-# cat(os,node_name)
-
-node.list <- c("Asus ZenBook", "NRBV1", "Win Lanase", "Win CIGA2", "Editorial CIGA", "Alien Yayo")
-node.input <- dlgList(as.character(node.list), 
-                      preselect = "Asus ZenBook",
-                      multiple = FALSE,
-                      title = "Choose a node to strat",
-                      gui = .GUI
-)
-node <- node.input$res
-
-
-
-if (node == "Asus ZenBook") { # Asus ZenBook ----
-  
-  Gdrivedir <- "G:/Mi unidad/webpages/2024_MoFuSSGlobal_Datasets/webmofussDS_v2/" # Update based on every node
-  
-  # Define the source directories
-  source_dirs <- basename(adm0_dirs)
-  destination_dirs <- paste0(Gdrivedir,processingversion,node)
-  
-} else if (node == "NRBV1") { # NRBV1 ----
-  
-  Gdrivedir <- "G:/Mi unidad/webpages/2024_MoFuSSGlobal_Datasets/webmofussDS_v2/" # Update based on every node
-  
-  # Define the source directories
-  source_dirs <- basename(adm0_dirs)
-  destination_dirs <- paste0(Gdrivedir,processingversion,source_dirs,"/")
-  
-} else if (node == "Win Lanase") { # Win Lanase ---- 
-  
-  Gdrivedir <- "G:/My Drive/webpages/2024_MoFuSSGlobal_Datasets/webmofussDS_v2/" # Update based on every node
-  
-  # Define the source directories
-  source_dirs <- basename(adm0_dirs)
-  destination_dirs <- paste0(Gdrivedir,processingversion,source_dirs,"/")
-  
-  
-} else if (node == "Win CIGA2") { # Win CIGA2 ----
-  
-  Gdrivedir <- "G:/Mi unidad/webpages/2024_MoFuSSGlobal_Datasets/webmofussDS_v2/" # Update based on every node
-  
-  # Define the source directories
-  source_dirs <- basename(adm0_dirs)
-  destination_dirs <- paste0(Gdrivedir,processingversion,source_dirs,"/")
-  
-} else if (node == "Editorial CIGA") { # Editorial CIGA ----
-  
-  Gdrivedir <- "G:/My Drive/webpages/2024_MoFuSSGlobal_Datasets/webmofussDS_v2/" # Update based on every node
-  
-  # Define the source directories
-  source_dirs <- basename(adm0_dirs)
-  destination_dirs <- paste0(Gdrivedir,processingversion,source_dirs,"/")
-  
-} else if (node == "Alien Yayo") { # Alien Yayo ----
-  
-  Gdrivedir <- "G:/My Drive/webpages/2024_MoFuSSGlobal_Datasets/webmofussDS_v2/" # Update based on every node
-  
-  # Define the source directories
-  source_dirs <- basename(adm0_dirs)
-  destination_dirs <- paste0(Gdrivedir,processingversion,source_dirs,"/")
-  
-  # # Define the source directories
-  # source_dirs <- c(
-  #   "D:/ASIA_adm0_china_apr2024/",
-  #   "D:/ASIA_adm0_mongolia_apr2024/"
-  # )
-  # 
-  # # Define the destination directories
-  # destination_dirs <- c(
-  #   paste0(Gdrivedir,processingversion,"ASIA_adm0_china_apr2024/"),
-  #   paste0(Gdrivedir,processingversion,"ASIA_adm0_mongolia_apr2024/")
-  # )
-  
-} else {
-  print("No nodes available")
-  
-} 
 
 # Replace node files ----
 if (replace_node_files == 1){
@@ -250,6 +150,7 @@ if (replace_node_files == 1){
 
 # JJ chunk ----
 
+# destination_dir <- destination_dirs
 destination_dir <- "C:/Users/aghil/Documents/JJ_output_test_Asus"
 # Create destination directory if it doesn't exist
 dir_create(destination_dir)
@@ -264,7 +165,7 @@ file_names <- c(
 )
 
 # Loop through debugging_1 to debugging_30
-for (i in 1:5) {
+for (i in 1:MC) {
   dbg_folder <- paste0("debugging_", i)
   dbg_suffix <- sprintf("_m_d%02d", i)
   
@@ -305,7 +206,7 @@ for (i in 1:5) {
 }
 
 # Process final outputs using mosaicked rasters
-for (i in 1:5) {
+for (i in 1:MC) {
   dbg_suffix <- sprintf("_m_d%02d", i)
   
   # ---- AGB Loss: Growth_less_harv11 > Growth_less_harv20 ----
