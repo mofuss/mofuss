@@ -36,9 +36,9 @@ cat(os,node_name)
 
 if (os == "Windows" & node_name == "WINLANASE") {
   #ADD node
-  demanddir <- "F:/demand"
-  admindir <- "F:/admin_regions"
-  emissionsdir <- "F:/emissions"
+  #demanddir <- "F:/demand"
+  #admindir <- "F:/admin_regions"
+  #emissionsdir <- "F:/emissions"
   rTempdir <- "F:/rTemp"
   
 } else if (os == "Windows" & node_name == "ASUSLAP"){
@@ -149,6 +149,9 @@ adm0_dirs <- all_dirs[grepl("adm0", all_dirs)]
 
 if (os == "Windows" & node_name == "WINLANASE") {
   #ADD node
+  Gdrivedir <- "G:/Mi unidad/webpages/2024_MoFuSSGlobal_Datasets/mofussDS_v2/" # Update based on every node
+  source_dirs <- basename(adm0_dirs)
+  destination_dirs <- paste0(Gdrivedir,processingversion,node_name)
   
 } else if (os == "Windows" & node_name == "ASUSLAP"){
   #ADD node
@@ -260,14 +263,14 @@ for (i in 1:MC) {
   harv_sum <- Reduce(`+`, harv_stack)
   writeRaster(harv_sum, file.path(destination_dir, paste0("harv", dbg_suffix, ".tif")), overwrite = TRUE)
   
-  # # ---- Clean up intermediate files (optional) ----
-  # files_to_delete <- c(
-  #   paste0("Growth_less_harv11", dbg_suffix, ".tif"),
-  #   paste0("Growth_less_harv20", dbg_suffix, ".tif"),
-  #   harv_files
-  # )
-  # file_delete(file.path(destination_dir, files_to_delete))
-  # cat("✅ Processed:", dbg_suffix, "\n")
+  # ---- Clean up intermediate files (optional) ----
+  files_to_delete <- c(
+    paste0("Growth_less_harv11", dbg_suffix, ".tif"),
+    paste0("Growth_less_harv20", dbg_suffix, ".tif"),
+    harv_files
+  )
+  file_delete(file.path(destination_dir, files_to_delete))
+  cat("✅ Processed:", dbg_suffix, "\n")
 }
 
 
