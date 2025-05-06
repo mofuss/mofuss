@@ -50,9 +50,9 @@ if (os == "Windows" & node_name == "WINLANASE") {
   
 } else if (os == "Windows" & node_name == "EDITORIALCIGA"){
   #ADD node
-  demanddir <- "E:/demand"
-  admindir <- "E:/admin_regions"
-  emissionsdir <- "E:/emissions"
+  # demanddir <- "E:/demand"
+  # admindir <- "E:/admin_regions"
+  # emissionsdir <- "E:/emissions"
   rTempdir <- "E:/rTemp"
   
 } else if (os == "Linux" & node_name == "linux-c3"){
@@ -151,6 +151,9 @@ if (os == "Windows" & node_name == "WINLANASE") {
   
 } else if (os == "Windows" & node_name == "EDITORIALCIGA"){
   #ADD node
+  Gdrivedir <- "G:/My Drive/webpages/2024_MoFuSSGlobal_Datasets/mofussDS_v2/" # Update based on every node
+  source_dirs <- basename(adm0_dirs)
+  destination_dirs <- paste0(Gdrivedir,processingversion,node_name)
   
 } else if (os == "Linux" & node_name == "linux-c3"){
   #ADD node
