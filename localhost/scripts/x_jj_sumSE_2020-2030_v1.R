@@ -21,15 +21,12 @@
 temdirdefined = 1
 MC = 30
 processingversion <- "globalsouth_mofuss_bindingfolder_global_se/"
-replace_node_files <- 0 # This will erase and overwrite all webmofuss results from each region into the GDrive folder
-
+# replace_node_files <- 0 # This will erase and overwrite all webmofuss results from each region into the GDrive folder
 # rasters <- 1
-
 # endyr <- "2050" # 2035/
 # scenario <- "bau" # sce1/
 # montecarlo <- 30
 # bins <- 1
-
 
 # Define all folders based on node ----
 # Detect OS and node name
@@ -118,37 +115,37 @@ adm0_dirs <- all_dirs[grepl("adm0", all_dirs)]
 #                "E:/ASIA_adm0_middleeast_apr2024",
 #                "E:/ASIA_adm0_pakistan_apr2024")
 
-# Replace node files ----
-if (replace_node_files == 1){
-  
-  # Loop through each directory and delete all files and subdirectories
-  for (dir in destination_dirs) {
-    # Use recursive = TRUE to delete all subdirectories and files within
-    # Add force = TRUE to ensure even read-only files are removed
-    unlink(dir, recursive = TRUE, force = TRUE)
-  }
-  
-  # Loop through each source and destination directory
-  for (i in seq_along(source_dirs)) {
-    # Check if the destination directory exists; if not, create it
-    if (!dir.exists(paste0(destination_dirs[i],taildir))) {
-      dir.create(paste0(destination_dirs[i],taildir), recursive = TRUE, showWarnings = TRUE)
-    }
-    
-    # List all files in the source directory
-    files <- list.files(paste0(source_dirs[i],taildir), full.names = TRUE)
-    
-    # Copy each file to the destination directory
-    file.copy(files, paste0(destination_dirs[i],taildir), overwrite = TRUE)
-  }
-}
+# # Replace node files ----
+# if (replace_node_files == 1){
+#   
+#   # Loop through each directory and delete all files and subdirectories
+#   for (dir in destination_dirs) {
+#     # Use recursive = TRUE to delete all subdirectories and files within
+#     # Add force = TRUE to ensure even read-only files are removed
+#     unlink(dir, recursive = TRUE, force = TRUE)
+#   }
+#   
+#   # Loop through each source and destination directory
+#   for (i in seq_along(source_dirs)) {
+#     # Check if the destination directory exists; if not, create it
+#     if (!dir.exists(paste0(destination_dirs[i],taildir))) {
+#       dir.create(paste0(destination_dirs[i],taildir), recursive = TRUE, showWarnings = TRUE)
+#     }
+#     
+#     # List all files in the source directory
+#     files <- list.files(paste0(source_dirs[i],taildir), full.names = TRUE)
+#     
+#     # Copy each file to the destination directory
+#     file.copy(files, paste0(destination_dirs[i],taildir), overwrite = TRUE)
+#   }
+# }
 
 if (os == "Windows" & node_name == "WINLANASE") {
   #ADD node
   
 } else if (os == "Windows" & node_name == "ASUSLAP"){
   #ADD node
-  Gdrivedir <- "G:/Mi unidad/webpages/2024_MoFuSSGlobal_Datasets/webmofussDS_v2/" # Update based on every node
+  Gdrivedir <- "G:/Mi unidad/webpages/2024_MoFuSSGlobal_Datasets/mofussDS_v2/" # Update based on every node
   source_dirs <- basename(adm0_dirs)
   destination_dirs <- paste0(Gdrivedir,processingversion,node_name)
   
