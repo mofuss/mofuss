@@ -274,7 +274,86 @@ for (i in 1:MC) {
 }
 
 
-
+if (node_name == "WINLANASE") {
+  
+  mosaic_dir <- paste0(Gdrivedir,processingversion)
+  
+  # Set main directory and subfolders
+  # mosaic_dir <- "G:/Mi unidad/webpages/2024_MoFuSSGlobal_Datasets/webmofussDS_v2/globalsouth_mofuss_bindingfolder_global_se/"
+  subfolders <- c("ASUSLAP", "EDITORIALCIGA", "NRBV1", "WINCIGA") # WINLANASE
+  results_dir <- file.path(mosaic_dir, "RESULTS")
+  dir_create(results_dir)
+  
+  # Create the list of 60 filenames
+  file_names <- c(
+    sprintf("nrb_m_d%02d.tif", 1:30),
+    sprintf("harv_m_d%02d.tif", 1:30)
+  )
+  
+  # Mosaic and save
+  for (f in file_names) {
+    rasters_to_merge <- list()
+    
+    for (subf in subfolders) {
+      file_path <- file.path(mosaic_dir, subf, f)
+      if (file_exists(file_path)) {
+        r <- rast(file_path)
+        
+        if (length(rasters_to_merge) == 0) {
+          ref_crs <- crs(r)
+          rasters_to_merge <- list(r)
+        } else {
+          r_proj <- project(r, ref_crs)
+          rasters_to_merge <- append(rasters_to_merge, list(r_proj))
+        }
+      }
+    }
+    
+    if (length(rasters_to_merge) > 1) {
+      merged_r <- do.call(merge, rasters_to_merge)
+      writeRaster(merged_r, file.path(results_dir, f), overwrite = TRUE)
+      cat("✅ Mosaicked and saved:", f, "\n")
+    } else if (length(rasters_to_merge) == 1) {
+      writeRaster(rasters_to_merge[[1]], file.path(results_dir, f), overwrite = TRUE)
+      cat("⚠️ Only one source file found; saved without merging:", f, "\n")
+    } else {
+      cat("❌ File not found in any subfolder:", f, "\n")
+    }
+  }
+  
+  # Directory where mosaicked results were saved
+  results_dir <- file.path(mosaic_dir, "RESULTS")
+  
+  # Create raster stacks for nrb and harv
+  nrb_files <- file.path(results_dir, sprintf("nrb_m_d%02d.tif", 1:MC))
+  harv_files <- file.path(results_dir, sprintf("harv_m_d%02d.tif", 1:MC))
+  
+  # Load into SpatRaster collections
+  nrb_stack <- rast(nrb_files)
+  harv_stack <- rast(harv_files)
+  
+  # Compute cell-wise mean and standard deviation
+  nrb_mean <- global(nrb_stack, mean, na.rm = TRUE)
+  nrb_sd   <- global(nrb_stack, sd, na.rm = TRUE)
+  harv_mean <- global(harv_stack, mean, na.rm = TRUE)
+  harv_sd   <- global(harv_stack, sd, na.rm = TRUE)
+  
+  # Calculate standard error: SE = SD / sqrt(n)
+  n <- MC
+  nrb_se <- nrb_sd / sqrt(n)
+  harv_se <- harv_sd / sqrt(n)
+  
+  # Report
+  summary_df <- data.frame(
+    variable = c("nrb", "harv"),
+    mean = c(nrb_mean, harv_mean),
+    se = c(nrb_se, harv_se)
+  )
+  
+  print(summary_df)
+  
+  
+}
 
 
 
