@@ -182,7 +182,7 @@ if (os == "Windows" & node_name == "WINLANASE") {
   
 }
 
-# JJ chunk ----
+# JJ chunk part 1 ----
 
 destination_dir <- destination_dirs
 # destination_dir <- "C:/Users/aghil/Documents/JJ_output_test_Asus"
@@ -273,6 +273,8 @@ for (i in 1:MC) {
   cat("✅ Processed:", dbg_suffix, "\n")
 }
 
+
+# JJ chunk part 2 ----
 
 if (node_name == "WINLANASE") {
   
