@@ -64,9 +64,9 @@ if (os == "Windows" & node_name == "WINLANASE") {
   
 } else if (os == "Windows" & node_name == "NRBV1"){
   #ADD node
-  demanddir <- "D:/demand"
-  admindir <- "D:/admin_regions"
-  emissionsdir <- "D:/emissions"
+  #demanddir <- "D:/demand"
+  #admindir <- "D:/admin_regions"
+  #emissionsdir <- "D:/emissions"
   rTempdir <- "D:/rTemp"
   
 }
@@ -157,6 +157,9 @@ if (os == "Windows" & node_name == "WINLANASE") {
   
 } else if (os == "Windows" & node_name == "NRBV1"){
   #ADD node
+  Gdrivedir <- "G:/Mi unidad/webpages/2024_MoFuSSGlobal_Datasets/mofussDS_v2/" # Update based on every node
+  source_dirs <- basename(adm0_dirs)
+  destination_dirs <- paste0(Gdrivedir,processingversion,node_name)
   
 }
 
