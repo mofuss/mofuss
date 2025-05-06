@@ -19,7 +19,7 @@
 
 # Internal parameters ----
 temdirdefined = 1
-MC = 3
+MC = 30
 processingversion <- "globalsouth_mofuss_bindingfolder_global_se/"
 replace_node_files <- 0 # This will erase and overwrite all webmofuss results from each region into the GDrive folder
 
@@ -29,6 +29,7 @@ replace_node_files <- 0 # This will erase and overwrite all webmofuss results fr
 # scenario <- "bau" # sce1/
 # montecarlo <- 30
 # bins <- 1
+
 
 # Define all folders based on node ----
 # Detect OS and node name
@@ -45,13 +46,10 @@ if (os == "Windows" & node_name == "WINLANASE") {
   
 } else if (os == "Windows" & node_name == "ASUSLAP"){
   #ADD node
-  demanddir <- "D:/demand"
-  admindir <- "D:/admin_regions"
-  emissionsdir <- "D:/emissions"
+  # demanddir <- "D:/demand"
+  # admindir <- "D:/admin_regions"
+  # emissionsdir <- "D:/emissions"
   rTempdir <- "D:/rTemp"
-  Gdrivedir <- "G:/Mi unidad/webpages/2024_MoFuSSGlobal_Datasets/webmofussDS_v2/" # Update based on every node
-  source_dirs <- basename(adm0_dirs)
-  destination_dirs <- paste0(Gdrivedir,processingversion,node_name)
   
 } else if (os == "Windows" & node_name == "EDITORIALCIGA"){
   #ADD node
@@ -87,12 +85,9 @@ Sys.sleep(3)
 
 # Load libraries ----
 library(terra)
-# terraOptions(steps = 55)
 if (temdirdefined == 1) {
   terraOptions(tempdir = rTempdir)
 }
-# terraOptions(memfrac=0.9)
-# terraOptions(progress=0)
 library(dplyr)
 library(fs)
 library(googletraffic)
@@ -148,10 +143,30 @@ if (replace_node_files == 1){
   }
 }
 
+if (os == "Windows" & node_name == "WINLANASE") {
+  #ADD node
+  
+} else if (os == "Windows" & node_name == "ASUSLAP"){
+  #ADD node
+  Gdrivedir <- "G:/Mi unidad/webpages/2024_MoFuSSGlobal_Datasets/webmofussDS_v2/" # Update based on every node
+  source_dirs <- basename(adm0_dirs)
+  destination_dirs <- paste0(Gdrivedir,processingversion,node_name)
+  
+} else if (os == "Windows" & node_name == "EDITORIALCIGA"){
+  #ADD node
+  
+} else if (os == "Linux" & node_name == "linux-c3"){
+  #ADD node
+  
+} else if (os == "Windows" & node_name == "NRBV1"){
+  #ADD node
+  
+}
+
 # JJ chunk ----
 
-# destination_dir <- destination_dirs
-destination_dir <- "C:/Users/aghil/Documents/JJ_output_test_Asus"
+destination_dir <- destination_dirs
+# destination_dir <- "C:/Users/aghil/Documents/JJ_output_test_Asus"
 # Create destination directory if it doesn't exist
 dir_create(destination_dir)
 unlink(paste0(destination_dir,"/*.*"), recursive = TRUE)
@@ -212,9 +227,16 @@ for (i in 1:MC) {
   # ---- AGB Loss: Growth_less_harv11 > Growth_less_harv20 ----
   agb11 <- rast(file.path(destination_dir, paste0("Growth_less_harv11", dbg_suffix, ".tif")))
   agb20 <- rast(file.path(destination_dir, paste0("Growth_less_harv20", dbg_suffix, ".tif")))
-  nrb <- agb11 > agb20
-  nrb_vals <- mask(agb11, nrb, maskvalues = FALSE)
-  writeRaster(nrb_vals, file.path(destination_dir, paste0("nrb", dbg_suffix, ".tif")), overwrite = TRUE)
+  # nrb <- agb11 > agb20
+  # nrb_vals <- mask(agb11, nrb, maskvalues = FALSE)
+  nrb_bin2020_2030 <- agb11 - agb20 # Bin will be 2020-2030
+  nrb_bin2020_2030[nrb_bin2020_2030 <= 0] = NA 
+  # plot(nrb_bin2020_2030)
+  # nrb_sum_bin2020_2030 <- as.data.frame(zonal(nrb_bin2020_2030, admm, 'sum')) %>%
+  #   as.data.table() %>%
+  #   setnames(.,"sum", "NRB_2020_2030") %>%
+  #   dplyr::select(!zone)
+  writeRaster(nrb_bin2020_2030, file.path(destination_dir, paste0("nrb", dbg_suffix, ".tif")), overwrite = TRUE)
   
   # ---- Harvest Sum: Harvest_tot11 to Harvest_tot20 ----
   harv_files <- paste0("Harvest_tot", 11:20, dbg_suffix, ".tif")
