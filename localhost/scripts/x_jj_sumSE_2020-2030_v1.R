@@ -280,14 +280,15 @@ if (node_name == "WINLANASE") {
   
   # Set main directory and subfolders
   # mosaic_dir <- "G:/Mi unidad/webpages/2024_MoFuSSGlobal_Datasets/webmofussDS_v2/globalsouth_mofuss_bindingfolder_global_se/"
-  subfolders <- c("ASUSLAP", "EDITORIALCIGA", "NRBV1", "WINCIGA") # WINLANASE
+  subfolders <- c("ASUSLAP", "EDITORIALCIGA", "NRBV1", "WINCIGA", "WINLANASE")
   results_dir <- file.path(mosaic_dir, "RESULTS")
+  unlink(results_dir, force = TRUE, recursive = TRUE)
   dir_create(results_dir)
   
   # Create the list of 60 filenames
   file_names <- c(
-    sprintf("nrb_m_d%02d.tif", 1:30),
-    sprintf("harv_m_d%02d.tif", 1:30)
+    sprintf("nrb_m_d%02d.tif", 1:MC),
+    sprintf("harv_m_d%02d.tif", 1:MC)
   )
   
   # Mosaic and save
