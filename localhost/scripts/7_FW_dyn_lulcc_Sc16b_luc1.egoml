@@ -1,6 +1,6 @@
 <?xml version="1.0" standalone="yes" ?>
 <script>
-    <property key="dff.date" value="Tue Apr 01 20:29:44 2025" />
+    <property key="dff.date" value="Sat May 10 09:00:02 2025" />
     <property key="dff.version" value="2.4.1.20140602" />
     <property key="metadata.author" value="Designed and coded by Adrian Ghilardi (UNAM) and Rob Bailis (SEI)." />
     <property key="metadata.description" value='&quot;MoFuSS&quot; is a dynamic model that simulates the effects of fuelwood harvesting on vegetation, accounting for savings in non-renewable woody biomass from reduced consumption due to an external intervention, such as an improved cookstove (ICS) or fuel substitution project.' />
@@ -3742,7 +3742,7 @@
             <property key="dff.functor.alias" value="Do you want to produce Summary Tables by administrative polygons?" />
             <property key="dff.functor.comment" value="For meaninful results, the analysis area must cover entire administrative areas. Will be bypass if maps and animations are turned off" />
             <property key="wizard.constant.input" value="Bool_constant_13" />
-            <inputport name="constant">.yes</inputport>
+            <inputport name="constant">.no</inputport>
             <outputport name="object" id="v253" />
         </functor>
         <functor name="Int">
