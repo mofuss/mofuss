@@ -85,31 +85,50 @@ collect_marginal_data <- function(data, country, admin_level, fnrb_col, nrb_col,
     marginal_data <- data %>%
         crossing(bau_values) %>%
         mutate(
-            marginal_nrb = .data[[nrb_col]] - nrb_bau,
-            marginal_harvest = .data[[harvest_col]] - harvest_bau,
-            marginal_fnrb = case_when(
-                scenario == "bau" ~ NA_real_,
-                abs(marginal_harvest) < 1e-10 ~ NA_real_,
-                TRUE ~ 100 * marginal_nrb / marginal_harvest
-            ),
             country = country,
             admin_level = admin_level,
             calculated_fnrb = 100 * .data[[nrb_col]] / .data[[harvest_col]],
-            fnrb = 100* .data[[fnrb_col]]
+            fnrb = .data[[fnrb_col]]
         ) %>%
         select(-ends_with(".x"), -ends_with(".y")) %>%
         distinct() %>%
-        # Sort by demand value instead of scenario
         arrange(country, admin_level, demand_value) %>%
         group_by(country, admin_level) %>%
         mutate(
-            local_nrb = .data[[nrb_col]] - lag(.data[[nrb_col]]),
-            local_harvest = .data[[harvest_col]] - lag(.data[[harvest_col]]),
-            local_marginal_fnrb = case_when(
-                abs(local_harvest) < 1e-10 ~ NA_real_,
-                TRUE ~ 100 * local_nrb / local_harvest
+            # Calculate forward differences
+            forward_nrb = lead(.data[[nrb_col]]) - .data[[nrb_col]],
+            next_forward_nrb = lead(forward_nrb),
+            # Add backward difference for last point
+            backward_nrb = .data[[nrb_col]] - lag(.data[[nrb_col]]),
+            
+            # Same for harvest
+            forward_harvest = lead(.data[[harvest_col]]) - .data[[harvest_col]],
+            next_forward_harvest = lead(forward_harvest),
+            backward_harvest = .data[[harvest_col]] - lag(.data[[harvest_col]]),
+            
+            # Combine for all points
+            marginal_nrb = case_when(
+                row_number() == n() ~ backward_nrb,  # Last point uses backward diff
+                row_number() == n() - 1 ~ forward_nrb,  # Second-to-last point uses single forward diff
+                row_number() == 1 ~ forward_nrb,  # First point uses single forward diff
+                TRUE ~ (forward_nrb + next_forward_nrb) / 2  # Middle points average two forward diffs
             ),
+            
+            marginal_harvest = case_when(
+                row_number() == n() ~ backward_harvest,  # Last point uses backward diff
+                row_number() == n() - 1 ~ forward_harvest,
+                row_number() == 1 ~ forward_harvest,
+                TRUE ~ (forward_harvest + next_forward_harvest) / 2
+            ),
+            
+            # Calculate final marginal FNRB
+            marginal_fnrb = case_when(
+                abs(marginal_harvest) < 1e-10 ~ NA_real_,
+                TRUE ~ 100 * marginal_nrb / marginal_harvest
+            )
         ) %>%
+        select(-forward_nrb, -next_forward_nrb, -backward_nrb,
+               -forward_harvest, -next_forward_harvest, -backward_harvest) %>%  # Clean up temporary columns
         ungroup()
 
     # Combined summary statistics

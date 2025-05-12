@@ -60,7 +60,7 @@ for (country in countries) {
         data <- data %>%
             filter(!is.na(demand_value))
         
-        plotz <- create_plots(data, x_col, c(nrb_col, harvest_col, fnrb_col), 
+        plotz <- create_plots(data, x_col, c(nrb_col, harvest_col), 
                             admin_level, country, output_dir = output_dir)
         write(paste("\n![", filename_pattern, "](", basename(plotz), ")\n"), 
               file_conn, append = TRUE)
@@ -71,7 +71,8 @@ for (country in countries) {
 
         write(paste("\n### Combined Summary and Marginal Analysis for", country, "-", admin_level, "\n"), file_conn, append = TRUE)
         write(knitr::kable(marginal_data_list$summary %>% 
-                          select(-admin_level), 
+                          select(-admin_level, -scenario, -mean_marginal_nrb,-mean_marginal_harvest) %>%
+                          rename_with(~str_replace_all(., "_", " ")), 
                           format = "markdown", 
                           digits = 2),
             file_conn,
@@ -166,5 +167,7 @@ if (length(all_country_results) > 0) {
 
 render(output_file, output_format = "pdf_document")
 
-test_fun_fnrb_cals(combined_data)
+test_fun_fnrb_cals(combined_data, "Tanzania")
+test_fun_fnrb_cals(combined_data, "Malawi")
+test_fun_fnrb_cals(combined_data, "Kenya")
 # nolint end

@@ -57,7 +57,7 @@ create_plots <- function(data, x_col, cols, filename_pattern, country, output_di
             ) +
             labs(
                 title = y_col,
-                x = NULL,  # We'll add a shared x-axis label
+                x = x_col,
                 y = y_col
             )
         return(p)
@@ -68,6 +68,17 @@ create_plots <- function(data, x_col, cols, filename_pattern, country, output_di
         create_subplot(data %>% filter(!is.na(.data[[col]]), !is.na(demand_value)), col)
     })
 
+    # nrb vs. harvest plot, with a 1:1 line with the lower y lim being 0.
+    p_nrb_harvest <- ggplot(data, aes(x = .data[[harvest_col]], y = .data[[nrb_col]])) +
+        geom_point(alpha = 0.6) +
+        geom_smooth(method = "lm", color = "red", se = TRUE, na.rm = TRUE, formula = y ~ x) +
+        geom_abline(slope = 1, intercept = 0, color = "blue") +
+        labs(title = "NRB vs Harvest", x = "Harvest (Mtons)", y = "NRB (Mtons)") +
+        coord_cartesian(ylim = c(0, max(data[[nrb_col]], na.rm = TRUE)),xlim = c(0, max(data[[harvest_col]], na.rm = TRUE)))
+    
+    # Add p_nrb_harvest to the plots list
+    plots$nrb_harvest <- p_nrb_harvest
+    
     # Combine plots using patchwork
     combined_plot <- wrap_plots(plots, ncol = 1) +
         plot_layout(guides = "collect") +  # Collect legends into one
@@ -79,8 +90,7 @@ create_plots <- function(data, x_col, cols, filename_pattern, country, output_di
                 legend.box = "horizontal"
             )
         ) &
-        theme(plot.margin = margin(10, 10, 10, 10)) &
-        xlab("Demand Change (%)")
+        theme(plot.margin = margin(10, 10, 10, 10)) 
 
     # Save the combined plot
     plot_filename <- file.path(output_dir, paste0("combined_plots_", country, "_", 
@@ -91,8 +101,6 @@ create_plots <- function(data, x_col, cols, filename_pattern, country, output_di
 }
 
 analyze_nrb_vs_harvest <- function(marginal_data, nrb_col, harvest_col, demand_col, pattern, x_col, country, output_dir) {
-    
-
 
     p_nrb <- ggplot(marginal_data, aes(x = demand_value, y = marginal_nrb)) +
         geom_point(alpha = 0.5, na.rm = TRUE) +
@@ -118,16 +126,16 @@ analyze_nrb_vs_harvest <- function(marginal_data, nrb_col, harvest_col, demand_c
         ) +
         labs(
             title = "Marginal Harvest vs Demand",
-            x = NULL,  # Remove x label as it will be shared
+            x = NULL,
             y = "Marginal Harvest"
         )
 
     # Marginal fnrb plot (marginal nrb / marginal harvest) and instantaneous marginal and fnrb vs. demand 
     p_mfnrb <- ggplot() +
-        geom_point(data = marginal_data %>% filter(!scenario == "bau"), 
-                  aes(x = demand_value, y = marginal_fnrb, shape = "BAU-relative marginal"), 
+        geom_point(data = marginal_data, 
+                  aes(x = demand_value, y = marginal_fnrb, shape = "Instantaneous marginal"), 
                   alpha = 0.6, na.rm = TRUE) +
-        geom_smooth(data = marginal_data %>% filter(!scenario == "bau"),
+        geom_smooth(data = marginal_data,
                    aes(x = demand_value, y = marginal_fnrb),
                    method = "loess", color = "red", se = TRUE, na.rm = TRUE, formula = y ~ x) +
         geom_point(data = marginal_data, 
@@ -136,12 +144,7 @@ analyze_nrb_vs_harvest <- function(marginal_data, nrb_col, harvest_col, demand_c
         geom_smooth(data = marginal_data,
                    aes(x = demand_value, y = calculated_fnrb),
                    method = "loess", color = "purple", se = TRUE, na.rm = TRUE, formula = y ~ x) +
-        geom_point(data = marginal_data, 
-                  aes(x = demand_value, y = local_marginal_fnrb, color = scenario, shape = "Instantaneous marginal"),
-                  alpha = 0.6, na.rm = TRUE) +
-        geom_smooth(data = marginal_data,
-                   aes(x = demand_value, y = local_marginal_fnrb, linetype = "Instantaneous marginal"),
-                   method = "loess", color = "blue", se = TRUE, na.rm = TRUE, formula = y ~ x) +
+
         scale_color_viridis_d(drop = FALSE) +
         scale_fill_viridis_d(drop = FALSE) +
         theme(
@@ -156,19 +159,17 @@ analyze_nrb_vs_harvest <- function(marginal_data, nrb_col, harvest_col, demand_c
             title = "fNRB and marginal fNRB (marginal nrb / marginal harvest) vs Demand",
             x = "Demand Change (%)", 
             y = "fNRB (%)"
-            # color = "Scenario",
-            # fill = "Scenario"
         )
 
 
     # Marginal fnrb plot (marginal nrb / marginal harvest) and instantaneous marginal and fnrb vs. Woodfuel Harvest
     p_mfnrb_harvest <- ggplot() +
         # Original marginal ratio points and line
-        geom_point(data = marginal_data %>% filter(!scenario == "bau"), 
-                  aes(x = .data[[harvest_col]], y = marginal_fnrb, shape = "BAU-relative marginal"), 
+        geom_point(data = marginal_data, 
+                  aes(x = .data[[harvest_col]], y = marginal_fnrb, shape = "Instantaneous marginal"), 
                   alpha = 0.6, na.rm = TRUE) +
-        geom_smooth(data = marginal_data %>% filter(!scenario == "bau"),
-                   aes(x = .data[[harvest_col]], y = marginal_fnrb, linetype = "BAU-relative marginal"),
+        geom_smooth(data = marginal_data,
+                   aes(x = .data[[harvest_col]], y = marginal_fnrb, linetype = "Instantaneous marginal"),
                    method = "loess", color = "red", se = TRUE, na.rm = TRUE, formula = y ~ x) +
         # FNRB points and line
         geom_point(data = marginal_data, 
@@ -177,33 +178,23 @@ analyze_nrb_vs_harvest <- function(marginal_data, nrb_col, harvest_col, demand_c
         geom_smooth(data = marginal_data,
                    aes(x = .data[[harvest_col]], y = calculated_fnrb, linetype = "fNRB"),
                    method = "loess", color = "purple", se = TRUE, na.rm = TRUE, formula = y ~ x) +
-        # New instantaneous marginal FNRB points and line
-        geom_point(data = marginal_data %>% filter(!scenario == "bau"), 
-                  aes(x = .data[[harvest_col]], y = local_marginal_fnrb, color = scenario, shape = "Instantaneous marginal"),
-                  alpha = 0.6, na.rm = TRUE) +
-        geom_smooth(data = marginal_data %>% filter(!scenario == "bau"),
-                   aes(x = .data[[harvest_col]], y = local_marginal_fnrb, linetype = "Instantaneous marginal"),
-                   method = "loess", color = "blue", se = TRUE, na.rm = TRUE, formula = y ~ x) +
+        # Scales
         scale_color_viridis_d(drop = FALSE) +
         scale_fill_viridis_d(drop = FALSE) +
         scale_shape_manual(name = "Metric", 
-                          values = c("BAU-relative marginal" = 2,
-                                   "fNRB" = 16,
-                                   "Instantaneous marginal" = 3)) +
+                          values = c("Instantaneous marginal" = 2,
+                                   "fNRB" = 16)) +
         scale_linetype_manual(name = "Trend lines",
-                            values = c("BAU-relative marginal" = "solid",
-                                     "fNRB" = "solid",
-                                     "Instantaneous marginal" = "solid"),
-                            labels = c("BAU-relative marginal (red)",
-                                     "fNRB (purple)",
-                                     "Instantaneous marginal (blue)")) +
+                            values = c("Instantaneous marginal" = "solid",
+                                     "fNRB" = "solid"),
+                            labels = c("fNRB (purple)",
+                                     "Instantaneous marginal (red)")) +
         theme(
             legend.position = "bottom",
             legend.box = "vertical", 
             legend.box.just = "left",
             axis.text.x = element_text(angle = 45, hjust = 1)
         ) +
-
         labs(
             title = "fNRB and Marginal fNRB vs Woodfuel Harvest",
             x = "Woodfuel Harvest (mtons)", 
@@ -214,12 +205,12 @@ analyze_nrb_vs_harvest <- function(marginal_data, nrb_col, harvest_col, demand_c
         plot_layout(heights = c(1, 1, 1, 1.2)) + 
         plot_annotation(
             title = paste("Marginal Analysis -", country, "-", x_col),
-            subtitle = "mfNRB = 100 * (NRB - BAU_NRB)/(Harvest - BAU_Harvest)",
+            subtitle = "mfNRB = 100 * (NRB - NRB_lagged)/(Harvest - Harvest_lagged)",
             theme = theme(plot.title = element_text(hjust = 0.5))
         )
 
     plot_filename <- file.path(output_dir, paste0("marginal_analysis_", country, "_", admin_level, ".png"))
-    ggsave(plot_filename, combined_plot, width = 10, height = 15)  # Increased height to accommodate new plot
+    ggsave(plot_filename, combined_plot, width = 10, height = 15)
     return(plot_filename)
 } 
 
@@ -274,7 +265,7 @@ create_demand_sensitivity_plots <- function(combined_data, sensitivity_results, 
         geom_smooth(method = "lm", formula = y ~ x, se = TRUE) +
         facet_wrap(~admin_level, scales = "free_y") +
         coord_cartesian(
-            ylim = quantile(combined_data$marginal_fnrb, c(0.01, 0.99), na.rm = TRUE)
+            ylim = c(0, 100)
         ) +
         theme(legend.position = "right") +
         labs(
