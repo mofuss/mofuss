@@ -40,4 +40,3 @@ compute_agb_loss <- function(r2010, r2022, country_poly, label) {
 # Calculate total losses
 esa_loss <- compute_agb_loss(agb_esa_2010, agb_esa_2022, kenya_proj, "ESA")
 ctrees_loss <- compute_agb_loss(agb_ctrees_2010, agb_ctrees_2022, kenya_proj, "Ctrees")
-3,634,295,476
