@@ -2,9 +2,9 @@ library(terra)
 library(sf)
 
 # Rob, replace with your own GDrive folder
-admin_dir <- "G:/Mi unidad/webpages/2024_MoFuSSGlobal_Datasets/admin_regions/"
-agb_dir <- "G:/Mi unidad/webpages/2024_MoFuSSGlobal_Datasets/agb_4improved_mofuss/"
-out_dir <- "G:/Mi unidad/webpages/2024_MoFuSSGlobal_Datasets/agb_4improved_mofuss/test_outputs_rob/"
+admin_dir <- "D:/admin_regions/regions_adm0/"
+agb_dir <- "C:/Users/aghil/Downloads/"
+out_dir <- "C:/Users/aghil/Downloads/test_outputs_rob/"
 
 
 # Load country polygon
