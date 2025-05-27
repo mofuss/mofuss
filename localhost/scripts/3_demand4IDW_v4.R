@@ -54,7 +54,7 @@ if (temdirdefined == 1) {
 # terraOptions(memfrac=0.9)
 # terraOptions(progress=0)
 library(gdata)
-library(hacksaw)
+#library(hacksaw)
 #library(mapview)
 library(raster)
 library(readxl)
