@@ -4,8 +4,8 @@ library(tidyr)
 library(zoo)
 source("localhost/scripts/utils/file_utils.R")
 
-update_admin_data <- function(admin_filename_pattern, combined_data, combined_data_adm0, 
-                            combined_data_adm1, combined_data_adm2, x_col, demand_col) {
+update_admin_data <- function(admin_filename_pattern, combined_data, combined_data_adm0,
+                              combined_data_adm1, combined_data_adm2, x_col, demand_col) {
     if (str_detect(admin_filename_pattern, "adm0")) {
         if (is.null(combined_data_adm0)) {
             combined_data_adm0 <- combined_data
@@ -16,9 +16,11 @@ update_admin_data <- function(admin_filename_pattern, combined_data, combined_da
                 by = c(x_col, "scenario", demand_col)
             )
         }
-        return(list(adm0 = combined_data_adm0, 
-                   adm1 = combined_data_adm1, 
-                   adm2 = combined_data_adm2))
+        return(list(
+            adm0 = combined_data_adm0,
+            adm1 = combined_data_adm1,
+            adm2 = combined_data_adm2
+        ))
     } else if (str_detect(admin_filename_pattern, "adm1")) {
         if (is.null(combined_data_adm1)) {
             combined_data_adm1 <- combined_data
@@ -29,9 +31,11 @@ update_admin_data <- function(admin_filename_pattern, combined_data, combined_da
                 by = c(x_col, "scenario", demand_col)
             )
         }
-        return(list(adm0 = combined_data_adm0, 
-                   adm1 = combined_data_adm1, 
-                   adm2 = combined_data_adm2))
+        return(list(
+            adm0 = combined_data_adm0,
+            adm1 = combined_data_adm1,
+            adm2 = combined_data_adm2
+        ))
     } else if (str_detect(admin_filename_pattern, "adm2")) {
         if (is.null(combined_data_adm2)) {
             combined_data_adm2 <- combined_data
@@ -42,9 +46,11 @@ update_admin_data <- function(admin_filename_pattern, combined_data, combined_da
                 by = c(x_col, "scenario", demand_col)
             )
         }
-        return(list(adm0 = combined_data_adm0, 
-                   adm1 = combined_data_adm1, 
-                   adm2 = combined_data_adm2))
+        return(list(
+            adm0 = combined_data_adm0,
+            adm1 = combined_data_adm1,
+            adm2 = combined_data_adm2
+        ))
     }
 }
 
@@ -53,26 +59,27 @@ validate_data_for_marginals <- function(data, value_col, x_col) {
     if (bau_count == 0) {
         stop("No BAU scenario found in the data")
     }
-    
+
     # Check for unique combinations
     combinations <- data %>%
         group_by(.data[[x_col]], scenario) %>%
         summarise(count = n(), .groups = "drop")
-    
+
     duplicates <- combinations %>%
         filter(count > 1)
-    
+
     if (nrow(duplicates) > 0) {
-        warning("Found duplicate combinations of ", x_col, " and scenario:\n",
-                paste(capture.output(print(duplicates)), collapse = "\n"))
+        warning(
+            "Found duplicate combinations of ", x_col, " and scenario:\n",
+            paste(capture.output(print(duplicates)), collapse = "\n")
+        )
     }
-    
+
     return(TRUE)
-} 
+}
 
 
 collect_marginal_data <- function(data, country, admin_level, fnrb_col, nrb_col, harvest_col) {
-    
     bau_values <- data %>%
         filter(scenario == "bau") %>%
         select(all_of(c(fnrb_col, nrb_col, harvest_col))) %>%
@@ -81,7 +88,7 @@ collect_marginal_data <- function(data, country, admin_level, fnrb_col, nrb_col,
             harvest_bau = all_of(harvest_col)
         ) %>%
         select(nrb_bau, harvest_bau)
-    
+
     marginal_data <- data %>%
         crossing(bau_values) %>%
         mutate(
@@ -100,35 +107,36 @@ collect_marginal_data <- function(data, country, admin_level, fnrb_col, nrb_col,
             next_forward_nrb = lead(forward_nrb),
             # Add backward difference for last point
             backward_nrb = .data[[nrb_col]] - lag(.data[[nrb_col]]),
-            
+
             # Same for harvest
             forward_harvest = lead(.data[[harvest_col]]) - .data[[harvest_col]],
             next_forward_harvest = lead(forward_harvest),
             backward_harvest = .data[[harvest_col]] - lag(.data[[harvest_col]]),
-            
+
             # Combine for all points
             marginal_nrb = case_when(
-                row_number() == n() ~ backward_nrb,  # Last point uses backward diff
-                row_number() == n() - 1 ~ forward_nrb,  # Second-to-last point uses single forward diff
-                row_number() == 1 ~ forward_nrb,  # First point uses single forward diff
-                TRUE ~ (forward_nrb + next_forward_nrb) / 2  # Middle points average two forward diffs
+                row_number() == n() ~ backward_nrb, # Last point uses backward diff
+                row_number() == n() - 1 ~ forward_nrb, # Second-to-last point uses single forward diff
+                row_number() == 1 ~ forward_nrb, # First point uses single forward diff
+                TRUE ~ (forward_nrb + next_forward_nrb) / 2 # Middle points average two forward diffs
             ),
-            
             marginal_harvest = case_when(
-                row_number() == n() ~ backward_harvest,  # Last point uses backward diff
+                row_number() == n() ~ backward_harvest, # Last point uses backward diff
                 row_number() == n() - 1 ~ forward_harvest,
                 row_number() == 1 ~ forward_harvest,
                 TRUE ~ (forward_harvest + next_forward_harvest) / 2
             ),
-            
+
             # Calculate final marginal FNRB
             marginal_fnrb = case_when(
                 abs(marginal_harvest) < 1e-10 ~ NA_real_,
                 TRUE ~ 100 * marginal_nrb / marginal_harvest
             )
         ) %>%
-        select(-forward_nrb, -next_forward_nrb, -backward_nrb,
-               -forward_harvest, -next_forward_harvest, -backward_harvest) %>%  # Clean up temporary columns
+        select(
+            -forward_nrb, -next_forward_nrb, -backward_nrb,
+            -forward_harvest, -next_forward_harvest, -backward_harvest
+        ) %>% # Clean up temporary columns
         ungroup()
 
     # Combined summary statistics
@@ -141,7 +149,7 @@ collect_marginal_data <- function(data, country, admin_level, fnrb_col, nrb_col,
             mean_marginal_fnrb = mean(marginal_fnrb, na.rm = TRUE),
             # median_marginal_fnrb = median(marginal_fnrb, na.rm = TRUE),
             # sd_marginal_fnrb = sd(marginal_fnrb, na.rm = TRUE),
-            
+
             # Additional summary statistics
             mean_nrb = mean(.data[[nrb_col]], na.rm = TRUE),
             # sd_nrb = sd(.data[[nrb_col]], na.rm = TRUE),
@@ -163,7 +171,7 @@ collect_marginal_data <- function(data, country, admin_level, fnrb_col, nrb_col,
 
 create_summary_tables <- function(all_results) {
     combined_summary <- bind_rows(lapply(all_results, function(x) x$summary))
-    
+
     country_summary <- combined_summary %>%
         group_by(country, admin_level) %>%
         summarise(
@@ -173,7 +181,7 @@ create_summary_tables <- function(all_results) {
             total_observations = sum(n_observations),
             .groups = "drop"
         )
-    
+
     demand_sensitivity <- combined_summary %>%
         group_by(country, admin_level, demand_value) %>%
         summarise(
@@ -183,7 +191,7 @@ create_summary_tables <- function(all_results) {
             n_observations = sum(n_observations),
             .groups = "drop"
         )
-    
+
     return(list(
         country_summary = country_summary,
         demand_sensitivity = demand_sensitivity,
@@ -193,25 +201,31 @@ create_summary_tables <- function(all_results) {
 
 analyze_demand_sensitivity <- function(combined_data) {
     write_log("Starting demand sensitivity analysis")
-    
+
     cat("\n=== Starting analyze_demand_sensitivity ===\n")
     cat("Input data dimensions:", dim(combined_data)[1], "rows,", dim(combined_data)[2], "columns\n")
-    
+
+    # Ensure demand_value is numeric for calculations
+    combined_data <- combined_data %>%
+        mutate(demand_value_numeric = as.numeric(as.character(demand_value)))
+
     # Calculate point-wise slopes for each country and admin level
     slope_analysis <- combined_data %>%
         # Sort by demand value to ensure proper differencing
-        arrange(country, admin_level, demand_value) %>%
+        arrange(country, admin_level, demand_value_numeric) %>%
         group_by(country, admin_level) %>%
         mutate(
             # Calculate point-wise slopes using adjacent points
-            point_slope = (lead(marginal_fnrb) - marginal_fnrb) / 
-                            (lead(demand_value) - demand_value),
+            point_slope = (lead(marginal_fnrb) - marginal_fnrb) /
+                (lead(demand_value_numeric) - demand_value_numeric),
             # Calculate local R-squared using rolling window
             local_r_squared = rollapply(
-                marginal_fnrb, 
-                width = 3, 
+                marginal_fnrb,
+                width = 3,
                 FUN = function(x) {
-                    if (length(unique(x)) < 2) return(NA)
+                    if (length(unique(x)) < 2) {
+                        return(NA)
+                    }
                     summary(lm(x ~ seq_along(x)))$r.squared
                 },
                 align = "center",
@@ -223,26 +237,30 @@ analyze_demand_sensitivity <- function(combined_data) {
                 TRUE ~ "High_100perc"
             )
         ) %>%
-        ungroup()
-    
+        ungroup() %>%
+        # Keep the factor version for display but ensure numeric for calculations
+        mutate(demand_value = factor(demand_value))
+
     cat("\nPoint-wise slope analysis results:\n")
     print(summary(slope_analysis$point_slope))
-    
+
     step_changes <- combined_data %>%
-        group_by(country, admin_level, demand_value) %>%
+        group_by(country, admin_level, demand_value_numeric) %>%
         summarise(
             mean_ratio = mean(marginal_fnrb, na.rm = TRUE),
             .groups = "drop"
         ) %>%
-        arrange(country, admin_level, demand_value) %>%
+        arrange(country, admin_level, demand_value_numeric) %>%
         group_by(country, admin_level) %>%
         mutate(
             change_from_previous = mean_ratio - lag(mean_ratio),
-            demand_change = demand_value - lag(demand_value),
-            step_sensitivity = change_from_previous / demand_change
+            demand_change = demand_value_numeric - lag(demand_value_numeric),
+            step_sensitivity = change_from_previous / demand_change,
+            # Restore original demand_value as factor for display purposes
+            demand_value = factor(demand_value_numeric)
         ) %>%
         ungroup()
-    
+
     cat("\nStep changes summary:\n")
     print(summary(step_changes))
 

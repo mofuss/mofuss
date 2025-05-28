@@ -5,7 +5,7 @@ Sys.setenv(PATH = paste("/Library/TeX/texbin", Sys.getenv("PATH"), sep = ":"))
 
 if (!require("pacman")) install.packages("pacman")
 library(pacman)
-pacman::p_load(dplyr, ggplot2, readr, purrr, viridis, knitr, stringr, styler, rmarkdown, kableExtra, tidyr, zoo, zeallot, patchwork)
+pacman::p_load(dplyr, ggplot2, readr, purrr, viridis, knitr, stringr, styler, rmarkdown, kableExtra, tidyr, zoo, zeallot, patchwork, ggrepel)
 
 source("localhost/scripts/utils/file_utils.R")
 source("localhost/scripts/utils/plot_utils.R")
@@ -174,21 +174,18 @@ if (length(all_country_results) > 0) {
     writeLines("These are the demand level transitions that showed the largest changes in marginal ratios:\n\n", file_conn)
     writeLines(knitr::kable(sensitivity_tables$critical_transitions, format = "markdown", digits = 2), file_conn)
 
-    # Add new cross-country plots
-    writeLines("\n\n# Cross-Country FNRB Distributions\n\n", file_conn)
-    cross_country_plot_list <- create_cross_country_plots(all_country_results, output_dir = output_dir)
-
-    writeLines(paste0("## Calculated FNRB Distribution by Country and Scenario\n\n"), file_conn)
-    writeLines(paste0(
-        "![Calculated FNRB Distribution](",
-        basename(cross_country_plot_list$calculated_fnrb_plot_file), ")\n\n"
-    ), file_conn)
-
-    writeLines(paste0("## Marginal FNRB Distribution by Country and Scenario\n\n"), file_conn)
-    writeLines(paste0(
-        "![Marginal FNRB Distribution](",
-        basename(cross_country_plot_list$marginal_fnrb_plot_file), ")\n\n"
-    ), file_conn)
+    # Temporarily commenting out cross-country plots due to scaling issues with demand_value
+    # TODO: Fix the scaling issues with demand_value in create_cross_country_plots function
+    # writeLines("\n\n# Cross-Country FNRB Distributions\n\n", file_conn)
+    # cross_country_plot_list <- create_cross_country_plots(all_country_results, output_dir = output_dir)
+    #
+    # writeLines(paste0("## Calculated FNRB Distribution by Country and Scenario\n\n"), file_conn)
+    # writeLines(paste0("![Calculated FNRB Distribution](",
+    #                 basename(cross_country_plot_list$calculated_fnrb_plot_file), ")\n\n"), file_conn)
+    #
+    # writeLines(paste0("## Marginal FNRB Distribution by Country and Scenario\n\n"), file_conn)
+    # writeLines(paste0("![Marginal FNRB Distribution](",
+    #                 basename(cross_country_plot_list$marginal_fnrb_plot_file), ")\n\n"), file_conn)
 
     # Optionally, if you also want to include the other two plots from the function:
     # writeLines(paste0("## Marginal FNRB Distribution (Filled by Country)\n\n"), file_conn)
@@ -201,6 +198,9 @@ if (length(all_country_results) > 0) {
 
     flush(file_conn)
 }
+
+# Save all the values in a single csv file
+write.csv(formatted_data, "assets/bau_and_marginal_fnrb_all_countries.csv", row.names = FALSE)
 
 render(output_file, output_format = "pdf_document")
 
