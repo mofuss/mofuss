@@ -16,7 +16,6 @@
 # Que hace este scripe????
 
 # 2dolist
-# Install googletraffic
 
 # Internal parameters ----
 temdirdefined = 1
@@ -111,7 +110,6 @@ for (p in 1:100) {
   }
 }
 Sys.sleep(3)
-
 
 # Load libraries ----
 library(terra)
