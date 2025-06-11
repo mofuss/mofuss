@@ -98,10 +98,10 @@ if (os == "Windows" & node_name == "WINLANASE") {
   
 } else if (os == "Windows" & node_name == "WINCIGA"){ ####
   #ADD node
-  demanddir <- "E:/demand"
-  admindir <- "E:/admin_regions"
-  emissionsdir <- "E:/emissions"
-  rTempdir <- "E:/rTemp"
+  demanddir <- "D:/demand"
+  admindir <- "D:/admin_regions"
+  emissionsdir <- "D:/emissions"
+  rTempdir <- "D:/rTemp"
   Gdrivedir <- "G:/Mi unidad/webpages/2024_MoFuSSGlobal_Datasets/mofussDS_v2/"
   globalsouth_mofuss_bindingfolder <- paste0(Gdrivedir,"globalsouth_mofuss_bindingfolder/")
 } 
