@@ -59,8 +59,8 @@ if (os == "Windows" & node_name == "WINLANASE") {
   admindir <- "F:/admin_regions"
   emissionsdir <- "F:/emissions"
   rTempdir <- "F:/rTemp"
-  Gdrivedir <- "G:/My Drive/webpages/2024_MoFuSSGlobal_Datasets/webmofussDS_v2/"
-  globalsouth_mofuss_bindingfolder <- "G:/My Drive/webpages/2024_MoFuSSGlobal_Datasets/mofussDS_v2/globalsouth_mofuss_bindingfolder"
+  Gdrivedir <- "G:/Mi unidad/webpages/2024_MoFuSSGlobal_Datasets/mofussDS_v2/"
+  globalsouth_mofuss_bindingfolder <- paste0(Gdrivedir,"globalsouth_mofuss_bindingfolder/")
   
 } else if (os == "Windows" & node_name == "ASUSLAP"){
   #ADD node
@@ -68,7 +68,8 @@ if (os == "Windows" & node_name == "WINLANASE") {
   admindir <- "D:/admin_regions"
   emissionsdir <- "D:/emissions"
   rTempdir <- "D:/rTemp"
-  Gdrivedir <- "G:/Mi unidad/webpages/2024_MoFuSSGlobal_Datasets/webmofussDS_v2/"
+  Gdrivedir <- "G:/Mi unidad/webpages/2024_MoFuSSGlobal_Datasets/mofussDS_v2/"
+  globalsouth_mofuss_bindingfolder <- paste0(Gdrivedir,"globalsouth_mofuss_bindingfolder/")
   
 } else if (os == "Windows" & node_name == "EDITORIALCIGA"){
   #ADD node
@@ -76,7 +77,8 @@ if (os == "Windows" & node_name == "WINLANASE") {
   admindir <- "E:/admin_regions"
   emissionsdir <- "E:/emissions"
   rTempdir <- "E:/rTemp"
-  Gdrivedir <- "G:/My Drive/webpages/2024_MoFuSSGlobal_Datasets/webmofussDS_v2/"
+  Gdrivedir <- "G:/My Drive/webpages/2024_MoFuSSGlobal_Datasets/mofussDS_v2/"
+  globalsouth_mofuss_bindingfolder <- paste0(Gdrivedir,"globalsouth_mofuss_bindingfolder/")
   
 } else if (os == "Linux" & node_name == "linux-c3"){
   #ADD node
@@ -91,7 +93,8 @@ if (os == "Windows" & node_name == "WINLANASE") {
   admindir <- "D:/admin_regions"
   emissionsdir <- "D:/emissions"
   rTempdir <- "D:/rTemp"
-  Gdrivedir <- "G:/Mi unidad/webpages/2024_MoFuSSGlobal_Datasets/webmofussDS_v2/"
+  Gdrivedir <- "G:/Mi unidad/webpages/2024_MoFuSSGlobal_Datasets/mofussDS_v2/"
+  globalsouth_mofuss_bindingfolder <- paste0(Gdrivedir,"globalsouth_mofuss_bindingfolder/")
   
 } else if (os == "Windows" & node_name == "WINCIGA"){ ####
   #ADD node
@@ -99,7 +102,8 @@ if (os == "Windows" & node_name == "WINLANASE") {
   admindir <- "E:/admin_regions"
   emissionsdir <- "E:/emissions"
   rTempdir <- "E:/rTemp"
-  Gdrivedir <- "G:/Mi unidad/webpages/2024_MoFuSSGlobal_Datasets/webmofussDS_v2/"
+  Gdrivedir <- "G:/Mi unidad/webpages/2024_MoFuSSGlobal_Datasets/mofussDS_v2/"
+  globalsouth_mofuss_bindingfolder <- paste0(Gdrivedir,"globalsouth_mofuss_bindingfolder/")
 } 
 
 # Erase all plots in R Studio
