@@ -177,13 +177,7 @@ if (replace_node_files == 1){
 
 # Only run if its Win Lanase----
 if (node_name == "WINLANASE") {
-Gdrivedir <- "G:/My Drive/webpages/2024_MoFuSSGlobal_Datasets/webmofussDS_v2/" # Update based on every node
 
-# # Borrar esto!!! Regresar a Win Lanase
-# if (node == "Asus ZenBook") { 
-# Gdrivedir <- "G:/Mi unidad/webpages/2024_MoFuSSGlobal_Datasets/webmofussDS_v2/"
-
-  
   # BIND TABLES AND VECTORS ----
   
   if (cleanlocal == 1) {
