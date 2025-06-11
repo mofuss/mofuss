@@ -16,14 +16,12 @@
 # Que hace este scripe????
 
 # 2dolist
-# Make node list automatic
 # Install googletraffic
 
 # Internal parameters ----
 temdirdefined = 1
-string_pattern_yes <- "1000m" #Use adm0 as default. String pattern to be searched when selecting folders for the rasters' geocomputation
-string_pattern_no <- "ecoregions" #Use "idw" as default. String pattern to be searched when selecting folders for the rasters' geocomputation
-
+string_pattern_yes <- "adm0" #Use adm0 as default. String pattern to be searched when selecting folders for the rasters' geocomputation
+string_pattern_no <- "TEST4ICS" #Use "idw" as default. String pattern to be searched when selecting folders for the rasters' geocomputation
 
 processingversion <- "globalsouth_mofuss_bindingfolder/"
 taildir <- "/OutBaU/webmofuss_results/"
@@ -49,6 +47,71 @@ bins <- 1
 
 admtables <- c("adm0","adm1","adm2")
 admvector <- c("adm0","adm1","adm2")
+
+# Define all folders based on node ----
+# Detect OS and node name
+os <- Sys.info()["sysname"]
+node_name <- Sys.info()[["nodename"]]
+cat(os,node_name)
+
+if (os == "Windows" & node_name == "WINLANASE") {
+  #ADD node
+  demanddir <- "F:/demand"
+  admindir <- "F:/admin_regions"
+  emissionsdir <- "F:/emissions"
+  rTempdir <- "F:/rTemp"
+  Gdrivedir <- "G:/My Drive/webpages/2024_MoFuSSGlobal_Datasets/webmofussDS_v2/"
+  globalsouth_mofuss_bindingfolder <- "G:/My Drive/webpages/2024_MoFuSSGlobal_Datasets/mofussDS_v2/globalsouth_mofuss_bindingfolder"
+  
+} else if (os == "Windows" & node_name == "ASUSLAP"){
+  #ADD node
+  demanddir <- "D:/demand"
+  admindir <- "D:/admin_regions"
+  emissionsdir <- "D:/emissions"
+  rTempdir <- "D:/rTemp"
+  Gdrivedir <- "G:/Mi unidad/webpages/2024_MoFuSSGlobal_Datasets/webmofussDS_v2/"
+  
+} else if (os == "Windows" & node_name == "EDITORIALCIGA"){
+  #ADD node
+  demanddir <- "E:/demand"
+  admindir <- "E:/admin_regions"
+  emissionsdir <- "E:/emissions"
+  rTempdir <- "E:/rTemp"
+  Gdrivedir <- "G:/My Drive/webpages/2024_MoFuSSGlobal_Datasets/webmofussDS_v2/"
+  
+} else if (os == "Linux" & node_name == "linux-c3"){
+  #ADD node
+  demanddir <- "/home/mofuss/demand"
+  admindir <- "/home/mofuss/admin_regions"
+  emissionsdir <- "/home/mofuss/emissions"
+  rTempdir <- "/home/mofuss/rTemp"
+  
+} else if (os == "Windows" & node_name == "NRBV1"){
+  #ADD node
+  demanddir <- "D:/demand"
+  admindir <- "D:/admin_regions"
+  emissionsdir <- "D:/emissions"
+  rTempdir <- "D:/rTemp"
+  Gdrivedir <- "G:/Mi unidad/webpages/2024_MoFuSSGlobal_Datasets/webmofussDS_v2/"
+  
+} else if (os == "Windows" & node_name == "WINciga"){ ####
+  #ADD node
+  demanddir <- "E:/demand"
+  admindir <- "E:/admin_regions"
+  emissionsdir <- "E:/emissions"
+  rTempdir <- "E:/rTemp"
+  Gdrivedir <- "G:/Mi unidad/webpages/2024_MoFuSSGlobal_Datasets/webmofussDS_v2/"
+} 
+
+# Erase all plots in R Studio
+Sys.sleep(2)
+for (p in 1:100) {
+  if (length(dev.list()!=0)) {
+    dev.off()
+  }
+}
+Sys.sleep(3)
+
 
 # Load libraries ----
 library(terra)
@@ -79,98 +142,13 @@ search_path <- getwd()
 # List all directories in the specified path
 all_dirs <- dir_ls(search_path, type = "directory")
 
-# Filter directories containing 'adm0'
-adm0_dirs <- all_dirs[grepl("adm0", all_dirs)]
-# # Define a particular directory when needed:
-# adm0_dirs <- c("E:/ASIA_adm0_bangladesh_apr2024",
-#                "E:/ASIA_adm0_bhutan_apr2024",
-#                "E:/ASIA_adm0_india_apr2024",
-#                "E:/ASIA_adm0_middleeast_apr2024",
-#                "E:/ASIA_adm0_pakistan_apr2024")
+# Filter directories that match string_pattern_yes and do not match string_pattern_no
+adm0_dirs <- all_dirs[grepl(string_pattern_yes, all_dirs) & !grepl(string_pattern_no, all_dirs)]
+adm0_dirs
 
-# Choose local node ----
-
-# # Detect OS and node name
-# os <- Sys.info()["sysname"]
-# node_name <- Sys.info()[["nodename"]]
-# cat(os,node_name)
-
-node.list <- c("Asus ZenBook", "NRBV1", "Win Lanase", "Win CIGA2", "Editorial CIGA", "Alien Yayo")
-node.input <- dlgList(as.character(node.list), 
-                      preselect = "Asus ZenBook",
-                      multiple = FALSE,
-                      title = "Choose a node to strat",
-                      gui = .GUI
-)
-node <- node.input$res
-
-
-
-if (node == "Asus ZenBook") { # Asus ZenBook ----
-  
-  Gdrivedir <- "G:/Mi unidad/webpages/2024_MoFuSSGlobal_Datasets/webmofussDS_v2/" # Update based on every node
-  
-  # Define the source directories
-  source_dirs <- basename(adm0_dirs)
-  destination_dirs <- paste0(Gdrivedir,processingversion,source_dirs,"/")
-  
-} else if (node == "NRBV1") { # NRBV1 ----
-  
-  Gdrivedir <- "G:/Mi unidad/webpages/2024_MoFuSSGlobal_Datasets/webmofussDS_v2/" # Update based on every node
-  
-  # Define the source directories
-  source_dirs <- basename(adm0_dirs)
-  destination_dirs <- paste0(Gdrivedir,processingversion,source_dirs,"/")
-  
-} else if (node == "Win Lanase") { # Win Lanase ---- 
-  
-  Gdrivedir <- "G:/My Drive/webpages/2024_MoFuSSGlobal_Datasets/webmofussDS_v2/" # Update based on every node
-  
-  # Define the source directories
-  source_dirs <- basename(adm0_dirs)
-  destination_dirs <- paste0(Gdrivedir,processingversion,source_dirs,"/")
-  
-  
-} else if (node == "Win CIGA2") { # Win CIGA2 ----
-  
-  Gdrivedir <- "G:/Mi unidad/webpages/2024_MoFuSSGlobal_Datasets/webmofussDS_v2/" # Update based on every node
-  
-  # Define the source directories
-  source_dirs <- basename(adm0_dirs)
-  destination_dirs <- paste0(Gdrivedir,processingversion,source_dirs,"/")
-  
-} else if (node == "Editorial CIGA") { # Editorial CIGA ----
-  
-  Gdrivedir <- "G:/My Drive/webpages/2024_MoFuSSGlobal_Datasets/webmofussDS_v2/" # Update based on every node
-  
-  # Define the source directories
-  source_dirs <- basename(adm0_dirs)
-  destination_dirs <- paste0(Gdrivedir,processingversion,source_dirs,"/")
-  
-} else if (node == "Alien Yayo") { # Alien Yayo ----
-  
-  Gdrivedir <- "G:/My Drive/webpages/2024_MoFuSSGlobal_Datasets/webmofussDS_v2/" # Update based on every node
-  
-  # Define the source directories
-  source_dirs <- basename(adm0_dirs)
-  destination_dirs <- paste0(Gdrivedir,processingversion,source_dirs,"/")
-  
-  # # Define the source directories
-  # source_dirs <- c(
-  #   "D:/ASIA_adm0_china_apr2024/",
-  #   "D:/ASIA_adm0_mongolia_apr2024/"
-  # )
-  # 
-  # # Define the destination directories
-  # destination_dirs <- c(
-  #   paste0(Gdrivedir,processingversion,"ASIA_adm0_china_apr2024/"),
-  #   paste0(Gdrivedir,processingversion,"ASIA_adm0_mongolia_apr2024/")
-  # )
-  
-} else {
-  print("No nodes available")
-  
-} 
+# Define the source directories
+source_dirs <- basename(adm0_dirs)
+destination_dirs <- paste0(Gdrivedir,processingversion,source_dirs,"/")
 
 # Replace node files ----
 if (replace_node_files == 1){
@@ -198,7 +176,7 @@ if (replace_node_files == 1){
 }
 
 # Only run if its Win Lanase----
-if (node == "Win Lanase") {
+if (node_name == "WINLANASE") {
 Gdrivedir <- "G:/My Drive/webpages/2024_MoFuSSGlobal_Datasets/webmofussDS_v2/" # Update based on every node
 
 # # Borrar esto!!! Regresar a Win Lanase
