@@ -94,7 +94,7 @@ if (os == "Windows" & node_name == "WINLANASE") {
   rTempdir <- "D:/rTemp"
   Gdrivedir <- "G:/Mi unidad/webpages/2024_MoFuSSGlobal_Datasets/webmofussDS_v2/"
   
-} else if (os == "Windows" & node_name == "WINciga"){ ####
+} else if (os == "Windows" & node_name == "WINCIGA"){ ####
   #ADD node
   demanddir <- "E:/demand"
   admindir <- "E:/admin_regions"
