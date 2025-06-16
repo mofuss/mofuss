@@ -26,7 +26,7 @@ processingversion <- "globalsouth_mofuss_bindingfolder/"
 taildir <- "/OutBaU/webmofuss_results/"
 version <- "globalsouth_mofuss_final"
 cleanlocal <- 1 # This will completely clean the final results folder
-replace_node_files <- 1 # This will erase and overwrite all webmofuss results from each region into the GDrive folder
+replace_node_files <- 0 # This will erase and overwrite all webmofuss results from each region into the GDrive folder
 rasters <- 1
 shapefiles <- 1
 longnames <- 0 # Turn on in case you want the script to automatically shorten all names into unique ones, instead of choosing columns and renaming them
