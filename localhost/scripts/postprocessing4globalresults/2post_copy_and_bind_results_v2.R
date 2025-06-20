@@ -20,7 +20,7 @@
 # Internal parameters ----
 temdirdefined = 1
 string_pattern_yes <- "adm0" #Use adm0 as default. String pattern to be searched when selecting folders for the rasters' geocomputation
-string_pattern_no <- "TEST4ICS" #Use "idw" as default. String pattern to be searched when selecting folders for the rasters' geocomputation
+string_pattern_no <- "idw" #Use "idw" as default. String pattern to be searched when selecting folders for the rasters' geocomputation
 
 processingversion <- "globalsouth_mofuss_bindingfolder/"
 taildir <- "/OutBaU/webmofuss_results/"
