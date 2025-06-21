@@ -265,6 +265,8 @@ if (aoi_poly == 1) {
   if (!crs(mofuss_regions0_gpkg) == crs(kml_data)) {
     stop("Projections do not match!")
   }
+  # Generic rename handler
+  if ("GID_0" %in% names(kml_data)) names(kml_data)[names(kml_data) == "GID_0"] <- "GID_0_kml"
   # Intersect the two layers to calculate the overlapping areas
   overlap <- try(terra::intersect(mofuss_regions0_gpkg, kml_data), silent = TRUE)
   # Check if the result is valid
