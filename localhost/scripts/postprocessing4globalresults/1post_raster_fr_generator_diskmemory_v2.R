@@ -20,8 +20,8 @@
 
 # Internal parameters ----
 temdirdefined = 1
-fixdir <- 0
-string_pattern_yes <- "linux-c3" #String pattern to be searched when selecting folders for the rasters' geocomputation
+fixdir <- 1
+string_pattern_yes <- "zmb_lusaka" #String pattern to be searched when selecting folders for the rasters' geocomputation
 string_pattern_no <- "idw" #String pattern to be searched when selecting folders for the rasters' geocomputation
  
 # Load packages ----
@@ -45,7 +45,7 @@ if (temdirdefined == 1) {
 if (fixdir == 1){
   
   # Define a particular directory when needed:
-  adm0_dirs <- c("E:/RobTests_adm0")
+  adm0_dirs <- c("C:/Users/aghil/Documents/MoFuSS_FAO_localhost/zmb_lusaka_bau_1km_subc")
 
 } else {
   

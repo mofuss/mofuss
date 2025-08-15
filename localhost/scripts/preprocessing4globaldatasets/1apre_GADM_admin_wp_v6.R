@@ -9,11 +9,13 @@
 # # Select MoFuSS platform:
 # webmofuss = 1 # "1" is  web-MoFuSS running in our Ubuntu server, "0" is localcal host (Windows or Linux)
 # source(paste0(scriptsmofuss,"00_webmofuss.R"))
-# Add the possibility to alternate among admin maps in the csv table, mostly for subnational scenarios
+# Add the possibility to alternate among admin maps in the csv table, mostly for sub national scenarios
+# But this need to be global and be homogenized into the mofuss code, not country by country
+# Avoid any work that will be use only for particular projects
 
 # Internal parameters ----
 run_ms = "Yes" # Run ms_simplify?
-newadminlevel = 3 # Use 3, 4, or 5 depending on the desired admin level. Any different value will bypass this and keep the original adm0, adm1 and adm2.
+newadminlevel = 3 #Use 3, 4, or 5 depending on the desired admin level. Any different value will bypass this and keep the original adm0, adm1 and adm2.
 subregionsSSA_v <- "subregionsSSA_v4.csv"
 # subregionsSSA_v <- "subregionsSSA_v5FAO.csv" # This basically re-cluster countries in new sub regions, such as Miombo Mopane to be run all toguether
 # subregionsSSA_v <- "subregionsSSA_v5FAO_zmb.csv" # This basically re-cluster countries in new sub regions, such as Miombo Mopane to be run all toguether
@@ -23,6 +25,8 @@ subregionsOCEANIA_v <- "subregionsOCEANIA.csv"
 subregionsNorAfri_v <- "subregionsNorAfri_v3.csv"
 
 # Load packages ----
+library(lwgeom)
+library(magrittr)
 library(sf)
 #library(tictoc)
 #library(mapview)
@@ -59,7 +63,6 @@ if (webmofuss == 1) {
   print(tibble::as_tibble(country_parameters), n=100)
 }
 
-
 country_parameters %>%
   dplyr::filter(Var == "epsg_gcs") %>%
   pull(ParCHR) %>%
@@ -73,6 +76,18 @@ country_parameters %>%
 country_parameters %>%
   dplyr::filter(Var == "proj_authority") %>%
   pull(ParCHR) -> proj_authority
+
+# Forcing "newadminlevel = 2" when subcountry is 1
+country_parameters %>%
+  dplyr::filter(Var == "subcountry") %>%
+  pull(ParCHR) %>%
+  as.integer(.) -> subcountry
+if (subcountry == 1){
+  newadminlevel = 2
+} else {
+  newadminlevel
+}
+newadminlevel
 
 if (exists("demanddir") == FALSE) {
   choose_directory1 = function(caption = "Choose the directory where demand_in files are") {
@@ -145,6 +160,8 @@ recodedisputed <- function(adm_lyr){
            #                 "Sang" = "India"))
   return(adm_lyr_recoded)
 }
+
+sf::sf_use_s2(FALSE)
 
 gadm_adm0_sel <- st_read("gadm_410-levels.gpkg", layer = "ADM_0") %>%
   dplyr::rename(NAME_0 = "COUNTRY") %>%
@@ -259,6 +276,34 @@ if (newadminlevel == 3){
     mutate(GID_2 = if_else(!is.na(GID_4), GID_4, GID_2),
            NAME_2 = if_else(!is.na(NAME_4), NAME_4, NAME_2)) %>%
     dplyr::select(GID_0,NAME_0,GID_1,NAME_1,GID_2,NAME_2)
+  
+} else if (newadminlevel == 5){ # OJO TEMRINAR NIVEL 5
+  
+  sf::sf_use_s2(FALSE)
+  
+  gadm_adm5_sel <- st_read("gadm_410-levels.gpkg", layer = "ADM_5") %>%
+    dplyr::rename(NAME_0 = "COUNTRY") %>%
+    dplyr::select(GID_0,NAME_0,GID_1,NAME_1,GID_2,NAME_2,GID_3,NAME_3,GID_4,NAME_4,GID_5,NAME_5) %>%
+    recodedisputed()
+  gadm_adm5_sel_Csub <- unique(gadm_adm5_sel$GID_0)
+  
+  gadm_adm2_sel_Ssub <- gadm_adm2_sel %>% 
+    filter(!(GID_0 %in% gadm_adm5_sel_Csub))
+  
+  # Identify the columns to keep (example, adjust as needed)
+  common_columns <- intersect(names(gadm_adm2_sel_Ssub), names(gadm_adm5_sel))
+  unique_sf1_columns <- setdiff(names(gadm_adm2_sel_Ssub), common_columns)
+  unique_sf2_columns <- setdiff(names(gadm_adm5_sel), common_columns)
+  
+  # Add missing columns to sf1
+  for(col in unique_sf2_columns) {
+    gadm_adm2_sel_Ssub[[col]] <- NA
+  }
+  
+  # Add missing columns to sf2
+  for(col in unique_sf1_columns) {
+    gadm_adm5_sel[[col]] <- NA
+  }
   
 } else if (newadminlevel == 5){ # OJO TEMRINAR NIVEL 5
   
@@ -1623,7 +1668,6 @@ adm0_regtest <- st_read("regions_adm0/mofuss_regions0.gpkg")
 adm1_regtest <- st_read("regions_adm1/mofuss_regions1.gpkg")
 adm2_regtest <- st_read("regions_adm2/mofuss_regions2.gpkg")
 
-
 # https://epsg.io/paste0(proj_authority,":",epsg_pcs) World Mercator
 # https://epsg.io/1078-method Equal Earth
 # EqualEarth? <- sf::st_transform(adm0_regtest, "+proj=eqearth")
@@ -1637,6 +1681,27 @@ mofuss_regions0_simp <- adm0_regtest %>%
   ms_simplify(sys = TRUE) %>%
   st_transform(epsg_gcs)
 st_write(mofuss_regions0_simp, "regions_adm0/mofuss_regions0_simp.shp", delete_layer = TRUE)
+
+# # Save geojson
+# # (Optional) keep only needed attributes
+# wanted <- c("NAME_0", "GID_0")
+# mofuss_regions0_simp <- mofuss_regions0_simp[, intersect(wanted, names(mofuss_regions0_simp))]
+# 
+# # Write UTF-8 GeoJSON (ideal for GEE)
+# sf::st_write(
+#   mofuss_regions0_simp,
+#   dsn = "regions_adm0/mofuss_regions0_simp.geojson",
+#   driver = "GeoJSON",
+#   delete_dsn = TRUE,
+#   layer_options = c(
+#     "RFC7946=YES",            # lon/lat order per spec
+#     "COORDINATE_PRECISION=6"  # smaller file; good precision
+#   )
+# )
+# 
+# # Quick check
+# check <- sf::st_read("regions_adm0/mofuss_regions0_simp.geojson", quiet = TRUE)
+# print(head(check$NAME_0))
 
 mofuss_regions1_simp <- adm1_regtest %>%
   # mutate(fNRB = sample(0:100, n(), replace = TRUE),
@@ -1679,6 +1744,16 @@ st_read("regions_adm2/mofuss_regions2.gpkg") %>%
 
 # Update demand_in folder with latest mofuss_regions0.gpkg
 file.copy(from="regions_adm0/mofuss_regions0.gpkg",
+          to=paste0(demanddir,"/demand_in"),
+          overwrite = TRUE)
+
+# Update demand_in folder with latest mofuss_regions1.gpkg
+file.copy(from="regions_adm1/mofuss_regions1.gpkg",
+          to=paste0(demanddir,"/demand_in"),
+          overwrite = TRUE)
+
+# Update demand_in folder with latest mofuss_regions2.gpkg
+file.copy(from="regions_adm2/mofuss_regions2.gpkg",
           to=paste0(demanddir,"/demand_in"),
           overwrite = TRUE)
 

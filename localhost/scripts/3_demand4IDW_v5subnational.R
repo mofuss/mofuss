@@ -16,7 +16,8 @@
 
 # 2dolist ----
 # FIX THE MASK ISSUE WITH LINUX, THAT WAS PATCHED FOR THE MOMENT!
-# ALLOW OTHER SCENRIOS: Start in line 183
+# ALLOW OTHER SCENARIOS: Start in line 183
+# VERY IMPORTANT TO DEFINE A SOLID WORKFLOW FOR REGIONALIZING COUNTRIES, e.g. Zambia
 
 
 # Internal parameters ----
@@ -41,6 +42,7 @@ if (temdirdefined == 1) {
 # terraOptions(memfrac=0.9)
 # terraOptions(progress=0)
 library(gdata)
+library(ggplot2)
 #library(hacksaw)
 #library(mapview)
 library(raster)
@@ -121,7 +123,12 @@ country_parameters %>%
   pull(ParCHR) -> byregion
 if (byregion != "Country") {
   urb_shift_factor <- 1
-  }
+}
+
+country_parameters %>%
+  dplyr::filter(Var == "subcountry") %>%
+  pull(ParCHR) %>%
+  as.integer(.) -> subcountry
 
 country_parameters %>%
   dplyr::filter(Var == "end_year") %>%
@@ -197,11 +204,14 @@ if (scenario_ver == "BaU") {
 }
 
 # Unify "fuelwood" to "biomass" #Consider the other way round but we'll need to debug downstream
-wfdb <- wfdb %>%
-  mutate(fuel = if_else(fuel == "fuelwood", "biomass", fuel))
+if(subcountry == 1){
+  wfdb <- wfdb %>%
+    # mutate(fuel = if_else(fuel == "fuelwood", "biomass", fuel)) %>%
+    mutate(
+      iso3 = paste0(iso3, "_", dense_rank(country)))
+} 
 
 head(wfdb)
-
 print(scenario_ver) # save as text to recover later down the river
 
 setwd(countrydir)
@@ -221,25 +231,10 @@ write.table(annos, "LULCC/TempTables/annos.txt")
 annostxt <- read.table("LULCC/TempTables/annos.txt") %>% .$x 
 setwd(demanddir)
 
-# Get mofuss region for parameters below
-mofuss_regions0_gpkg <- vect(st_read("demand_in/mofuss_regions0.gpkg"))
-mofuss_regions0 <- as.data.frame(mofuss_regions0_gpkg)
-
-continent.list <- mofuss_regions0 %>%
-  dplyr::select(mofuss_reg) %>%
-  terra::unique()
-
-regions.list <- mofuss_regions0 %>%
-  dplyr::select(mofuss_reg) %>%
-  terra::unique()
-
-countries.list <- mofuss_regions0 %>%
-  dplyr::select(NAME_0, GID_0) %>%
-  terra::unique() %>%
-  arrange(NAME_0)
-
 # Select a region
 if (aoi_poly == 1) {
+  mofuss_regions0_gpkg <- vect(st_read("demand_in/mofuss_regions0.gpkg"))
+  # mofuss_regions0 <- as.data.frame(mofuss_regions0_gpkg)
   # Handle the case where aoi_poly is 1, regardless of byregion
   cat("aoi_poly is set to 1. This overrides other conditions.\n")
   # Define file paths
@@ -318,15 +313,65 @@ if (aoi_poly == 1) {
     cat("You selected:\n")
     print(mofuss_region)
   }
-  
+
 } else {
   # Handle any other conditions if necessary
   cat("No specific conditions met.\n")
 }
 
-# i="KEN" 
+
+# #####################################################
+# Get mofuss region for parameters below
+mofuss_regions0_gpkg <- vect(st_read("demand_in/mofuss_regions0.gpkg"))
+mofuss_regions0 <- as.data.frame(mofuss_regions0_gpkg)
+
+continent.list <- mofuss_regions0 %>%
+  dplyr::select(mofuss_reg) %>%
+  terra::unique()
+
+regions.list <- mofuss_regions0 %>%
+  dplyr::select(mofuss_reg) %>%
+  terra::unique()
+
+countries.list <- mofuss_regions0 %>%
+  dplyr::select(NAME_0, GID_0) %>%
+  terra::unique() %>%
+  arrange(NAME_0)
+
+# # #################################################
+# if (subcountry == 1) {
+# 
+# country_parameters %>%
+#   dplyr::filter(Var == "region2BprocessedCtry_iso") %>%
+#   pull(ParCHR) -> region2BprocessedCtry_iso
+# 
+#   # Get mofuss region for parameters below
+#   mofuss_regions2_gpkg <-
+#     st_read("demand_in/mofuss_regions2.gpkg") %>%
+#     dplyr::filter(GID_0 == region2BprocessedCtry_iso)
+#   mofuss_regions2 <- as.data.frame(mofuss_regions2_gpkg)
+# 
+#   subcountries.list <- mofuss_regions2 %>%
+#     dplyr::select(NAME_2, GID_2) %>%
+#     terra::unique() %>%
+#     arrange(NAME_2)
+#   
+#   mofuss_regions2_gpkg %>%
+#     ggplot() +
+#     geom_sf(aes(fill = NAME_2 == "Lusaka"), color = "black", size = 0.2) + # WARNING HARDWIRED LUSAKA!!!
+#     scale_fill_manual(
+#       values = c("TRUE" = "red", "FALSE" = "gray80"),
+#       labels = c("Other", "Lusaka")
+#     ) +
+#     theme_minimal() +
+#     labs(fill = "Region")
+# 
+# }
+# # ##################################################
+
+# if (subcountry != 1) {
+  
 totpopWHO <- whodb %>% 
-  # dplyr::filter(grepl(i, iso3)) %>% # searchs for the pattern, anywhere within the string
   dplyr::filter(grepl('Total', fuel)) %>%
   dplyr::filter(grepl(yr, year)) %>%
   dplyr::filter(!grepl('Over', area)) %>%
@@ -334,13 +379,31 @@ totpopWHO <- whodb %>%
   summarise(sum_pop=sum(pop)*1000,
             .groups = 'drop')
 
+totpoprob <- wfdb %>%
+  # dplyr::filter(grepl('Total', fuel)) %>%
+  dplyr::filter(grepl(yr, year)) %>%
+  # dplyr::filter(!grepl('Over', area)) %>%
+  group_by(iso3) %>%
+  summarise(sum_pop=sum(people)*1000000, #Ask Rob to fix the x 1,000,000 for x1,000 and "pop" instead of people
+            .groups = 'drop')
+
+unique(whodb$fuel)
+totpopWHO %>%
+  dplyr::filter(iso3 == "ZMB")
+unique(wfdb$fuel)
+totpoprob
+
 # Reads furb in 2018 from WHO dataset
 whodb_join <- whodb %>%
   dplyr::select(iso3, country) %>%
   terra::unique()
 
+# Reads furb in 2018 from WHO dataset
+robdb_join <- wfdb %>%
+  dplyr::select(iso3, country) %>%
+  terra::unique()
+
 furb_who <- whodb %>% # algo pasa con algunas librerias rio abajo que rompen esta parte si ya estan cargadas
-  # dplyr::filter(grepl(i, iso3)) %>% # searchs for the pattern, anywhere within the string
   dplyr::filter(grepl('Total', fuel)) %>%
   dplyr::filter(grepl(yr, year)) %>%
   dplyr::filter(grepl('Urban', area)) %>%
@@ -354,8 +417,27 @@ furb_who <- whodb %>% # algo pasa con algunas librerias rio abajo que rompen est
   rename(GID_0 = iso3,
          NAME_0 = country)
 
+furb_rob <- wfdb %>% # algo pasa con algunas librerias rio abajo que rompen esta parte si ya estan cargadas
+  # dplyr::filter(grepl('Total', fuel)) %>%
+  dplyr::filter(grepl(yr, year)) %>%
+  dplyr::filter(grepl('Urban', area)) %>%
+  group_by(iso3) %>% 
+  summarise(urb_pop=sum(people)*1000000,
+            .groups = 'drop') %>%
+  left_join(totpoprob, ., by="iso3") %>% 
+  mutate(furb = round(urb_pop/sum_pop,2)) %>%
+  left_join(robdb_join, ., by = "iso3") %>%
+  dplyr::select(iso3, country, furb) %>%
+  rename(GID_0 = iso3,
+         NAME_0 = country)
+
+furb_who %>%
+  dplyr::filter(GID_0 == "ZMB")
+furb_rob 
+
 # La suma total en la resolución nativa: HRSL: 56,861,964.76; GPW: 44,953,897.44.
 pop0 <- rast(poprast) #in base year
+
 
 if (aoi_poly == 1) {
   # Handle the case where aoi_poly is 1, regardless of byregion
@@ -402,7 +484,7 @@ if (aoi_poly == 1) {
   Sys.sleep(10)
   
 } else if (byregion == "Regional" & aoi_poly == 0) {
-  print("***NOW RUNNING REGION DEMAND SCENARIOS - Country***")
+  print("***NOW RUNNING REGION DEMAND SCENARIOS - Regional***")
   adm0_reg <- mofuss_regions0_gpkg %>% 
     dplyr::filter(grepl(mofuss_region, mofuss_reg))
   # plot(pop0)
@@ -417,8 +499,8 @@ if (aoi_poly == 1) {
   lines(adm0_reg)
   Sys.sleep(10)
   
-} else if (byregion == "Country" & aoi_poly == 0) {
-  print("***NOW RUNNING COUNTRY DEMAND SCENARIOS***")
+} else if (byregion == "Country" & aoi_poly == 0 & subcountry != 1) {
+  print("***NOW RUNNING COUNTRY DEMAND SCENARIOS - Country***")
   adm0_reg <- mofuss_regions0_gpkg %>% 
     dplyr::filter(GID_0 == mofuss_region) # Check if multiple countries or values is doable
   pop0_K <- crop(pop0, ext(adm0_reg) + .01)
@@ -430,15 +512,131 @@ if (aoi_poly == 1) {
   plot(pop0_reg, main=paste0("You selected ",mofuss_region))
   lines(adm0_reg)
   Sys.sleep(10)
+
+  ###################################
+} else if (byregion == "Country" & aoi_poly == 0 & subcountry == 1) { 
+  print("***NOW RUNNING SUB-COUNTRY DEMAND SCENARIOS - Country***")
+  # VERY IMPORTANT TO DEFINE A SOLID WORKFLOW FOR REGIONALIZING COUNTRIES, e.g. Zambia
+  
+  country_parameters %>%
+    dplyr::filter(Var == "region2BprocessedCtry_iso") %>%
+    pull(ParCHR) -> region2BprocessedCtry_iso
+  
+  mofuss_regions2_gpkg <- vect(st_read("demand_in/mofuss_regions2.gpkg"))
+  mofuss_regions2 <- as.data.frame(mofuss_regions2_gpkg)
+  subcountries.list <- mofuss_regions2 %>%
+    dplyr::select(NAME_2, GID_2) %>%
+    terra::unique() %>%
+    arrange(NAME_2)
+
+  # Function: dissolve by NAME_2 matching furb_rob$NAME_0
+  # - ignore_case: set TRUE for case-insensitive matching
+  # x: SpatVector with NAME_2, GID_0
+  # y: tibble/data.frame with NAME_0
+  # iso_filter: e.g., region2BprocessedCtry_iso ("ZMB")
+  dissolve_by_match <- function(x, y, iso_filter, ignore_case = FALSE) {
+    stopifnot(inherits(x, "SpatVector"))
+    if (missing(iso_filter) || is.null(iso_filter)) {
+      stop("Please provide 'iso_filter' (e.g., region2BprocessedCtry_iso).")
+    }
+    
+    # 1) Filter SpatVector to the target country first
+    x <- x[x$GID_0 == iso_filter, ]
+    if (nrow(x) == 0) stop("No features after filtering by GID_0 == iso_filter.")
+    
+    # 2) Prepare comparable names
+    names_sv <- x$NAME_2
+    names_y  <- y$NAME_0
+    if (ignore_case) {
+      names_sv <- toupper(names_sv)
+      names_y  <- toupper(names_y)
+    }
+    
+    matched_vals <- intersect(unique(names_sv), unique(names_y))
+    
+    # 3) Tag: matched keep their own NAME_2, unmatched go to "Other"
+    x$match_name <- ifelse(
+      names_sv %in% matched_vals,
+      x$NAME_2,
+      ifelse(startsWith(x$NAME_2, "Not"), x$NAME_2, "Other")
+    )
+    
+    # 4) Dissolve by tag
+    x_diss <- terra::aggregate(x["match_name"], by = "match_name")
+    
+    # 5) Attach a sensible GID_0 per dissolved feature
+    attr_tbl <- as.data.frame(x[, c("match_name", "GID_0")]) %>%
+      group_by(match_name) %>%
+      summarise(
+        GID_0 = {
+          g0u <- unique(GID_0)
+          if (length(g0u) == 1) g0u else NA_character_
+        },
+        .groups = "drop"
+      )
+    
+    x_out <- terra::merge(x_diss, attr_tbl, by = "match_name")
+    x_out <- x_out[, c("match_name", "GID_0")]  # tidy column order
+    x_out
+  }
+  
+  
+  # ---- Usage ----
+  result_vec <- dissolve_by_match(
+    x = mofuss_regions2_gpkg,
+    y = furb_rob,
+    iso_filter = region2BprocessedCtry_iso,   # e.g. "ZMB"
+    ignore_case = FALSE                       # set TRUE if needed
+  )
+  
+  # Build a small lookup from furb_rob
+  lkp <- furb_rob %>%
+    transmute(match_name = NAME_0,    # will match result_vec$match_name (e.g., "Lusaka", "Other")
+              GID_0_furb = GID_0,     # e.g., ZMB_1, ZMB_2
+              furb)
+  
+  # Left-join attributes into the SpatVector by match_name
+  result_vec2 <- terra::merge(result_vec, lkp, by = "match_name", all.x = TRUE)
+  
+  # Prefer GID_0 from furb_rob when available; keep existing otherwise (e.g., "Other")
+  result_vec2$GID_0 <- ifelse(!is.na(result_vec2$GID_0_furb),
+                              result_vec2$GID_0_furb,
+                              result_vec2$GID_0)
+  
+  # Tidy columns (keep furb if you want it on the layer)
+  result_vec2 <- result_vec2[, c("match_name", "GID_0", "furb")]
+  
+  # Quick check
+  plot(result_vec2, col = rainbow(nrow(result_vec2))); result_vec2
+  
+  
+  
+  # Quick visual sanity check:
+  plot(result_vec, col = rainbow(nrow(result_vec))); result_vec
+  result_vec
+  
+  adm0_reg <- result_vec
+  pop0_K <- crop(pop0, ext(adm0_reg) + .01)
+  if (os == "Windows") {
+    pop0_reg <- mask(pop0_K, adm0_reg) #THIS BREAKS IN UBUNTU
+  } else if(os == "Linux") {
+    pop0_reg <- pop0_K
+  }
+  plot(pop0_reg, main=paste0("You selected ",region2BprocessedCtry_iso))
+  lines(adm0_reg)
+  Sys.sleep(10)
+
+  ##########################################################  
   
 } else {
   # Handle any other conditions if necessary
   cat("No specific conditions met.\n")
 }
 
-
-# To cross-check with excel demadn dataset: cons_fuels_yearsxlsx
+# To cross-check with excel demand dataset: cons_fuels_years.xlsx
 unique(adm0_reg$GID_0)
+# unique(adm1_reg$GID_1)
+# unique(adm2_reg$GID_2)
 
 # Ask Diana to translate this ugly loop into a split-apply-compile process with apply (mapply?)
 # Will be much faster but less easy to debug

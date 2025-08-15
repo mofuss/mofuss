@@ -16,8 +16,8 @@
 
 # 2dolist ----
 # FIX THE MASK ISSUE WITH LINUX, THAT WAS PATCHED FOR THE MOMENT!
-# ALLOW OTHER SCENRIOS: Start in line 183
-
+# ALLOW OTHER SCENARIOS: Start in line 183
+# VERY IMPORTANT TO DEFINE A SOLID WORKFLOW FOR REGIONALIZING COUNTRIES, e.g. Zambia
 
 # Internal parameters ----
 optimizeD = 0
@@ -41,6 +41,7 @@ if (temdirdefined == 1) {
 # terraOptions(memfrac=0.9)
 # terraOptions(progress=0)
 library(gdata)
+library(ggplot2)
 #library(hacksaw)
 #library(mapview)
 library(raster)
@@ -121,7 +122,12 @@ country_parameters %>%
   pull(ParCHR) -> byregion
 if (byregion != "Country") {
   urb_shift_factor <- 1
-  }
+}
+
+country_parameters %>%
+  dplyr::filter(Var == "subcountry") %>%
+  pull(ParCHR) %>%
+  as.integer(.) -> subcountry
 
 country_parameters %>%
   dplyr::filter(Var == "end_year") %>%
@@ -195,13 +201,23 @@ if (scenario_ver == "BaU") {
 } else if (scenario_ver == "ICS2_lusaka_notlusaka") {
   wfdb <- read_csv("demand_in/cons_fuels_years_Proj2_Lusaka-NotLusaka.csv")
 }
+unique(wfdb$fuel)
 
-# Unify "fuelwood" to "biomass" #Consider the other way round but we'll need to debug downstream
-wfdb <- wfdb %>%
-  mutate(fuel = if_else(fuel == "fuelwood", "biomass", fuel))
+# Unify "fuelwood" to "biomass" # Consider the other way round but we'll need to debug downstream
+if (subcountry == 1) {
+  wfdb <- wfdb %>%
+    mutate(
+      fuel = case_when(
+        tolower(fuel) == "fuelwood" ~ "Biomass",
+        tolower(fuel) == "charcoal" ~ "Charcoal",
+        TRUE ~ fuel
+      ),
+      iso3 = paste0(iso3, "_", dense_rank(country))
+    )
+}
+unique(wfdb$fuel)
 
 head(wfdb)
-
 print(scenario_ver) # save as text to recover later down the river
 
 setwd(countrydir)
@@ -221,25 +237,10 @@ write.table(annos, "LULCC/TempTables/annos.txt")
 annostxt <- read.table("LULCC/TempTables/annos.txt") %>% .$x 
 setwd(demanddir)
 
-# Get mofuss region for parameters below
-mofuss_regions0_gpkg <- vect(st_read("demand_in/mofuss_regions0.gpkg"))
-mofuss_regions0 <- as.data.frame(mofuss_regions0_gpkg)
-
-continent.list <- mofuss_regions0 %>%
-  dplyr::select(mofuss_reg) %>%
-  terra::unique()
-
-regions.list <- mofuss_regions0 %>%
-  dplyr::select(mofuss_reg) %>%
-  terra::unique()
-
-countries.list <- mofuss_regions0 %>%
-  dplyr::select(NAME_0, GID_0) %>%
-  terra::unique() %>%
-  arrange(NAME_0)
-
 # Select a region
 if (aoi_poly == 1) {
+  mofuss_regions0_gpkg <- vect(st_read("demand_in/mofuss_regions0.gpkg"))
+  # mofuss_regions0 <- as.data.frame(mofuss_regions0_gpkg)
   # Handle the case where aoi_poly is 1, regardless of byregion
   cat("aoi_poly is set to 1. This overrides other conditions.\n")
   # Define file paths
@@ -318,15 +319,32 @@ if (aoi_poly == 1) {
     cat("You selected:\n")
     print(mofuss_region)
   }
-  
+
 } else {
   # Handle any other conditions if necessary
   cat("No specific conditions met.\n")
 }
 
-# i="KEN" 
+# Get mofuss region for parameters below
+mofuss_regions0_gpkg <- vect(st_read("demand_in/mofuss_regions0.gpkg"))
+mofuss_regions0 <- as.data.frame(mofuss_regions0_gpkg)
+
+continent.list <- mofuss_regions0 %>%
+  dplyr::select(mofuss_reg) %>%
+  terra::unique()
+
+regions.list <- mofuss_regions0 %>%
+  dplyr::select(mofuss_reg) %>%
+  terra::unique()
+
+countries.list <- mofuss_regions0 %>%
+  dplyr::select(NAME_0, GID_0) %>%
+  terra::unique() %>%
+  arrange(NAME_0)
+
+if (subcountry != 1) {
+  
 totpopWHO <- whodb %>% 
-  # dplyr::filter(grepl(i, iso3)) %>% # searchs for the pattern, anywhere within the string
   dplyr::filter(grepl('Total', fuel)) %>%
   dplyr::filter(grepl(yr, year)) %>%
   dplyr::filter(!grepl('Over', area)) %>%
@@ -340,7 +358,6 @@ whodb_join <- whodb %>%
   terra::unique()
 
 furb_who <- whodb %>% # algo pasa con algunas librerias rio abajo que rompen esta parte si ya estan cargadas
-  # dplyr::filter(grepl(i, iso3)) %>% # searchs for the pattern, anywhere within the string
   dplyr::filter(grepl('Total', fuel)) %>%
   dplyr::filter(grepl(yr, year)) %>%
   dplyr::filter(grepl('Urban', area)) %>%
@@ -353,6 +370,42 @@ furb_who <- whodb %>% # algo pasa con algunas librerias rio abajo que rompen est
   dplyr::select(iso3, country, furb) %>%
   rename(GID_0 = iso3,
          NAME_0 = country)
+
+furb_who %>%
+  dplyr::filter(GID_0 == "ZMB")
+
+} else if (subcountry == 1) {
+  
+  totpoprob <- wfdb %>%
+    # dplyr::filter(grepl('Total', fuel)) %>%
+    dplyr::filter(grepl(yr, year)) %>%
+    # dplyr::filter(!grepl('Over', area)) %>%
+    group_by(iso3) %>%
+    summarise(sum_pop=sum(people)*1000000, #Ask Rob to fix the x 1,000,000 for x1,000 and "pop" instead of people
+              .groups = 'drop')
+
+  # Reads furb in 2018(????) from Rob dataset
+  robdb_join <- wfdb %>%
+    dplyr::select(iso3, country) %>%
+    terra::unique()
+  
+  furb_rob <- wfdb %>% # algo pasa con algunas librerias rio abajo que rompen esta parte si ya estan cargadas
+    # dplyr::filter(grepl('Total', fuel)) %>%
+    dplyr::filter(grepl(yr, year)) %>%
+    dplyr::filter(grepl('Urban', area)) %>%
+    group_by(iso3) %>% 
+    summarise(urb_pop=sum(people)*1000000,
+              .groups = 'drop') %>%
+    left_join(totpoprob, ., by="iso3") %>% 
+    mutate(furb = round(urb_pop/sum_pop,2)) %>%
+    left_join(robdb_join, ., by = "iso3") %>%
+    dplyr::select(iso3, country, furb) %>%
+    rename(GID_0 = iso3,
+           NAME_0 = country)
+  
+  furb_rob 
+
+}
 
 # La suma total en la resolución nativa: HRSL: 56,861,964.76; GPW: 44,953,897.44.
 pop0 <- rast(poprast) #in base year
@@ -402,7 +455,7 @@ if (aoi_poly == 1) {
   Sys.sleep(10)
   
 } else if (byregion == "Regional" & aoi_poly == 0) {
-  print("***NOW RUNNING REGION DEMAND SCENARIOS - Country***")
+  print("***NOW RUNNING REGION DEMAND SCENARIOS - Regional***")
   adm0_reg <- mofuss_regions0_gpkg %>% 
     dplyr::filter(grepl(mofuss_region, mofuss_reg))
   # plot(pop0)
@@ -417,8 +470,8 @@ if (aoi_poly == 1) {
   lines(adm0_reg)
   Sys.sleep(10)
   
-} else if (byregion == "Country" & aoi_poly == 0) {
-  print("***NOW RUNNING COUNTRY DEMAND SCENARIOS***")
+} else if (byregion == "Country" & aoi_poly == 0 & subcountry != 1) {
+  print("***NOW RUNNING COUNTRY DEMAND SCENARIOS - Country***")
   adm0_reg <- mofuss_regions0_gpkg %>% 
     dplyr::filter(GID_0 == mofuss_region) # Check if multiple countries or values is doable
   pop0_K <- crop(pop0, ext(adm0_reg) + .01)
@@ -430,33 +483,158 @@ if (aoi_poly == 1) {
   plot(pop0_reg, main=paste0("You selected ",mofuss_region))
   lines(adm0_reg)
   Sys.sleep(10)
+
+} else if (byregion == "Country" & aoi_poly == 0 & subcountry == 1) { 
+  print("***NOW RUNNING SUB-COUNTRY DEMAND SCENARIOS - Country***")
+  # VERY IMPORTANT TO DEFINE A SOLID WORKFLOW FOR REGIONALIZING COUNTRIES, e.g. Zambia
   
+  country_parameters %>%
+    dplyr::filter(Var == "region2BprocessedCtry_iso") %>%
+    pull(ParCHR) -> region2BprocessedCtry_iso
+  
+  mofuss_regions2_gpkg <- vect(st_read("demand_in/mofuss_regions2.gpkg"))
+  mofuss_regions2 <- as.data.frame(mofuss_regions2_gpkg)
+  subcountries.list <- mofuss_regions2 %>%
+    dplyr::select(NAME_2, GID_2) %>%
+    terra::unique() %>%
+    arrange(NAME_2)
+
+  # Function: dissolve by NAME_2 matching furb_rob$NAME_0
+  # - ignore_case: set TRUE for case-insensitive matching
+  # x: SpatVector with NAME_2, GID_0
+  # y: tibble/data.frame with NAME_0
+  # iso_filter: e.g., region2BprocessedCtry_iso ("ZMB")
+  dissolve_by_match <- function(x, y, iso_filter, ignore_case = FALSE, not_label = NULL) {
+    stopifnot(inherits(x, "SpatVector"))
+    if (missing(iso_filter) || is.null(iso_filter)) {
+      stop("Please provide 'iso_filter' (e.g., region2BprocessedCtry_iso).")
+    }
+    
+    # 1) Filter SpatVector to target ISO
+    x <- x[x$GID_0 == iso_filter, ]
+    if (nrow(x) == 0) stop("No features after filtering by GID_0 == iso_filter.")
+    
+    key <- function(v) {
+      v <- trimws(v)
+      if (ignore_case) toupper(v) else v
+    }
+    
+    # 2) Build lookup from y
+    y_lkp <- y %>%
+      mutate(.key = key(NAME_0)) %>%
+      distinct(.key, .keep_all = TRUE)
+    
+    # 3) Decide the unmatched label
+    if (is.null(not_label)) {
+      not_rows <- y_lkp %>% filter(grepl("^NOT", .key))  # "Not*" considering ignore_case
+      if (nrow(not_rows) == 1) {
+        not_label <- not_rows$NAME_0[[1]]
+      } else if (nrow(not_rows) > 1) {
+        # prefer one present in x$NAME_2 if possible
+        cand <- not_rows$NAME_0
+        present <- cand[key(cand) %in% key(unique(x$NAME_2))]
+        if (length(present) == 1) {
+          not_label <- present
+        } else {
+          stop(
+            "Multiple 'Not*' labels found in y$NAME_0 but none uniquely matches x$NAME_2.\n",
+            "Candidates: ", paste(not_rows$NAME_0, collapse = ", "), "\n",
+            "Specify 'not_label=' explicitly (e.g., not_label = 'NotLusaka')."
+          )
+        }
+      } else {
+        not_label <- "Other"  # fallback when no Not* in y
+      }
+    }
+    
+    # 4) Match vs. unmatched
+    key_sv <- key(x$NAME_2)
+    matched_vals <- intersect(unique(key_sv), unique(y_lkp$.key))
+    
+    # Unmatched get the decided not_label
+    x$match_name <- ifelse(key_sv %in% matched_vals, x$NAME_2, not_label)
+    
+    # 5) Dissolve by match_name
+    x_diss <- terra::aggregate(x["match_name"], by = "match_name")
+    
+    # 6) Join attributes from y (GID_0 required; furb optional)
+    x_diss$.key <- key(x_diss$match_name)
+    bring_cols <- intersect(c("GID_0", "furb"), names(y_lkp))
+    if (!"GID_0" %in% bring_cols) stop("y must contain column 'GID_0'.")
+    
+    lkp_to_merge <- y_lkp %>% select(.key, all_of(bring_cols))
+    x_out <- terra::merge(x_diss, lkp_to_merge, by = ".key", all.x = TRUE)
+    
+    # 7) Fill missing GID_0 (e.g., if not_label wasn't in y)
+    x_out$GID_0 <- ifelse(is.na(x_out$GID_0), iso_filter, x_out$GID_0)
+    
+    # 8) Final columns
+    keep <- c("match_name", "GID_0")
+    if ("furb" %in% names(x_out)) keep <- c(keep, "furb")
+    x_out <- x_out[, keep]
+    
+    x_out
+  }
+  
+  # Usage
+  result_vec <- dissolve_by_match(
+    x = mofuss_regions2_gpkg,
+    y = furb_rob,
+    iso_filter = region2BprocessedCtry_iso,
+    ignore_case = TRUE,
+    #not_label = "NotLusaka"
+  )
+
+  # Quick visual sanity check:
+  plot(result_vec, col = rainbow(nrow(result_vec))); result_vec
+  result_vec
+  
+  adm0_reg <- result_vec
+  pop0_K <- crop(pop0, ext(adm0_reg) + .01)
+  if (os == "Windows") {
+    pop0_reg <- mask(pop0_K, adm0_reg) #THIS BREAKS IN UBUNTU
+  } else if(os == "Linux") {
+    pop0_reg <- pop0_K
+  }
+  plot(pop0_reg, main=paste0("You selected ",region2BprocessedCtry_iso))
+  lines(adm0_reg)
+  Sys.sleep(10)
+
 } else {
   # Handle any other conditions if necessary
   cat("No specific conditions met.\n")
 }
 
-
-# To cross-check with excel demadn dataset: cons_fuels_yearsxlsx
+# To cross-check with excel demand dataset: cons_fuels_years.xlsx
 unique(adm0_reg$GID_0)
+# unique(adm1_reg$GID_1)
+# unique(adm2_reg$GID_2)
 
 # Ask Diana to translate this ugly loop into a split-apply-compile process with apply (mapply?)
 # Will be much faster but less easy to debug
 
 for (i in adm0_reg$GID_0) { # start of the for loop ----
-  #i ="CIV"
+  # i ="ZMB_1"
   print(i)
-  ctry_furb <- furb_who %>%
-    dplyr::filter(GID_0 == i) %>%
-    pull(furb)
-  # ctry_name <- furb_who %>%
-  #   dplyr::filter(GID_0 == i) %>%
-  #   pull(NAME_0)
-  who_ctry_pop <- totpopWHO %>%
-    dplyr::filter(iso3 == i) %>%
-    pull(sum_pop)
-  ctry_vector <- adm0_reg %>%
-    dplyr::filter(GID_0 == i)
+  if (subcountry != 1) {
+    ctry_furb <- furb_who %>%
+      dplyr::filter(GID_0 == i) %>%
+      pull(furb)
+    who_ctry_pop <- totpopWHO %>%
+      dplyr::filter(iso3 == i) %>%
+      pull(sum_pop)
+    ctry_vector <- adm0_reg %>%
+      dplyr::filter(GID_0 == i)
+  } else if (subcountry == 1) {
+    ctry_furb <- furb_rob %>%
+      dplyr::filter(GID_0 == i) %>%
+      pull(furb)
+    rob_ctry_pop <- totpoprob %>%
+      dplyr::filter(iso3 == i) %>%
+      pull(sum_pop)
+    ctry_vector <- adm0_reg %>%
+      dplyr::filter(GID_0 == i)
+  }
   
   pop0_K2 <- crop(pop0_reg, ext(ctry_vector) + .01)
   if (os == "Windows") {
@@ -479,7 +657,12 @@ for (i in adm0_reg$GID_0) { # start of the for loop ----
   urbpop
   rurpop
   
-  pop0_ctry_rasadj <- pop0_ctry_ras*who_ctry_pop/totpop
+  if (subcountry != 1) {
+    pop0_ctry_rasadj <- pop0_ctry_ras*who_ctry_pop/totpop
+  } else if (subcountry == 1) {
+    pop0_ctry_rasadj <- pop0_ctry_ras*rob_ctry_pop/totpop
+  }
+  
   totpopadj <- round(global(pop0_ctry_rasadj, "sum", na.rm=TRUE),0) %>%
     pull(sum)
   urbpopadj <- round(totpopadj * ctry_furb,0)
@@ -497,6 +680,7 @@ for (i in adm0_reg$GID_0) { # start of the for loop ----
     terraOptions(memfrac=0.9)
     print(j)
     
+    if (subcountry != 1) {
     totpopWHO_annual <- whodb %>% 
       # dplyr::filter(grepl(i, iso3)) %>% # searchs for the pattern, anywhere within the string
       dplyr::filter(grepl('Total', fuel)) %>% #Porque usar grelp?
@@ -520,6 +704,35 @@ for (i in adm0_reg$GID_0) { # start of the for loop ----
     urbpopadj.anno
     rurpopadj.anno
     terra::writeRaster(pop0_ctry_rasadj.anno, paste0("pop_temp/",pop_ver,"_",i,"_",j,"_popadj.tif"), filetype = "GTiff", overwrite = TRUE)
+    
+
+    } else if (subcountry == 1) {
+
+    totpopROB_annual <- wfdb %>% 
+      # dplyr::filter(grepl(i, iso3)) %>% # searchs for the pattern, anywhere within the string
+      # dplyr::filter(grepl('Total', fuel)) %>% #Porque usar grelp?
+      # dplyr::filter(grepl(yr, year)) %>%
+      # dplyr::filter(!grepl('Over', area)) %>%
+      group_by(iso3,year) %>% 
+      summarise(sum_pop=sum(people)*1000000,
+                .groups = 'drop')
+    
+    rob_ctry_pop_annual <- totpopROB_annual %>%
+      dplyr::filter(iso3 == i) %>%
+      dplyr::filter(year == j) %>%
+      pull(sum_pop)
+    
+    pop0_ctry_rasadj.anno<- pop0_ctry_ras*rob_ctry_pop_annual/totpop
+    totpopadj.anno <- round(global(pop0_ctry_rasadj.anno, "sum", na.rm=TRUE),0) %>%
+      pull(sum)
+    urbpopadj.anno <- round(totpopadj.anno * ctry_furb,0)
+    rurpopadj.anno <- totpopadj.anno - urbpopadj.anno
+    totpopadj.anno
+    urbpopadj.anno
+    rurpopadj.anno
+    terra::writeRaster(pop0_ctry_rasadj.anno, paste0("pop_temp/",pop_ver,"_",i,"_",j,"_popadj.tif"), filetype = "GTiff", overwrite = TRUE)
+    
+    }
     
   }
   
@@ -631,21 +844,29 @@ for (i in adm0_reg$GID_0) { # start of the for loop ----
   rurpopmap
   rurpopadj
   round((rurpopmap/totpopadj),2)
- 
+
   # Spread population (whodb) and demand (wfdb) by BIOMASS use and urban vs rural ----
-  
-  biopopWHO <- whodb %>% 
-    dplyr::filter(grepl(i, iso3)) %>% # searchs for the pattern, anywhere within the string
-    dplyr::filter(grepl('Bio', fuel)) %>%
-    dplyr::filter(grepl(yr, year)) %>%
-    dplyr::filter(grepl('Rur|Urb', area))
-  
+  if (subcountry != 1) {
+    biopopWHO <- whodb %>% 
+      dplyr::filter(grepl(i, iso3)) %>% # searchs for the pattern, anywhere within the string
+      dplyr::filter(grepl('Bio', fuel)) %>%
+      dplyr::filter(grepl(yr, year)) %>%
+      dplyr::filter(grepl('Rur|Urb', area))
+  } else if (subcountry == 1) {
+    biopopROB <- wfdb %>% 
+      dplyr::filter(grepl(i, iso3)) %>% # searchs for the pattern, anywhere within the string
+      dplyr::filter(grepl('Bio', fuel)) %>%
+      dplyr::filter(grepl(yr, year)) %>%
+      dplyr::filter(grepl('Rur|Urb', area))
+  }
+
   biowfdb <- wfdb %>% 
     dplyr::filter(grepl(i, iso3)) %>% # searchs for the pattern, anywhere within the string
     dplyr::filter(grepl('Bio', fuel)) %>%
     dplyr::filter(grepl(yr, year)) %>%
     dplyr::filter(grepl('Rur|Urb', area))
   
+  if (subcountry != 1) {
   biourb <- biopopWHO %>% 
     dplyr::filter(grepl('Urb', area)) %>%
     dplyr::select(pop) %>% 
@@ -674,6 +895,37 @@ for (i in adm0_reg$GID_0) { # start of the for loop ----
     sum()
   rurbioDem_Sctry <- ruralpopulation*biorur_d_tons/rurpopmap
   
+  } else if (subcountry == 1) {
+  
+    biourb <- biopopROB %>% 
+      dplyr::filter(grepl('Urb', area)) %>%
+      dplyr::select(people) %>% 
+      sum()*1000000
+    urbpopmap
+    urbbio_Sctry <- urbanpopulation*biourb/urbpopmap
+    round(global(urbbio_Sctry, "sum", na.rm=TRUE),0) %>% 
+      pull(sum)
+    biourb_d_tons <- biowfdb %>% 
+      dplyr::filter(grepl('Urb', area)) %>%
+      dplyr::select(all_of(demand_col)) %>% 
+      sum()
+    urbbioDem_Sctry <- urbanpopulation*biourb_d_tons/urbpopmap
+    
+    biorur <- biopopROB %>% 
+      dplyr::filter(grepl('Rur', area)) %>%
+      dplyr::select(people) %>% 
+      sum()*1000000  
+    rurpopmap
+    rurbio_Sctry <- ruralpopulation*biorur/rurpopmap
+    round(global(rurbio_Sctry, "sum", na.rm=TRUE),0) %>% 
+      pull(sum)
+    biorur_d_tons <- biowfdb %>% 
+      dplyr::filter(grepl('Rur', area)) %>%
+      dplyr::select(all_of(demand_col)) %>% 
+      sum()
+    rurbioDem_Sctry <- ruralpopulation*biorur_d_tons/rurpopmap
+  
+  }
   rururbbio <- merge(rurbio_Sctry,urbbio_Sctry)
   # plot(rururbbio)
   terra::writeRaster(rururbbio, paste0("pop_temp/",pop_ver,"_",i,"_",yr,"_bio_users.tif"), filetype = "GTiff", overwrite = TRUE)
@@ -689,13 +941,21 @@ for (i in adm0_reg$GID_0) { # start of the for loop ----
   terra::writeRaster(bio_percap, paste0("demand_temp/",pop_ver,"_",i,"_",yr,"_bio_percap.tif"), filetype = "GTiff", overwrite = TRUE)
   global(bio_percap, fun="notNA")
   
-  # Spread population (WHO) and demand (wfdb) by CHARCOAL use and urban vs rural ----
-  
+  # # Spread population (whodb) and demand (wfdb) by CHARCOAL use and urban vs rural ----
+  if (subcountry != 1) {
   chapopWHO <- whodb %>% 
     dplyr::filter(grepl(i, iso3)) %>% # searchs for the pattern, anywhere within the string
     dplyr::filter(grepl('Cha', fuel)) %>%
     dplyr::filter(grepl(yr, year)) %>%
     dplyr::filter(grepl('Rur|Urb', area))
+  
+  } else if (subcountry == 1) {
+    chapopROB <- wfdb %>% 
+      dplyr::filter(grepl(i, iso3)) %>% # searchs for the pattern, anywhere within the string
+      dplyr::filter(grepl('Cha', fuel)) %>%
+      dplyr::filter(grepl(yr, year)) %>%
+      dplyr::filter(grepl('Rur|Urb', area))
+  }
   
   chawfdb <- wfdb %>% 
     dplyr::filter(grepl(i, iso3)) %>% # searchs for the pattern, anywhere within the string
@@ -703,6 +963,7 @@ for (i in adm0_reg$GID_0) { # start of the for loop ----
     dplyr::filter(grepl(yr, year)) %>%
     dplyr::filter(grepl('Rur|Urb', area))
   
+  if (subcountry != 1) {
   chaurb <- chapopWHO %>% 
     dplyr::filter(grepl('Urb', area)) %>%
     dplyr::select(pop) %>% 
@@ -730,6 +991,38 @@ for (i in adm0_reg$GID_0) { # start of the for loop ----
     dplyr::select(all_of(demand_col)) %>% 
     sum()
   rurchaDem_Sctry <- ruralpopulation*charur_d_tons/rurpopmap
+  
+  } else if (subcountry == 1) {
+    
+    chaurb <- chapopROB %>% 
+      dplyr::filter(grepl('Urb', area)) %>%
+      dplyr::select(people) %>% 
+      sum()*1000000
+    urbpopmap 
+    urbcha_Sctry <- urbanpopulation*chaurb/urbpopmap
+    round(global(urbcha_Sctry, "sum", na.rm=TRUE),0) %>% 
+      pull(sum)
+    chaurb_d_tons <- chawfdb %>% 
+      dplyr::filter(grepl('Urb', area)) %>%
+      dplyr::select(all_of(demand_col)) %>% 
+      sum()
+    urbchaDem_Sctry <- urbanpopulation*chaurb_d_tons/urbpopmap
+    
+    charur <- chapopROB %>% 
+      dplyr::filter(grepl('Rur', area)) %>%
+      dplyr::select(people) %>% 
+      sum()*1000000  
+    rurpopmap
+    rurcha_Sctry <- ruralpopulation*charur/rurpopmap
+    round(global(rurcha_Sctry, "sum", na.rm=TRUE),0) %>% 
+      pull(sum)
+    charur_d_tons <- chawfdb %>% 
+      dplyr::filter(grepl('Rur', area)) %>%
+      dplyr::select(all_of(demand_col)) %>% 
+      sum()
+    rurchaDem_Sctry <- ruralpopulation*charur_d_tons/rurpopmap
+    
+  }
   
   rururbcha <- merge(rurcha_Sctry,urbcha_Sctry)
   # plot(rururbcha)
@@ -785,11 +1078,20 @@ for (i in adm0_reg$GID_0) { # start of the for loop ----
       # dplyr::filter(grepl(j, year)) %>%
       dplyr::filter(grepl('Rur|Urb', area))
     
-    biourb.anno <- biopopWHO.anno %>% 
-      dplyr::filter(area == "Urban") %>%
-      dplyr::filter(year == j) %>%
-      dplyr::select(pop) %>% 
-      sum()*1000
+    if (subcountry != 1) {
+      biourb.anno <- biopopWHO.anno %>% 
+        dplyr::filter(area == "Urban") %>%
+        dplyr::filter(year == j) %>%
+        dplyr::select(pop) %>% 
+        sum()*1000
+    } else if (subcountry == 1) {
+      biourb.anno <- biowfdb.anno %>% 
+        dplyr::filter(area == "Urban") %>%
+        dplyr::filter(year == j) %>%
+        dplyr::select(people) %>% 
+        sum()*1000000
+    } 
+
     urbpopmap
     urbbio_Sctry.anno <- urbanpopulation*biourb.anno/urbpopmap
     round(global(urbbio_Sctry, "sum", na.rm=TRUE),0) %>% 
@@ -802,11 +1104,20 @@ for (i in adm0_reg$GID_0) { # start of the for loop ----
     urbpopmap
     urbbioDem_Sctry.anno <- urbanpopulation*biourb_d_tons.anno/urbpopmap
     
-    biorur.anno <- biopopWHO.anno %>% 
-      dplyr::filter(area == "Rural") %>%
-      dplyr::filter(year == j) %>%
-      dplyr::select(pop) %>% 
-      sum()*1000  
+    if (subcountry != 1) {
+      biorur.anno <- biopopWHO.anno %>% 
+        dplyr::filter(area == "Rural") %>%
+        dplyr::filter(year == j) %>%
+        dplyr::select(pop) %>% 
+        sum()*1000
+    } else if (subcountry == 1) {
+      biorur.anno <- biowfdb.anno %>% 
+        dplyr::filter(area == "Rural") %>%
+        dplyr::filter(year == j) %>%
+        dplyr::select(people) %>% 
+        sum()*1000000
+    }
+    
     rurpopmap
     rurbio_Sctry.anno <- ruralpopulation*biorur.anno/rurpopmap
     round(global(rurbio_Sctry, "sum", na.rm=TRUE),0) %>% 
@@ -845,11 +1156,20 @@ for (i in adm0_reg$GID_0) { # start of the for loop ----
       # dplyr::filter(grepl(j, year)) %>%
       dplyr::filter(grepl('Rur|Urb', area))
     
-    chaurb.anno <- chapopWHO.anno %>% 
-      dplyr::filter(area == "Urban") %>%
-      dplyr::filter(year == j) %>%
-      dplyr::select(pop) %>% 
-      sum()*1000
+    if (subcountry != 1) {
+      chaurb.anno <- chapopWHO.anno %>% 
+        dplyr::filter(area == "Urban") %>%
+        dplyr::filter(year == j) %>%
+        dplyr::select(pop) %>% 
+        sum()*1000
+    } else if (subcountry == 1) {
+      chaurb.anno <- chawfdb.anno %>% 
+        dplyr::filter(area == "Urban") %>%
+        dplyr::filter(year == j) %>%
+        dplyr::select(people) %>% 
+        sum()*1000000
+    }
+    
     urbpopmap 
     urbcha_Sctry.anno <- urbanpopulation*chaurb.anno/urbpopmap
     round(global(urbcha_Sctry.anno, "sum", na.rm=TRUE),0) %>% 
@@ -861,11 +1181,20 @@ for (i in adm0_reg$GID_0) { # start of the for loop ----
       sum()
     urbchaDem_Sctry.anno <- urbanpopulation*chaurb_d_tons.anno/urbpopmap
     
-    charur.anno <- chapopWHO.anno %>% 
-      dplyr::filter(area == "Rural") %>%
-      dplyr::filter(year == j) %>%
-      dplyr::select(pop) %>% 
-      sum()*1000
+    if (subcountry != 1) {
+      charur.anno <- chapopWHO.anno %>% 
+        dplyr::filter(area == "Rural") %>%
+        dplyr::filter(year == j) %>%
+        dplyr::select(pop) %>% 
+        sum()*1000
+    } else if (subcountry == 1) {
+      charur.anno <- chawfdb.anno %>% 
+        dplyr::filter(area == "Rural") %>%
+        dplyr::filter(year == j) %>%
+        dplyr::select(people) %>% 
+        sum()*1000000
+    }
+
     rurpopmap
     rurcha_Sctry.anno <- ruralpopulation*charur.anno/rurpopmap
     round(global(rurcha_Sctry.anno, "sum", na.rm=TRUE),0) %>% 
@@ -959,7 +1288,7 @@ for (k in annos__2018) {
     bioDem_raster_list <- lapply(bioDem_list, rast)
     bioDem_users <- do.call("merge", bioDem_raster_list)
     terra::writeRaster(bioDem_users,
-                       paste0("demand_out/",pop_ver,"L_bio_demand_",k,".tif"),
+                       paste0("demand_out/",pop_ver,"_bio_demand_",k,".tif"),
                        filetype = "GTiff", overwrite = TRUE)
     
     pop_raster_list <- lapply(pop_list, rast)
@@ -1071,7 +1400,7 @@ for (k in annos__2018) {
 
 # Save in a format ingestible by MoFuSS (IDW C++ script) ----
 # setwd(demanddir)
-# Important to remove zeros from both 
+# Important to remove zeros from both  / Moreover for subcountry == 1 
 
 # Walking
 if (optimizeD == 1) {
@@ -1166,7 +1495,7 @@ wf_w_db4idw %>%
   mutate_if(is.character, as.numeric) %>%
   # mutate(across(where(is.numeric), round, 6)) %>%
   mutate_if(is.numeric, round, 6) %>%
-  write.csv("to_idw/BaU_fwch_w.csv", row.names=FALSE, quote=FALSE)
+  write.csv(paste0("to_idw/",substr(scenario_ver, 1, 3),"_fwch_w.csv"), row.names=FALSE, quote=FALSE)
 
 # Vehicle
 if (optimizeD == 1) {
@@ -1259,7 +1588,7 @@ wf_v_db4idw %>%
   mutate_if(is.character, as.numeric) %>%
   # mutate(across(where(is.numeric), round, 6)) %>%
   mutate_if(is.numeric, round, 6) %>%
-  write.csv("to_idw/BaU_fwch_v.csv", row.names=FALSE, quote=FALSE)
+  write.csv(paste0("to_idw/",substr(scenario_ver, 1, 3),"_fwch_v.csv"), row.names=FALSE, quote=FALSE)
 
 
 # Copy to MoFuSS ----
@@ -1280,11 +1609,11 @@ file.copy(from=paste0(demanddir,"/to_idw/locs_raster_v.tif"),
           to=paste0(countrydir,"/In/DemandScenarios"),
           overwrite = TRUE)
 
-file.copy(from=paste0(demanddir,"/to_idw/BaU_fwch_w.csv"),
+file.copy(from=paste0(demanddir,"/to_idw/",substr(scenario_ver, 1, 3),"_fwch_w.csv"),
           to=paste0(countrydir,"/In/DemandScenarios"),
           overwrite = TRUE)
 
-file.copy(from=paste0(demanddir,"/to_idw/BaU_fwch_v.csv"),
+file.copy(from=paste0(demanddir,"/to_idw/",substr(scenario_ver, 1, 3),"_fwch_v.csv"),
           to=paste0(countrydir,"/In/DemandScenarios"),
           overwrite = TRUE)
 

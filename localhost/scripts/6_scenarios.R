@@ -19,6 +19,7 @@
 # work smoothly with GEE at varying scales!!
 # Fix for linux cluster
 # Read validation dataset and based on that turn on/off deforestation module in dinamica
+# Line 183: BaU vs ICS
 
 # Internal parameters ----
 attdecay = 1.15  # decay rate of attraction kernels
