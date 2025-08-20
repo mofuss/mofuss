@@ -18,6 +18,7 @@
 # FIX THE MASK ISSUE WITH LINUX, THAT WAS PATCHED FOR THE MOMENT!
 # ALLOW OTHER SCENARIOS: Start in line 183
 # VERY IMPORTANT TO DEFINE A SOLID WORKFLOW FOR REGIONALIZING COUNTRIES, e.g. Zambia
+# 1339 names(wf_w_dbx)[4:ncol(wf_w_dbx)] <- "GlobalWorldPop" # Warning: Bring from WP vs HSRL
 
 # Internal parameters ----
 optimizeD = 0
@@ -40,10 +41,12 @@ if (temdirdefined == 1) {
 }
 # terraOptions(memfrac=0.9)
 # terraOptions(progress=0)
+library(dplyr)
 library(gdata)
 library(ggplot2)
 #library(hacksaw)
 #library(mapview)
+library(purrr)
 library(raster)
 library(readxl)
 library(rlang)
@@ -53,6 +56,7 @@ library(tibble)
 library(tictoc)
 library(tidyterra)
 library(tidyverse)
+library(tidyr)
 
 # Detect OS
 os <- Sys.info()["sysname"]
@@ -229,7 +233,8 @@ setwd(demanddir)
 
 # Time period
 annos.list2 <- c(2010:end_year) 
-annos <- annos.list2[!annos.list2 %in% yr]
+# annos <- annos.list2[!annos.list2 %in% yr]
+annos <- annos.list2
 
 # Save in LULCC/TempTables to replace parameters years
 setwd(countrydir)
@@ -357,7 +362,7 @@ whodb_join <- whodb %>%
   dplyr::select(iso3, country) %>%
   terra::unique()
 
-furb_who <- whodb %>% # algo pasa con algunas librerias rio abajo que rompen esta parte si ya estan cargadas
+furb_who <- whodb %>%
   dplyr::filter(grepl('Total', fuel)) %>%
   dplyr::filter(grepl(yr, year)) %>%
   dplyr::filter(grepl('Urban', area)) %>%
@@ -381,7 +386,7 @@ furb_who %>%
     dplyr::filter(grepl(yr, year)) %>%
     # dplyr::filter(!grepl('Over', area)) %>%
     group_by(iso3) %>%
-    summarise(sum_pop=sum(people)*1000000, #Ask Rob to fix the x 1,000,000 for x1,000 and "pop" instead of people
+    summarise(sum_pop=sum(people)*1000, #Ask Rob to fix the x 1,000,000 for x1,000 and "pop" instead of people
               .groups = 'drop')
 
   # Reads furb in 2018(????) from Rob dataset
@@ -394,7 +399,7 @@ furb_who %>%
     dplyr::filter(grepl(yr, year)) %>%
     dplyr::filter(grepl('Urban', area)) %>%
     group_by(iso3) %>% 
-    summarise(urb_pop=sum(people)*1000000,
+    summarise(urb_pop=sum(people)*1000,
               .groups = 'drop') %>%
     left_join(totpoprob, ., by="iso3") %>% 
     mutate(furb = round(urb_pop/sum_pop,2)) %>%
@@ -613,8 +618,8 @@ unique(adm0_reg$GID_0)
 # Ask Diana to translate this ugly loop into a split-apply-compile process with apply (mapply?)
 # Will be much faster but less easy to debug
 
-for (i in adm0_reg$GID_0) { # start of the for loop ----
-  # i ="ZMB_1"
+for (i in adm0_reg$GID_0) { # Start of outer region (i) loop ----
+  # i = "ZMB_1"
   print(i)
   if (subcountry != 1) {
     ctry_furb <- furb_who %>%
@@ -681,455 +686,318 @@ for (i in adm0_reg$GID_0) { # start of the for loop ----
     print(j)
     
     if (subcountry != 1) {
-    totpopWHO_annual <- whodb %>% 
-      # dplyr::filter(grepl(i, iso3)) %>% # searchs for the pattern, anywhere within the string
-      dplyr::filter(grepl('Total', fuel)) %>% #Porque usar grelp?
-      # dplyr::filter(grepl(yr, year)) %>%
-      dplyr::filter(!grepl('Over', area)) %>%
-      group_by(iso3,year) %>% 
-      summarise(sum_pop=sum(pop)*1000,
-                .groups = 'drop')
-    
-    who_ctry_pop_annual <- totpopWHO_annual %>%
-      dplyr::filter(iso3 == i) %>%
-      dplyr::filter(year == j) %>%
-      pull(sum_pop)
-    
-    pop0_ctry_rasadj.anno<- pop0_ctry_ras*who_ctry_pop_annual/totpop
-    totpopadj.anno <- round(global(pop0_ctry_rasadj.anno, "sum", na.rm=TRUE),0) %>%
-      pull(sum)
-    urbpopadj.anno <- round(totpopadj.anno * ctry_furb,0)
-    rurpopadj.anno <- totpopadj.anno - urbpopadj.anno
-    totpopadj.anno
-    urbpopadj.anno
-    rurpopadj.anno
-    terra::writeRaster(pop0_ctry_rasadj.anno, paste0("pop_temp/",pop_ver,"_",i,"_",j,"_popadj.tif"), filetype = "GTiff", overwrite = TRUE)
-    
-
+      
+      furb_who.anno <- whodb %>%
+        filter(
+          iso3 == i,
+          !grepl("Total", fuel),
+          grepl(j, year)
+        ) %>%
+        group_by(iso3) %>%
+        summarise(
+          urb_frac = round(
+            sum(pop[grepl("Urban", area)]) /
+              sum(pop[grepl("Overall", area)]),
+            2
+          ),
+          .groups = "drop"
+        ) %>%
+        dplyr::pull(urb_frac)
+      
+      
+      totpopWHO_annual <- whodb %>% 
+        # dplyr::filter(grepl(i, iso3)) %>% # searchs for the pattern, anywhere within the string
+        dplyr::filter(grepl('Total', fuel)) %>% #Porque usar grelp?
+        # dplyr::filter(grepl(yr, year)) %>%
+        dplyr::filter(!grepl('Over', area)) %>%
+        group_by(iso3,year) %>% 
+        summarise(sum_pop=sum(pop)*1000,
+                  .groups = 'drop')
+      
+      who_ctry_pop_annual <- totpopWHO_annual %>%
+        dplyr::filter(iso3 == i) %>%
+        dplyr::filter(year == j) %>%
+        pull(sum_pop)
+      
+      pop0_ctry_rasadj.anno<- pop0_ctry_ras*who_ctry_pop_annual/totpop
+      totpopadj.anno <- round(global(pop0_ctry_rasadj.anno, "sum", na.rm=TRUE),0) %>%
+        pull(sum)
+      urbpopadj.anno <- round(totpopadj.anno * furb_who.anno,0)
+      rurpopadj.anno <- totpopadj.anno - urbpopadj.anno
+      totpopadj.anno
+      urbpopadj.anno
+      rurpopadj.anno
+      terra::writeRaster(pop0_ctry_rasadj.anno, paste0("pop_temp/",pop_ver,"_",i,"_",j,"_popadj.tif"), filetype = "GTiff", overwrite = TRUE)
+      
+      
     } else if (subcountry == 1) {
-
-    totpopROB_annual <- wfdb %>% 
-      # dplyr::filter(grepl(i, iso3)) %>% # searchs for the pattern, anywhere within the string
-      # dplyr::filter(grepl('Total', fuel)) %>% #Porque usar grelp?
-      # dplyr::filter(grepl(yr, year)) %>%
-      # dplyr::filter(!grepl('Over', area)) %>%
-      group_by(iso3,year) %>% 
-      summarise(sum_pop=sum(people)*1000000,
-                .groups = 'drop')
-    
-    rob_ctry_pop_annual <- totpopROB_annual %>%
-      dplyr::filter(iso3 == i) %>%
-      dplyr::filter(year == j) %>%
-      pull(sum_pop)
-    
-    pop0_ctry_rasadj.anno<- pop0_ctry_ras*rob_ctry_pop_annual/totpop
-    totpopadj.anno <- round(global(pop0_ctry_rasadj.anno, "sum", na.rm=TRUE),0) %>%
-      pull(sum)
-    urbpopadj.anno <- round(totpopadj.anno * ctry_furb,0)
-    rurpopadj.anno <- totpopadj.anno - urbpopadj.anno
-    totpopadj.anno
-    urbpopadj.anno
-    rurpopadj.anno
-    terra::writeRaster(pop0_ctry_rasadj.anno, paste0("pop_temp/",pop_ver,"_",i,"_",j,"_popadj.tif"), filetype = "GTiff", overwrite = TRUE)
-    
+      
+      furb_rob.anno <- wfdb %>%
+        filter(
+          iso3 == i,
+          grepl(j, year)
+        ) %>%
+        group_by(iso3) %>%
+        summarise(
+          urb_frac = round(
+            sum(people[grepl("Urban", area)]) / sum(people),
+            2
+          ),
+          .groups = "drop"
+        ) %>%
+        dplyr::pull(urb_frac)
+      
+      totpopROB_annual <- wfdb %>% 
+        # dplyr::filter(grepl(i, iso3)) %>% # searchs for the pattern, anywhere within the string
+        # dplyr::filter(grepl('Total', fuel)) %>% #Porque usar grelp?
+        # dplyr::filter(grepl(yr, year)) %>%
+        # dplyr::filter(!grepl('Over', area)) %>%
+        group_by(iso3,year) %>% 
+        summarise(sum_pop=sum(people)*1000,
+                  .groups = 'drop')
+      
+      rob_ctry_pop_annual <- totpopROB_annual %>%
+        dplyr::filter(iso3 == i) %>%
+        dplyr::filter(year == j) %>%
+        pull(sum_pop)
+      
+      pop0_ctry_rasadj.anno<- pop0_ctry_ras*rob_ctry_pop_annual/totpop
+      totpopadj.anno <- round(global(pop0_ctry_rasadj.anno, "sum", na.rm=TRUE),0) %>%
+        pull(sum)
+      urbpopadj.anno <- round(totpopadj.anno * furb_rob.anno,0)
+      rurpopadj.anno <- totpopadj.anno - urbpopadj.anno
+      totpopadj.anno
+      urbpopadj.anno
+      rurpopadj.anno
+      terra::writeRaster(pop0_ctry_rasadj.anno, paste0("pop_temp/",pop_ver,"_",i,"_",j,"_popadj.tif"), filetype = "GTiff", overwrite = TRUE)
+      
     }
     
-  }
-  
-  # Saca el umbral de corte urbano/rural para el año base de 2018
-  if (pop_ver == "HSRL") {
-    vec <- as_tibble(pop0_ctry_rasadj, na.rm = TRUE) %>% 
-      arrange(desc(.)) %>%
-      dplyr::select(matches("HSRL$")) %>%  # Select columns ending with "HSRL"
-      pull(1)
-  } else if (pop_ver == "WorldPop") {
-    vec <- as_tibble(pop0_ctry_rasadj, na.rm = TRUE) %>% 
-      arrange(desc(.)) %>%
-      dplyr::select(matches("WorldPop$")) %>%  # Select columns ending with "WorldPop"
-      pull(1)
-  }
-  
-  # # Manual tuning of urban/rural ratio ----
-  # # Some countries are ill-defined towards rural/urban population, such as the case of Nepal,
-  # # in which could be possible that urban population accounts for more than what 
-  # # the WHO dataset says.
-  print(paste0("Manual tuning of urban/rural ratio: ",urb_shift_factor))
-  
-  ix <- length(which(cumsum(vec) <= urbpopadj)) * urb_shift_factor
-  vec[ix] #Valor de corte
-  
-  # filtra por el umbral
-  if (pop_ver == "HSRL") {
-    # First, find the column name that ends with "HSRL"
-    column_name <- names(pop0_ctry_rasadj)[grepl("HSRL$", names(pop0_ctry_rasadj))]
-    column_name <- column_name[1]
-    # Convert the column name to a symbol
-    column_symbol <- sym(column_name)
-    # Now, use `filter()` dynamically
-    urbanpopulation <- pop0_ctry_rasadj %>%
-      filter(!!column_symbol > vec[ix])
-  } else if (pop_ver == "WorldPop") {
-    # First, find the column name that ends with "WorldPop"
-    column_name <- names(pop0_ctry_rasadj)[grepl("WorldPop$", names(pop0_ctry_rasadj))]
-    column_name <- column_name[1]
-    # Convert the column name to a symbol
-    column_symbol <- sym(column_name)
-    # Now, use `filter()` dynamically
-    urbanpopulation <- pop0_ctry_rasadj %>%
-      filter(!!column_symbol > vec[ix])
-  }
-  
-  # terra::writeRaster(urbanpopulation, paste0("population_temp/",pop_ver,"_",i,"_",yr,"_urbpop.tif"), filetype = "GTiff", overwrite = TRUE)
-  m_urb <- c(-Inf, 0, NA,
-             0, Inf, 2)
-  rcl_urb <- matrix(m_urb, ncol=3, byrow=TRUE)
-  urbanpopulationR <- urbanpopulation %>%
-    classify(rcl_urb, include.lowest=TRUE)
-  # terra::writeRaster(urbanpopulation, paste0("population_temp/",pop_ver,"_",i,"_",yr,"_urbpopR.tif"), filetype = "GTiff", overwrite = TRUE)
-  
-  if (pop_ver == "HSRL") {
-    # First, find the column name that ends with "HSRL"
-    column_name <- names(pop0_ctry_rasadj)[grepl("HSRL$", names(pop0_ctry_rasadj))]
-    column_name <- column_name[1]
-    # Convert the column name to a symbol
-    column_symbol <- sym(column_name)
-    # Now, use `filter()` dynamically
-    ruralpopulation <- pop0_ctry_rasadj %>%
-      filter(!!column_symbol <= vec[ix])
-  } else if (pop_ver == "WorldPop") {
-    # First, find the column name that ends with "WorldPop"
-    column_name <- names(pop0_ctry_rasadj)[grepl("WorldPop$", names(pop0_ctry_rasadj))]
-    column_name <- column_name[1]
-    # Convert the column name to a symbol
-    column_symbol <- sym(column_name)
-    # Now, use `filter()` dynamically
-    ruralpopulation <- pop0_ctry_rasadj %>%
-      filter(!!column_symbol <= vec[ix])
-  }
-  
-  # terra::writeRaster(ruralpopulation, paste0("population_temp/",pop_ver,"_",i,"_",yr,"_rurpop.tif"), filetype = "GTiff", overwrite = TRUE)
-  m_rur <- c(-Inf, 0, NA,
-             0, Inf, 1)
-  rcl_rur <- matrix(m_rur, ncol=3, byrow=TRUE)
-  ruralpopulationR <- ruralpopulation %>%
-    classify(rcl_rur, include.lowest=TRUE)
-  # terra::writeRaster(ruralpopulation, paste0("population_temp/",pop_ver,"_",i,"_",yr,"_rurpopR.tif"), filetype = "GTiff", overwrite = TRUE)
-  
-  rururbpopulationR <- merge(urbanpopulationR, ruralpopulationR)
-  if (pop_ver == "HSRL") {
-    rururbpopulationR_plot <- rururbpopulationR %>%
-      mutate(!!column_name := recode(!!column_symbol,
-                                     `1` = "Rural",
-                                     `2` = "Urban"))
-  } else if (pop_ver == "WorldPop") {
-    rururbpopulationR_plot <- rururbpopulationR %>%
-      mutate(!!column_name := recode(!!column_symbol,
-                                     `1` = "Rural",
-                                     `2` = "Urban"))
-  }
-  
-  plot(rururbpopulationR_plot, main=i)
-  lines(ctry_vector, lwd=2)
-  terra::writeRaster(rururbpopulationR, paste0("pop_temp/",pop_ver,"_",i,"_",yr,"_rururbR.tif"), filetype = "GTiff", overwrite = TRUE)
-  
-  # Validation
-  urbpopmap <- round(global(urbanpopulation, "sum", na.rm=TRUE),0) %>% 
-    pull(sum)
-  urbpopmap
-  urbpopadj
-  round((urbpopmap/totpopadj),2)
-  
-  rurpopmap <- round(global(ruralpopulation, "sum", na.rm=TRUE),0) %>% 
-    pull(sum)
-  rurpopmap
-  rurpopadj
-  round((rurpopmap/totpopadj),2)
-
-  # Spread population (whodb) and demand (wfdb) by BIOMASS use and urban vs rural ----
-  if (subcountry != 1) {
-    biopopWHO <- whodb %>% 
-      dplyr::filter(grepl(i, iso3)) %>% # searchs for the pattern, anywhere within the string
-      dplyr::filter(grepl('Bio', fuel)) %>%
-      dplyr::filter(grepl(yr, year)) %>%
-      dplyr::filter(grepl('Rur|Urb', area))
-  } else if (subcountry == 1) {
-    biopopROB <- wfdb %>% 
-      dplyr::filter(grepl(i, iso3)) %>% # searchs for the pattern, anywhere within the string
-      dplyr::filter(grepl('Bio', fuel)) %>%
-      dplyr::filter(grepl(yr, year)) %>%
-      dplyr::filter(grepl('Rur|Urb', area))
-  }
-
-  biowfdb <- wfdb %>% 
-    dplyr::filter(grepl(i, iso3)) %>% # searchs for the pattern, anywhere within the string
-    dplyr::filter(grepl('Bio', fuel)) %>%
-    dplyr::filter(grepl(yr, year)) %>%
-    dplyr::filter(grepl('Rur|Urb', area))
-  
-  if (subcountry != 1) {
-  biourb <- biopopWHO %>% 
-    dplyr::filter(grepl('Urb', area)) %>%
-    dplyr::select(pop) %>% 
-    sum()*1000
-  urbpopmap
-  urbbio_Sctry <- urbanpopulation*biourb/urbpopmap
-  round(global(urbbio_Sctry, "sum", na.rm=TRUE),0) %>% 
-    pull(sum)
-  biourb_d_tons <- biowfdb %>% 
-    dplyr::filter(grepl('Urb', area)) %>%
-    dplyr::select(all_of(demand_col)) %>% 
-    sum()
-  urbbioDem_Sctry <- urbanpopulation*biourb_d_tons/urbpopmap
-  
-  biorur <- biopopWHO %>% 
-    dplyr::filter(grepl('Rur', area)) %>%
-    dplyr::select(pop) %>% 
-    sum()*1000  
-  rurpopmap
-  rurbio_Sctry <- ruralpopulation*biorur/rurpopmap
-  round(global(rurbio_Sctry, "sum", na.rm=TRUE),0) %>% 
-    pull(sum)
-  biorur_d_tons <- biowfdb %>% 
-    dplyr::filter(grepl('Rur', area)) %>%
-    dplyr::select(all_of(demand_col)) %>% 
-    sum()
-  rurbioDem_Sctry <- ruralpopulation*biorur_d_tons/rurpopmap
-  
-  } else if (subcountry == 1) {
-  
-    biourb <- biopopROB %>% 
-      dplyr::filter(grepl('Urb', area)) %>%
-      dplyr::select(people) %>% 
-      sum()*1000000
-    urbpopmap
-    urbbio_Sctry <- urbanpopulation*biourb/urbpopmap
-    round(global(urbbio_Sctry, "sum", na.rm=TRUE),0) %>% 
+    # }
+    
+    # Saca el umbral de corte urbano/rural para el año base de 2018 O 2020
+    if (pop_ver == "HSRL") {
+      vec.anno <- as_tibble(pop0_ctry_rasadj.anno, na.rm = TRUE) %>% 
+        arrange(desc(.)) %>%
+        dplyr::select(matches("HSRL$")) %>%  # Select columns ending with "HSRL"
+        pull(1)
+    } else if (pop_ver == "WorldPop") {
+      vec.anno <- as_tibble(pop0_ctry_rasadj.anno, na.rm = TRUE) %>% 
+        arrange(desc(.)) %>%
+        dplyr::select(matches("WorldPop$")) %>%  # Select columns ending with "WorldPop"
+        pull(1)
+    }
+    
+    # # Manual tuning of urban/rural ratio ----
+    # # Some countries are ill-defined towards rural/urban population, such as the case of Nepal,
+    # # in which could be possible that urban population accounts for more than what 
+    # # the WHO dataset says.
+    print(paste0("Manual tuning of urban/rural ratio: ",urb_shift_factor))
+    
+    ix.anno <- length(which(cumsum(vec.anno) <= urbpopadj.anno)) * urb_shift_factor
+    vec.anno[ix.anno] #Valor de corte
+    
+    # filtra por el umbral
+    if (pop_ver == "HSRL") {
+      # First, find the column name that ends with "HSRL"
+      column_name <- names(pop0_ctry_rasadj.anno)[grepl("HSRL$", names(pop0_ctry_rasadj.anno))]
+      column_name <- column_name[1]
+      # Convert the column name to a symbol
+      column_symbol <- sym(column_name)
+      # Now, use `filter()` dynamically
+      urbanpopulation.anno <- pop0_ctry_rasadj.anno %>%
+        filter(!!column_symbol > vec.anno[ix.anno])
+    } else if (pop_ver == "WorldPop") {
+      # First, find the column name that ends with "WorldPop"
+      column_name <- names(pop0_ctry_rasadj.anno)[grepl("WorldPop$", names(pop0_ctry_rasadj.anno))]
+      column_name <- column_name[1]
+      # Convert the column name to a symbol
+      column_symbol <- sym(column_name)
+      # Now, use `filter()` dynamically
+      urbanpopulation.anno <- pop0_ctry_rasadj.anno %>%
+        filter(!!column_symbol > vec.anno[ix.anno])
+    }
+    
+    # terra::writeRaster(urbanpopulation, paste0("population_temp/",pop_ver,"_",i,"_",j,"_urbpop.tif"), filetype = "GTiff", overwrite = TRUE)
+    m_urb <- c(-Inf, 0, NA,
+               0, Inf, 2)
+    rcl_urb <- matrix(m_urb, ncol=3, byrow=TRUE)
+    urbanpopulationR.anno <- urbanpopulation.anno %>%
+      classify(rcl_urb, include.lowest=TRUE)
+    # terra::writeRaster(urbanpopulation, paste0("population_temp/",pop_ver,"_",i,"_",j,"_urbpopR.tif"), filetype = "GTiff", overwrite = TRUE)
+    
+    if (pop_ver == "HSRL") {
+      # First, find the column name that ends with "HSRL"
+      column_name <- names(pop0_ctry_rasadj.anno)[grepl("HSRL$", names(pop0_ctry_rasadj.anno))]
+      column_name <- column_name[1]
+      # Convert the column name to a symbol
+      column_symbol <- sym(column_name)
+      # Now, use `filter()` dynamically
+      ruralpopulation.anno <- pop0_ctry_rasadj.anno %>%
+        filter(!!column_symbol <= vec.anno[ix.anno])
+    } else if (pop_ver == "WorldPop") {
+      # First, find the column name that ends with "WorldPop"
+      column_name <- names(pop0_ctry_rasadj.anno)[grepl("WorldPop$", names(pop0_ctry_rasadj.anno))]
+      column_name <- column_name[1]
+      # Convert the column name to a symbol
+      column_symbol <- sym(column_name)
+      # Now, use `filter()` dynamically
+      ruralpopulation.anno <- pop0_ctry_rasadj.anno %>%
+        filter(!!column_symbol <= vec.anno[ix.anno])
+    }
+    
+    # terra::writeRaster(ruralpopulation, paste0("population_temp/",pop_ver,"_",i,"_",j,"_rurpop.tif"), filetype = "GTiff", overwrite = TRUE)
+    m_rur <- c(-Inf, 0, NA,
+               0, Inf, 1)
+    rcl_rur <- matrix(m_rur, ncol=3, byrow=TRUE)
+    ruralpopulationR.anno <- ruralpopulation.anno %>%
+      classify(rcl_rur, include.lowest=TRUE)
+    # terra::writeRaster(ruralpopulation, paste0("population_temp/",pop_ver,"_",i,"_",j,"_rurpopR.tif"), filetype = "GTiff", overwrite = TRUE)
+    
+    rururbpopulationR.anno <- merge(urbanpopulationR.anno, ruralpopulationR.anno)
+    if (pop_ver == "HSRL") {
+      rururbpopulationR_plot.anno <- rururbpopulationR.anno %>%
+        mutate(!!column_name := recode(!!column_symbol,
+                                       `1` = "Rural",
+                                       `2` = "Urban"))
+    } else if (pop_ver == "WorldPop") {
+      rururbpopulationR_plot.anno <- rururbpopulationR.anno %>%
+        mutate(!!column_name := recode(!!column_symbol,
+                                       `1` = "Rural",
+                                       `2` = "Urban"))
+    }
+    
+    plot(rururbpopulationR_plot.anno, main=paste0(i," : ",j))
+    lines(ctry_vector, lwd=2)
+    terra::writeRaster(rururbpopulationR.anno, paste0("pop_temp/",pop_ver,"_",i,"_",j,"_rururbR.tif"), filetype = "GTiff", overwrite = TRUE)
+    
+    # Validation
+    urbpopmap.anno <- round(global(urbanpopulation.anno, "sum", na.rm=TRUE),0) %>% 
       pull(sum)
-    biourb_d_tons <- biowfdb %>% 
-      dplyr::filter(grepl('Urb', area)) %>%
-      dplyr::select(all_of(demand_col)) %>% 
-      sum()
-    urbbioDem_Sctry <- urbanpopulation*biourb_d_tons/urbpopmap
+    urbpopmap.anno
+    urbpopadj.anno
+    round((urbpopmap.anno/totpopadj.anno),2)
     
-    biorur <- biopopROB %>% 
-      dplyr::filter(grepl('Rur', area)) %>%
-      dplyr::select(people) %>% 
-      sum()*1000000  
-    rurpopmap
-    rurbio_Sctry <- ruralpopulation*biorur/rurpopmap
-    round(global(rurbio_Sctry, "sum", na.rm=TRUE),0) %>% 
+    rurpopmap.anno <- round(global(ruralpopulation.anno, "sum", na.rm=TRUE),0) %>% 
       pull(sum)
-    biorur_d_tons <- biowfdb %>% 
-      dplyr::filter(grepl('Rur', area)) %>%
-      dplyr::select(all_of(demand_col)) %>% 
-      sum()
-    rurbioDem_Sctry <- ruralpopulation*biorur_d_tons/rurpopmap
-  
-  }
-  rururbbio <- merge(rurbio_Sctry,urbbio_Sctry)
-  # plot(rururbbio)
-  terra::writeRaster(rururbbio, paste0("pop_temp/",pop_ver,"_",i,"_",yr,"_bio_users.tif"), filetype = "GTiff", overwrite = TRUE)
-  global(rururbbio, fun="notNA")
-  
-  rururbbioDem <- merge(rurbioDem_Sctry,urbbioDem_Sctry)
-  # plot(rururbbio)
-  terra::writeRaster(rururbbioDem, paste0("demand_temp/",pop_ver,"_",i,"_",yr,"_bio_demand.tif"), filetype = "GTiff", overwrite = TRUE)
-  global(rururbbioDem, fun="notNA")
-  
-  bio_percap <- rururbbioDem/rururbbio*1000/365
-  # plot(rururbbio)
-  terra::writeRaster(bio_percap, paste0("demand_temp/",pop_ver,"_",i,"_",yr,"_bio_percap.tif"), filetype = "GTiff", overwrite = TRUE)
-  global(bio_percap, fun="notNA")
-  
-  # # Spread population (whodb) and demand (wfdb) by CHARCOAL use and urban vs rural ----
-  if (subcountry != 1) {
-  chapopWHO <- whodb %>% 
-    dplyr::filter(grepl(i, iso3)) %>% # searchs for the pattern, anywhere within the string
-    dplyr::filter(grepl('Cha', fuel)) %>%
-    dplyr::filter(grepl(yr, year)) %>%
-    dplyr::filter(grepl('Rur|Urb', area))
-  
-  } else if (subcountry == 1) {
-    chapopROB <- wfdb %>% 
-      dplyr::filter(grepl(i, iso3)) %>% # searchs for the pattern, anywhere within the string
-      dplyr::filter(grepl('Cha', fuel)) %>%
-      dplyr::filter(grepl(yr, year)) %>%
-      dplyr::filter(grepl('Rur|Urb', area))
-  }
-  
-  chawfdb <- wfdb %>% 
-    dplyr::filter(grepl(i, iso3)) %>% # searchs for the pattern, anywhere within the string
-    dplyr::filter(grepl('Cha', fuel)) %>%
-    dplyr::filter(grepl(yr, year)) %>%
-    dplyr::filter(grepl('Rur|Urb', area))
-  
-  if (subcountry != 1) {
-  chaurb <- chapopWHO %>% 
-    dplyr::filter(grepl('Urb', area)) %>%
-    dplyr::select(pop) %>% 
-    sum()*1000
-  urbpopmap 
-  urbcha_Sctry <- urbanpopulation*chaurb/urbpopmap
-  round(global(urbcha_Sctry, "sum", na.rm=TRUE),0) %>% 
-    pull(sum)
-  chaurb_d_tons <- chawfdb %>% 
-    dplyr::filter(grepl('Urb', area)) %>%
-    dplyr::select(all_of(demand_col)) %>% 
-    sum()
-  urbchaDem_Sctry <- urbanpopulation*chaurb_d_tons/urbpopmap
-  
-  charur <- chapopWHO %>% 
-    dplyr::filter(grepl('Rur', area)) %>%
-    dplyr::select(pop) %>% 
-    sum()*1000  
-  rurpopmap
-  rurcha_Sctry <- ruralpopulation*charur/rurpopmap
-  round(global(rurcha_Sctry, "sum", na.rm=TRUE),0) %>% 
-    pull(sum)
-  charur_d_tons <- chawfdb %>% 
-    dplyr::filter(grepl('Rur', area)) %>%
-    dplyr::select(all_of(demand_col)) %>% 
-    sum()
-  rurchaDem_Sctry <- ruralpopulation*charur_d_tons/rurpopmap
-  
-  } else if (subcountry == 1) {
+    rurpopmap.anno
+    rurpopadj.anno
+    round((rurpopmap.anno/totpopadj.anno),2)
     
-    chaurb <- chapopROB %>% 
-      dplyr::filter(grepl('Urb', area)) %>%
-      dplyr::select(people) %>% 
-      sum()*1000000
-    urbpopmap 
-    urbcha_Sctry <- urbanpopulation*chaurb/urbpopmap
-    round(global(urbcha_Sctry, "sum", na.rm=TRUE),0) %>% 
-      pull(sum)
-    chaurb_d_tons <- chawfdb %>% 
-      dplyr::filter(grepl('Urb', area)) %>%
-      dplyr::select(all_of(demand_col)) %>% 
-      sum()
-    urbchaDem_Sctry <- urbanpopulation*chaurb_d_tons/urbpopmap
-    
-    charur <- chapopROB %>% 
-      dplyr::filter(grepl('Rur', area)) %>%
-      dplyr::select(people) %>% 
-      sum()*1000000  
-    rurpopmap
-    rurcha_Sctry <- ruralpopulation*charur/rurpopmap
-    round(global(rurcha_Sctry, "sum", na.rm=TRUE),0) %>% 
-      pull(sum)
-    charur_d_tons <- chawfdb %>% 
-      dplyr::filter(grepl('Rur', area)) %>%
-      dplyr::select(all_of(demand_col)) %>% 
-      sum()
-    rurchaDem_Sctry <- ruralpopulation*charur_d_tons/rurpopmap
-    
-  }
-  
-  rururbcha <- merge(rurcha_Sctry,urbcha_Sctry)
-  # plot(rururbcha)
-  terra::writeRaster(rururbcha, paste0("pop_temp/",pop_ver,"_",i,"_",yr,"_cha_users.tif"), filetype = "GTiff", overwrite = TRUE)
-  global(rururbcha, fun="notNA")
-  
-  rururbchaDem <- merge(rurchaDem_Sctry,urbchaDem_Sctry)
-  # plot(rururbbio)
-  terra::writeRaster(rururbchaDem, paste0("demand_temp/",pop_ver,"_",i,"_",yr,"_cha_demand.tif"), filetype = "GTiff", overwrite = TRUE)
-  global(rururbchaDem, fun="notNA")
-  
-  cha_percap <- rururbchaDem/rururbcha*1000/365
-  # plot(rururbbio)
-  terra::writeRaster(cha_percap, paste0("demand_temp/",pop_ver,"_",i,"_",yr,"_cha_percap.tif"), filetype = "GTiff", overwrite = TRUE)
-  global(cha_percap, fun="notNA")
-  
-  # Save walking or selfgathered woodfuel demand (rurbio) and vehicle or marketed demand (urbbio+urbcha+rurcha) 
-  wf_w <- rurbioDem_Sctry
-  terra::writeRaster(wf_w, paste0("demand_temp/",pop_ver,"_",i,"_",yr,"_wftons_w.tif"), filetype = "GTiff", overwrite = TRUE)
-  global(wf_w, fun="notNA")
-  
-  wf_v_stack <- c(urbbioDem_Sctry,urbchaDem_Sctry,rurchaDem_Sctry)
-  wf_v_stack.sum <- app(wf_v_stack, fun=sum, na.rm = TRUE)
-  wf_v <- wf_v_stack.sum
-  terra::writeRaster(wf_v, paste0("demand_temp/",pop_ver,"_",i,"_",yr,"_wftons_v.tif"), filetype = "GTiff", overwrite = TRUE)
-  global(wf_v, fun="notNA")
-
-  # terra::writeRaster(urbbioDem_Sctry, paste0("demand_temp/",pop_ver,"_",i,"_",yr,"_wftons_urbbio.tif"), filetype = "GTiff", overwrite = TRUE)
-  # terra::writeRaster(urbchaDem_Sctry, paste0("demand_temp/",pop_ver,"_",i,"_",yr,"_wftons_urbcha.tif"), filetype = "GTiff", overwrite = TRUE)
-  # terra::writeRaster(rurchaDem_Sctry, paste0("demand_temp/",pop_ver,"_",i,"_",yr,"_wftons_rurcha.tif"), filetype = "GTiff", overwrite = TRUE)
-  # urbbioDem_Sctry[is.na(urbbioDem_Sctry)] <-0
-  # urbchaDem_Sctry[is.na(urbchaDem_Sctry)] <-0
-  # rurchaDem_Sctry[is.na(rurchaDem_Sctry)] <-0
-
-  for (j in annos) { 
-    # i="AFG"
-    # j=2010
-    
-    gc()
-    terraOptions(memfrac=0.9)
-    print(j)
-    
-    # Loop for fuelwood
-    biopopWHO.anno <- whodb %>% 
-      dplyr::filter(iso3 == i) %>%
-      dplyr::filter(fuel == "Biomass") %>%
-      # dplyr::filter(grepl(j, year)) %>%
-      dplyr::filter(grepl('Rur|Urb', area))
+    # Spread population (whodb) and demand (wfdb) by BIOMASS use and urban vs rural ----
+    if (subcountry != 1) {
+      biopopWHO.anno <- whodb %>% 
+        dplyr::filter(grepl(i, iso3)) %>% # searchs for the pattern, anywhere within the string
+        dplyr::filter(grepl('Bio', fuel)) %>%
+        dplyr::filter(grepl(j, year)) %>%
+        dplyr::filter(grepl('Rur|Urb', area))
+    } else if (subcountry == 1) {
+      biopopROB.anno <- wfdb %>% 
+        dplyr::filter(grepl(i, iso3)) %>% # searchs for the pattern, anywhere within the string
+        dplyr::filter(grepl('Bio', fuel)) %>%
+        dplyr::filter(grepl(j, year)) %>%
+        dplyr::filter(grepl('Rur|Urb', area))
+    }
     
     biowfdb.anno <- wfdb %>% 
-      dplyr::filter(iso3 == i) %>%
-      dplyr::filter(fuel == "Biomass") %>%
-      # dplyr::filter(grepl(j, year)) %>%
+      dplyr::filter(grepl(i, iso3)) %>% # searchs for the pattern, anywhere within the string
+      dplyr::filter(grepl('Bio', fuel)) %>%
+      dplyr::filter(grepl(j, year)) %>%
       dplyr::filter(grepl('Rur|Urb', area))
     
     if (subcountry != 1) {
       biourb.anno <- biopopWHO.anno %>% 
-        dplyr::filter(area == "Urban") %>%
-        dplyr::filter(year == j) %>%
+        dplyr::filter(grepl('Urb', area)) %>%
         dplyr::select(pop) %>% 
         sum()*1000
-    } else if (subcountry == 1) {
-      biourb.anno <- biowfdb.anno %>% 
-        dplyr::filter(area == "Urban") %>%
-        dplyr::filter(year == j) %>%
-        dplyr::select(people) %>% 
-        sum()*1000000
-    } 
-
-    urbpopmap
-    urbbio_Sctry.anno <- urbanpopulation*biourb.anno/urbpopmap
-    round(global(urbbio_Sctry, "sum", na.rm=TRUE),0) %>% 
-      pull(sum)
-    biourb_d_tons.anno <- biowfdb.anno %>% 
-      dplyr::filter(area == "Urban") %>%
-      dplyr::filter(year == j) %>%
-      dplyr::select(all_of(demand_col)) %>% 
-      sum()
-    urbpopmap
-    urbbioDem_Sctry.anno <- urbanpopulation*biourb_d_tons.anno/urbpopmap
-    
-    if (subcountry != 1) {
+      urbpopmap.anno
+      if (urbpopmap.anno == 0) {
+        urbbio_Sctry.anno <- urbanpopulation.anno * 0  # all zeros, same geometry
+      } else {
+        urbbio_Sctry.anno <- (urbanpopulation.anno * biourb.anno) / urbpopmap.anno
+      }
+      round(global(urbbio_Sctry.anno, "sum", na.rm=TRUE),0) %>% 
+        pull(sum)
+      biourb_d_tons.anno <- biowfdb.anno %>% 
+        dplyr::filter(grepl('Urb', area)) %>%
+        dplyr::select(all_of(demand_col)) %>% 
+        sum()
+      if (urbpopmap.anno == 0) {
+        urbbioDem_Sctry.anno <- urbanpopulation.anno*0
+      } else {
+        urbbioDem_Sctry.anno <- urbanpopulation.anno*biourb_d_tons.anno/urbpopmap.anno
+      }
+      
       biorur.anno <- biopopWHO.anno %>% 
-        dplyr::filter(area == "Rural") %>%
-        dplyr::filter(year == j) %>%
+        dplyr::filter(grepl('Rur', area)) %>%
         dplyr::select(pop) %>% 
-        sum()*1000
+        sum()*1000  
+      rurpopmap.anno
+      if (rurpopmap.anno == 0) {
+        rurbio_Sctry.anno <- ruralpopulation.anno*0
+      } else {
+        rurbio_Sctry.anno <- ruralpopulation.anno*biorur.anno/rurpopmap.anno
+      }
+      round(global(rurbio_Sctry.anno, "sum", na.rm=TRUE),0) %>% 
+        pull(sum)
+      biorur_d_tons.anno <- biowfdb.anno %>% 
+        dplyr::filter(grepl('Rur', area)) %>%
+        dplyr::select(all_of(demand_col)) %>% 
+        sum()
+      if (rurpopmap.anno == 0) {
+        rurbioDem_Sctry.anno <- ruralpopulation.anno*0
+      } else {
+        rurbioDem_Sctry.anno <- ruralpopulation.anno*biorur_d_tons.anno/rurpopmap.anno
+      }
+    
     } else if (subcountry == 1) {
-      biorur.anno <- biowfdb.anno %>% 
-        dplyr::filter(area == "Rural") %>%
-        dplyr::filter(year == j) %>%
+      
+      biourb.anno <- biopopROB.anno %>% 
+        dplyr::filter(grepl('Urb', area)) %>%
         dplyr::select(people) %>% 
-        sum()*1000000
+        sum()*1000
+      urbpopmap.anno
+      if (urbpopmap.anno == 0) {
+        urbbio_Sctry.anno <- urbanpopulation.anno * 0  # all zeros, same geometry
+      } else {
+        urbbio_Sctry.anno <- (urbanpopulation.anno * biourb.anno) / urbpopmap.anno
+      }
+      round(global(urbbio_Sctry.anno, "sum", na.rm=TRUE),0) %>% 
+        pull(sum)
+      biourb_d_tons.anno <- biowfdb.anno %>% 
+        dplyr::filter(grepl('Urb', area)) %>%
+        dplyr::select(all_of(demand_col)) %>% 
+        sum()
+      if (urbpopmap.anno == 0) {
+        urbbioDem_Sctry.anno <- urbanpopulation.anno*0
+      } else {
+        urbbioDem_Sctry.anno <- urbanpopulation.anno*biourb_d_tons.anno/urbpopmap.anno
+      }
+      
+      biorur.anno <- biopopROB.anno %>% 
+        dplyr::filter(grepl('Rur', area)) %>%
+        dplyr::select(people) %>% 
+        sum()*1000  
+      rurpopmap.anno
+      if (rurpopmap.anno == 0) {
+        rurbio_Sctry.anno <- ruralpopulation.anno*0
+      } else {
+        rurbio_Sctry.anno <- ruralpopulation.anno*biorur.anno/rurpopmap.anno
+      }
+      round(global(rurbio_Sctry.anno, "sum", na.rm=TRUE),0) %>% 
+        pull(sum)
+      biorur_d_tons.anno <- biowfdb.anno %>% 
+        dplyr::filter(grepl('Rur', area)) %>%
+        dplyr::select(all_of(demand_col)) %>% 
+        sum()
+      if (rurpopmap.anno == 0) {
+        rurbioDem_Sctry.anno <- ruralpopulation.anno*0
+      } else {
+        rurbioDem_Sctry.anno <- ruralpopulation.anno*biorur_d_tons.anno/rurpopmap.anno
+      }
+      
+      
     }
-    
-    rurpopmap
-    rurbio_Sctry.anno <- ruralpopulation*biorur.anno/rurpopmap
-    round(global(rurbio_Sctry, "sum", na.rm=TRUE),0) %>% 
-      pull(sum)
-    biorur_d_tons.anno <- biowfdb.anno %>% 
-      dplyr::filter(area == "Rural") %>%
-      dplyr::filter(year == j) %>%
-      dplyr::select(all_of(demand_col)) %>% 
-      sum()  
-    rurpopmap
-    rurbioDem_Sctry.anno <- ruralpopulation*biorur_d_tons.anno/rurpopmap
-    
     rururbbio.anno <- merge(rurbio_Sctry.anno,urbbio_Sctry.anno)
     # plot(rururbbio)
     terra::writeRaster(rururbbio.anno, paste0("pop_temp/",pop_ver,"_",i,"_",j,"_bio_users.tif"), filetype = "GTiff", overwrite = TRUE)
@@ -1140,71 +1008,129 @@ for (i in adm0_reg$GID_0) { # start of the for loop ----
     terra::writeRaster(rururbbioDem.anno, paste0("demand_temp/",pop_ver,"_",i,"_",j,"_bio_demand.tif"), filetype = "GTiff", overwrite = TRUE)
     global(rururbbioDem.anno, fun="notNA")
     
-    # terra::writeRaster(urbbio_Sctry.anno, paste0("population_temp/",pop_ver,"_",i,"_",j,"_URBbio_users.tif"), filetype = "GTiff", overwrite = TRUE)
-    # terra::writeRaster(rurbio_Sctry.anno, paste0("population_temp/",pop_ver,"_",i,"_",j,"_RURbio_users.tif"), filetype = "GTiff", overwrite = TRUE)
+    bio_percap.anno <- rururbbioDem.anno/rururbbio.anno*1000/365
+    # plot(rururbbio)
+    # terra::writeRaster(bio_percap.anno, paste0("demand_temp/",pop_ver,"_",i,"_",j,"_bio_percap.tif"), filetype = "GTiff", overwrite = TRUE)
+    global(bio_percap.anno, fun="notNA")
     
-    # Loop for charcoal
-    chapopWHO.anno <- whodb %>% 
-      dplyr::filter(iso3 == i) %>%
-      dplyr::filter(fuel == "Charcoal") %>%
-      # dplyr::filter(grepl(j, year)) %>%
-      dplyr::filter(grepl('Rur|Urb', area))
+    # # Spread population (whodb) and demand (wfdb) by CHARCOAL use and urban vs rural ----
+    if (subcountry != 1) {
+      chapopWHO.anno <- whodb %>% 
+        dplyr::filter(grepl(i, iso3)) %>% # searchs for the pattern, anywhere within the string
+        dplyr::filter(grepl('Cha', fuel)) %>%
+        dplyr::filter(grepl(j, year)) %>%
+        dplyr::filter(grepl('Rur|Urb', area))
+      
+    } else if (subcountry == 1) {
+      chapopROB.anno <- wfdb %>% 
+        dplyr::filter(grepl(i, iso3)) %>% # searchs for the pattern, anywhere within the string
+        dplyr::filter(grepl('Cha', fuel)) %>%
+        dplyr::filter(grepl(j, year)) %>%
+        dplyr::filter(grepl('Rur|Urb', area))
+    }
     
     chawfdb.anno <- wfdb %>% 
-      dplyr::filter(iso3 == i) %>%
-      dplyr::filter(fuel == "Charcoal") %>%
-      # dplyr::filter(grepl(j, year)) %>%
+      dplyr::filter(grepl(i, iso3)) %>% # searchs for the pattern, anywhere within the string
+      dplyr::filter(grepl('Cha', fuel)) %>%
+      dplyr::filter(grepl(j, year)) %>%
       dplyr::filter(grepl('Rur|Urb', area))
     
     if (subcountry != 1) {
       chaurb.anno <- chapopWHO.anno %>% 
-        dplyr::filter(area == "Urban") %>%
-        dplyr::filter(year == j) %>%
+        dplyr::filter(grepl('Urb', area)) %>%
         dplyr::select(pop) %>% 
         sum()*1000
-    } else if (subcountry == 1) {
-      chaurb.anno <- chawfdb.anno %>% 
-        dplyr::filter(area == "Urban") %>%
-        dplyr::filter(year == j) %>%
-        dplyr::select(people) %>% 
-        sum()*1000000
-    }
-    
-    urbpopmap 
-    urbcha_Sctry.anno <- urbanpopulation*chaurb.anno/urbpopmap
-    round(global(urbcha_Sctry.anno, "sum", na.rm=TRUE),0) %>% 
-      pull(sum)
-    chaurb_d_tons.anno <- chawfdb.anno %>% 
-      dplyr::filter(area == "Urban") %>%
-      dplyr::filter(year == j) %>%
-      dplyr::select(all_of(demand_col)) %>% 
-      sum()
-    urbchaDem_Sctry.anno <- urbanpopulation*chaurb_d_tons.anno/urbpopmap
-    
-    if (subcountry != 1) {
+      urbpopmap.anno
+      if (urbpopmap.anno == 0) {
+        urbcha_Sctry.anno <- urbanpopulation.anno*0
+      } else {
+        urbcha_Sctry.anno <- urbanpopulation.anno*chaurb.anno/urbpopmap.anno
+      }
+      
+      round(global(urbcha_Sctry.anno, "sum", na.rm=TRUE),0) %>% 
+        pull(sum)
+      chaurb_d_tons.anno <- chawfdb.anno %>% 
+        dplyr::filter(grepl('Urb', area)) %>%
+        dplyr::select(all_of(demand_col)) %>% 
+        sum()
+      if (urbpopmap.anno == 0) {
+        urbchaDem_Sctry.anno <- urbanpopulation.anno*0
+      } else {
+        urbchaDem_Sctry.anno <- urbanpopulation.anno*chaurb_d_tons.anno/urbpopmap.anno
+      }
+      
       charur.anno <- chapopWHO.anno %>% 
-        dplyr::filter(area == "Rural") %>%
-        dplyr::filter(year == j) %>%
+        dplyr::filter(grepl('Rur', area)) %>%
         dplyr::select(pop) %>% 
-        sum()*1000
+        sum()*1000  
+      rurpopmap.anno
+      if (rurpopmap.anno == 0) {
+        rurcha_Sctry.anno <- ruralpopulation.anno*0
+      } else {
+        rurcha_Sctry.anno <- ruralpopulation.anno*charur.anno/rurpopmap.anno
+      }
+      
+      round(global(rurcha_Sctry.anno, "sum", na.rm=TRUE),0) %>% 
+        pull(sum)
+      charur_d_tons.anno <- chawfdb.anno %>% 
+        dplyr::filter(grepl('Rur', area)) %>%
+        dplyr::select(all_of(demand_col)) %>% 
+        sum()
+      if (rurpopmap.anno == 0) {
+        rurchaDem_Sctry.anno <- ruralpopulation.anno*0
+      } else {
+        rurchaDem_Sctry.anno <- ruralpopulation.anno*charur_d_tons.anno/rurpopmap.anno
+      }
+      
     } else if (subcountry == 1) {
-      charur.anno <- chawfdb.anno %>% 
-        dplyr::filter(area == "Rural") %>%
-        dplyr::filter(year == j) %>%
+      
+      chaurb.anno <- chapopROB.anno %>% 
+        dplyr::filter(grepl('Urb', area)) %>%
         dplyr::select(people) %>% 
-        sum()*1000000
+        sum()*1000
+      urbpopmap.anno
+      if (urbpopmap.anno == 0) {
+        urbcha_Sctry.anno <- urbanpopulation.anno*0
+      } else {
+        urbcha_Sctry.anno <- urbanpopulation.anno*chaurb.anno/urbpopmap.anno
+      }
+      
+      round(global(urbcha_Sctry.anno, "sum", na.rm=TRUE),0) %>% 
+        pull(sum)
+      chaurb_d_tons.anno <- chawfdb.anno %>% 
+        dplyr::filter(grepl('Urb', area)) %>%
+        dplyr::select(all_of(demand_col)) %>% 
+        sum()
+      if (urbpopmap.anno == 0) {
+        urbchaDem_Sctry.anno <- urbanpopulation.anno*0
+      } else {
+        urbchaDem_Sctry.anno <- urbanpopulation.anno*chaurb_d_tons.anno/urbpopmap.anno
+      }
+      
+      charur.anno <- chapopROB.anno %>% 
+        dplyr::filter(grepl('Rur', area)) %>%
+        dplyr::select(people) %>% 
+        sum()*1000  
+      rurpopmap.anno
+      if (rurpopmap.anno == 0) {
+        rurcha_Sctry.anno <- ruralpopulation.anno*0
+      } else {
+        rurcha_Sctry.anno <- ruralpopulation.anno*charur.anno/rurpopmap.anno
+      }
+      
+      round(global(rurcha_Sctry.anno, "sum", na.rm=TRUE),0) %>% 
+        pull(sum)
+      charur_d_tons.anno <- chawfdb.anno %>% 
+        dplyr::filter(grepl('Rur', area)) %>%
+        dplyr::select(all_of(demand_col)) %>% 
+        sum()
+      if (rurpopmap.anno == 0) {
+        rurchaDem_Sctry.anno <- ruralpopulation.anno*0
+      } else {
+        rurchaDem_Sctry.anno <- ruralpopulation.anno*charur_d_tons.anno/rurpopmap.anno
+      }
+      
     }
-
-    rurpopmap
-    rurcha_Sctry.anno <- ruralpopulation*charur.anno/rurpopmap
-    round(global(rurcha_Sctry.anno, "sum", na.rm=TRUE),0) %>% 
-      pull(sum)
-    charur_d_tons.anno <- chawfdb.anno %>% 
-      dplyr::filter(area == "Rural") %>%
-      dplyr::filter(year == j) %>%
-      dplyr::select(all_of(demand_col)) %>% 
-      sum()
-    rurchaDem_Sctry.anno <- ruralpopulation*charur_d_tons.anno/rurpopmap
     
     rururbcha.anno <- merge(rurcha_Sctry.anno,urbcha_Sctry.anno)
     # plot(rururbcha)
@@ -1212,12 +1138,14 @@ for (i in adm0_reg$GID_0) { # start of the for loop ----
     global(rururbcha.anno, fun="notNA")
     
     rururbchaDem.anno <- merge(rurchaDem_Sctry.anno,urbchaDem_Sctry.anno)
-    # plot(rururbcha)
+    # plot(rururbbio)
     terra::writeRaster(rururbchaDem.anno, paste0("demand_temp/",pop_ver,"_",i,"_",j,"_cha_demand.tif"), filetype = "GTiff", overwrite = TRUE)
     global(rururbchaDem.anno, fun="notNA")
     
-    # terra::writeRaster(urbcha_Sctry.anno, paste0("population_temp/HSRL_",i,"_",j,"_URBcha_users.tif"), filetype = "GTiff", overwrite = TRUE)
-    # terra::writeRaster(rurcha_Sctry.anno, paste0("population_temp/HSRL_",i,"_",j,"_RURcha_users.tif"), filetype = "GTiff", overwrite = TRUE)
+    cha_percap.anno <- rururbchaDem.anno/rururbcha.anno*1000/365
+    # plot(rururbbio)
+    # terra::writeRaster(cha_percap.anno, paste0("demand_temp/",pop_ver,"_",i,"_",j,"_cha_percap.tif"), filetype = "GTiff", overwrite = TRUE)
+    global(cha_percap.anno, fun="notNA")
     
     # Save walking or selfgathered woodfuel demand (rurbio) and vehicle or marketed demand (urbbio+urbcha+rurcha) 
     wf_w.anno <- rurbioDem_Sctry.anno
@@ -1226,12 +1154,14 @@ for (i in adm0_reg$GID_0) { # start of the for loop ----
     
     wf_v_stack.anno <- c(urbbioDem_Sctry.anno,urbchaDem_Sctry.anno,rurchaDem_Sctry.anno)
     wf_v_stack.sum.anno <- app(wf_v_stack.anno, fun=sum, na.rm = TRUE)
+    names(wf_v_stack.sum.anno) <- names(wf_v_stack.anno)[1]  # "GlobalWorldPop"
+    
     wf_v.anno <- wf_v_stack.sum.anno
     terra::writeRaster(wf_v.anno, paste0("demand_temp/",pop_ver,"_",i,"_",j,"_wftons_v.tif"), filetype = "GTiff", overwrite = TRUE)
     global(wf_v.anno, fun="notNA")
-  
+    
   }
- 
+  
 } # end of the for loop ----
 
 # toc()
@@ -1239,9 +1169,10 @@ for (i in adm0_reg$GID_0) { # start of the for loop ----
 Sys.sleep(3)
 
 # Load country pop and demand rasters and merge into original region ----
-annos__2018 <- sort(c(annos,yr))
-
-for (k in annos__2018) {
+# annos__2018 <- sort(c(annos,yr))
+# for (k in annos__2018) {
+# annos <- annos__2018
+for (k in annos) {
   
   
   cha_list <- list.files(path = "pop_temp/",
@@ -1312,44 +1243,44 @@ for (k in annos__2018) {
     if (k == yr) {
       
       rururb_list <- list.files(path = "pop_temp/",
-                                pattern = paste0(yr,"_rururbR.*\\.tif$|general.*\\.tif$"), full.names = TRUE)
+                                pattern = paste0(k,"_rururbR.*\\.tif$|general.*\\.tif$"), full.names = TRUE)
       rururb_raster_list <- lapply(rururb_list, rast)
       rururb_ <- do.call("merge", rururb_raster_list)
       terra::writeRaster(rururb_,
-                         paste0("pop_out/",pop_ver,"_rururb_",yr,".tif"),
+                         paste0("pop_out/",pop_ver,"_rururb_",k,".tif"),
                          filetype = "GTiff", overwrite = TRUE)
       
-      percapbio_list <- list.files(path = "demand_temp/",
-                                   pattern = paste0(yr,"_bio_percap.*\\.tif$|general.*\\.tif$"), full.names = TRUE)
-      percapbio_raster_list <- lapply(percapbio_list, rast)
-      percapbio_ <- do.call("merge", percapbio_raster_list)
-      terra::writeRaster(percapbio_,
-                         paste0("demand_out/",pop_ver,"_percapbio_",yr,".tif"),
-                         filetype = "GTiff", overwrite = TRUE)
+      # percapbio_list <- list.files(path = "demand_temp/",
+      #                              pattern = paste0(yr,"_bio_percap.*\\.tif$|general.*\\.tif$"), full.names = TRUE)
+      # percapbio_raster_list <- lapply(percapbio_list, rast)
+      # percapbio_ <- do.call("merge", percapbio_raster_list)
+      # terra::writeRaster(percapbio_,
+      #                    paste0("demand_out/",pop_ver,"_percapbio_",yr,".tif"),
+      #                    filetype = "GTiff", overwrite = TRUE)
       
-      percapcha_list <- list.files(path = "demand_temp/",
-                                   pattern = paste0(yr,"_cha_percap.*\\.tif$|general.*\\.tif$"), full.names = TRUE)
-      percapcha_raster_list <- lapply(percapcha_list, rast)
-      percapcha_ <- do.call("merge", percapcha_raster_list)
-      terra::writeRaster(percapcha_,
-                         paste0("demand_out/",pop_ver,"_percapcha_",yr,".tif"),
-                         filetype = "GTiff", overwrite = TRUE)
+      # percapcha_list <- list.files(path = "demand_temp/",
+      #                              pattern = paste0(yr,"_cha_percap.*\\.tif$|general.*\\.tif$"), full.names = TRUE)
+      # percapcha_raster_list <- lapply(percapcha_list, rast)
+      # percapcha_ <- do.call("merge", percapcha_raster_list)
+      # terra::writeRaster(percapcha_,
+      #                    paste0("demand_out/",pop_ver,"_percapcha_",yr,".tif"),
+      #                    filetype = "GTiff", overwrite = TRUE)
       
-      wftons_w_list <- list.files(path = "demand_temp/",
-                                  pattern = paste0(yr,"_wftons_w.*\\.tif$"), full.names = TRUE)
-      wftons_w_raster_list <- lapply(wftons_w_list, rast)
-      wftons_ww <- do.call("merge", wftons_w_raster_list)
-      terra::writeRaster(wftons_ww,
-                         paste0("demand_out/",pop_ver,"_wftons_w_",yr,".tif"),
-                         filetype = "GTiff", overwrite = TRUE)
-      
-      wftons_v_list <- list.files(path = "demand_temp/",
-                                  pattern = paste0(yr,"_wftons_v.*\\.tif$"), full.names = TRUE)
-      wftons_v_raster_list <- lapply(wftons_v_list, rast)
-      wftons_vv <- do.call("merge", wftons_v_raster_list)
-      terra::writeRaster(wftons_vv,
-                         paste0("demand_out/",pop_ver,"_wftons_v_",yr,".tif"),
-                         filetype = "GTiff", overwrite = TRUE)
+      # wftons_w_list <- list.files(path = "demand_temp/",
+      #                             pattern = paste0(yr,"_wftons_w.*\\.tif$"), full.names = TRUE)
+      # wftons_w_raster_list <- lapply(wftons_w_list, rast)
+      # wftons_ww <- do.call("merge", wftons_w_raster_list)
+      # terra::writeRaster(wftons_ww,
+      #                    paste0("demand_out/",pop_ver,"_wftons_w_",yr,".tif"),
+      #                    filetype = "GTiff", overwrite = TRUE)
+      # 
+      # wftons_v_list <- list.files(path = "demand_temp/",
+      #                             pattern = paste0(yr,"_wftons_v.*\\.tif$"), full.names = TRUE)
+      # wftons_v_raster_list <- lapply(wftons_v_list, rast)
+      # wftons_vv <- do.call("merge", wftons_v_raster_list)
+      # terra::writeRaster(wftons_vv,
+      #                    paste0("demand_out/",pop_ver,"_wftons_v_",yr,".tif"),
+      #                    filetype = "GTiff", overwrite = TRUE)
       
       
     }
@@ -1388,9 +1319,9 @@ for (k in annos__2018) {
     
     if (k == yr) {
       rururb_list <- list.files(path = "pop_temp/",
-                                pattern = paste0(yr,"_rururbR.*\\.tif$"), full.names = TRUE)
+                                pattern = paste0(k,"_rururbR.*\\.tif$"), full.names = TRUE)
       rast(rururb_list) %>%
-        terra::writeRaster(paste0("pop_out/",pop_ver,"_rururb_",yr,".tif"),
+        terra::writeRaster(paste0("pop_out/",pop_ver,"_rururb_",k,".tif"),
                            filetype = "GTiff", overwrite = TRUE)
     }
     
@@ -1402,9 +1333,9 @@ for (k in annos__2018) {
 # setwd(demanddir)
 # Important to remove zeros from both  / Moreover for subcountry == 1 
 
-# Walking
+## Walking ----
 if (optimizeD == 1) {
-  keep(annos__2018, optimizeD, gitlabdir, country, countrydir, #endpath,
+  keep(annos, optimizeD, gitlabdir, country, countrydir, #endpath,
        gitlabdir, country, countrydir, demanddir, admindir, emissionsdir, rTempdir, 
        proj_gcs, epsg_gcs, proj_pcs, epsg_pcs, proj_authority, GEE_scale,
        byregion, scenario_ver, pop_ver, mofuss_region, rTempdir, sure=TRUE) # shows you which variables will not be removed
@@ -1435,34 +1366,114 @@ if (optimizeD == 1) {
   Sys.sleep(5)
 }
 
-# Old version
+# Old version #1
 # wf_w_db <- as.data.frame(wf_w_st, row.names="ID",  na.rm=TRUE, xy = TRUE, centroids = TRUE )
 # head(wf_w_db) 
 
-# New version
-# Extract x and y coordinates from the first layer
-xy_coords <- as.data.frame(wf_w_st[[1]], xy = TRUE)[, c("x", "y")]
+# # Old version #2
+# # Extract x and y coordinates from the first layer
+# xy_coords <- as.data.frame(wf_w_st[[1]], xy = TRUE)[, c("x", "y")]
+# 
+# # Initialize the data frame with x, y, and centroids columns
+# wf_w_dbx <- xy_coords
+# wf_w_dbx$centroids <- TRUE
+# 
+# # Loop through each layer and bind the results as columns
+# for (i in 1:nlyr(wf_w_st)) {
+#   temp_dfw <- as.data.frame(wf_w_st[[i]], na.rm = TRUE)
+#   # Bind the data frame column-wise
+#   wf_w_dbx <- cbind(wf_w_dbx, temp_dfw)
+#   rm(temp_dfw)
+#   gc()
+# }
 
-# Initialize the data frame with x, y, and centroids columns
-wf_w_dbx <- xy_coords
-wf_w_dbx$centroids <- TRUE
+# # # New version
+# # 1) Make a list of per-layer data frames: x, y, <layer_value>
+# dfsw <- map(seq_len(nlyr(wf_w_st)), function(k) {
+#   nm <- names(wf_w_st)[k] %||% paste0("lyr", k)
+#   as.data.frame(wf_w_st[[k]], xy = TRUE, na.rm = TRUE) |>
+#     dplyr::rename(!!nm := 3L)                        # third column is the value
+# })
+# 
+# # 2) Full-join them all on (x,y) to align strictly by coordinates
+# wf_w_dbx <- reduce(dfsw, full_join, by = c("x", "y"))
+# 
+# # 3) Optional: mark which rows existed in the first layer (your "centroids" flag)
+# first_namew <- names(wf_w_st)[1] %||% "lyr1"
+# wf_w_dbx <- wf_w_dbx |>
+#   mutate(centroids = !is.na(.data[[first_namew]])) |>
+#   relocate(centroids, .after = y)
+# 
+# # 4) Replace NAs with 0 in all layer columns (keep x, y, centroids untouched)
+# val_colsw <- setdiff(names(wf_w_dbx), c("x", "y", "centroids"))
+# wf_w_dbx[val_colsw] <- lapply(wf_w_dbx[val_colsw], function(v) replace(v, is.na(v), 0))
+# names(wf_w_dbx)[4:ncol(wf_w_dbx)] <- "GlobalWorldPop" # Warning: Bring from WP vs HSRL
+# wf_w_dbx
 
-# Loop through each layer and bind the results as columns
-for (i in 1:nlyr(wf_w_st)) {
-  temp_dfw <- as.data.frame(wf_w_st[[i]], na.rm = TRUE)
-  # Bind the data frame column-wise
-  wf_w_dbx <- cbind(wf_w_dbx, temp_dfw)
-  rm(temp_dfw)
-  gc()
-}
+# New version #2
+# --- 1) Build value dfs (x, y, <layer_value>) ---
+layer_namesw <- if (!is.null(names(wf_w_st)) && all(nzchar(names(wf_w_st))))
+  names(wf_w_st) else paste0("lyr", seq_len(nlyr(wf_w_st)))
+
+val_dfsw <- map2(seq_len(nlyr(wf_w_st)), layer_namesw, function(k, nm) {
+  dfw <- as.data.frame(wf_w_st[[k]], xy = TRUE, na.rm = TRUE)
+  val_colw <- setdiff(names(dfw), c("x", "y"))[1]
+  transmute(dfw, x, y, !!nm := .data[[val_colw]])
+})
+
+# --- 2) Build a single (x, y) -> ID lookup from ANY layer (first non-NA) ---
+id_dfw <- map(seq_len(nlyr(wf_w_st)), function(k) {
+  dfw <- as.data.frame(wf_w_st[[k]], xy = TRUE, na.rm = TRUE)
+  tibble(x = dfw$x, y = dfw$y, ID = as.integer(row.names(dfw)))
+}) %>% bind_rows() %>%
+  group_by(x, y) %>%
+  summarise(ID = first(ID), .groups = "drop")   # take the first if duplicated
+
+# --- 3) Align all values by (x, y) ---
+wf_w_dbx <- reduce(val_dfsw, full_join, by = c("x", "y"))
+
+# centroids = present in first layer; move it to the end later
+first_val_namew <- names(val_dfsw[[1]])[3]
+wf_w_dbx <- wf_w_dbx %>%
+  mutate(centroids = !is.na(.data[[first_val_namew]]))
+
+# add ID by (x, y)
+wf_w_dbx <- wf_w_dbx %>%
+  left_join(id_dfw, by = c("x", "y"))
+
+# --- 4) Fill NAs only in value columns (not x,y,centroids,ID) ---
+val_colsw <- setdiff(names(wf_w_dbx), c("x", "y", "centroids", "ID"))
+wf_w_dbx[val_colsw] <- lapply(wf_w_dbx[val_colsw], function(v) replace(v, is.na(v), 0))
+
+# --- 5) Final column order: ID first, centroids last ---
 wf_w_db <- wf_w_dbx %>%
+  relocate(ID) %>%
   relocate(centroids, .after = last_col())
+
+# Preview
+head(wf_w_db)
+
+id_conflictsw <- map(seq_len(nlyr(wf_w_st)), function(k) {
+  dfw <- as.data.frame(wf_w_st[[k]], xy = TRUE, na.rm = TRUE)
+  tibble(x = dfw$x, y = dfw$y, ID = as.integer(row.names(dfw)))
+}) %>% bind_rows() %>%
+  distinct(x, y, ID) %>%
+  count(x, y) %>%
+  filter(n > 1)
+
+if (nrow(id_conflictsw) > 0) {
+  warning("Found (x,y) points with multiple IDs across layers; using the first one.")
+}
+
+# wf_w_db <- wf_w_dbx %>%
+#   relocate(centroids, .after = last_col())
 
 # Output result
 head(wf_w_db) # Check the structure
 # all.equal(wf_w_db, wf_w_db2)
-colnames(wf_w_db) <- c("x","y",paste0(annos__2018,"_fw_w"),"centroids")
-wf_w_db4idw_prezero <- tibble::rownames_to_column(wf_w_db, "ID")
+colnames(wf_w_db) <- c("ID","x","y",paste0(annos,"_fw_w"),"centroids")
+# wf_w_db4idw_prezero <- tibble::rownames_to_column(wf_w_db, "ID")
+wf_w_db4idw_prezero <- wf_w_db
 head(wf_w_db4idw_prezero)
 
 ### Take out zero here! Walking ----
@@ -1497,9 +1508,9 @@ wf_w_db4idw %>%
   mutate_if(is.numeric, round, 6) %>%
   write.csv(paste0("to_idw/",substr(scenario_ver, 1, 3),"_fwch_w.csv"), row.names=FALSE, quote=FALSE)
 
-# Vehicle
+## Vehicle ----
 if (optimizeD == 1) {
-  keep(annos__2018, optimizeD, gitlabdir, country, countrydir, #endpath,
+  keep(annos, optimizeD, gitlabdir, country, countrydir, #endpath,
        gitlabdir, country, countrydir, demanddir, admindir, emissionsdir, rTempdir, 
        proj_gcs, epsg_gcs, proj_pcs, epsg_pcs, proj_authority, GEE_scale,
        byregion, scenario_ver, pop_ver, mofuss_region, rTempdir, sure=TRUE)
@@ -1529,34 +1540,112 @@ if (optimizeD == 1) {
   Sys.sleep(5)
 }
 
-# Old version
-# wf_v_db <- as.data.frame(wf_v_st, row.names="ID",  na.rm=TRUE, xy = TRUE, centroids = TRUE )
-# head(wf_v_db) 
+# # Old version #1
+# # wf_v_db <- as.data.frame(wf_v_st, row.names="ID",  na.rm=TRUE, xy = TRUE, centroids = TRUE )
+# # head(wf_v_db) 
+# 
+# # Old  version #2
+# # Extract x and y coordinates from the first layer
+# xy_coords <- as.data.frame(wf_v_st[[1]], xy = TRUE)[, c("x", "y")]
+# 
+# # Initialize the data frame with x, y, and centroids columns
+# wf_v_dbx <- xy_coords
+# wf_v_dbx$centroids <- TRUE
+# 
+# # Loop through each layer and bind the results as columns
+# for (i in 1:nlyr(wf_v_st)) {
+#   temp_dfv <- as.data.frame(wf_v_st[[i]], na.rm = TRUE)
+#   # Bind the data frame column-wise
+#   wf_v_dbx <- cbind(wf_v_dbx, temp_dfv)
+#   rm(temp_dfv)
+#   gc()
+# }
 
-# New version
-# Extract x and y coordinates from the first layer
-xy_coords <- as.data.frame(wf_v_st[[1]], xy = TRUE)[, c("x", "y")]
 
-# Initialize the data frame with x, y, and centroids columns
-wf_v_dbx <- xy_coords
-wf_v_dbx$centroids <- TRUE
+# # New version
+# # 1) Make a list of per-layer data frames: x, y, <layer_value>
+# dfsv <- map(seq_len(nlyr(wf_v_st)), function(k) {
+#   nm <- names(wf_v_st)[k] %||% paste0("lyr", k)
+#   as.data.frame(wf_v_st[[k]], xy = TRUE, na.rm = TRUE) |>
+#     dplyr::rename(!!nm := 3L)                        # third column is the value
+# })
+# 
+# # 2) Full-join them all on (x,y) to align strictly by coordinates
+# wf_v_dbx <- reduce(dfsv, full_join, by = c("x", "y"))
+# 
+# # 3) Optional: mark which rows existed in the first layer (your "centroids" flag)
+# first_namev <- names(wf_v_st)[1] %||% "lyr1"
+# wf_v_dbx <- wf_v_dbx |>
+#   mutate(centroids = !is.na(.data[[first_namev]])) |>
+#   relocate(centroids, .after = y)
+# 
+# # 4) Replace NAs with 0 in all layer columns (keep x, y, centroids untouched)
+# val_colsv <- setdiff(names(wf_v_dbx), c("x", "y", "centroids"))
+# wf_v_dbx[val_colsv] <- lapply(wf_v_dbx[val_colsv], function(v) replace(v, is.na(v), 0))
+# names(wf_v_dbx)[4:ncol(wf_v_dbx)] <- "GlobalWorldPop" # Warning: Bring from WP vs HSRL
+# wf_v_dbx
 
-# Loop through each layer and bind the results as columns
-for (i in 1:nlyr(wf_v_st)) {
-  temp_dfv <- as.data.frame(wf_v_st[[i]], na.rm = TRUE)
-  # Bind the data frame column-wise
-  wf_v_dbx <- cbind(wf_v_dbx, temp_dfv)
-  rm(temp_dfv)
-  gc()
-}
+# New version #2
+# --- 1) Build value dfs (x, y, <layer_value>) ---
+layer_namesv <- if (!is.null(names(wf_v_st)) && all(nzchar(names(wf_v_st))))
+  names(wf_v_st) else paste0("lyr", seq_len(nlyr(wf_v_st)))
+
+val_dfsv <- map2(seq_len(nlyr(wf_v_st)), layer_namesv, function(k, nm) {
+  dfv <- as.data.frame(wf_v_st[[k]], xy = TRUE, na.rm = TRUE)
+  val_colv <- setdiff(names(dfv), c("x", "y"))[1]
+  transmute(dfv, x, y, !!nm := .data[[val_colv]])
+})
+
+# --- 2) Build a single (x, y) -> ID lookup from ANY layer (first non-NA) ---
+id_dfv <- map(seq_len(nlyr(wf_v_st)), function(k) {
+  dfv <- as.data.frame(wf_v_st[[k]], xy = TRUE, na.rm = TRUE)
+  tibble(x = dfv$x, y = dfv$y, ID = as.integer(row.names(dfv)))
+}) %>% bind_rows() %>%
+  group_by(x, y) %>%
+  summarise(ID = first(ID), .groups = "drop")   # take the first if duplicated
+
+# --- 3) Align all values by (x, y) ---
+wf_v_dbx <- reduce(val_dfsv, full_join, by = c("x", "y"))
+
+# centroids = present in first layer; move it to the end later
+first_val_namev <- names(val_dfsv[[1]])[3]
+wf_v_dbx <- wf_v_dbx %>%
+  mutate(centroids = !is.na(.data[[first_val_namev]]))
+
+# add ID by (x, y)
+wf_v_dbx <- wf_v_dbx %>%
+  left_join(id_dfv, by = c("x", "y"))
+
+# --- 4) Fill NAs only in value columns (not x,y,centroids,ID) ---
+val_colsv <- setdiff(names(wf_v_dbx), c("x", "y", "centroids", "ID"))
+wf_v_dbx[val_colsv] <- lapply(wf_v_dbx[val_colsv], function(v) replace(v, is.na(v), 0))
+
+# --- 5) Final column order: ID first, centroids last ---
 wf_v_db <- wf_v_dbx %>%
+  relocate(ID) %>%
   relocate(centroids, .after = last_col())
+
+# Preview
+head(wf_v_db)
+
+id_conflictsv <- map(seq_len(nlyr(wf_v_st)), function(k) {
+  dfv <- as.data.frame(wf_v_st[[k]], xy = TRUE, na.rm = TRUE)
+  tibble(x = dfv$x, y = dfv$y, ID = as.integer(row.names(dfv)))
+}) %>% bind_rows() %>%
+  distinct(x, y, ID) %>%
+  count(x, y) %>%
+  filter(n > 1)
+
+if (nrow(id_conflictsv) > 0) {
+  warning("Found (x,y) points with multiple IDs across layers; using the first one.")
+}
 
 # Output result
 head(wf_v_db) # Check the structure
 # all.equal(wf_w_db, wf_w_db2)
-colnames(wf_v_db) <- c("x","y",paste0(annos__2018,"_fw_v"),"centroids")
-wf_v_db4idw_prezero <- tibble::rownames_to_column(wf_v_db, "ID") 
+colnames(wf_v_db) <- c("ID","x","y",paste0(annos,"_fw_v"),"centroids")
+# wf_v_db4idw_prezero <- tibble::rownames_to_column(wf_v_db, "ID")
+wf_v_db4idw_prezero <- wf_v_db
 head(wf_v_db4idw_prezero)
 
 ### Take out zero here! Vehicle ----
