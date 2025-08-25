@@ -15,10 +15,10 @@
 # Date: Jan 2025
 
 # 2dolist ----
-# Select webmofuss == 1 automatically
+# Create the string with the current date, checkk line 300
 
 # Internal parameters ----
-start_from_scratch <- 0 # Set to 0 when the MoFuSS working directory already exists and has data in it
+start_from_scratch <- 1 # Set to 0 when the MoFuSS working directory already exists and has data in it
 # rm(list=ls(all=TRUE))
 # # Select MoFuSS platform:
 # webmofuss = 1 # "1" is  web-MoFuSS running in our Ubuntu server, "0" is localcal host (Windows or Linux)
@@ -301,7 +301,7 @@ if (webmofuss == 1) {
     if (os == "Linux") {
       countrydir <- paste0(countrydir_prelim, "/", regionname, "_", GEE_scale, "m_", current_date)
     } else if (os == "Windows") {
-      countrydir <- paste0(countrydir_prelim, regionname, "_", GEE_scale, "m_", current_date)
+      countrydir <- paste0(countrydir_prelim, "/", regionname, "_", GEE_scale, "m_", current_date)
     }
     
     # Print the final string

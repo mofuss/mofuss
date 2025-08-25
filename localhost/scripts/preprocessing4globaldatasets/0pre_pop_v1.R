@@ -1,17 +1,63 @@
 # MoFuSS
-# Version 3
-# Date: Mar 2024
+# Version 4
+# Date: Ago 2025
 
 # 2dolist
-# Check Terra's handling of VRT, sometimes it doesn't work and need to ne updated
+# Check Terra's handling of VRT, sometimes it doesn't work and need to be updated
 # Need to restart R and windows before running this script
 
 # Internal parameters
-cpu = "nrb" #"alien" # vs nrb
-if (cpu == "alien") {
-  gdrivedir <- "G:/My Drive/webpages/2024_MoFuSSGlobal_Datasets/"
-} else {
-  gdrivedir <- "G:/Mi Unidad/webpages/2024_MoFuSSGlobal_Datasets/"
+# cpu = "nrb" #"alien" # vs nrb
+# if (cpu == "alien") {
+#   gdrivedir <- "G:/My Drive/webpages/2024_MoFuSSGlobal_Datasets/"
+# } else {
+#   gdrivedir <- "G:/Mi Unidad/webpages/2024_MoFuSSGlobal_Datasets/"
+# }
+
+# Define all folders based on node ----
+# Detect OS and node name
+os <- Sys.info()["sysname"]
+node_name <- Sys.info()[["nodename"]]
+cat(os,node_name)
+
+if (os == "Windows" & node_name == "WINLANASE") {
+  #ADD node
+  #demanddir <- "F:/demand"
+  #admindir <- "F:/admin_regions"
+  #emissionsdir <- "F:/emissions"
+  #rTempdir <- "F:/rTemp"
+  #globalsouth_mofuss_bindingfolder <- "G:/My Drive/webpages/2024_MoFuSSGlobal_Datasets/mofussDS_v2/globalsouth_mofuss_bindingfolder"
+  gdrivedir <- "G:/My Drive/webpages/2025_MoFuSSGlobal_Datasets/"
+  
+} else if (os == "Windows" & node_name == "ASUSLAP"){
+  #ADD node
+  # demanddir <- "C:/Users/aghil/Documents/MoFuSS_FAO_localhost/demand"
+  # admindir <- "C:/Users/aghil/Documents/MoFuSS_FAO_localhost/admin_regions"
+  # emissionsdir <- "C:/Users/aghil/Documents/MoFuSS_FAO_localhost/emissions"
+  # rTempdir <- "C:/Users/aghil/Documents/MoFuSS_FAO_localhost/rTemp"
+  gdrivedir <- "G:/Mi Unidad/webpages/2025_MoFuSSGlobal_Datasets/"
+  
+} else if (os == "Windows" & node_name == "EDITORIALCIGA"){
+  #ADD node
+  demanddir <- "E:/demand"
+  admindir <- "E:/admin_regions"
+  emissionsdir <- "E:/emissions"
+  rTempdir <- "E:/rTemp"
+  
+} else if (os == "Linux" & node_name == "linux-c3"){
+  #ADD node
+  demanddir <- "/home/mofuss/demand"
+  admindir <- "/home/mofuss/admin_regions"
+  emissionsdir <- "/home/mofuss/emissions"
+  rTempdir <- "/home/mofuss/rTemp"
+  
+} else if (os == "Windows" & node_name == "NRBV1"){
+  #ADD node
+  demanddir <- "D:/demand"
+  admindir <- "D:/admin_regions"
+  emissionsdir <- "D:/emissions"
+  rTempdir <- "D:/rTemp"
+  
 }
 
 # Load packages ----
@@ -32,8 +78,27 @@ getwd()
 country_name
 
 # Read parameters table ----
-country_parameters <- read_excel(paste0("LULCC/DownloadedDatasets/SourceData",country_name,"/",parameters_file)) 
-print(tibble::as_tibble(country_parameters), n=100)
+if (webmofuss == 1) {
+  # Read parameters table in webmofuss
+  country_parameters <- read_csv(parameters_file_path)
+} else if(webmofuss == 0) {
+  # Read parameters table (recognizing the delimiter)
+  detect_delimiter <- function(file_path) {
+    # Read the first line of the file
+    first_line <- readLines(file_path, n = 1)
+    # Check if the first line contains ',' or ';'
+    if (grepl(";", first_line)) {
+      return(";")
+    } else {
+      return(",")
+    }
+  }
+  # Detect the delimiter
+  delimiter <- detect_delimiter(parameters_file_path)
+  # Read the CSV file with the detected delimiter
+  country_parameters <- read_delim(parameters_file_path, delim = delimiter)
+  print(tibble::as_tibble(country_parameters), n=100)
+}
 
 country_parameters %>%
   dplyr::filter(Var == "proj_gcs") %>%
@@ -794,3 +859,51 @@ for (f in copy2mofussfiles_wp) {
             overwrite = TRUE, recursive = TRUE, copy.mode = TRUE)
 }
 
+## El Salvador ----
+tic("El Salvador WorldPop")
+SLVWorldPop100moriginal <- list.files(path = "population_in/WORLDPOP/Americas/",
+                                      pattern = "slv_ppp_2020_UNadj_constrained.*\\.tif$", full.names = TRUE)
+SLVWorldPop100moriginalVRT <- vrt(SLVWorldPop100moriginal, "WP_VRT/SLVWorldPop.vrt", overwrite=TRUE)
+
+SLVWorldPop <- terra::rast(SLVWorldPop100moriginalVRT)
+res(SLVWorldPop)
+res(SLVWorldPop) <- 0.00083333333 #100m approx
+SLVWorldPop <- terra::resample(SLVWorldPop100moriginalVRT, SLVWorldPop, "sum")
+terra::writeRaster(SLVWorldPop,
+                   "population_in/WORLDPOP/outputmaps/100m/wp_slv100m_gcs.tif",
+                   filetype = "GTiff", overwrite = TRUE)
+toc()
+popvrt_slv_wp <- rast("population_in/WORLDPOP/outputmaps/100m/wp_slv100m_gcs.tif")
+popvrt_slv__wp_p <- popvrt_slv_wp %>% terra::project(paste0(proj_authority,":",epsg_pcs), # Try another projection!
+                                                     method = "bilinear", 
+                                                     gdal = FALSE,
+                                                     res = 100)
+terra::writeRaster(popvrt_slv__wp_p,
+                   "population_in/WORLDPOP/outputmaps/100m/wp_slv100m_pcs.tif",
+                   filetype = "GTiff", overwrite = TRUE)
+
+popslv_gcs_wp <- popvrt_slv_wp %>%
+  terra::global(., 'sum', na.rm=TRUE) %>%
+  pull(sum)
+popslv_wm_wp <- popvrt_slv__wp_p %>%
+  terra::global(., 'sum', na.rm=TRUE) %>%
+  pull(sum)
+popslv_gcs_wp/popslv_wm_wp #See if new projection make these two values more even
+
+# Adjust projected population to match gcs - eventually country census data
+popvrt_slv__wp_p_adj <- popvrt_slv__wp_p*(popslv_gcs_wp/popslv_wm_wp)
+popslv_wm_wp_adj <- popvrt_slv__wp_p_adj %>%
+  terra::global(., 'sum', na.rm=TRUE) %>%
+  pull(sum)
+terra::writeRaster(popvrt_slv__wp_p_adj,
+                   "population_in/WORLDPOP/outputmaps/100m/wp_slv100m_pcs.tif",
+                   filetype = "GTiff", overwrite = TRUE)
+
+### Copy 2 MoFuSS ----
+copy2mofussfiles_wp <- c("population_in/WORLDPOP/outputmaps/100m/wp_slv100m_gcs.tif",
+                         "population_in/WORLDPOP/outputmaps/100m/wp_slv100m_pcs.tif")
+for (f in copy2mofussfiles_wp) {
+  file.copy(from=f, 
+            to=paste0(demanddir,"/demand_in/"),  
+            overwrite = TRUE, recursive = TRUE, copy.mode = TRUE)
+}
