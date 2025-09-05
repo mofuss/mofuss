@@ -11,8 +11,8 @@
 # limitations under the License.
 
 # MoFuSS 
-# Version 5
-# Date: Aug 2025
+# Version 4
+# Date: Jan 2025
 # Description: Each run will produce all BaU and ICS for a given time period and region defined interactively.
 
 # 2dolist ----
@@ -21,11 +21,10 @@
 # 3.- CONNECT TO fNRB and NRB RESULTS FROM MOFUSS END, now uses fNRB 2020-2030 1MC hardwired in Rob's end
 # 4.- PROPAGATE UNCERTAINTY ASSUMING NO CORRELATION, FROM (3)
 # 5.- Temporal chunk for debugging - wire back to MoFuSS
-# 6.- Ideally compare tet a tet with Demand scripts to align homolgous chunks
+# 6.- Ideally compare tet a tet with Demand scripts to align homologous chunks
 # 7.- LINEA 229 scenario.list <- c("BaU") BORRAR!!!
 # 8.- Check for Linux 
 # 9.- Neighboring countries when continent or region is selected, something with the croping vect layer, simplified?
-
 ### ----
 # # 10.- IMPORTANT! STANDARD ERROR PROPAGATION, START IN LINE 1225
 # if (sdm == mean){
@@ -33,14 +32,11 @@
 # } else if (sdm == se) {
 #   AvEm20xx_gcs_tpp <- BaU20xxa - ICS20xxa # tpp stands for tonnes per pixel per period
 # }
-
 # # Summary tables over GCS rasters
 # AvEm_gcs_tppr_sum <- as.data.frame(zonal(AvEm_gcs_tppr, admin_r, 'sum')) %>% #CORRECT SUM FOR SE PROPAGATION
 # Start in 1359
-
 ### ----
 # 11.- Integrate mean and SE in the same table
-
 # adminnew <- st_read("regions_adm0/mofuss_regions0.gpkg") %>%
 #   dplyr::mutate(zone = 1:99) %>% # WATCHOUT ABOUT THIS! AUTOMATE LAST VALUE (e.g. 99 or 100)
 #   dplyr::filter(grepl(mofuss_region,mofuss_reg))
@@ -51,12 +47,12 @@
 
 # Internal parameters ----
 temdirdefined = 1
-string_pattern_yes <- "zmb_lusaka_" #Use adm0 as default. String pattern to be searched when selecting folders for the rasters' geocomputation
-string_pattern_no <- "idw" #Use "idw" as default. String pattern to be searched when selecting folders for the rasters' geocomputation
+string_pattern_yes <- "1000m" #Use adm0 as default. String pattern to be searched when selecting folders for the rasters' geocomputation
+string_pattern_no <- "ecoregions" #Use "idw" as default. String pattern to be searched when selecting folders for the rasters' geocomputation
 
 #***#
 startfromscratch = 1 # WARNING: Will erase all temporal folders along with any temp datasets - never too bad
-eraseallemissions = 1 # WARNING: Will erase all EMISSIONS OUTPUTS FOLDERS - could be bad
+eraseallemissions = 0 # WARNING: Will erase all EMISSIONS OUTPUTS FOLDERS - could be bad
 #***#
 
 efchratio <- 6 # wood to charcoal yield
@@ -83,10 +79,10 @@ if (os == "Windows" & node_name == "WINLANASE") {
   
 } else if (os == "Windows" & node_name == "ASUSLAP"){
   #ADD node
-  demanddir <- "C:/Users/aghil/Documents/MoFuSS_FAO_localhost/demand"
-  admindir <- "C:/Users/aghil/Documents/MoFuSS_FAO_localhost/admin_regions"
-  emissionsdir <- "C:/Users/aghil/Documents/MoFuSS_FAO_localhost/emissions"
-  rTempdir <- "C:/Users/aghil/Documents/MoFuSS_FAO_localhost/rTemp"
+  demanddir <- "D:/demand"
+  admindir <- "D:/admin_regions"
+  emissionsdir <- "D:/emissions"
+  rTempdir <- "D:/rTemp"
   
 } else if (os == "Windows" & node_name == "EDITORIALCIGA"){
   #ADD node
@@ -164,10 +160,6 @@ all_dirs <- dir_ls(search_path, type = "directory")
 # Filter directories that match string_pattern_yes and do not match string_pattern_no
 adm0_dirs <- all_dirs[grepl(string_pattern_yes, all_dirs) & !grepl(string_pattern_no, all_dirs)]
 adm0_dirs
-####################################
-adm0_dirs <- c("C:/Users/aghil/Documents/MoFuSS_FAO_localhost/zmb_lusaka_bau_1km_subc",
-               "C:/Users/aghil/Documents/MoFuSS_FAO_localhost/zmb_lusaka_ics1_1km_subc")
-####################################
 
 setwd(demanddir)
 
@@ -1378,13 +1370,13 @@ if (avoidedemissions == 1){
         
       } else if (byregion == "Country"){
         adminnew <- st_read("regions_adm0/mofuss_regions0.gpkg") %>%
-          dplyr::mutate (zone = 1:101) %>%
+          dplyr::mutate (zone = 1:100) %>%
           dplyr::filter (NAME_0 == mofuss_region)
         admindb <- adminnew %>% st_drop_geometry()
         sort(adminnew$NAME_0)
         
         adminnew_p <- st_read("regions_adm0_p/mofuss_regions0_p.gpkg") %>%
-          dplyr::mutate (zone = 1:101) %>%
+          dplyr::mutate (zone = 1:100) %>%
           dplyr::filter (NAME_0 == mofuss_region) %>%
           dplyr::mutate(km2_vector = round(st_area(.)/1000000,0)) %>%
           units::drop_units()
@@ -1547,4 +1539,3 @@ print("Merging completed and original files deleted!")
 
 
 #End ----
-

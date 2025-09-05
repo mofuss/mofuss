@@ -19,9 +19,9 @@
 ## Faltaría 2010-2050
 
 # Internal parameters ----
-temdirdefined = 1
-fixdir <- 1
-string_pattern_yes <- "zmb_lusaka" #String pattern to be searched when selecting folders for the rasters' geocomputation
+temdirdefined <- 1
+fixdir <-  1
+string_pattern_yes <- "zmb_" #String pattern to be searched when selecting folders for the rasters' geocomputation
 string_pattern_no <- "idw" #String pattern to be searched when selecting folders for the rasters' geocomputation
  
 # Load packages ----
@@ -45,8 +45,8 @@ if (temdirdefined == 1) {
 if (fixdir == 1){
   
   # Define a particular directory when needed:
-  adm0_dirs <- c("C:/Users/aghil/Documents/MoFuSS_FAO_localhost/zmb_lusaka_bau_1km_subc",
-                 "C:/Users/aghil/Documents/MoFuSS_FAO_localhost/zmb_lusaka_ics1_1km_subc")
+  adm0_dirs <- c("C:/Users/aghil/Documents/MoFuSS_FAO_localhost/zmb_bau_1km_subc",
+                 "C:/Users/aghil/Documents/MoFuSS_FAO_localhost/zmb_ics2_1km_subc")
 
 } else {
   
