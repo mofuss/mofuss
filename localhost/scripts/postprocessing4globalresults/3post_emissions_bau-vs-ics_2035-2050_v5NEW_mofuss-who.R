@@ -30,7 +30,7 @@
 # Internal parameters ----
 bypass = 1
 
-# EMISSIONS FROM HARVEST ----
+# ======================== EMISSIONS FROM HARVEST ========================
 ## ======================== 0) Packages ========================
 required <- c("terra", "fs", "stringr", "dplyr", "readr")
 to_install <- setdiff(required, rownames(installed.packages()))
@@ -282,27 +282,17 @@ cat("Done. Files in:", output_dir, "\n")
 
 
 ## ======================== 5) Write summaries ========================
-# write_csv(per_run, file.path(output_dir, "per_run_sumco2.csv"))
-# 
-# summary_tbl <- per_run |>
-#   summarise(
-#     runs           = n(),
-#     year_used_max  = max(year_code, na.rm = TRUE),
-#     sumco2_mean_Mg = mean(sumco2_Mg, na.rm = TRUE),
-#     sumco2_sd_Mg   = sd(sumco2_Mg,   na.rm = TRUE),
-#     sumco2_se_Mg   = sumco2_sd_Mg / sqrt(runs)
-#   )
-# write_csv(summary_tbl, file.path(output_dir, "summary_sumco2.csv"))
+write_csv(per_run, file.path(output_dir, "per_run_sumco2.csv"))
 
-# EMISSIONS FROM END-USE ----
-
-
-# Harvest_tot01
-
-
-# Compare Harvest vs Demand to extract % of unmet demand
-
-
+summary_tbl <- per_run |>
+  summarise(
+    runs           = n(),
+    year_used_max  = max(year_code, na.rm = TRUE),
+    sumco2_mean_Mg = mean(sumco2_Mg, na.rm = TRUE),
+    sumco2_sd_Mg   = sd(sumco2_Mg,   na.rm = TRUE),
+    sumco2_se_Mg   = sumco2_sd_Mg / sqrt(runs)
+  )
+write_csv(summary_tbl, file.path(output_dir, "summary_sumco2.csv"))
 
 # ======================== EMISSIONS FROM END-USE: Harvest sums ========================
 message("\n[End-Use] Summing all Harvest_totXX.tif per run (BAU & ICS)…")
@@ -431,5 +421,9 @@ message("[End-Use] Done. Rasters in:\n  - ", enduse_dir_bau, "\n  - ", enduse_di
         "\nTables:\n  - ", file.path(output_dir, "enduse_bau_harvest_per_run.csv"),
         "\n  - ", file.path(output_dir, "enduse_ics_harvest_per_run.csv"),
         "\n  - ", file.path(output_dir, "enduse_harvest_summary.csv"))
+
+
+# Compare Harvest vs Demand to extract % of unmet demand
+
 
 

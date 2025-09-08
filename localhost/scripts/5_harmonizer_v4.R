@@ -1107,7 +1107,8 @@ if (identical(LULCt3map, NA_character_)) {
   "No LULCt3 map available"
 }
   
-# AGB maps ---- # ADD TWO MORE MAPS
+# AGB maps ---- 
+# ADD TWO MORE MAPS
 country_parameters %>%
   dplyr::filter(Var == "AGB1map") %>%
   pull(ParCHR) -> AGB1map
