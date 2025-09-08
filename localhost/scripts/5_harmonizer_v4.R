@@ -1112,6 +1112,13 @@ if (identical(LULCt3map, NA_character_)) {
 country_parameters %>%
   dplyr::filter(Var == "AGB1map") %>%
   pull(ParCHR) -> AGB1map
+country_parameters %>%
+  dplyr::filter(Var == "AGB2map") %>%
+  pull(ParCHR) -> AGB2map
+country_parameters %>%
+  dplyr::filter(Var == "AGB3map") %>%
+  pull(ParCHR) -> AGB3map
+
 if (identical(country_parameters %>%
               dplyr::filter(Var == "AGB1map") %>%
               pull(ParCHR), NA_character_)) {
@@ -1137,6 +1144,34 @@ if (identical(country_parameters %>%
   }
 } else {
   "No AGB1 map available"
+}
+
+# Rename AGB maps following the version being used
+if (identical(country_parameters %>%
+              dplyr::filter(Var == "AGB1map") %>%
+              pull(ParCHR), NA_character_)) {
+  print("No AGB1 map available")
+} else if (AGB1map == "YES"){
+  agb_c1 <- raster("LULCC/TempRaster/agb_c1.tif")
+  writeRaster(agb_c1, "LULCC/TempRaster/agb_c.tif", datatype="INT4S", overwrite=TRUE)
+}
+
+if (identical(country_parameters %>%
+              dplyr::filter(Var == "AGB2map") %>%
+              pull(ParCHR), NA_character_)) {
+  print("No AGB2 map available")
+} else if (AGB2map == "YES"){
+  agb_c2 <- raster("LULCC/TempRaster/agb_c2.tif")
+  writeRaster(agb_c2, "LULCC/TempRaster/agb_cXX.tif", datatype="INT4S", overwrite=TRUE)
+}
+
+if (identical(country_parameters %>%
+              dplyr::filter(Var == "AGB3map") %>%
+              pull(ParCHR), NA_character_)) {
+  print("No AGB3 map available")
+} else if (AGB3map == "YES"){
+  agb_c3 <- raster("LULCC/TempRaster/agb_c3.tif")
+  writeRaster(agb_c1, "LULCC/TempRaster/agb_cXXX.tif", datatype="INT4S", overwrite=TRUE)
 }
 
 # Protected Areas ----

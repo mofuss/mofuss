@@ -1,6 +1,6 @@
 <?xml version="1.0" standalone="yes" ?>
 <script>
-    <property key="dff.date" value="Wed Apr 02 00:14:25 2025" />
+    <property key="dff.date" value="Mon Sep 08 17:16:50 2025" />
     <property key="dff.version" value="2.4.1.20140602" />
     <property key="metadata.author" value="Designed and coded by Adrian Ghilardi (UNAM) and Rob Bailis (SEI)." />
     <property key="metadata.description" value='&quot;MoFuSS&quot; is a dynamic model that simulates the effects of fuelwood harvesting on vegetation, accounting for savings in non-renewable woody biomass from reduced consumption due to an external intervention, such as an improved cookstove (ICS) or fuel substitution project.' />
@@ -3952,7 +3952,7 @@
                 <property key="dff.container.collapsed" value="no" />
                 <property key="dff.functor.alias" value="createString2505" />
                 <property key="viewer.result" value="yes" />
-                <inputport name="format">&quot;R CMD BATCH --no-save \&quot;--args MC=&lt;v1&gt; IT=&lt;v2&gt; K_MC=&lt;v4&gt; TOF_MC=&lt;v5&gt; Ini_st_MC=&lt;v6&gt; Ini_st.factor.percentage=&lt;v7&gt; COVER_MAP=&lt;v8&gt; rmax_MC=&lt;v9&gt; DEF_FW=&lt;v10&gt; IL=&lt;v11&gt; STdyn=&lt;v12&gt; Harv.Pix.W=&lt;v14&gt; Prune.W=&lt;v15&gt; Harv.Pix.V=&lt;v16&gt; Prune.V=&lt;v17&gt; Harv.Pix_MC=&lt;v18&gt; Prune_MC=&lt;v19&gt; Harvestable_W=&lt;v22&gt; Harvestable_V=&lt;v23&gt; Histograms.per.Fig_FOR=&lt;v24&gt; Histograms.per.Fig_TOF=&lt;v25&gt; AGBmap=&lt;v26&gt; OSType=&lt;v28&gt; BaUvsICS=&apos;&lt;s29&gt;&apos; LUCmap_v=&lt;v30&gt; AGBmap_v=&lt;v31&gt;\&quot; -- rnorm2.R &quot;</inputport>
+                <inputport name="format">&quot;R CMD BATCH --no-save \&quot;--args MC=&lt;v1&gt; IT=&lt;v2&gt; K_MC=&lt;v4&gt; TOF_MC=&lt;v5&gt; Ini_st_MC=&lt;v6&gt; Ini_st.factor.percentage=&lt;v7&gt; COVER_MAP=&lt;v8&gt; rmax_MC=&lt;v9&gt; DEF_FW=&lt;v10&gt; IL=&lt;v11&gt; STdyn=&lt;v12&gt; Harv.Pix.W=&lt;v14&gt; Prune.W=&lt;v15&gt; Harv.Pix.V=&lt;v16&gt; Prune.V=&lt;v17&gt; Harv.Pix_MC=&lt;v18&gt; Prune_MC=&lt;v19&gt; Harvestable_W=&lt;v22&gt; Harvestable_V=&lt;v23&gt; Histograms.per.Fig_FOR=&lt;v24&gt; Histograms.per.Fig_TOF=&lt;v25&gt; AGBmap=&lt;v26&gt; OSType=&lt;v28&gt; BaUvsICS=&apos;&lt;s29&gt;&apos; LUCmap_v=&lt;v30&gt; AGBmap_v=&lt;v31&gt;\&quot; -- rnorm_v3.R &quot;</inputport>
                 <outputport name="result" id="v278" />
                 <functor name="NumberValue">
                     <property key="dff.functor.alias" value="numberValue2507" />
