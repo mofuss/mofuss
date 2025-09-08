@@ -253,53 +253,53 @@ setwd(demanddir)
 
 # Select a region
 if (aoi_poly == 1) {
-  ### Selection of largest overlap country for demand calculations
-  mofuss_regions0_gpkg <- vect(st_read("demand_in/mofuss_regions0.gpkg"))
-  # mofuss_regions0 <- as.data.frame(mofuss_regions0_gpkg)
-  # Handle the case where aoi_poly is 1, regardless of byregion
-  cat("aoi_poly is set to 1. This overrides other conditions.\n")
-  # Define file paths
-  kml_file_path <- Sys.glob(paste0(countrydir,"/LULCC/SourceData/InVector_GCS/",aoi_poly_file))
-  # Read the SpatVector files
-  kml_data <- vect(kml_file_path) # Read the .kml file
-  # plot(kml_data)
-  # Reassign the CRS of kml_data to match mofuss_regions0_gpkg
-  crs(kml_data) <- crs(mofuss_regions0_gpkg)
-  # Ensure both layers are in the same projection
-  if (!crs(mofuss_regions0_gpkg) == crs(kml_data)) {
-    stop("Projections do not match!")
-  }
-  # Generic rename handler
-  if ("GID_0" %in% names(kml_data)) names(kml_data)[names(kml_data) == "GID_0"] <- "GID_0_kml"
-  # Intersect the two layers to calculate the overlapping areas
-  overlap <- try(terra::intersect(mofuss_regions0_gpkg, kml_data), silent = TRUE)
-  # Check if the result is valid
-  if (inherits(overlap, "try-error") || is.null(overlap) || length(overlap) == 0) {
-    stop("No valid overlap found between the KML file and the GPKG regions.")
-  }
-  # Add an area column for the overlap polygons
-  overlap$area <- expanse(overlap, unit = "km") # Area in square kilometers
-  # Group by the `GID_0` and sum the overlapping areas for each GID_0
-  overlap_summary <- as.data.frame(overlap) %>%
-    group_by(GID_0) %>%
-    summarise(total_area = sum(area, na.rm = TRUE))
-  # Check if overlap_summary is empty
-  if (nrow(overlap_summary) == 0) {
-    stop("No overlapping regions found.")
-  }
-  # Find the GID_0 with the largest total overlapping area
-  largest_overlap <- overlap_summary[which.max(overlap_summary$total_area), ]
-  
-  # Find the NAME_0 corresponding to the largest_overlap GID_0
-  matching_row <- mofuss_regions0_gpkg[mofuss_regions0_gpkg$GID_0 == largest_overlap$GID_0, ]
-  # Extract the NAME_0 value
-  mofuss_region <- matching_row$GID_0
-  mofuss_region_kml <- matching_row$GID_0
-  
-  # Print the result
-  cat("The GID_0 with the largest overlap is:", largest_overlap$GID_0, "\n")
-  cat("Overlapping area:", largest_overlap$total_area, "km²\n")
-  ###
+  # ### Selection of largest overlap country for demand calculations
+  # mofuss_regions0_gpkg <- vect(st_read("demand_in/mofuss_regions0.gpkg"))
+  # # mofuss_regions0 <- as.data.frame(mofuss_regions0_gpkg)
+  # # Handle the case where aoi_poly is 1, regardless of byregion
+  # cat("aoi_poly is set to 1. This overrides other conditions.\n")
+  # # Define file paths
+  # kml_file_path <- Sys.glob(paste0(countrydir,"/LULCC/SourceData/InVector_GCS/",aoi_poly_file))
+  # # Read the SpatVector files
+  # kml_data <- vect(kml_file_path) # Read the .kml file
+  # # plot(kml_data)
+  # # Reassign the CRS of kml_data to match mofuss_regions0_gpkg
+  # crs(kml_data) <- crs(mofuss_regions0_gpkg)
+  # # Ensure both layers are in the same projection
+  # if (!crs(mofuss_regions0_gpkg) == crs(kml_data)) {
+  #   stop("Projections do not match!")
+  # }
+  # # Generic rename handler
+  # if ("GID_0" %in% names(kml_data)) names(kml_data)[names(kml_data) == "GID_0"] <- "GID_0_kml"
+  # # Intersect the two layers to calculate the overlapping areas
+  # overlap <- try(terra::intersect(mofuss_regions0_gpkg, kml_data), silent = TRUE)
+  # # Check if the result is valid
+  # if (inherits(overlap, "try-error") || is.null(overlap) || length(overlap) == 0) {
+  #   stop("No valid overlap found between the KML file and the GPKG regions.")
+  # }
+  # # Add an area column for the overlap polygons
+  # overlap$area <- expanse(overlap, unit = "km") # Area in square kilometers
+  # # Group by the `GID_0` and sum the overlapping areas for each GID_0
+  # overlap_summary <- as.data.frame(overlap) %>%
+  #   group_by(GID_0) %>%
+  #   summarise(total_area = sum(area, na.rm = TRUE))
+  # # Check if overlap_summary is empty
+  # if (nrow(overlap_summary) == 0) {
+  #   stop("No overlapping regions found.")
+  # }
+  # # Find the GID_0 with the largest total overlapping area
+  # largest_overlap <- overlap_summary[which.max(overlap_summary$total_area), ]
+  # 
+  # # Find the NAME_0 corresponding to the largest_overlap GID_0
+  # matching_row <- mofuss_regions0_gpkg[mofuss_regions0_gpkg$GID_0 == largest_overlap$GID_0, ]
+  # # Extract the NAME_0 value
+  # mofuss_region <- matching_row$GID_0
+  # mofuss_region_kml <- matching_row$GID_0
+  # 
+  # # Print the result
+  # cat("The GID_0 with the largest overlap is:", largest_overlap$GID_0, "\n")
+  # cat("Overlapping area:", largest_overlap$total_area, "km²\n")
+  # ###
   
   
   ### Selection of all overlapping countries for demand calculations
@@ -1756,8 +1756,8 @@ if (if_biomass == 1 && if_charcoal == 1){
   
   ## Walking ----
   if (optimizeD == 1) {
-    keep(annos, optimizeD, gitlabdir, country, countrydir, #endpath,
-         gitlabdir, country, countrydir, demanddir, admindir, emissionsdir, rTempdir, 
+    keep(annos, optimizeD, , country, countrydir, #endpath,
+         githubdir, country, countrydir, demanddir, admindir, emissionsdir, rTempdir, 
          proj_gcs, epsg_gcs, proj_pcs, epsg_pcs, proj_authority, GEE_scale,
          byregion, scenario_ver, pop_ver, mofuss_region, rTempdir, sure=TRUE) # shows you which variables will not be removed
     ls()
@@ -1886,8 +1886,8 @@ if (if_biomass == 1 && if_charcoal == 1){
   
   ## Vehicle ----
   if (optimizeD == 1) {
-    keep(annos, optimizeD, gitlabdir, country, countrydir, #endpath,
-         gitlabdir, country, countrydir, demanddir, admindir, emissionsdir, rTempdir, 
+    keep(annos, optimizeD, , country, countrydir, #endpath,
+         githubdir, country, countrydir, demanddir, admindir, emissionsdir, rTempdir, 
          proj_gcs, epsg_gcs, proj_pcs, epsg_pcs, proj_authority, GEE_scale,
          byregion, scenario_ver, pop_ver, mofuss_region, rTempdir, sure=TRUE)
     ls()

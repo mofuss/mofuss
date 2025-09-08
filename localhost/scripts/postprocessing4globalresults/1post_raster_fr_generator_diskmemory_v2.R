@@ -46,6 +46,7 @@ if (fixdir == 1){
   
   # Define a particular directory when needed:
   adm0_dirs <- c("C:/Users/aghil/Documents/MoFuSS_FAO_localhost/zmb_bau_1km_subc",
+                 "C:/Users/aghil/Documents/MoFuSS_FAO_localhost/zmb_ics1_1km_subc",
                  "C:/Users/aghil/Documents/MoFuSS_FAO_localhost/zmb_ics2_1km_subc")
 
 } else {

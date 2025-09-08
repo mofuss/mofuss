@@ -24,19 +24,20 @@
 # perhaps dividing in V vs W harvest and respreading based on urban rural population for each year?
 # Or justs reducing the demand map by the fraction actually harvested which shouldn't be never more than 10%, 
 # moreover after calibration 
+# Add pixel base trajectories to see what happens on negative pixels
 
 
 # Internal parameters ----
 bypass = 1
 
-
-# ======================== 0) Packages ========================
+# EMISSIONS FROM HARVEST ----
+## ======================== 0) Packages ========================
 required <- c("terra", "fs", "stringr", "dplyr", "readr")
 to_install <- setdiff(required, rownames(installed.packages()))
 if (length(to_install)) install.packages(to_install, quiet = TRUE)
 library(terra); library(fs); library(stringr); library(dplyr); library(readr)
 
-# ======================== 1) Folder pickers ========================
+## ======================== 1) Folder pickers ========================
 # (Tiny helper; we keep it because dialogs differ by OS/RStudio)
 
 # minimal helper to pick a directory (RStudio dialog → Windows tcltk → readline)
@@ -89,7 +90,7 @@ cat("\nBAU: ", bau_dir,
     "\nICS: ", ics_dir,
     "\nOUT: ", output_dir, "\n\n", sep = "")
 
-# ======================== 2) Find debugging_n runs ========================
+## ======================== 2) Find debugging_n runs ========================
 # (Make sure these are loaded once in your session)
 suppressPackageStartupMessages({
   library(terra); library(fs); library(stringr); library(dplyr); library(readr)
@@ -149,19 +150,19 @@ cat("Plan rows:", nrow(plan), "→", file.path(output_dir, "plan_runs_and_files.
 
 
 
-# ======================== 3) Terra options (progress/temp) ========================
+## ======================== 3) Terra options (progress/temp) ========================
 terraOptions(progress = 1)
 dir.create(file.path(rTempdir), showWarnings = FALSE, recursive = TRUE)
 terraOptions(tempdir = file.path(output_dir))
 
-# ======================== 4) Loop: compute ΔAGB → ΔCO2, write per-run rasters ========================
+## ======================== 4) Loop: compute ΔAGB → ΔCO2, write per-run rasters ========================
 # Factor: biomass → C (0.47), then C → CO2 (44/12)
 co2_factor <- 0.47 * (44/12)
 
 per_run <- tibble(run_id = integer(), year_code = integer(), sumco2_Mg = numeric())
 
 # We'll compute mean/SE whenever we have at least 2 runs
-min_runs_for_se <- 2
+min_runs_for_se <- 30
 
 # Accumulators for mean/SE
 S  <- NULL  # sum of delta_co2
@@ -169,6 +170,7 @@ S2 <- NULL  # sum of (delta_co2^2)
 n_stream <- 0L
 
 for (i in seq_len(nrow(plan))) {
+  #i = 1
   rid <- plan$run_id[i]; y <- plan$year_code[i]
   
   bau_agb <- rast(plan$bau_file[i])
@@ -180,17 +182,13 @@ for (i in seq_len(nrow(plan))) {
     stop("BAU & ICS rasters are not perfectly aligned (CRS/grid mismatch). Refusing to resample.")
   }
   
-  # round BAU/ICS to 0 decimals (integers) BEFORE subtraction
-  bau_int <- round(bau_agb, 0)
-  ics_int <- round(ics_agb, 0)
-  
-  delta_agb <- ics_int - bau_int
+  delta_agb <- ics_agb - bau_agb
   delta_co2 <- delta_agb * co2_factor
   
   # For the first processed run, also save the input rasters AGBs (sanity check)
   if (i == 1L) {
-    writeRaster(bau_int, file.path(output_dir, "bau_agb_mc1.tif"), overwrite = TRUE)
-    writeRaster(ics_int, file.path(output_dir, "ics_agb_mc1.tif"), overwrite = TRUE)
+    writeRaster(bau_agb, file.path(output_dir, "bau_agb_mc1.tif"), overwrite = TRUE)
+    writeRaster(ics_agb, file.path(output_dir, "ics_agb_mc1.tif"), overwrite = TRUE)
     writeRaster(delta_agb, file.path(output_dir, "delta_agb_mc1.tif"), overwrite = TRUE)
     writeRaster(delta_co2, file.path(output_dir, "delta_co2_mc1.tif"), overwrite = TRUE)
     
@@ -202,16 +200,37 @@ for (i in seq_len(nrow(plan))) {
                 file.path(output_dir, "delta_agb_mc1_neg.tif"),
                 overwrite = TRUE)
     
-    # sums negatve pixels (ignores NA)
-    n_neg   <- terra::global(delta_agb < 0,      "sum", na.rm = TRUE)[[1]]
-    n_ge0   <- terra::global(delta_agb >= 0,     "sum", na.rm = TRUE)[[1]]
-    n_valid <- n_neg + n_ge0
+    # Optional tolerance for near-zero noise:
+    eps <- 0   # set to 1e-9 (or 1e-6 in your units) if needed
     
-    cat(sprintf("Counts  | <0: %s  >=0: %s  (valid: %s)\n",
-                format(n_neg, big.mark=","), format(n_ge0, big.mark=","), format(n_valid, big.mark=",")))
-    cat(sprintf("Percent | <0: %.2f%%  >=0: %.2f%%\n", 100*n_neg/n_valid, 100*n_ge0/n_valid))
+    # 2) Counts (cells), disjoint bins
+    n_neg  <- terra::global(delta_agb <  -eps, "sum", na.rm = TRUE)[[1]]
+    n_ge0  <- terra::global(delta_agb >= -eps, "sum", na.rm = TRUE)[[1]]
+    n_val  <- terra::global(!is.na(delta_agb), "sum", na.rm = TRUE)[[1]]
     
-    # Add pixel base trajectories to see what happens on negative pixels !!! OJO
+    # Sanity check: counts must add up
+    stopifnot(n_val == n_neg + n_ge0)
+    
+    # 3) Sums of biomass change within each bin
+    sum_neg <- terra::global(terra::ifel(delta_agb <  -eps, delta_agb, NA), "sum", na.rm = TRUE)[[1]]
+    sum_ge0 <- terra::global(terra::ifel(delta_agb >= -eps, delta_agb, NA), "sum", na.rm = TRUE)[[1]]
+    
+    # Shares
+    gross      <- abs(sum_neg) + sum_ge0
+    neg_share  <- if (gross > 0) abs(sum_neg) / gross * 100 else NA_real_
+    ge0_share  <- if (gross > 0) sum_ge0      / gross * 100 else NA_real_
+    
+    # Pretty print
+    cat(
+      sprintf("NEG (<0):   %s cells | sum = %g | share = %.4f\n",
+              format(n_neg, big.mark=","), sum_neg, neg_share),
+      sprintf("GE0 (>=0):  %s cells | sum = %g | share = %.4f\n",
+              format(n_ge0, big.mark=","), sum_ge0, ge0_share),
+      sprintf("VALID CELLS: %s\n", format(n_val, big.mark=",")),
+      sep = ""
+    )
+    
+    # Add pixel base trajectories to see what happens on negative pixels
     
   }
   
@@ -223,17 +242,15 @@ for (i in seq_len(nrow(plan))) {
   out_delta <- file.path(output_dir, sprintf("delta_co2_run%03d_y%02d.tif", rid, y))
   writeRaster(delta_co2, out_delta, overwrite = TRUE)
   
-
-  
-  # Accumulate for mean/SE
-  if (is.null(S)) {
-    S  <- writeRaster(delta_co2,                    file.path(output_dir, "S_delta_co2.tif"),  overwrite = TRUE)
-    S2 <- writeRaster(delta_co2 * delta_co2,        file.path(output_dir, "S2_delta_co2.tif"), overwrite = TRUE)
-  } else {
-    S  <- writeRaster(S  + delta_co2,               file.path(output_dir, "S_delta_co2.tif"),  overwrite = TRUE)
-    S2 <- writeRaster(S2 + (delta_co2 * delta_co2), file.path(output_dir, "S2_delta_co2.tif"), overwrite = TRUE)
-  }
-  n_stream <- n_stream + 1L
+  # # Accumulate for mean/SE
+  # if (is.null(S)) {
+  #   S  <- writeRaster(delta_co2,                    file.path(output_dir, "S_delta_co2.tif"),  overwrite = TRUE)
+  #   S2 <- writeRaster(delta_co2 * delta_co2,        file.path(output_dir, "S2_delta_co2.tif"), overwrite = TRUE)
+  # } else {
+  #   S  <- writeRaster(S  + delta_co2,               file.path(output_dir, "S_delta_co2.tif"),  overwrite = TRUE)
+  #   S2 <- writeRaster(S2 + (delta_co2 * delta_co2), file.path(output_dir, "S2_delta_co2.tif"), overwrite = TRUE)
+  # }
+  # n_stream <- n_stream + 1L
 }
 
 # Per-run and summary tables
@@ -264,7 +281,7 @@ if (!is.null(S2) && n_stream >= min_runs_for_se) {
 cat("Done. Files in:", output_dir, "\n")
 
 
-# # ======================== 5) Write summaries ========================
+## ======================== 5) Write summaries ========================
 # write_csv(per_run, file.path(output_dir, "per_run_sumco2.csv"))
 # 
 # summary_tbl <- per_run |>
@@ -277,5 +294,142 @@ cat("Done. Files in:", output_dir, "\n")
 #   )
 # write_csv(summary_tbl, file.path(output_dir, "summary_sumco2.csv"))
 
+# EMISSIONS FROM END-USE ----
+
+
+# Harvest_tot01
+
+
+# Compare Harvest vs Demand to extract % of unmet demand
+
+
+
+# ======================== EMISSIONS FROM END-USE: Harvest sums ========================
+message("\n[End-Use] Summing all Harvest_totXX.tif per run (BAU & ICS)…")
+
+# Helpers -------------------------------------------------------------
+.sum_harvest_in_run <- function(run_dir, out_prefix, outdir, mc1_tag = FALSE) {
+  # list all .tif files in the run folder (non-recursive is usually enough; use recurse=TRUE if needed)
+  files <- fs::dir_ls(run_dir, type = "file", glob = "*.tif")
+  # keep Harvest_totXX.tif (case-insensitive), XX = 01..99+
+  ptn   <- "(?i)^Harvest_tot(\\d+)\\.tif$"
+  files <- files[grepl(ptn, basename(files))]
+  if (!length(files)) return(list(ok = FALSE, msg = paste0("No Harvest_totXX.tif in: ", run_dir)))
+  
+  # order by XX so logs look neat (not strictly required for the sum)
+  ord <- stringr::str_match(basename(files), regex(ptn))[,2] |> as.integer()
+  files <- files[order(ord)]
+  
+  # read first to establish geometry
+  r0 <- terra::rast(files[1])
+  # sanity: ensure all geometries match (CRS/grid/extent/resolution/origin)
+  for (f in files[-1]) {
+    if (!terra::compareGeom(r0, terra::rast(f), stopOnError = FALSE)) {
+      stop("[End-Use] Geometry mismatch within run folder: ", run_dir,
+           "\nProblematic file: ", f)
+    }
+  }
+  
+  # stack + sum (terra sums cell-wise, ignoring NA)
+  # Use wrap in SpatRaster list to avoid unexpected memory spikes
+  rlist <- lapply(files, terra::rast)
+  rs    <- terra::rast(rlist)
+  rsum  <- terra::app(rs, fun = sum, na.rm = TRUE)
+  
+  # write outputs
+  out_tif <- file.path(outdir, paste0(out_prefix, "_harvest_sum.tif"))
+  terra::writeRaster(rsum, out_tif, overwrite = TRUE)
+  
+  # global total (assumes per-pixel units are Mg biomass; change if different)
+  gsum <- as.numeric(terra::global(rsum, "sum", na.rm = TRUE)[[1]])
+  
+  # if this is Monte Carlo #1, save a convenience copy
+  if (mc1_tag) {
+    mc1_tif <- file.path(outdir, paste0(out_prefix, "_harvest_sum_mc1.tif"))
+    terra::writeRaster(rsum, mc1_tif, overwrite = TRUE)
+    # also stash the list of source files for traceability
+    readr::write_lines(files, file.path(outdir, paste0(out_prefix, "_harvest_sources_mc1.txt")))
+  }
+  
+  list(ok = TRUE, out_tif = out_tif, global_sum = gsum, n_layers = length(files))
+}
+
+# Output subfolders ---------------------------------------------------
+enduse_dir_bau <- file.path(output_dir, "enduse_bau")
+enduse_dir_ics <- file.path(output_dir, "enduse_ics")
+dir.create(enduse_dir_bau, showWarnings = FALSE, recursive = TRUE)
+dir.create(enduse_dir_ics, showWarnings = FALSE, recursive = TRUE)
+
+# Accumulators for CSVs
+harv_tbl_bau <- tibble(run_id = integer(), n_layers = integer(), global_sum_Mg = numeric(), out_tif = character())
+harv_tbl_ics <- tibble(run_id = integer(), n_layers = integer(), global_sum_Mg = numeric(), out_tif = character())
+
+# Iterate common runs (derived above) --------------------------------
+for (k in seq_len(nrow(common_runs))) {
+  rid   <- common_runs$run_id[k]
+  dir_b <- common_runs$run_dir_bau[k]
+  dir_i <- common_runs$run_dir_ics[k]
+  
+  # BAU
+  out_prefix_b <- sprintf("bau_run%03d", rid)
+  res_b <- .sum_harvest_in_run(
+    run_dir = dir_b,
+    out_prefix = out_prefix_b,
+    outdir = enduse_dir_bau,
+    mc1_tag = (rid == 1L)
+  )
+  if (isTRUE(res_b$ok)) {
+    harv_tbl_bau <- bind_rows(harv_tbl_bau,
+                              tibble(run_id = rid,
+                                     n_layers = res_b$n_layers,
+                                     global_sum_Mg = res_b$global_sum,
+                                     out_tif = res_b$out_tif))
+  } else {
+    message("[End-Use][BAU] ", res_b$msg)
+  }
+  
+  # ICS
+  out_prefix_i <- sprintf("ics_run%03d", rid)
+  res_i <- .sum_harvest_in_run(
+    run_dir = dir_i,
+    out_prefix = out_prefix_i,
+    outdir = enduse_dir_ics,
+    mc1_tag = (rid == 1L)
+  )
+  if (isTRUE(res_i$ok)) {
+    harv_tbl_ics <- bind_rows(harv_tbl_ics,
+                              tibble(run_id = rid,
+                                     n_layers = res_i$n_layers,
+                                     global_sum_Mg = res_i$global_sum,
+                                     out_tif = res_i$out_tif))
+  } else {
+    message("[End-Use][ICS] ", res_i$msg)
+  }
+}
+
+# Write per-scenario summaries ---------------------------------------
+readr::write_csv(harv_tbl_bau, file.path(output_dir, "enduse_bau_harvest_per_run.csv"))
+readr::write_csv(harv_tbl_ics, file.path(output_dir, "enduse_ics_harvest_per_run.csv"))
+
+# Optional quick stats
+enduse_summary <- bind_rows(
+  harv_tbl_bau |> mutate(scenario = "BAU"),
+  harv_tbl_ics |> mutate(scenario = "ICS")
+) |>
+  group_by(scenario) |>
+  summarise(
+    runs          = n(),
+    mean_Mg       = mean(global_sum_Mg, na.rm = TRUE),
+    sd_Mg         = sd(global_sum_Mg,   na.rm = TRUE),
+    se_Mg         = sd_Mg / sqrt(runs),
+    .groups = "drop"
+  )
+
+readr::write_csv(enduse_summary, file.path(output_dir, "enduse_harvest_summary.csv"))
+
+message("[End-Use] Done. Rasters in:\n  - ", enduse_dir_bau, "\n  - ", enduse_dir_ics,
+        "\nTables:\n  - ", file.path(output_dir, "enduse_bau_harvest_per_run.csv"),
+        "\n  - ", file.path(output_dir, "enduse_ics_harvest_per_run.csv"),
+        "\n  - ", file.path(output_dir, "enduse_harvest_summary.csv"))
 
 

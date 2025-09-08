@@ -35,8 +35,8 @@
 #   if (LULCt1map == "YES"){
 #     dir.create("LULCC/lucdynamics_luc1")
 #     dir.create("LULCC/lucdynamics_luc1/out_lulcc")
-#     lulcc.egoml <- list.files (paste0(gitlabdir, "/localhost/scripts/LULCC/LULCt1_c/"))
-#     file.copy(from=paste0(gitlabdir, "/localhost/scripts/LULCC/LULCt1_c/",lulcc.egoml), 
+#     lulcc.egoml <- list.files (paste0(githubdir, "/localhost/scripts/LULCC/LULCt1_c/"))
+#     file.copy(from=paste0(githubdir, "/localhost/scripts/LULCC/LULCt1_c/",lulcc.egoml), 
 #               to=paste0(countrydir, "/LULCC/lucdynamics_luc1"), 
 #               overwrite = TRUE)
 #     system(paste0(countrydir, "/LULCC/lucdynamics_luc1/LULCC_blackbox_scripts2.bat"))
@@ -76,7 +76,7 @@ if (temdirdefined == 1) {
 # terraOptions(progress=0)
 library(dplyr)
 library(fasterize)
-library(gitlabr)
+# library(gitlabr)
 library(glue)
 library(igraph)
 library(inline)
@@ -226,38 +226,74 @@ if (aoi_poly == 1) {
     stop("No valid overlap found between the KML file and the GPKG regions.")
   }
   
-  # Calculate area
-  overlap$area <- terra::expanse(overlap, unit = "km")
+  # Overlapping chunk deprecated
+  # # Calculate area
+  # overlap$area <- terra::expanse(overlap, unit = "km")
+  # 
+  # # Extract
+  # overlap_df <- as.data.frame(overlap)
+  # 
+  # # Build summary
+  # overlap_summary <- overlap_df %>%
+  #   dplyr::select(GID_0, area) %>%
+  #   dplyr::mutate(total_area = area) %>%
+  #   dplyr::select(GID_0, total_area)
+  # # Check if overlap_summary is empty
+  # if (nrow(overlap_summary) == 0) {
+  #   stop("No overlapping regions found.")
+  # }
+  # 
+  # # Find largest
+  # largest_overlap <- overlap_summary %>%
+  #   arrange(desc(total_area)) %>%
+  #   slice_head(n = 1)
+  # 
+  # # Match to country
+  # matching_row <- mofuss_regions0_gpkg[mofuss_regions0_gpkg$GID_0 == largest_overlap$GID_0, ]
+  # 
+  # Extract the NAME_0 value
+  # mofuss_region <- matching_row$GID_0
+  # mofuss_region_kml <- matching_row$
+  # 
+  # # Print the result
+  # cat("The GID_0 with the largest overlap is:", largest_overlap$GID_0, "\n")
+  # cat("Overlapping area:", largest_overlap$total_area, "km²\n") 
+  ###
   
-  # Extract
-  overlap_df <- as.data.frame(overlap)
-  
-  # Build summary
-  overlap_summary <- overlap_df %>%
-    dplyr::select(GID_0, area) %>%
-    dplyr::mutate(total_area = area) %>%
-    dplyr::select(GID_0, total_area)
+  # Add an area column for the overlap polygons
+  overlap$area <- expanse(overlap, unit = "km") # Area in square kilometers
+  # Group by the `GID_0` and sum the overlapping areas for each GID_0
+  overlap_summary <- as.data.frame(overlap) %>%
+    group_by(GID_0) %>%
+    summarise(total_area = sum(area, na.rm = TRUE))
   # Check if overlap_summary is empty
   if (nrow(overlap_summary) == 0) {
     stop("No overlapping regions found.")
   }
+  # Select all countries with some overlap (total_area > 0)
+  overlap_with_overlap <- overlap_summary %>%
+    filter(total_area > 0)
   
-  # Find largest
-  largest_overlap <- overlap_summary %>%
-    arrange(desc(total_area)) %>%
-    slice_head(n = 1)
+  # Check if any regions with overlap exist
+  if (nrow(overlap_with_overlap) == 0) {
+    cat("No countries with overlap found.\n")
+  } else {
+    # Print the results for all countries with overlap
+    cat("Countries with overlap and their total overlap areas:\n")
+    print(overlap_with_overlap)
+  }
   
-  # Match to country
-  matching_row <- mofuss_regions0_gpkg[mofuss_regions0_gpkg$GID_0 == largest_overlap$GID_0, ]
+  # Optionally, if you want to extract the names of the countries with overlap, use:
+  overlap_with_overlap_details <- merge(overlap_with_overlap, mofuss_regions0_gpkg, by = "GID_0")
+  countries_with_overlap <- overlap_with_overlap_details %>%
+    dplyr::select(GID_0, NAME_0, total_area)
+  
+  # Print the countries and their overlap areas
+  cat("Countries with overlap areas:\n")
+  print(countries_with_overlap)
+  
+  mofuss_region_kml <- overlap_with_overlap_details
 
-  # Extract the NAME_0 value
-  mofuss_region <- matching_row$GID_0
-  mofuss_region_kml <- matching_row$GID_0
-  
-  # Print the result
-  cat("The GID_0 with the largest overlap is:", largest_overlap$GID_0, "\n")
-  cat("Overlapping area:", largest_overlap$total_area, "km²\n") 
-  
 } else if (byregion == "Continental" & aoi_poly == 0) {
   country_parameters %>%
     dplyr::filter(Var == "region2BprocessedCont") %>%
@@ -406,12 +442,12 @@ if (aoi_poly == 1) {
   # Vector masks and extents Google Polygon
   setwd(admindir)
   extent_mask0 <- vect(st_read("regions_adm0_p/mofuss_regions0_p.gpkg")) %>%
-    terra::subset(.$GID_0 == mofuss_region)
+    terra::subset(.$GID_0 %in% unique(mofuss_region_kml$GID_0))
   mask <- st_as_sf(extent_mask0) %>%
     dplyr::mutate(ID = 1)
   # terra::writeVector(extent_mask0, "InVector/extent_mask.gpkg", overwrite = TRUE)
   setwd(countrydir)
-  
+
   # mask <- userarea
   analysisshp <- st_intersection(mask, userarea)
   analysisshp_GCS <- st_transform(analysisshp, epsg_gcs)
@@ -427,7 +463,7 @@ if (aoi_poly == 1) {
   
   setwd(admindir)
   ecoregions0 <- vect("ecoregions_p/ecoregions2017_p.gpkg", layer = "ecoregions_mofuss") %>%
-    terra::subset(.$GID_0 == mofuss_region)
+    terra::subset(.$GID_0 %in% unique(mofuss_region_kml$GID_0))
   terra::writeVector(ecoregions0, paste0(countrydir,"/LULCC/SourceData/InVector/ecoregions.gpkg"), overwrite = TRUE)
   # Save as shapefile
   writeVector(ecoregions0, filename = paste0(countrydir,"/LULCC/SourceData/InVector/ecoregions.shp"), filetype = "ESRI Shapefile", overwrite = TRUE)
@@ -1596,7 +1632,7 @@ if (os == "Windows") {
     dir.create("LULCC/lucdynamics_luc1")
     dir.create("LULCC/lucdynamics_luc1/out_lulcc")
     lulcc.egoml <- list.files(
-      paste0(gitlabdir, "/localhost/scripts/LULCC/LULCt1_c"), 
+      paste0(githubdir, "/localhost/scripts/LULCC/LULCt1_c"), 
       pattern = "(win241\\.egoml|\\.bat)$", 
       full.names = TRUE
     )
@@ -1610,7 +1646,7 @@ if (os == "Windows") {
     dir.create("LULCC/lucdynamics_luc2")
     dir.create("LULCC/lucdynamics_luc2/out_lulcc")
     lulcc.egoml <- list.files(
-      paste0(gitlabdir, "/localhost/scripts/LULCC/LULCt2_c"), 
+      paste0(githubdir, "/localhost/scripts/LULCC/LULCt2_c"), 
       pattern = "(win241\\.egoml|\\.bat)$", 
       full.names = TRUE
     )
@@ -1624,7 +1660,7 @@ if (os == "Windows") {
     dir.create("LULCC/lucdynamics_luc3")
     dir.create("LULCC/lucdynamics_luc3/out_lulcc")
     lulcc.egoml <- list.files(
-      paste0(gitlabdir, "/localhost/scripts/LULCC/LULCt3_c"), 
+      paste0(githubdir, "/localhost/scripts/LULCC/LULCt3_c"), 
       pattern = "(win241\\.egoml|\\.bat)$", 
       full.names = TRUE
     )
@@ -1641,7 +1677,7 @@ if (os == "Windows") {
     dir.create("LULCC/lucdynamics_luc1")
     dir.create("LULCC/lucdynamics_luc1/out_lulcc")
     lulcc.egoml <- list.files(
-      paste0(gitlabdir, "/localhost/scripts/LULCC/LULCt1_c"), 
+      paste0(githubdir, "/localhost/scripts/LULCC/LULCt1_c"), 
       pattern = "linux\\.egoml$", 
       full.names = TRUE
     )
@@ -1665,7 +1701,7 @@ if (os == "Windows") {
     dir.create("LULCC/lucdynamics_luc2")
     dir.create("LULCC/lucdynamics_luc2/out_lulcc")
     lulcc.egoml <- list.files(
-      paste0(gitlabdir, "/localhost/scripts/LULCC/LULCt2_c"), 
+      paste0(githubdir, "/localhost/scripts/LULCC/LULCt2_c"), 
       pattern = "linux\\.egoml$", 
       full.names = TRUE
     )
@@ -1689,7 +1725,7 @@ if (os == "Windows") {
     dir.create("LULCC/lucdynamics_luc3")
     dir.create("LULCC/lucdynamics_luc3/out_lulcc")
     lulcc.egoml <- list.files(
-      paste0(gitlabdir, "/localhost/scripts/LULCC/LULCt3_c"), 
+      paste0(githubdir, "/localhost/scripts/LULCC/LULCt3_c"), 
       pattern = "linux\\.egoml$", 
       full.names = TRUE
     )

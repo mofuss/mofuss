@@ -30,7 +30,7 @@ attdecay = 1.15  # decay rate of attraction kernels
 # Load packages ----
 library(dplyr)
 library(fasterize)
-library(gitlabr)
+# library(gitlabr)
 library(igraph)
 library(inline)
 library(raster)
@@ -327,7 +327,7 @@ if (file.exists("LULCC/TempTables/growth_parameters3.csv") == TRUE) {
 
 # Dinamica external scripts ----
 # Dirs for system ----
-gitlabdir.sys <- gsub("/", "\\", gitlabdir, fixed=TRUE)
+githubdir.sys <- gsub("/", "\\", githubdir, fixed=TRUE)
 countrydir.sys <- gsub("/", "\\", countrydir, fixed=TRUE)
 
 # Friction ----

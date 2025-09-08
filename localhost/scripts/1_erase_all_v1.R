@@ -35,7 +35,7 @@ directories_to_remove <- c(
   "Debugging", "debug*", "norm*", 
   "HTML_animation_OutBaU", "HTML_animation_OutICS", 
   "Logs", "OutBaU", "OutICS", "Summary_Report", 
-  "Temp", "In", "ffmpeg32", "ffmpeg64", "LaTeX",
+  "Temp", "In", "ffmpeg32", "ffmpeg64", "LaTeX", "rTemp",
   "LULCC/InVector", "LULCC/Out_lulcc", "LULCC/SourceData", 
   "LULCC/TempRaster", "LULCC/TempTables", "LULCC/TempVector", 
   "LULCC/TempVector_GCS", "LULCC/Wizard_imgs",

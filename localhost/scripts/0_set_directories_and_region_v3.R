@@ -27,6 +27,7 @@ if (start_from_scratch == 1){webmofuss = 0}
 
 # Load libraries ----
 library(dplyr)
+library(fs)
 library(purrr)
 library(readxl)
 library(stringr)
@@ -38,7 +39,7 @@ os <- Sys.info()["sysname"]
 if (webmofuss == 1) {
   
   # 1km
-  #gitlabdir <- "/home/mofuss/Documents/mofuss"
+  #githubdir <- "/home/mofuss/Documents/mofuss"
   #countrydir <- "/home/mofuss/global1000m"
   # country <- "C:\\Users\\aghil\\Documents\\mofuss\\countries\\Global.tif"
   #demanddir <- "/home/mofuss/demand"
@@ -139,9 +140,9 @@ if (webmofuss == 1) {
     dir.create(paste0(countrydir,"/LULCC/DownloadedDatasets/SourceData",country_name,"/InVector_GCS"))
   }
   
-  # Copy input tables from gitlab repo into MoFuSS working folder ----
+  # Copy input tables from github repo into MoFuSS working folder ----
   friction2copy <- list.files(
-    path = paste0(gitlabdir, "/friction"),
+    path = paste0(githubdir, "/friction"),
     pattern = "\\.csv$|\\.xlsx$",
     full.names = TRUE)
   
@@ -151,8 +152,8 @@ if (webmofuss == 1) {
               overwrite = TRUE, recursive = TRUE, copy.mode = TRUE)
   }
   
-  # Copy input tables from gitlab repo into MoFuSS working folder ----
-  growth2copy <- list.files(path = paste0(gitlabdir, "/global_growth"), 
+  # Copy input tables from github repo into MoFuSS working folder ----
+  growth2copy <- list.files(path = paste0(githubdir, "/global_growth"), 
                             pattern = "\\.csv$|\\.xlsx$", 
                             full.names = TRUE)
   
@@ -189,7 +190,7 @@ if (webmofuss == 1) {
               overwrite = TRUE, recursive = TRUE, copy.mode = TRUE)
   }
   
-  admin2copyv2 <- list.files(path = paste0(gitlabdir, "/admin_regions"), 
+  admin2copyv2 <- list.files(path = paste0(githubdir, "/admin_regions"), 
                              pattern = "\\.csv$|\\.xlsx$", 
                              full.names = TRUE)
   for (t in admin2copyv2) {
@@ -201,31 +202,31 @@ if (webmofuss == 1) {
 } else {
   
   # Function to choose directory
-  choose_gitlab_dir <- function() {
+  choose_github_dir <- function() {
     if (os == "Windows") {
       # Use tk_choose.dir for Windows
-      gitlabdir <- tcltk::tk_choose.dir(default = normalizePath("~"), caption = "Choose your local GitLab MoFuSS directory")
+      githubdir <- tcltk::tk_choose.dir(default = normalizePath("~"), caption = "Choose your local GitHub MoFuSS directory")
     } else if (os == "Linux") {
       # Use an alternative for Linux (e.g., `utils::choose.dir`, which works in RStudio)
-      gitlabdir <- rstudioapi::selectDirectory(caption = "Choose your local GitLab MoFuSS directory")
+      githubdir <- rstudioapi::selectDirectory(caption = "Choose your local github MoFuSS directory")
     } else {
       stop("Unsupported OS. Directory selection is not implemented for this system.")
     }
     
     # Check if a directory was selected
-    if (is.null(gitlabdir) || gitlabdir == "") {
+    if (is.null(githubdir) || githubdir == "") {
       stop("No directory selected. Exiting.")
     }
     
     # Normalize path and return
-    return(normalizePath(gitlabdir))
+    return(normalizePath(githubdir))
   }
   
   # Call the function
-  gitlabdir <- choose_gitlab_dir()
+  githubdir <- choose_github_dir()
   
-  # Save the selected directory as gitlabdir
-  cat("Selected GitLab directory:", gitlabdir, "\n")
+  # Save the selected directory as githubdir
+  cat("Selected github directory:", githubdir, "\n")
   
   if (start_from_scratch == 1) {
     # Prompt the user to select the "parameters" file
@@ -336,16 +337,31 @@ if (webmofuss == 1) {
     
   }
   
-  choose_directory3 = function(caption = "Choose the directory where demand_in files are") {
-    if(.Platform$OS.type == "unix")  {
-      setwd(tk_choose.dir("/home/mofuss/Documents", caption = caption))
-    } else {
-      setwd(choose.dir("/home/mofuss/Documents", caption = caption)) # Elegir bien esta carpeta de inicio
-    }
-  }
-  choose_directory3()
+  # choose_directory3 = function(caption = "Choose the directory where demand_in files are") {
+  #   if(.Platform$OS.type == "unix")  {
+  #     setwd(tk_choose.dir("/home/mofuss/Documents", caption = caption))
+  #   } else {
+  #     setwd(choose.dir("/home/mofuss/Documents", caption = caption)) # Elegir bien esta carpeta de inicio
+  #   }
+  # }
+  # choose_directory3()
   demanddir <- getwd()
   
+  # New version now has demand folder within the MoFuSS working directory 
+  # Base path
+  base_path <- file.path(countrydir, "LULCC/DownloadedDatasets")
+  # 1. Find any directory starting with "SourceData"
+  source_dir <- dir_ls(base_path, type = "directory", regexp = "SourceData.*$")
+  # 2. Inside that, list only immediate subfolders
+  subdirs <- dir_ls(source_dir, type = "directory", recurse = FALSE)
+  # keep those whose *basename* starts with "demand"
+  cand <- subdirs[startsWith(tolower(path_file(subdirs)), "demand")]
+  if (length(cand) == 0) {
+    stop("No folder starting with 'demand' found in: ", source_dir)
+  }
+  # 3. Assign to demanddir
+  demanddir <- cand
+  print(demanddir)
   
   choose_directory4 = function(caption = "Choose the directory where admin_regions files are") {
     if(.Platform$OS.type == "unix")  {
@@ -357,26 +373,27 @@ if (webmofuss == 1) {
   choose_directory4()
   admindir <- getwd()
   
+  # choose_directory5 = function(caption = "Choose the directory where emissions outputs will be saved") {
+  #   if(.Platform$OS.type == "unix")  {
+  #     setwd(tk_choose.dir("/home/mofuss/Documents", caption = caption))
+  #   } else {
+  #     setwd(choose.dir("/home/mofuss/Documents", caption = caption)) # Elegir bien esta carpeta de inicio
+  #   }
+  # }
+  # choose_directory5()
+  # emissionsdir <- getwd()
   
-  choose_directory5 = function(caption = "Choose the directory where emissions outputs will be saved") {
-    if(.Platform$OS.type == "unix")  {
-      setwd(tk_choose.dir("/home/mofuss/Documents", caption = caption))
-    } else {
-      setwd(choose.dir("/home/mofuss/Documents", caption = caption)) # Elegir bien esta carpeta de inicio
-    }
-  }
-  choose_directory5()
-  emissionsdir <- getwd()
-  
-  choose_directory6 = function(caption = "Choose a folder to store temporal files"){
-    if(.Platform$OS.type == "unix")  {
-      setwd(tk_choose.dir("/home/mofuss/Documents", caption = caption))
-    } else {
-      setwd(choose.dir("/home/mofuss/Documents", caption = caption)) # Elegir bien esta carpeta de inicio
-    }
-  }
-  choose_directory6()
-  rTempdir <- getwd()
+  # choose_directory6 = function(caption = "Choose a folder to store temporal files"){
+  #   if(.Platform$OS.type == "unix")  {
+  #     setwd(tk_choose.dir("/home/mofuss/Documents", caption = caption))
+  #   } else {
+  #     setwd(choose.dir("/home/mofuss/Documents", caption = caption)) # Elegir bien esta carpeta de inicio
+  #   }
+  # }
+  # choose_directory6()
+  # unlink(paste0(countrydir,"/rTemp"), recursive = TRUE, force = TRUE) 
+  # dir.create(paste0(countrydir,"/rTemp"))
+  # rTempdir <- paste0(countrydir,"/rTemp")
   
   setwd(countrydir)
   
@@ -490,9 +507,9 @@ if (webmofuss == 1) {
   #   dir.create(paste0(countrydir,"/LULCC/DownloadedDatasets/SourceData",country_name,"/InVector_GCS"))
   # }
   
-  # Copy input tables from gitlab repo into MoFuSS working folder ----
+  # Copy input tables from github repo into MoFuSS working folder ----
   friction2copy <- list.files(
-    path = paste0(gitlabdir, "/friction"),
+    path = paste0(githubdir, "/friction"),
     pattern = "\\.csv$|\\.xlsx$",
     full.names = TRUE)
   
@@ -502,8 +519,8 @@ if (webmofuss == 1) {
               overwrite = TRUE, recursive = TRUE, copy.mode = TRUE)
   }
   
-  # Copy input tables from gitlab repo into MoFuSS working folder ----
-  growth2copy <- list.files(path = paste0(gitlabdir, "/global_growth"), 
+  # Copy input tables from github repo into MoFuSS working folder ----
+  growth2copy <- list.files(path = paste0(githubdir, "/global_growth"), 
                             pattern = "\\.csv$|\\.xlsx$", 
                             full.names = TRUE)
   
@@ -540,7 +557,7 @@ if (webmofuss == 1) {
               overwrite = TRUE, recursive = TRUE, copy.mode = TRUE)
   }
   
-  admin2copyv2 <- list.files(path = paste0(gitlabdir, "/admin_regions"), 
+  admin2copyv2 <- list.files(path = paste0(githubdir, "/admin_regions"), 
                              pattern = "\\.csv$|\\.xlsx$", 
                              full.names = TRUE)
   for (t in admin2copyv2) {

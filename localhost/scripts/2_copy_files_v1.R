@@ -58,7 +58,7 @@ lapply(file_patterns_to_remove, unlink, force = TRUE)
 
 # Create MoFuSS directory structure ----
 dirs_to_create <- c(
-  "HTML_animation_OutBaU", "HTML_animation_OutICS", "Logs", "OutBaU", "OutICS", "Summary_Report", "Temp",
+  "HTML_animation_OutBaU", "HTML_animation_OutICS", "Logs", "OutBaU", "OutICS", "Summary_Report", "Temp", "rTemp",
   "In", "In/DemandScenarios", "LULCC/InVector", "LULCC/SourceData", "LULCC/SourceData/InRaster",
   "LULCC/SourceData/InRaster_GCS", "LULCC/SourceData/InTables", "LULCC/SourceData/InVector",
   "LULCC/SourceData/InVector_GCS", "LULCC/TempRaster", "LULCC/TempTables", "LULCC/TempVector",
@@ -74,16 +74,16 @@ unlink("TempVector//*.*", force = TRUE)
 unlink("TempVector_GCS//*.*", force = TRUE)
 
 # Copy batch and shell files ----
-batch_files <- list.files(paste0(gitlabdir, "/localhost/scripts/LULCC/"), pattern = ".bat")
-sh_files <- list.files(paste0(gitlabdir, "/localhost/scripts/LULCC/"), pattern = ".sh")
+batch_files <- list.files(paste0(githubdir, "/localhost/scripts/LULCC/"), pattern = ".bat")
+sh_files <- list.files(paste0(githubdir, "/localhost/scripts/LULCC/"), pattern = ".sh")
 
 lapply(batch_files, function(file) file.copy(
-  from = paste0(gitlabdir, "/localhost/scripts/LULCC/", file),
+  from = paste0(githubdir, "/localhost/scripts/LULCC/", file),
   to = paste0(countrydir, "/LULCC"), overwrite = TRUE
 ))
 
 lapply(sh_files, function(file) file.copy(
-  from = paste0(gitlabdir, "/localhost/scripts/LULCC/", file),
+  from = paste0(githubdir, "/localhost/scripts/LULCC/", file),
   to = paste0(countrydir, "/LULCC"), overwrite = TRUE
 ))
 
@@ -207,15 +207,18 @@ files2copy <- c(
 )
 
 lapply(files2copy, function(f) {
-  file.copy(from = paste0(gitlabdir, "/localhost/scripts/", f), to = paste0(countrydir), overwrite = TRUE, recursive = TRUE, copy.mode = TRUE)
+  file.copy(from = paste0(githubdir, "/localhost/scripts/", f), to = paste0(countrydir), overwrite = TRUE, recursive = TRUE, copy.mode = TRUE)
 })
 
 # Copy wizard images
 file.copy(
-  from = paste0(gitlabdir, "/localhost/scripts/LULCC/Wizard_imgs/"),
+  from = paste0(githubdir, "/localhost/scripts/LULCC/Wizard_imgs/"),
   to = paste0(countrydir, "/LULCC/"),
   overwrite = TRUE, recursive = TRUE, copy.mode = TRUE
 )
+
+# Define Terra temporal directory ----
+rTempdir <- paste0(countrydir,"/rTemp")
 
 # End of script ----
   
