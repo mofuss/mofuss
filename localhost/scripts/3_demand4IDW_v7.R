@@ -18,18 +18,8 @@
 # FIX THE MASK ISSUE WITH LINUX, THAT WAS PATCHED FOR THE MOMENT!
 # ALLOW OTHER SCENARIOS: Start in line 183
 # VERY IMPORTANT TO DEFINE A SOLID WORKFLOW FOR REGIONALIZING COUNTRIES, e.g. Zambia
-# 1339 names(wf_w_dbx)[4:ncol(wf_w_dbx)] <- "GlobalWorldPop" # Warning: Bring from WP vs HSRL
-# >     unique(whodb$fuel)
-# [1] "Kerosene"        "Gas"             "Electricity"     "Biomass"         "Charcoal"        "Coal"            "Total Polluting" "Total Clean"    
-# >     unique(wfdb$fuel)
-# [1] "Biomass"      "Charcoal"     "Imp_fuelwood" "Imp_charcoal" "gas"          "kerosene"     "electric"     "pellets"      "ethanol"     
-# [10] "biogas"       "other" 
 
 # Internal parameters ----
-if_biomass = 1
-if_charcoal = 1
-if_gas = 0
-if_electricity = 0
 optimizeD = 0
 temdirdefined = 1
 urb_shift_factor = 1 # Only works with byregion == Country (Check code lines 89-91 before adjusting this).
@@ -192,7 +182,7 @@ if (!dir.exists("to_idw")) {dir.create("to_idw")}
 # Reads WHO dataset
 whodb <- read_excel("demand_in/A_LMIC_Estimates_2050_popmedian.xlsx")
 # undb <- read_excel("admin_regions/UN_Rural-Urban_Pop_projections_formatted.xlsx") # https://population.un.org/wpp/Download/Standard/Population/
-# terra::unique(whodb$fuel)
+terra::unique(whodb$fuel)
 # terra::unique(whodb$year)
 # terra::unique(whodb$iso3)
 
@@ -216,20 +206,16 @@ if (scenario_ver == "BaU") {
 }
 unique(wfdb$fuel)
 
-# Unify "fuelwood" to "biomass" # Consider the other way round but we'll need to debug downstream
+# Make all fuel types small caps and add consecutive numbers to GID_0 _1 _2 etc
 if (subcountry == 1) {
   wfdb <- wfdb %>%
     mutate(
-      fuel = case_when(
-        tolower(fuel) == "fuelwood" ~ "Biomass",
-        tolower(fuel) == "charcoal" ~ "Charcoal",
-        TRUE ~ fuel
-      ),
+      fuel = tolower(fuel),  # normalize everything to lowercase first
       iso3 = paste0(iso3, "_", dense_rank(country))
     )
 }
-unique(wfdb$fuel)
 
+unique(wfdb$fuel)
 head(wfdb)
 print(scenario_ver) # save as text to recover later down the river
 
@@ -690,11 +676,8 @@ unique(adm0_reg$GID_0)
 # unique(adm1_reg$GID_1)
 # unique(adm2_reg$GID_2)
 
-# Ask Diana to translate this ugly loop into a split-apply-compile process with apply (mapply?)
-# Will be much faster but less easy to debug
-
 for (i in adm0_reg$GID_0) { # Start of outer region (i) loop ----
-  # i = "ZMB_1"
+  # i = "ZMB"_1"
   # i = "SLV"
   print(i)
   if (subcountry != 1) {
@@ -959,557 +942,339 @@ for (i in adm0_reg$GID_0) { # Start of outer region (i) loop ----
     round((rurpopmap.anno/totpopadj.anno),2)
     
     ### Spread population (whodb) and demand (wfdb) by ENERGY CARRIER use and urban vs rural ----
-    ##### Biomass ----
-    if (if_biomass == 1) {
-      
+    suppressPackageStartupMessages({
+      library(dplyr)
+      library(terra)
+      library(stringr)
+      library(rlang)
+    })
+    
+    .match_fuel <- function(x, target) tolower(trimws(x)) == tolower(trimws(target))
+    
+    compute_fuel_maps <- function(
+    fuel_name,            # <- renamed to avoid shadowing the 'fuel' column
+    subcountry,
+    i, j,
+    whodb, wfdb,
+    demand_col,
+    urbanpopulation.anno,
+    ruralpopulation.anno,
+    urbpopmap.anno,
+    rurpopmap.anno,
+    pop_ver,
+    out_dir_pop    = "pop_temp",
+    out_dir_demand = "demand_temp",
+    write_percap   = FALSE,
+    wfdb_fuels_for_demand = NULL 
+    ) {
+      allowed_whodb <- c("Kerosene","Gas","Electricity","Biomass","Charcoal","Coal")
+      allowed_wfdb  <- c("fuelwood","charcoal","imp_fuelwood","imp_charcoal",
+                         "gas","kerosene","electric","pellets","ethanol","biogas","other")
       
       if (subcountry != 1) {
-        biopopWHO.anno <- whodb %>% 
-          dplyr::filter(grepl(i, iso3)) %>% # searchs for the pattern, anywhere within the string
-          dplyr::filter(grepl('Bio', fuel)) %>%
-          dplyr::filter(grepl(j, year)) %>%
-          dplyr::filter(grepl('Rur|Urb', area))
-      } else if (subcountry == 1) {
-        biopopROB.anno <- wfdb %>% 
-          dplyr::filter(grepl(i, iso3)) %>% # searchs for the pattern, anywhere within the string
-          dplyr::filter(grepl('Bio', fuel)) %>%
-          dplyr::filter(grepl(j, year)) %>%
-          dplyr::filter(grepl('Rur|Urb', area))
+        if (!(fuel_name %in% allowed_whodb)) {
+          stop(sprintf("For subcountry != 1, fuel must be one of: %s",
+                       paste(allowed_whodb, collapse = ", ")))
+        }
+      } else {
+        if (!(tolower(fuel_name) %in% tolower(allowed_wfdb))) {
+          stop(sprintf("For subcountry == 1, fuel must be one of: %s",
+                       paste(allowed_wfdb, collapse = ", ")))
+        }
       }
       
-      biowfdb.anno <- wfdb %>% 
-        dplyr::filter(grepl(i, iso3)) %>% # searchs for the pattern, anywhere within the string
-        dplyr::filter(grepl('Bio', fuel)) %>%
-        dplyr::filter(grepl(j, year)) %>%
-        dplyr::filter(grepl('Rur|Urb', area))
-      
+      # POP source depends on subcountry
       if (subcountry != 1) {
-        biourb.anno <- biopopWHO.anno %>% 
-          dplyr::filter(grepl('Urb', area)) %>%
-          dplyr::select(pop) %>% 
-          sum()*1000
-        urbpopmap.anno
-        if (urbpopmap.anno == 0) {
-          urbbio_Sctry.anno <- urbanpopulation.anno * 0  # all zeros, same geometry
-        } else {
-          urbbio_Sctry.anno <- (urbanpopulation.anno * biourb.anno) / urbpopmap.anno
-        }
-        round(global(urbbio_Sctry.anno, "sum", na.rm=TRUE),0) %>% 
-          pull(sum)
-        biourb_d_tons.anno <- biowfdb.anno %>% 
-          dplyr::filter(grepl('Urb', area)) %>%
-          dplyr::select(all_of(demand_col)) %>% 
-          sum()
-        if (urbpopmap.anno == 0) {
-          urbbioDem_Sctry.anno <- urbanpopulation.anno*0
-        } else {
-          urbbioDem_Sctry.anno <- urbanpopulation.anno*biourb_d_tons.anno/urbpopmap.anno
-        }
-        
-        biorur.anno <- biopopWHO.anno %>% 
-          dplyr::filter(grepl('Rur', area)) %>%
-          dplyr::select(pop) %>% 
-          sum()*1000  
-        rurpopmap.anno
-        if (rurpopmap.anno == 0) {
-          rurbio_Sctry.anno <- ruralpopulation.anno*0
-        } else {
-          rurbio_Sctry.anno <- ruralpopulation.anno*biorur.anno/rurpopmap.anno
-        }
-        round(global(rurbio_Sctry.anno, "sum", na.rm=TRUE),0) %>% 
-          pull(sum)
-        biorur_d_tons.anno <- biowfdb.anno %>% 
-          dplyr::filter(grepl('Rur', area)) %>%
-          dplyr::select(all_of(demand_col)) %>% 
-          sum()
-        if (rurpopmap.anno == 0) {
-          rurbioDem_Sctry.anno <- ruralpopulation.anno*0
-        } else {
-          rurbioDem_Sctry.anno <- ruralpopulation.anno*biorur_d_tons.anno/rurpopmap.anno
-        }
-        
-      } else if (subcountry == 1) {
-        
-        biourb.anno <- biopopROB.anno %>% 
-          dplyr::filter(grepl('Urb', area)) %>%
-          dplyr::select(people) %>% 
-          sum()*1000
-        urbpopmap.anno
-        if (urbpopmap.anno == 0) {
-          urbbio_Sctry.anno <- urbanpopulation.anno * 0  # all zeros, same geometry
-        } else {
-          urbbio_Sctry.anno <- (urbanpopulation.anno * biourb.anno) / urbpopmap.anno
-        }
-        round(global(urbbio_Sctry.anno, "sum", na.rm=TRUE),0) %>% 
-          pull(sum)
-        biourb_d_tons.anno <- biowfdb.anno %>% 
-          dplyr::filter(grepl('Urb', area)) %>%
-          dplyr::select(all_of(demand_col)) %>% 
-          sum()
-        if (urbpopmap.anno == 0) {
-          urbbioDem_Sctry.anno <- urbanpopulation.anno*0
-        } else {
-          urbbioDem_Sctry.anno <- urbanpopulation.anno*biourb_d_tons.anno/urbpopmap.anno
-        }
-        
-        biorur.anno <- biopopROB.anno %>% 
-          dplyr::filter(grepl('Rur', area)) %>%
-          dplyr::select(people) %>% 
-          sum()*1000  
-        rurpopmap.anno
-        if (rurpopmap.anno == 0) {
-          rurbio_Sctry.anno <- ruralpopulation.anno*0
-        } else {
-          rurbio_Sctry.anno <- ruralpopulation.anno*biorur.anno/rurpopmap.anno
-        }
-        round(global(rurbio_Sctry.anno, "sum", na.rm=TRUE),0) %>% 
-          pull(sum)
-        biorur_d_tons.anno <- biowfdb.anno %>% 
-          dplyr::filter(grepl('Rur', area)) %>%
-          dplyr::select(all_of(demand_col)) %>% 
-          sum()
-        if (rurpopmap.anno == 0) {
-          rurbioDem_Sctry.anno <- ruralpopulation.anno*0
-        } else {
-          rurbioDem_Sctry.anno <- ruralpopulation.anno*biorur_d_tons.anno/rurpopmap.anno
-        }
-        
-        
+        pop_tbl <- whodb %>%
+          filter(grepl(i, .data$iso3)) %>%
+          filter(.match_fuel(.data$fuel, fuel_name)) %>%   # exact & case-insensitive
+          filter(grepl(j, .data$year)) %>%
+          filter(grepl("Rur|Urb", .data$area))
+        pop_col_name <- "pop"
+      } else {
+        pop_tbl <- wfdb %>%
+          filter(grepl(i, .data$iso3)) %>%
+          filter(.match_fuel(.data$fuel, fuel_name)) %>%
+          filter(grepl(j, .data$year)) %>%
+          filter(grepl("Rur|Urb", .data$area))
+        pop_col_name <- "people"
       }
-      rururbbio.anno <- merge(rurbio_Sctry.anno,urbbio_Sctry.anno)
-      # plot(rururbbio)
-      terra::writeRaster(rururbbio.anno, paste0("pop_temp/",pop_ver,"_",i,"_",j,"_bio_users.tif"), filetype = "GTiff", overwrite = TRUE)
-      global(rururbbio.anno, fun="notNA")
       
-      rururbbioDem.anno <- merge(rurbioDem_Sctry.anno,urbbioDem_Sctry.anno)
-      # plot(rururbbio)
-      terra::writeRaster(rururbbioDem.anno, paste0("demand_temp/",pop_ver,"_",i,"_",j,"_bio_demand.tif"), filetype = "GTiff", overwrite = TRUE)
-      global(rururbbioDem.anno, fun="notNA")
+      # ---- (B) DEMAND TABLE: always from wfdb (exact & case-insensitive)
+      # WHO branch uses WHO labels in wfdb too → match as-is (no mapping).
+      if (is.null(wfdb_fuels_for_demand)) {
+        demand_tbl <- wfdb %>%
+          dplyr::filter(grepl(i, .data$iso3)) %>%
+          dplyr::filter(.data$year == as.numeric(j)) %>%
+          dplyr::filter(grepl("Rur|Urb", .data$area)) %>%
+          dplyr::filter(tolower(trimws(.data$fuel)) == tolower(trimws(fuel_name)))
+      } else {
+        demand_tbl <- wfdb %>%
+          dplyr::filter(grepl(i, .data$iso3)) %>%
+          dplyr::filter(.data$year == as.numeric(j)) %>%
+          dplyr::filter(grepl("Rur|Urb", .data$area)) %>%
+          dplyr::filter(tolower(trimws(.data$fuel)) %in% tolower(trimws(wfdb_fuels_for_demand)))
+      }
       
-      bio_percap.anno <- rururbbioDem.anno/rururbbio.anno*1000/365
-      # plot(rururbbio)
-      # terra::writeRaster(bio_percap.anno, paste0("demand_temp/",pop_ver,"_",i,"_",j,"_bio_percap.tif"), filetype = "GTiff", overwrite = TRUE)
-      global(bio_percap.anno, fun="notNA")
+      # ---- Urban users
+      biourb_total_people <- pop_tbl %>%
+        filter(grepl("Urb", .data$area)) %>%
+        pull(all_of(pop_col_name)) %>%
+        sum(na.rm = TRUE) * 1000
+      
+      urbbio_Sctry.anno <- if (urbpopmap.anno == 0) {
+        urbanpopulation.anno * 0
+      } else {
+        (urbanpopulation.anno * biourb_total_people) / urbpopmap.anno
+      }
+      
+      # ---- Urban demand
+      biourb_d_tons <- demand_tbl %>%
+        filter(grepl("Urb", .data$area)) %>%
+        pull(all_of(demand_col)) %>%
+        sum(na.rm = TRUE)
+      
+      urbbioDem_Sctry.anno <- if (urbpopmap.anno == 0) {
+        urbanpopulation.anno * 0
+      } else {
+        urbanpopulation.anno * biourb_d_tons / urbpopmap.anno
+      }
+      
+      # ---- Rural users
+      biorur_total_people <- pop_tbl %>%
+        filter(grepl("Rur", .data$area)) %>%
+        pull(all_of(pop_col_name)) %>%
+        sum(na.rm = TRUE) * 1000
+      
+      rurbio_Sctry.anno <- if (rurpopmap.anno == 0) {
+        ruralpopulation.anno * 0
+      } else {
+        ruralpopulation.anno * biorur_total_people / rurpopmap.anno
+      }
+      
+      # ---- Rural demand
+      biorur_d_tons <- demand_tbl %>%
+        filter(grepl("Rur", .data$area)) %>%
+        pull(all_of(demand_col)) %>%
+        sum(na.rm = TRUE)
+      
+      rurbioDem_Sctry.anno <- if (rurpopmap.anno == 0) {
+        ruralpopulation.anno * 0
+      } else {
+        ruralpopulation.anno * biorur_d_tons / rurpopmap.anno
+      }
+      
+      # ---- Merge & write
+      users_raster  <- merge(rurbio_Sctry.anno,   urbbio_Sctry.anno)
+      demand_raster <- merge(rurbioDem_Sctry.anno, urbbioDem_Sctry.anno)
+      
+      # old (buggy): fuel_tag <- tolower(gsub("[^a-z0-9]+", "_", fuel_name))
+      fuel_tag <- gsub("[^a-z0-9]+", "_", tolower(fuel_name))
+      if (!dir.exists(out_dir_pop))    dir.create(out_dir_pop, recursive = TRUE, showWarnings = FALSE)
+      if (!dir.exists(out_dir_demand)) dir.create(out_dir_demand, recursive = TRUE, showWarnings = FALSE)
+      
+      users_path  <- file.path(out_dir_pop,    sprintf("%s_%s_%s_%s_users.tif",  pop_ver, i, j, fuel_tag))
+      demand_path <- file.path(out_dir_demand, sprintf("%s_%s_%s_%s_demand.tif", pop_ver, i, j, fuel_tag))
+      
+      terra::writeRaster(users_raster,  users_path,  filetype = "GTiff", overwrite = TRUE)
+      terra::writeRaster(demand_raster, demand_path, filetype = "GTiff", overwrite = TRUE)
+      
+      percap_raster <- (demand_raster / users_raster) * 1000 / 365
+      if (isTRUE(write_percap)) {
+        percap_path <- file.path(out_dir_demand, sprintf("%s_%s_%s_%s_percap.tif", pop_ver, i, j, fuel_tag))
+        terra::writeRaster(percap_raster, percap_path, filetype = "GTiff", overwrite = TRUE)
+      }
+      
+      invisible(list(
+        fuel                = fuel_name,
+        subcountry          = subcountry,
+        urb_users_sum       = as.numeric(global(urbbio_Sctry.anno,  "sum", na.rm = TRUE)$sum),
+        rur_users_sum       = as.numeric(global(rurbio_Sctry.anno,  "sum", na.rm = TRUE)$sum),
+        urb_demand_sum_tons = biourb_d_tons,
+        rur_demand_sum_tons = biorur_d_tons,
+        users_raster_path   = users_path,
+        demand_raster_path  = demand_path,
+        # NEW: return the separate demand rasters so we can aggregate later
+        urb_dem_rast        = urbbioDem_Sctry.anno,
+        rur_dem_rast        = rurbioDem_Sctry.anno
+      ))
       
     }
     
-    ##### Charcoal ----
-    if (if_charcoal == 1) {
+    if (subcountry != 1) {
       
-      if (subcountry != 1) {
-        chapopWHO.anno <- whodb %>% 
-          dplyr::filter(grepl(i, iso3)) %>% # searchs for the pattern, anywhere within the string
-          dplyr::filter(grepl('Cha', fuel)) %>%
-          dplyr::filter(grepl(j, year)) %>%
-          dplyr::filter(grepl('Rur|Urb', area))
+      fuels_who <- c("Kerosene","Gas","Electricity","Biomass","Charcoal","Coal")
+      
+      results <- lapply(fuels_who, function(fu)
+        compute_fuel_maps(
+          fuel_name = fu,              # ← use the new argument name explicitly
+          subcountry = subcountry,     # != 1 here
+          i = i, j = j,
+          whodb = whodb, wfdb = wfdb,
+          demand_col = demand_col,
+          urbanpopulation.anno = urbanpopulation.anno,
+          ruralpopulation.anno = ruralpopulation.anno,
+          urbpopmap.anno = urbpopmap.anno,
+          rurpopmap.anno = rurpopmap.anno,
+          pop_ver = pop_ver,
+          out_dir_pop = "pop_temp",
+          out_dir_demand = "demand_temp",
+          write_percap = FALSE
+        )
+      )
+      
+      save_wf_aggregates_who <- function(
+    i, j,
+    whodb, wfdb, demand_col,
+    subcountry = 0,  # anything != 1
+    urbanpopulation.anno, ruralpopulation.anno,
+    urbpopmap.anno, rurpopmap.anno,
+    pop_ver,
+    out_dir = "demand_temp"
+      ) {
+        stopifnot(subcountry != 1)
         
-      } else if (subcountry == 1) {
-        chapopROB.anno <- wfdb %>% 
-          dplyr::filter(grepl(i, iso3)) %>% # searchs for the pattern, anywhere within the string
-          dplyr::filter(grepl('Cha', fuel)) %>%
-          dplyr::filter(grepl(j, year)) %>%
-          dplyr::filter(grepl('Rur|Urb', area))
+        get_dem_who <- function(who_fuel) {
+          res <- compute_fuel_maps(
+            fuel_name = who_fuel,        # WHO label used both in whodb and wfdb
+            subcountry = subcountry,     # != 1
+            i = i, j = j,
+            whodb = whodb, wfdb = wfdb,
+            demand_col = demand_col,
+            urbanpopulation.anno = urbanpopulation.anno,
+            ruralpopulation.anno = ruralpopulation.anno,
+            urbpopmap.anno = urbpopmap.anno,
+            rurpopmap.anno = rurpopmap.anno,
+            pop_ver = pop_ver,
+            out_dir_pop = "pop_temp",
+            out_dir_demand = "demand_temp",
+            write_percap = FALSE
+          )
+          list(urb = res$urb_dem_rast, rur = res$rur_dem_rast)
+        }
+        
+        fw <- get_dem_who("Biomass")
+        ch <- get_dem_who("Charcoal")
+        
+        # wftons_w: rural Biomass
+        wf_w_sum <- app(c(fw$rur), fun = sum, na.rm = TRUE)
+        
+        # wftons_v: urban Biomass + urban Charcoal + rural Charcoal
+        wf_v_sum <- app(c(fw$urb, ch$urb, ch$rur), fun = sum, na.rm = TRUE)
+        
+        if (!dir.exists(out_dir)) dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
+        terra::writeRaster(wf_w_sum, file.path(out_dir, paste0(pop_ver, "_", i, "_", j, "_wftons_w.tif")),
+                           filetype = "GTiff", overwrite = TRUE)
+        terra::writeRaster(wf_v_sum, file.path(out_dir, paste0(pop_ver, "_", i, "_", j, "_wftons_v.tif")),
+                           filetype = "GTiff", overwrite = TRUE)
+        
+        invisible(TRUE)
       }
       
-      chawfdb.anno <- wfdb %>% 
-        dplyr::filter(grepl(i, iso3)) %>% # searchs for the pattern, anywhere within the string
-        dplyr::filter(grepl('Cha', fuel)) %>%
-        dplyr::filter(grepl(j, year)) %>%
-        dplyr::filter(grepl('Rur|Urb', area))
       
-      if (subcountry != 1) {
-        chaurb.anno <- chapopWHO.anno %>% 
-          dplyr::filter(grepl('Urb', area)) %>%
-          dplyr::select(pop) %>% 
-          sum()*1000
-        urbpopmap.anno
-        if (urbpopmap.anno == 0) {
-          urbcha_Sctry.anno <- urbanpopulation.anno*0
-        } else {
-          urbcha_Sctry.anno <- urbanpopulation.anno*chaurb.anno/urbpopmap.anno
+      save_wf_aggregates_who(
+        i = i, j = j,
+        whodb = whodb, wfdb = wfdb, demand_col = demand_col,
+        subcountry = subcountry,  # must be != 1
+        urbanpopulation.anno = urbanpopulation.anno,
+        ruralpopulation.anno = ruralpopulation.anno,
+        urbpopmap.anno = urbpopmap.anno,
+        rurpopmap.anno = rurpopmap.anno,
+        pop_ver = pop_ver,
+        out_dir = "demand_temp"
+      )
+      
+    } else if (subcountry == 1) {
+      
+      fuels_wfdb <- c("fuelwood","charcoal","imp_fuelwood","imp_charcoal",
+                      "gas","kerosene","electric","pellets","ethanol","biogas","other")
+      
+      results <- lapply(fuels_wfdb, function(fu)
+        compute_fuel_maps(
+          fuel = fu,
+          subcountry = 1,
+          i = i, j = j,
+          whodb = whodb, wfdb = wfdb,
+          demand_col = demand_col,
+          urbanpopulation.anno = urbanpopulation.anno,
+          ruralpopulation.anno = ruralpopulation.anno,
+          urbpopmap.anno = urbpopmap.anno,
+          rurpopmap.anno = rurpopmap.anno,
+          pop_ver = pop_ver
+        )
+      )
+      
+      save_wf_aggregates <- function(
+    i, j,
+    whodb, wfdb, demand_col,
+    subcountry = 1,                 # this aggregate is for the ROB branch
+    urbanpopulation.anno, ruralpopulation.anno,
+    urbpopmap.anno, rurpopmap.anno,
+    pop_ver,
+    out_dir = "demand_temp"
+      ) {
+        stopifnot(subcountry == 1)
+        
+        # Run once per needed fuel to obtain separate urban/rural demand rasters
+        get_dem <- function(fuel_name) {
+          res <- compute_fuel_maps(
+            fuel_name = fuel_name,
+            subcountry = subcountry,
+            i = i, j = j,
+            whodb = whodb, wfdb = wfdb,
+            demand_col = demand_col,
+            urbanpopulation.anno = urbanpopulation.anno,
+            ruralpopulation.anno = ruralpopulation.anno,
+            urbpopmap.anno = urbpopmap.anno,
+            rurpopmap.anno = rurpopmap.anno,
+            pop_ver = pop_ver,
+            out_dir_pop = "pop_temp",
+            out_dir_demand = "demand_temp",
+            write_percap = FALSE
+          )
+          list(urb = res$urb_dem_rast, rur = res$rur_dem_rast)
         }
         
-        round(global(urbcha_Sctry.anno, "sum", na.rm=TRUE),0) %>% 
-          pull(sum)
-        chaurb_d_tons.anno <- chawfdb.anno %>% 
-          dplyr::filter(grepl('Urb', area)) %>%
-          dplyr::select(all_of(demand_col)) %>% 
-          sum()
-        if (urbpopmap.anno == 0) {
-          urbchaDem_Sctry.anno <- urbanpopulation.anno*0
-        } else {
-          urbchaDem_Sctry.anno <- urbanpopulation.anno*chaurb_d_tons.anno/urbpopmap.anno
-        }
+        fw  <- get_dem("fuelwood")
+        ifw <- get_dem("imp_fuelwood")
+        ch  <- get_dem("charcoal")
+        ich <- get_dem("imp_charcoal")
         
-        charur.anno <- chapopWHO.anno %>% 
-          dplyr::filter(grepl('Rur', area)) %>%
-          dplyr::select(pop) %>% 
-          sum()*1000  
-        rurpopmap.anno
-        if (rurpopmap.anno == 0) {
-          rurcha_Sctry.anno <- ruralpopulation.anno*0
-        } else {
-          rurcha_Sctry.anno <- ruralpopulation.anno*charur.anno/rurpopmap.anno
-        }
+        # ---- wftons_w: rural fuelwood + rural imp_fuelwood
+        wf_w_stack <- c(fw$rur, ifw$rur)
+        wf_w_sum   <- app(wf_w_stack, fun = sum, na.rm = TRUE)
         
-        round(global(rurcha_Sctry.anno, "sum", na.rm=TRUE),0) %>% 
-          pull(sum)
-        charur_d_tons.anno <- chawfdb.anno %>% 
-          dplyr::filter(grepl('Rur', area)) %>%
-          dplyr::select(all_of(demand_col)) %>% 
-          sum()
-        if (rurpopmap.anno == 0) {
-          rurchaDem_Sctry.anno <- ruralpopulation.anno*0
-        } else {
-          rurchaDem_Sctry.anno <- ruralpopulation.anno*charur_d_tons.anno/rurpopmap.anno
-        }
+        # ---- wftons_v: urban fw + urban ifw + urban ch + urban ich + rural ch + rural ich
+        wf_v_stack <- c(fw$urb, ifw$urb, ch$urb, ich$urb, ch$rur, ich$rur)
+        wf_v_sum   <- app(wf_v_stack, fun = sum, na.rm = TRUE)
         
-      } else if (subcountry == 1) {
+        if (!dir.exists(out_dir)) dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
         
-        chaurb.anno <- chapopROB.anno %>% 
-          dplyr::filter(grepl('Urb', area)) %>%
-          dplyr::select(people) %>% 
-          sum()*1000
-        urbpopmap.anno
-        if (urbpopmap.anno == 0) {
-          urbcha_Sctry.anno <- urbanpopulation.anno*0
-        } else {
-          urbcha_Sctry.anno <- urbanpopulation.anno*chaurb.anno/urbpopmap.anno
-        }
+        wf_w_path <- file.path(out_dir, paste0(pop_ver, "_", i, "_", j, "_wftons_w.tif"))
+        wf_v_path <- file.path(out_dir, paste0(pop_ver, "_", i, "_", j, "_wftons_v.tif"))
         
-        round(global(urbcha_Sctry.anno, "sum", na.rm=TRUE),0) %>% 
-          pull(sum)
-        chaurb_d_tons.anno <- chawfdb.anno %>% 
-          dplyr::filter(grepl('Urb', area)) %>%
-          dplyr::select(all_of(demand_col)) %>% 
-          sum()
-        if (urbpopmap.anno == 0) {
-          urbchaDem_Sctry.anno <- urbanpopulation.anno*0
-        } else {
-          urbchaDem_Sctry.anno <- urbanpopulation.anno*chaurb_d_tons.anno/urbpopmap.anno
-        }
+        terra::writeRaster(wf_w_sum, wf_w_path, filetype = "GTiff", overwrite = TRUE)
+        terra::writeRaster(wf_v_sum, wf_v_path, filetype = "GTiff", overwrite = TRUE)
         
-        charur.anno <- chapopROB.anno %>% 
-          dplyr::filter(grepl('Rur', area)) %>%
-          dplyr::select(people) %>% 
-          sum()*1000  
-        rurpopmap.anno
-        if (rurpopmap.anno == 0) {
-          rurcha_Sctry.anno <- ruralpopulation.anno*0
-        } else {
-          rurcha_Sctry.anno <- ruralpopulation.anno*charur.anno/rurpopmap.anno
-        }
+        # Quick non-NA checks (optional)
+        global(wf_w_sum, fun = "notNA")
+        global(wf_v_sum, fun = "notNA")
         
-        round(global(rurcha_Sctry.anno, "sum", na.rm=TRUE),0) %>% 
-          pull(sum)
-        charur_d_tons.anno <- chawfdb.anno %>% 
-          dplyr::filter(grepl('Rur', area)) %>%
-          dplyr::select(all_of(demand_col)) %>% 
-          sum()
-        if (rurpopmap.anno == 0) {
-          rurchaDem_Sctry.anno <- ruralpopulation.anno*0
-        } else {
-          rurchaDem_Sctry.anno <- ruralpopulation.anno*charur_d_tons.anno/rurpopmap.anno
-        }
-        
+        invisible(list(w_path = wf_w_path, v_path = wf_v_path))
       }
       
-      rururbcha.anno <- merge(rurcha_Sctry.anno,urbcha_Sctry.anno)
-      # plot(rururbcha)
-      terra::writeRaster(rururbcha.anno, paste0("pop_temp/",pop_ver,"_",i,"_",j,"_cha_users.tif"), filetype = "GTiff", overwrite = TRUE)
-      global(rururbcha.anno, fun="notNA")
-      
-      rururbchaDem.anno <- merge(rurchaDem_Sctry.anno,urbchaDem_Sctry.anno)
-      # plot(rururbbio)
-      terra::writeRaster(rururbchaDem.anno, paste0("demand_temp/",pop_ver,"_",i,"_",j,"_cha_demand.tif"), filetype = "GTiff", overwrite = TRUE)
-      global(rururbchaDem.anno, fun="notNA")
-      
-      cha_percap.anno <- rururbchaDem.anno/rururbcha.anno*1000/365
-      # plot(rururbbio)
-      # terra::writeRaster(cha_percap.anno, paste0("demand_temp/",pop_ver,"_",i,"_",j,"_cha_percap.tif"), filetype = "GTiff", overwrite = TRUE)
-      global(cha_percap.anno, fun="notNA")
-      
-    }
-    
-    ###### Walking and Vehicle datasets ----
-    if (if_biomass == 1 && if_charcoal == 1) {
-      
-      # Save walking or selfgathered woodfuel demand (rurbio) and vehicle or marketed demand (urbbio+urbcha+rurcha) 
-      wf_w.anno <- rurbioDem_Sctry.anno
-      terra::writeRaster(wf_w.anno, paste0("demand_temp/",pop_ver,"_",i,"_",j,"_wftons_w.tif"), filetype = "GTiff", overwrite = TRUE)
-      global(wf_w.anno, fun="notNA")
-      
-      wf_v_stack.anno <- c(urbbioDem_Sctry.anno,urbchaDem_Sctry.anno,rurchaDem_Sctry.anno)
-      wf_v_stack.sum.anno <- app(wf_v_stack.anno, fun=sum, na.rm = TRUE)
-      names(wf_v_stack.sum.anno) <- names(wf_v_stack.anno)[1]  # "GlobalWorldPop"
-      
-      wf_v.anno <- wf_v_stack.sum.anno
-      terra::writeRaster(wf_v.anno, paste0("demand_temp/",pop_ver,"_",i,"_",j,"_wftons_v.tif"), filetype = "GTiff", overwrite = TRUE)
-      global(wf_v.anno, fun="notNA")
-      
-    }
-    
-    ##### Gas ----
-    if (if_gas == 1) {
-      if (subcountry != 1) {
-        gaspopWHO.anno <- whodb %>% 
-          dplyr::filter(grepl(i, iso3)) %>% # searchs for the pattern, anywhere within the string
-          dplyr::filter(grepl('Gas', fuel)) %>%
-          dplyr::filter(grepl(j, year)) %>%
-          dplyr::filter(grepl('Rur|Urb', area))
-      } else if (subcountry == 1) {
-        # gaspopROB.anno <- wfdb %>% 
-        #   dplyr::filter(grepl(i, iso3)) %>% # searchs for the pattern, anywhere within the string
-        #   dplyr::filter(grepl('Gas', fuel)) %>%
-        #   dplyr::filter(grepl(j, year)) %>%
-        #   dplyr::filter(grepl('Rur|Urb', area))
-      }
-      
-      gaswfdb.anno <- wfdb %>% 
-        dplyr::filter(grepl(i, iso3)) %>% # searchs for the pattern, anywhere within the string
-        dplyr::filter(grepl('Gas', fuel)) %>%
-        dplyr::filter(grepl(j, year)) %>%
-        dplyr::filter(grepl('Rur|Urb', area))
-      
-      if (subcountry != 1) {
-        gasurb.anno <- gaspopWHO.anno %>% 
-          dplyr::filter(grepl('Urb', area)) %>%
-          dplyr::select(pop) %>% 
-          sum()*1000
-        urbpopmap.anno
-        if (urbpopmap.anno == 0) {
-          urbgas_Sctry.anno <- urbanpopulation.anno * 0  # all zeros, same geometry
-        } else {
-          urbgas_Sctry.anno <- (urbanpopulation.anno * gasurb.anno) / urbpopmap.anno
-        }
-        round(global(urbgas_Sctry.anno, "sum", na.rm=TRUE),0) %>% 
-          pull(sum)
-        gasurb_d_tons.anno <- gaswfdb.anno %>% 
-          dplyr::filter(grepl('Urb', area)) %>%
-          dplyr::select(all_of(demand_col)) %>% 
-          sum()
-        if (urbpopmap.anno == 0) {
-          urbgasDem_Sctry.anno <- urbanpopulation.anno*0
-        } else {
-          urbgasDem_Sctry.anno <- urbanpopulation.anno*gasurb_d_tons.anno/urbpopmap.anno
-        }
-        
-        gasrur.anno <- gaspopWHO.anno %>% 
-          dplyr::filter(grepl('Rur', area)) %>%
-          dplyr::select(pop) %>% 
-          sum()*1000  
-        rurpopmap.anno
-        if (rurpopmap.anno == 0) {
-          rurgas_Sctry.anno <- ruralpopulation.anno*0
-        } else {
-          rurgas_Sctry.anno <- ruralpopulation.anno*gasrur.anno/rurpopmap.anno
-        }
-        round(global(rurgas_Sctry.anno, "sum", na.rm=TRUE),0) %>% 
-          pull(sum)
-        gasrur_d_tons.anno <- gaswfdb.anno %>% 
-          dplyr::filter(grepl('Rur', area)) %>%
-          dplyr::select(all_of(demand_col)) %>% 
-          sum()
-        if (rurpopmap.anno == 0) {
-          rurgasDem_Sctry.anno <- ruralpopulation.anno*0
-        } else {
-          rurgasDem_Sctry.anno <- ruralpopulation.anno*gasrur_d_tons.anno/rurpopmap.anno
-        }
-        
-      } else if (subcountry == 1) {
-        
-        # gasurb.anno <- gaspopROB.anno %>% 
-        #   dplyr::filter(grepl('Urb', area)) %>%
-        #   dplyr::select(people) %>% 
-        #   sum()*1000
-        # urbpopmap.anno
-        # if (urbpopmap.anno == 0) {
-        #   urbgas_Sctry.anno <- urbanpopulation.anno * 0  # all zeros, same geometry
-        # } else {
-        #   urbgas_Sctry.anno <- (urbanpopulation.anno * gasurb.anno) / urbpopmap.anno
-        # }
-        # round(global(urbgas_Sctry.anno, "sum", na.rm=TRUE),0) %>% 
-        #   pull(sum)
-        # gasurb_d_tons.anno <- gaswfdb.anno %>% 
-        #   dplyr::filter(grepl('Urb', area)) %>%
-        #   dplyr::select(all_of(demand_col)) %>% 
-        #   sum()
-        # if (urbpopmap.anno == 0) {
-        #   urbgasDem_Sctry.anno <- urbanpopulation.anno*0
-        # } else {
-        #   urbgasDem_Sctry.anno <- urbanpopulation.anno*gasurb_d_tons.anno/urbpopmap.anno
-        # }
-        # 
-        # gasrur.anno <- gaspopROB.anno %>% 
-        #   dplyr::filter(grepl('Rur', area)) %>%
-        #   dplyr::select(people) %>% 
-        #   sum()*1000  
-        # rurpopmap.anno
-        # if (rurpopmap.anno == 0) {
-        #   rurgas_Sctry.anno <- ruralpopulation.anno*0
-        # } else {
-        #   rurgas_Sctry.anno <- ruralpopulation.anno*gasrur.anno/rurpopmap.anno
-        # }
-        # round(global(rurgas_Sctry.anno, "sum", na.rm=TRUE),0) %>% 
-        #   pull(sum)
-        # gasrur_d_tons.anno <- gaswfdb.anno %>% 
-        #   dplyr::filter(grepl('Rur', area)) %>%
-        #   dplyr::select(all_of(demand_col)) %>% 
-        #   sum()
-        # if (rurpopmap.anno == 0) {
-        #   rurgasDem_Sctry.anno <- ruralpopulation.anno*0
-        # } else {
-        #   rurgasDem_Sctry.anno <- ruralpopulation.anno*gasrur_d_tons.anno/rurpopmap.anno
-        # }
-        
-        
-      }
-      rururbgas.anno <- merge(rurgas_Sctry.anno,urbgas_Sctry.anno)
-      # plot(rururbgas)
-      terra::writeRaster(rururbgas.anno, paste0("pop_temp/",pop_ver,"_",i,"_",j,"_gas_users.tif"), filetype = "GTiff", overwrite = TRUE)
-      global(rururbgas.anno, fun="notNA")
-      
-      rururbgasDem.anno <- merge(rurgasDem_Sctry.anno,urbgasDem_Sctry.anno)
-      # plot(rururbgas)
-      terra::writeRaster(rururbgasDem.anno, paste0("demand_temp/",pop_ver,"_",i,"_",j,"_gas_demand.tif"), filetype = "GTiff", overwrite = TRUE)
-      global(rururbgasDem.anno, fun="notNA")
-      
-      gas_percap.anno <- rururbgasDem.anno/rururbgas.anno*1000/365
-      # plot(rururbgas)
-      # terra::writeRaster(gas_percap.anno, paste0("demand_temp/",pop_ver,"_",i,"_",j,"_gas_percap.tif"), filetype = "GTiff", overwrite = TRUE)
-      global(gas_percap.anno, fun="notNA")
-      
-    }
-    
-    ##### Electricity ----
-    if (if_electricity == 1) {
-      if (subcountry != 1) {
-        elepopWHO.anno <- whodb %>% 
-          dplyr::filter(grepl(i, iso3)) %>% # searchs for the pattern, anywhere within the string
-          dplyr::filter(grepl('Elec', fuel)) %>%
-          dplyr::filter(grepl(j, year)) %>%
-          dplyr::filter(grepl('Rur|Urb', area))
-      } else if (subcountry == 1) {
-        # elepopROB.anno <- wfdb %>% 
-        #   dplyr::filter(grepl(i, iso3)) %>% # searchs for the pattern, anywhere within the string
-        #   dplyr::filter(grepl('Elec', fuel)) %>%
-        #   dplyr::filter(grepl(j, year)) %>%
-        #   dplyr::filter(grepl('Rur|Urb', area))
-      }
-      
-      elewfdb.anno <- wfdb %>% 
-        dplyr::filter(grepl(i, iso3)) %>% # searchs for the pattern, anywhere within the string
-        dplyr::filter(grepl('Elec', fuel)) %>%
-        dplyr::filter(grepl(j, year)) %>%
-        dplyr::filter(grepl('Rur|Urb', area))
-      
-      if (subcountry != 1) {
-        eleurb.anno <- elepopWHO.anno %>% 
-          dplyr::filter(grepl('Urb', area)) %>%
-          dplyr::select(pop) %>% 
-          sum()*1000
-        urbpopmap.anno
-        if (urbpopmap.anno == 0) {
-          urbele_Sctry.anno <- urbanpopulation.anno * 0  # all zeros, same geometry
-        } else {
-          urbele_Sctry.anno <- (urbanpopulation.anno * eleurb.anno) / urbpopmap.anno
-        }
-        round(global(urbele_Sctry.anno, "sum", na.rm=TRUE),0) %>% 
-          pull(sum)
-        eleurb_d_tons.anno <- elewfdb.anno %>% 
-          dplyr::filter(grepl('Urb', area)) %>%
-          dplyr::select(all_of(demand_col)) %>% 
-          sum()
-        if (urbpopmap.anno == 0) {
-          urbeleDem_Sctry.anno <- urbanpopulation.anno*0
-        } else {
-          urbeleDem_Sctry.anno <- urbanpopulation.anno*eleurb_d_tons.anno/urbpopmap.anno
-        }
-        
-        elerur.anno <- elepopWHO.anno %>% 
-          dplyr::filter(grepl('Rur', area)) %>%
-          dplyr::select(pop) %>% 
-          sum()*1000  
-        rurpopmap.anno
-        if (rurpopmap.anno == 0) {
-          rurele_Sctry.anno <- ruralpopulation.anno*0
-        } else {
-          rurele_Sctry.anno <- ruralpopulation.anno*elerur.anno/rurpopmap.anno
-        }
-        round(global(rurele_Sctry.anno, "sum", na.rm=TRUE),0) %>% 
-          pull(sum)
-        elerur_d_tons.anno <- elewfdb.anno %>% 
-          dplyr::filter(grepl('Rur', area)) %>%
-          dplyr::select(all_of(demand_col)) %>% 
-          sum()
-        if (rurpopmap.anno == 0) {
-          rureleDem_Sctry.anno <- ruralpopulation.anno*0
-        } else {
-          rureleDem_Sctry.anno <- ruralpopulation.anno*elerur_d_tons.anno/rurpopmap.anno
-        }
-        
-      } else if (subcountry == 1) {
-        
-        # eleurb.anno <- elepopROB.anno %>% 
-        #   dplyr::filter(grepl('Urb', area)) %>%
-        #   dplyr::select(people) %>% 
-        #   sum()*1000
-        # urbpopmap.anno
-        # if (urbpopmap.anno == 0) {
-        #   urbele_Sctry.anno <- urbanpopulation.anno * 0  # all zeros, same geometry
-        # } else {
-        #   urbele_Sctry.anno <- (urbanpopulation.anno * eleurb.anno) / urbpopmap.anno
-        # }
-        # round(global(urbele_Sctry.anno, "sum", na.rm=TRUE),0) %>% 
-        #   pull(sum)
-        # eleurb_d_tons.anno <- elewfdb.anno %>% 
-        #   dplyr::filter(grepl('Urb', area)) %>%
-        #   dplyr::select(all_of(demand_col)) %>% 
-        #   sum()
-        # if (urbpopmap.anno == 0) {
-        #   urbeleDem_Sctry.anno <- urbanpopulation.anno*0
-        # } else {
-        #   urbeleDem_Sctry.anno <- urbanpopulation.anno*eleurb_d_tons.anno/urbpopmap.anno
-        # }
-        # 
-        # elerur.anno <- elepopROB.anno %>% 
-        #   dplyr::filter(grepl('Rur', area)) %>%
-        #   dplyr::select(people) %>% 
-        #   sum()*1000  
-        # rurpopmap.anno
-        # if (rurpopmap.anno == 0) {
-        #   rurele_Sctry.anno <- ruralpopulation.anno*0
-        # } else {
-        #   rurele_Sctry.anno <- ruralpopulation.anno*elerur.anno/rurpopmap.anno
-        # }
-        # round(global(rurele_Sctry.anno, "sum", na.rm=TRUE),0) %>% 
-        #   pull(sum)
-        # elerur_d_tons.anno <- elewfdb.anno %>% 
-        #   dplyr::filter(grepl('Rur', area)) %>%
-        #   dplyr::select(all_of(demand_col)) %>% 
-        #   sum()
-        # if (rurpopmap.anno == 0) {
-        #   rureleDem_Sctry.anno <- ruralpopulation.anno*0
-        # } else {
-        #   rureleDem_Sctry.anno <- ruralpopulation.anno*elerur_d_tons.anno/rurpopmap.anno
-        # }
-        
-        
-      }
-      rururbele.anno <- merge(rurele_Sctry.anno,urbele_Sctry.anno)
-      # plot(rururbele)
-      terra::writeRaster(rururbele.anno, paste0("pop_temp/",pop_ver,"_",i,"_",j,"_ele_users.tif"), filetype = "GTiff", overwrite = TRUE)
-      global(rururbele.anno, fun="notNA")
-      
-      rururbeleDem.anno <- merge(rureleDem_Sctry.anno,urbeleDem_Sctry.anno)
-      # plot(rururbele)
-      terra::writeRaster(rururbeleDem.anno, paste0("demand_temp/",pop_ver,"_",i,"_",j,"_ele_demand.tif"), filetype = "GTiff", overwrite = TRUE)
-      global(rururbeleDem.anno, fun="notNA")
-      
-      ele_percap.anno <- rururbeleDem.anno/rururbele.anno*1000/365
-      # plot(rururbele)
-      # terra::writeRaster(ele_percap.anno, paste0("demand_temp/",pop_ver,"_",i,"_",j,"_ele_percap.tif"), filetype = "GTiff", overwrite = TRUE)
-      global(ele_percap.anno, fun="notNA")
+      # After sourcing your corrected compute_fuel_maps(v2) with the added returns:
+      save_wf_aggregates(
+        i = i, j = j,
+        whodb = whodb, wfdb = wfdb, demand_col = demand_col,
+        subcountry = 1,
+        urbanpopulation.anno = urbanpopulation.anno,
+        ruralpopulation.anno = ruralpopulation.anno,
+        urbpopmap.anno = urbpopmap.anno,
+        rurpopmap.anno = rurpopmap.anno,
+        pop_ver = pop_ver,
+        out_dir = "demand_temp"
+      )
       
     }
     
@@ -1517,499 +1282,442 @@ for (i in adm0_reg$GID_0) { # Start of outer region (i) loop ----
   
 } # End of outer region (i) loop ----
 
-# toc()
-
 Sys.sleep(3)
 
 # Load country pop and demand rasters and merge into original region ----
-# annos__2018 <- sort(c(annos,yr))
-# for (k in annos__2018) {
-# annos <- annos__2018
+suppressPackageStartupMessages({
+  library(terra)
+  library(stringr)
+})
 
-for (k in annos) {
-  # k = 2010
-  pop_list <- list.files(path = "pop_temp/",
-                         pattern = paste0(k,"_popadj.*\\.tif$"), full.names = TRUE)
+# Merge a list of rasters (paths) → single raster written to out_path
+.merge_and_write <- function(paths, out_path) {
+  if (!length(paths)) return(invisible(NULL))
+  if (!dir.exists(dirname(out_path))) dir.create(dirname(out_path), recursive = TRUE, showWarnings = FALSE)
   
-  rururb_list <- list.files(path = "pop_temp/",
-                            pattern = paste0(k,"_rururbR.*\\.tif$"), full.names = TRUE)
-  
-  if (if_biomass == 1){
-    bio_list <- list.files(path = "pop_temp/",
-                           pattern = paste0(k,"_bio.*\\.tif$"), full.names = TRUE)
-    bioDem_list <- list.files(path = "demand_temp/",
-                              pattern = paste0(k,"_bio.*\\.tif$"), full.names = TRUE)
-  }
-  
-  if (if_charcoal == 1){
-    cha_list <- list.files(path = "pop_temp/",
-                           pattern = paste0(k,"_cha.*\\.tif$"), full.names = TRUE)
-    chaDem_list <- list.files(path = "demand_temp/",
-                              pattern = paste0(k,"_cha.*\\.tif$"), full.names = TRUE)
-  }
-  
-  if (if_biomass == 1 && if_charcoal == 1){
-    wftons_w_list <- list.files(path = "demand_temp/",
-                                pattern = paste0(k,"_wftons_w.*\\.tif$"), full.names = TRUE)
-    wftons_v_list <- list.files(path = "demand_temp/",
-                                pattern = paste0(k,"_wftons_v.*\\.tif$"), full.names = TRUE)
-  }
-  
-  if (if_gas == 1){
-    gas_list <- list.files(path = "pop_temp/",
-                           pattern = paste0(k,"_gas.*\\.tif$"), full.names = TRUE)
-    
-    gasDem_list <- list.files(path = "demand_temp/",
-                              pattern = paste0(k,"_gas.*\\.tif$"), full.names = TRUE)
-  }
-  
-  if (if_electricity == 1){
-    ele_list <- list.files(path = "pop_temp/",
-                           pattern = paste0(k,"_ele.*\\.tif$"), full.names = TRUE)
-    
-    eleDem_list <- list.files(path = "demand_temp/",
-                              pattern = paste0(k,"_ele.*\\.tif$"), full.names = TRUE)
-  }
-  
-  if (length(pop_list) > 1) { # Merges if more than one raster
-    
-    pop_raster_list <- lapply(pop_list, rast)
-    pop_users <- do.call("merge", pop_raster_list)
-    terra::writeRaster(pop_users,
-                       paste0("pop_out/",pop_ver,"_popadj_",k,".tif"),
-                       filetype = "GTiff", overwrite = TRUE)
-    
-    rururb_list <- list.files(path = "pop_temp/",
-                              pattern = paste0(k,"_rururbR.*\\.tif$|general.*\\.tif$"), full.names = TRUE)
-    rururb_raster_list <- lapply(rururb_list, rast)
-    rururb_ <- do.call("merge", rururb_raster_list)
-    terra::writeRaster(rururb_,
-                       paste0("pop_out/",pop_ver,"_rururb_",k,".tif"),
-                       filetype = "GTiff", overwrite = TRUE)
-    
-    if (if_biomass == 1){
-      bio_raster_list <- lapply(bio_list, rast)
-      bio_users <- do.call("merge", bio_raster_list)
-      terra::writeRaster(bio_users,
-                         paste0("pop_out/",pop_ver,"_bio_users_",k,".tif"),
-                         filetype = "GTiff", overwrite = TRUE)
-      bioDem_raster_list <- lapply(bioDem_list, rast)
-      bioDem_users <- do.call("merge", bioDem_raster_list)
-      terra::writeRaster(bioDem_users,
-                         paste0("demand_out/",pop_ver,"_bio_demand_",k,".tif"),
-                         filetype = "GTiff", overwrite = TRUE)
-    }
-    
-    if (if_charcoal == 1){
-      cha_raster_list <- lapply(cha_list, rast)
-      cha_users <- do.call("merge", cha_raster_list)
-      terra::writeRaster(cha_users,
-                         paste0("pop_out/",pop_ver,"_cha_users_",k,".tif"),
-                         filetype = "GTiff", overwrite = TRUE)
-      chaDem_raster_list <- lapply(chaDem_list, rast)
-      chaDem_users <- do.call("merge", chaDem_raster_list)
-      terra::writeRaster(chaDem_users,
-                         paste0("demand_out/",pop_ver,"_cha_demand_",k,".tif"),
-                         filetype = "GTiff", overwrite = TRUE)
-    }
-    
-    if (if_biomass == 1 && if_charcoal == 1){
-      wftons_w_raster_list <- lapply(wftons_w_list, rast)
-      wftons_ww <- do.call("merge", wftons_w_raster_list)
-      terra::writeRaster(wftons_ww,
-                         paste0("demand_out/",pop_ver,"_wftons_w_",k,".tif"),
-                         filetype = "GTiff", overwrite = TRUE)
-      wftons_v_raster_list <- lapply(wftons_v_list, rast)
-      wftons_vv <- do.call("merge", wftons_v_raster_list)
-      terra::writeRaster(wftons_vv,
-                         paste0("demand_out/",pop_ver,"_wftons_v_",k,".tif"),
-                         filetype = "GTiff", overwrite = TRUE)
-    }
-    
-    if (if_gas == 1){
-      gas_raster_list <- lapply(gas_list, rast)
-      gas_users <- do.call("merge", gas_raster_list)
-      terra::writeRaster(gas_users,
-                         paste0("pop_out/",pop_ver,"_gas_users_",k,".tif"),
-                         filetype = "GTiff", overwrite = TRUE)
-      gasDem_raster_list <- lapply(gasDem_list, rast)
-      gasDem_users <- do.call("merge", gasDem_raster_list)
-      terra::writeRaster(gasDem_users,
-                         paste0("demand_out/",pop_ver,"_gas_demand_",k,".tif"),
-                         filetype = "GTiff", overwrite = TRUE)
-    }
-    
-    if (if_electricity == 1){
-      ele_raster_list <- lapply(ele_list, rast)
-      ele_users <- do.call("merge", ele_raster_list)
-      terra::writeRaster(ele_users,
-                         paste0("pop_out/",pop_ver,"_ele_users_",k,".tif"),
-                         filetype = "GTiff", overwrite = TRUE)
-      eleDem_raster_list <- lapply(eleDem_list, rast)
-      eleDem_users <- do.call("merge", eleDem_raster_list)
-      terra::writeRaster(eleDem_users,
-                         paste0("demand_out/",pop_ver,"_ele_demand_",k,".tif"),
-                         filetype = "GTiff", overwrite = TRUE)
-    }
-    
-    
-    ### Erase eventually
-    # percapbio_list <- list.files(path = "demand_temp/",
-    #                              pattern = paste0(yr,"_bio_percap.*\\.tif$|general.*\\.tif$"), full.names = TRUE)
-    # percapbio_raster_list <- lapply(percapbio_list, rast)
-    # percapbio_ <- do.call("merge", percapbio_raster_list)
-    # terra::writeRaster(percapbio_,
-    #                    paste0("demand_out/",pop_ver,"_percapbio_",yr,".tif"),
-    #                    filetype = "GTiff", overwrite = TRUE)
-    
-    # percapcha_list <- list.files(path = "demand_temp/",
-    #                              pattern = paste0(yr,"_cha_percap.*\\.tif$|general.*\\.tif$"), full.names = TRUE)
-    # percapcha_raster_list <- lapply(percapcha_list, rast)
-    # percapcha_ <- do.call("merge", percapcha_raster_list)
-    # terra::writeRaster(percapcha_,
-    #                    paste0("demand_out/",pop_ver,"_percapcha_",yr,".tif"),
-    #                    filetype = "GTiff", overwrite = TRUE)
-    
-    # wftons_w_list <- list.files(path = "demand_temp/",
-    #                             pattern = paste0(yr,"_wftons_w.*\\.tif$"), full.names = TRUE)
-    # wftons_w_raster_list <- lapply(wftons_w_list, rast)
-    # wftons_ww <- do.call("merge", wftons_w_raster_list)
-    # terra::writeRaster(wftons_ww,
-    #                    paste0("demand_out/",pop_ver,"_wftons_w_",yr,".tif"),
-    #                    filetype = "GTiff", overwrite = TRUE)
-    #
-    # wftons_v_list <- list.files(path = "demand_temp/",
-    #                             pattern = paste0(yr,"_wftons_v.*\\.tif$"), full.names = TRUE)
-    # wftons_v_raster_list <- lapply(wftons_v_list, rast)
-    # wftons_vv <- do.call("merge", wftons_v_raster_list)
-    # terra::writeRaster(wftons_vv,
-    #                    paste0("demand_out/",pop_ver,"_wftons_v_",yr,".tif"),
-    #                    filetype = "GTiff", overwrite = TRUE)
-    ###
-    
-    
-  } else if (length(pop_list) == 1) { 
-    
-    rast(pop_list) %>%
-      terra::writeRaster(paste0("pop_out/",pop_ver,"_popadj_",k,".tif"),
-                         filetype = "GTiff", overwrite = TRUE)
-    
-    rast(rururb_list) %>%
-      terra::writeRaster(paste0("pop_out/",pop_ver,"_rururb_",k,".tif"),
-                         filetype = "GTiff", overwrite = TRUE)
-    
-    if (if_biomass == 1){
-      rast(bio_list) %>%
-        terra::writeRaster(paste0("pop_out/",pop_ver,"_bio_users_",k,".tif"),
-                           filetype = "GTiff", overwrite = TRUE)      
-      rast(bioDem_list) %>%
-        terra::writeRaster(paste0("demand_out/",pop_ver,"_bio_demand_",k,".tif"),
-                           filetype = "GTiff", overwrite = TRUE)
-    }
-    
-    if (if_charcoal == 1){
-      rast(cha_list) %>%
-        terra::writeRaster(paste0("pop_out/",pop_ver,"_cha_users_",k,".tif"),
-                           filetype = "GTiff", overwrite = TRUE)
-      rast(chaDem_list) %>%
-        terra::writeRaster(paste0("demand_out/",pop_ver,"_cha_demand_",k,".tif"),
-                           filetype = "GTiff", overwrite = TRUE)
-    }
-    
-    if (if_biomass == 1 && if_charcoal == 1){
-      rast(wftons_w_list) %>%
-        terra::writeRaster(paste0("demand_out/",pop_ver,"_wftons_w_",k,".tif"),
-                           filetype = "GTiff", overwrite = TRUE)
-      rast(wftons_v_list) %>%
-        terra::writeRaster(paste0("demand_out/",pop_ver,"_wftons_v_",k,".tif"),
-                           filetype = "GTiff", overwrite = TRUE)
-    }
-    
-    if (if_gas == 1){
-      rast(gas_list) %>%
-        terra::writeRaster(paste0("pop_out/",pop_ver,"_gas_users_",k,".tif"),
-                           filetype = "GTiff", overwrite = TRUE)
-      rast(gasDem_list) %>%
-        terra::writeRaster(paste0("demand_out/",pop_ver,"_gas_demand_",k,".tif"),
-                           filetype = "GTiff", overwrite = TRUE)
-    }
-    
-    if (if_electricity == 1){
-      rast(ele_list) %>%
-        terra::writeRaster(paste0("pop_out/",pop_ver,"_ele_users_",k,".tif"),
-                           filetype = "GTiff", overwrite = TRUE)
-      rast(eleDem_list) %>%
-        terra::writeRaster(paste0("demand_out/",pop_ver,"_ele_demand_",k,".tif"),
-                           filetype = "GTiff", overwrite = TRUE)
-    }
-    
+  if (length(paths) == 1) {
+    # copy/overwrite as a single raster
+    r <- rast(paths[1])
+    writeRaster(r, out_path, filetype = "GTiff", overwrite = TRUE)
   } else {
-    cat("⚠️  No rasters found in list for year", k, "\n")
+    rs <- lapply(paths, rast)
+    r  <- do.call(merge, rs)
+    writeRaster(r, out_path, filetype = "GTiff", overwrite = TRUE)
+  }
+  invisible(out_path)
+}
+
+# Build a regex that matches: <pop_ver>_<any area>_<k>_<fuel_tag>_SUFFIX.tif
+# (pop_ver may contain dashes/letters/numbers/underscores)
+.build_pattern <- function(pop_ver, k, fuel_tag, suffix) {
+  sprintf("^%s_.+_%s_%s_%s\\.tif$", 
+          stringr::str_replace_all(pop_ver, "([\\W])", "\\\\\\1"), 
+          k, fuel_tag, suffix)
+}
+
+# For the special wftons_* (they don't have a fuel_tag at the end)
+.build_pattern_wf <- function(pop_ver, k, which) {
+  sprintf("^%s_.+_%s_%s\\.tif$", 
+          stringr::str_replace_all(pop_ver, "([\\W])", "\\\\\\1"),
+          k, which)  # which ∈ {"wftons_w","wftons_v"}
+}
+
+if (subcountry != 1) {
+  
+  # ---- Main: merge all areas into one raster per fuel per year (subcountry != 1; WHO labels)
+  merge_across_areas_who <- function(
+    years,                 # vector of years (k)
+    pop_ver,               # string tag used in filenames
+    in_pop_dir    = "pop_temp",
+    in_dem_dir    = "demand_temp",
+    out_pop_dir   = "pop_out",
+    out_dem_dir   = "demand_out",
+    # WHO fuel names as they appear in whodb/wfdb; tags are lowercased in filenames
+    fuels_users   = c("Kerosene","Gas","Electricity","Biomass","Charcoal","Coal"),
+    fuels_demand  = c("Kerosene","Gas","Electricity","Biomass","Charcoal","Coal"),
+    include_wftons = TRUE   # write merged wftons_w / wftons_v when present
+  ) {
+    # filename tags are lowercased by compute_fuel_maps()
+    fuel_tags_users  <- tolower(fuels_users)
+    fuel_tags_demand <- tolower(fuels_demand)
+    
+    for (k in years) {
+      # ---- USERS (by fuel)
+      for (fu_tag in fuel_tags_users) {
+        patt_u <- .build_pattern(pop_ver, k, fu_tag, "users")
+        files_u <- list.files(in_pop_dir, pattern = patt_u, full.names = TRUE)
+        out_u <- file.path(out_pop_dir, sprintf("%s_%s_%s_users.tif", pop_ver, fu_tag, k))
+        .merge_and_write(files_u, out_u)
+      }
+      
+      # ---- DEMAND (by fuel)
+      for (fu_tag in fuel_tags_demand) {
+        patt_d <- .build_pattern(pop_ver, k, fu_tag, "demand")
+        files_d <- list.files(in_dem_dir, pattern = patt_d, full.names = TRUE)
+        out_d <- file.path(out_dem_dir, sprintf("%s_%s_%s_demand.tif", pop_ver, fu_tag, k))
+        .merge_and_write(files_d, out_d)
+      }
+      
+      # ---- Special aggregates (optional)
+      if (isTRUE(include_wftons)) {
+        # wftons_w
+        patt_w <- .build_pattern_wf(pop_ver, k, "wftons_w")
+        files_w <- list.files(in_dem_dir, pattern = patt_w, full.names = TRUE)
+        out_w <- file.path(out_dem_dir, sprintf("%s_wftons_w_%s.tif", pop_ver, k))
+        .merge_and_write(files_w, out_w)
+        
+        # wftons_v
+        patt_v <- .build_pattern_wf(pop_ver, k, "wftons_v")
+        files_v <- list.files(in_dem_dir, pattern = patt_v, full.names = TRUE)
+        out_v <- file.path(out_dem_dir, sprintf("%s_wftons_v_%s.tif", pop_ver, k))
+        .merge_and_write(files_v, out_v)
+      }
+    }
+    invisible(TRUE)
   }
   
+  
+  merge_across_areas_who(
+    years = annos,
+    pop_ver = pop_ver,
+    include_wftons = TRUE
+  )
+  
+
+  
+} else if (subcountry == 1) {
+
+
+# ---- Main: merge all areas into one raster per fuel per year (subcountry == 1)
+merge_across_areas_sub1 <- function(
+    years,                 # vector of years (k)
+    pop_ver,               # string tag used in filenames
+    in_pop_dir    = "pop_temp",
+    in_dem_dir    = "demand_temp",
+    out_pop_dir   = "pop_out",
+    out_dem_dir   = "demand_out",
+    fuels_users   = c("fuelwood","imp_fuelwood","charcoal","imp_charcoal",
+                      "gas","kerosene","electric","pellets","ethanol","biogas","other"),
+    fuels_demand  = c("fuelwood","imp_fuelwood","charcoal","imp_charcoal",
+                      "gas","kerosene","electric","pellets","ethanol","biogas","other"),
+    include_wftons = TRUE   # write merged wftons_w / wftons_v when present
+) {
+  for (k in years) {
+    # ---- USERS (by fuel)
+    for (fu in fuels_users) {
+      patt_u <- .build_pattern(pop_ver, k, fu, "users")
+      files_u <- list.files(in_pop_dir, pattern = patt_u, full.names = TRUE)
+      out_u <- file.path(out_pop_dir, sprintf("%s_%s_%s_users.tif", pop_ver, fu, k))
+      .merge_and_write(files_u, out_u)
+    }
+    
+    # ---- DEMAND (by fuel)
+    for (fu in fuels_demand) {
+      patt_d <- .build_pattern(pop_ver, k, fu, "demand")
+      files_d <- list.files(in_dem_dir, pattern = patt_d, full.names = TRUE)
+      out_d <- file.path(out_dem_dir, sprintf("%s_%s_%s_demand.tif", pop_ver, fu, k))
+      .merge_and_write(files_d, out_d)
+    }
+    
+    # ---- Special aggregates (optional)
+    if (isTRUE(include_wftons)) {
+      # wftons_w
+      patt_w <- .build_pattern_wf(pop_ver, k, "wftons_w")
+      files_w <- list.files(in_dem_dir, pattern = patt_w, full.names = TRUE)
+      out_w <- file.path(out_dem_dir, sprintf("%s_wftons_w_%s.tif", pop_ver, k))
+      .merge_and_write(files_w, out_w)
+      
+      # wftons_v
+      patt_v <- .build_pattern_wf(pop_ver, k, "wftons_v")
+      files_v <- list.files(in_dem_dir, pattern = patt_v, full.names = TRUE)
+      out_v <- file.path(out_dem_dir, sprintf("%s_wftons_v_%s.tif", pop_ver, k))
+      .merge_and_write(files_v, out_v)
+    }
+  }
+  invisible(TRUE)
 }
+
+# Example: merge all area-i tiles into national mosaics for these years
+merge_across_areas_sub1(
+  years = annos,      # e.g., c(2010, 2015, 2018, 2022)
+  pop_ver = pop_ver,  # same tag you used earlier
+  # directories default to pop_temp/demand_temp → pop_out/demand_out
+  include_wftons = TRUE
+)
+
+
+}
+
+
+
+
+
+
+
+
+
+
+
 
 # Save in a format ingestible by MoFuSS (IDW C++ script) ----
-if (if_biomass == 1 && if_charcoal == 1){
-  # setwd(demanddir)
-  # Important to remove zeros from both  / Moreover for subcountry == 1 
-  
-  ## Walking ----
-  if (optimizeD == 1) {
-    keep(annos, optimizeD, , country, countrydir, #endpath,
-         githubdir, country, countrydir, demanddir, admindir, emissionsdir, rTempdir, 
-         proj_gcs, epsg_gcs, proj_pcs, epsg_pcs, proj_authority, GEE_scale,
-         byregion, scenario_ver, pop_ver, mofuss_region, rTempdir, sure=TRUE) # shows you which variables will not be removed
-    ls()
-    gc()
-    Sys.sleep(5)
-  }
-  
-  wf_w_list <- list.files(path = "demand_out/",
-                          pattern = "_wftons_w.*\\.tif$", full.names = TRUE)
-  
-  wf_w_stNoAdj <- rast(wf_w_list) %>%
-    terra::project(paste0(proj_authority,":",epsg_pcs), method= "bilinear", res = GEE_scale) #, threads=TRUE)
-  
-  # Correction due to projection for year 1 (w), its the same for any year.
-  w_preProj <- raster(wf_w_list[[1]]) %>% cellStats(stat='sum', na.rm=TRUE)
-  w_pstProj <- raster(wf_w_stNoAdj[[1]]) %>% cellStats(stat='sum', na.rm=TRUE)
-  proj_factor_2010w <- w_preProj/w_pstProj
-  wf_w_st <- wf_w_stNoAdj*proj_factor_2010w
-  
-  terra::writeRaster(wf_w_st[[1]], paste0("demand_out/wf_w_st_2010_db.tif"),
-                     filetype = "GTiff", overwrite = TRUE)
-  # terra::writeRaster(wf_w_st[[41]], paste0("demand_out/wf_w_st_2050_db.tif"),
-  #                    filetype = "GTiff", overwrite = TRUE)# Keep turned off
-  
-  if (optimizeD == 1) {
-    gc()
-    Sys.sleep(5)
-  }
-  
-  # --- 1) Build value dfs (x, y, <layer_value>) ---
-  layer_namesw <- if (!is.null(names(wf_w_st)) && all(nzchar(names(wf_w_st))))
-    names(wf_w_st) else paste0("lyr", seq_len(nlyr(wf_w_st)))
-  
-  val_dfsw <- map2(seq_len(nlyr(wf_w_st)), layer_namesw, function(k, nm) {
-    dfw <- as.data.frame(wf_w_st[[k]], xy = TRUE, na.rm = TRUE)
-    val_colw <- setdiff(names(dfw), c("x", "y"))[1]
-    transmute(dfw, x, y, !!nm := .data[[val_colw]])
-  })
-  
-  # --- 2) Build a single (x, y) -> ID lookup from ANY layer (first non-NA) ---
-  id_dfw <- map(seq_len(nlyr(wf_w_st)), function(k) {
-    dfw <- as.data.frame(wf_w_st[[k]], xy = TRUE, na.rm = TRUE)
-    tibble(x = dfw$x, y = dfw$y, ID = as.integer(row.names(dfw)))
-  }) %>% bind_rows() %>%
-    group_by(x, y) %>%
-    summarise(ID = first(ID), .groups = "drop")   # take the first if duplicated
-  
-  # --- 3) Align all values by (x, y) ---
-  wf_w_dbx <- reduce(val_dfsw, full_join, by = c("x", "y"))
-  
-  # centroids = present in first layer; move it to the end later
-  first_val_namew <- names(val_dfsw[[1]])[3]
-  wf_w_dbx <- wf_w_dbx %>%
-    mutate(centroids = !is.na(.data[[first_val_namew]]))
-  
-  # add ID by (x, y)
-  wf_w_dbx <- wf_w_dbx %>%
-    left_join(id_dfw, by = c("x", "y"))
-  
-  # --- 4) Fill NAs only in value columns (not x,y,centroids,ID) ---
-  val_colsw <- setdiff(names(wf_w_dbx), c("x", "y", "centroids", "ID"))
-  wf_w_dbx[val_colsw] <- lapply(wf_w_dbx[val_colsw], function(v) replace(v, is.na(v), 0))
-  
-  # --- 5) Final column order: ID first, centroids last ---
-  wf_w_db <- wf_w_dbx %>%
-    relocate(ID) %>%
-    relocate(centroids, .after = last_col())
-  
-  # Preview
-  head(wf_w_db)
-  
-  id_conflictsw <- map(seq_len(nlyr(wf_w_st)), function(k) {
-    dfw <- as.data.frame(wf_w_st[[k]], xy = TRUE, na.rm = TRUE)
-    tibble(x = dfw$x, y = dfw$y, ID = as.integer(row.names(dfw)))
-  }) %>% bind_rows() %>%
-    distinct(x, y, ID) %>%
-    count(x, y) %>%
-    filter(n > 1)
-  
-  if (nrow(id_conflictsw) > 0) {
-    warning("Found (x,y) points with multiple IDs across layers; using the first one.")
-  }
-  
-  # wf_w_db <- wf_w_dbx %>%
-  #   relocate(centroids, .after = last_col())
-  
-  # Output result
-  head(wf_w_db) # Check the structure
-  # all.equal(wf_w_db, wf_w_db2)
-  colnames(wf_w_db) <- c("ID","x","y",paste0(annos,"_fw_w"),"centroids")
-  # wf_w_db4idw_prezero <- tibble::rownames_to_column(wf_w_db, "ID")
-  wf_w_db4idw_prezero <- wf_w_db
-  head(wf_w_db4idw_prezero)
-  
-  ### Take out zero here! Walking ----
-  # Calculate the row sums for the specified columns
-  target_colsw <- grep("^[0-9]{4}_fw_w$", names(wf_w_db4idw_prezero))
-  rowSumsSubsetW <- rowSums(wf_w_db4idw_prezero[, target_colsw])
-  
-  # Check if all rows were filtered out
-  if (all(rowSumsSubsetW < 0.1)) {
-    # Replace all values in the target columns with 0.2
-    wf_w_db4idw <- wf_w_db4idw_prezero
-    wf_w_db4idw[, target_colsw] <- 0.2
-  } else {
-    # Keep only rows where the sum is >= 0.1
-    wf_w_db4idw <- wf_w_db4idw_prezero[rowSumsSubsetW >= 0.1, ]
-  }
-  
-  # Creates a raster based in locs IDs - check the snaps
-  # ext_wf_w <- ext(wf_w_st[[1]])
-  # extalign <- terra::align(ext_wf_w, wf_w_st[[1]],snap="near")
-  newlocs_w <- wf_w_db4idw %>%
-    dplyr::select(x,y,ID) %>%
-    mutate_at(c('ID'), as.numeric)
-  locs_raster_w <- rast(newlocs_w, type="xyz", crs=crs(wf_w_st[[1]]), digits=0)
-  terra::writeRaster(locs_raster_w,"to_idw/locs_raster_w.tif",
-                     filetype = "GTiff", overwrite = TRUE)
-  
-  wf_w_db4idw %>%
-    dplyr::select(!c(x,y,centroids)) %>%
-    mutate_if(is.character, as.numeric) %>%
-    # mutate(across(where(is.numeric), round, 6)) %>%
-    mutate_if(is.numeric, round, 6) %>%
-    write.csv(paste0("to_idw/",substr(scenario_ver, 1, 3),"_fwch_w.csv"), row.names=FALSE, quote=FALSE)
-  
-  ## Vehicle ----
-  if (optimizeD == 1) {
-    keep(annos, optimizeD, , country, countrydir, #endpath,
-         githubdir, country, countrydir, demanddir, admindir, emissionsdir, rTempdir, 
-         proj_gcs, epsg_gcs, proj_pcs, epsg_pcs, proj_authority, GEE_scale,
-         byregion, scenario_ver, pop_ver, mofuss_region, rTempdir, sure=TRUE)
-    ls()
-    gc()
-    Sys.sleep(5)
-  }
-  
-  wf_v_list <- list.files(path = "demand_out/",
-                          pattern = "_wftons_v.*\\.tif$", full.names = TRUE)
-  wf_v_stNoAdj <- rast(wf_v_list) %>%
-    terra::project(paste0(proj_authority,":",epsg_pcs), method= "bilinear", res = GEE_scale) #, threads=TRUE)
-  
-  # Correction due to projection for year 1 (v), its the same for any year.
-  v_preProj <- raster(wf_v_list[[1]]) %>% cellStats(stat='sum', na.rm=TRUE)
-  v_pstProj <- raster(wf_v_stNoAdj[[1]]) %>% cellStats(stat='sum', na.rm=TRUE)
-  proj_factor_2010v <- v_preProj/v_pstProj
-  wf_v_st <- wf_v_stNoAdj*proj_factor_2010v
-  
-  terra::writeRaster(wf_v_st[[1]], paste0("demand_out/wf_v_st_2010_db.tif"),
-                     filetype = "GTiff", overwrite = TRUE)
-  # terra::writeRaster(wf_v_st[[41]], paste0("demand_out/wf_v_st_2050_db.tif"),
-  #                    filetype = "GTiff", overwrite = TRUE) # Keep turned off
-  
-  if (optimizeD == 1) {
-    gc()
-    Sys.sleep(5)
-  }
-  
-  # --- 1) Build value dfs (x, y, <layer_value>) ---
-  layer_namesv <- if (!is.null(names(wf_v_st)) && all(nzchar(names(wf_v_st))))
-    names(wf_v_st) else paste0("lyr", seq_len(nlyr(wf_v_st)))
-  
-  val_dfsv <- map2(seq_len(nlyr(wf_v_st)), layer_namesv, function(k, nm) {
-    dfv <- as.data.frame(wf_v_st[[k]], xy = TRUE, na.rm = TRUE)
-    val_colv <- setdiff(names(dfv), c("x", "y"))[1]
-    transmute(dfv, x, y, !!nm := .data[[val_colv]])
-  })
-  
-  # --- 2) Build a single (x, y) -> ID lookup from ANY layer (first non-NA) ---
-  id_dfv <- map(seq_len(nlyr(wf_v_st)), function(k) {
-    dfv <- as.data.frame(wf_v_st[[k]], xy = TRUE, na.rm = TRUE)
-    tibble(x = dfv$x, y = dfv$y, ID = as.integer(row.names(dfv)))
-  }) %>% bind_rows() %>%
-    group_by(x, y) %>%
-    summarise(ID = first(ID), .groups = "drop")   # take the first if duplicated
-  
-  # --- 3) Align all values by (x, y) ---
-  wf_v_dbx <- reduce(val_dfsv, full_join, by = c("x", "y"))
-  
-  # centroids = present in first layer; move it to the end later
-  first_val_namev <- names(val_dfsv[[1]])[3]
-  wf_v_dbx <- wf_v_dbx %>%
-    mutate(centroids = !is.na(.data[[first_val_namev]]))
-  
-  # add ID by (x, y)
-  wf_v_dbx <- wf_v_dbx %>%
-    left_join(id_dfv, by = c("x", "y"))
-  
-  # --- 4) Fill NAs only in value columns (not x,y,centroids,ID) ---
-  val_colsv <- setdiff(names(wf_v_dbx), c("x", "y", "centroids", "ID"))
-  wf_v_dbx[val_colsv] <- lapply(wf_v_dbx[val_colsv], function(v) replace(v, is.na(v), 0))
-  
-  # --- 5) Final column order: ID first, centroids last ---
-  wf_v_db <- wf_v_dbx %>%
-    relocate(ID) %>%
-    relocate(centroids, .after = last_col())
-  
-  # Preview
-  head(wf_v_db)
-  
-  id_conflictsv <- map(seq_len(nlyr(wf_v_st)), function(k) {
-    dfv <- as.data.frame(wf_v_st[[k]], xy = TRUE, na.rm = TRUE)
-    tibble(x = dfv$x, y = dfv$y, ID = as.integer(row.names(dfv)))
-  }) %>% bind_rows() %>%
-    distinct(x, y, ID) %>%
-    count(x, y) %>%
-    filter(n > 1)
-  
-  if (nrow(id_conflictsv) > 0) {
-    warning("Found (x,y) points with multiple IDs across layers; using the first one.")
-  }
-  
-  # Output result
-  head(wf_v_db) # Check the structure
-  # all.equal(wf_w_db, wf_w_db2)
-  colnames(wf_v_db) <- c("ID","x","y",paste0(annos,"_fw_v"),"centroids")
-  # wf_v_db4idw_prezero <- tibble::rownames_to_column(wf_v_db, "ID")
-  wf_v_db4idw_prezero <- wf_v_db
-  head(wf_v_db4idw_prezero)
-  
-  ### Take out zero here! Vehicle ----
-  # Calculate the row sums for the specified columns
-  target_colsv <- grep("^[0-9]{4}_fw_v$", names(wf_v_db4idw_prezero))
-  rowSumsSubsetV <- rowSums(wf_v_db4idw_prezero[, target_colsv])
-  
-  # Check if all rows were filtered out
-  if (all(rowSumsSubsetV < 0.1)) {
-    # Replace all values in the target columns with 0.2
-    wf_v_db4idw <- wf_v_db4idw_prezero
-    wf_v_db4idw[, target_colsv] <- 0.2
-  } else {
-    # Keep only rows where the sum is >= 0.1
-    wf_v_db4idw <- wf_v_db4idw_prezero[rowSumsSubsetV >= 0.1, ]
-  }
-  
-  # Creates a raster based in locs IDs - check the snaps
-  # ext_wf_w <- ext(wf_w_st[[1]])
-  # extalign <- terra::align(ext_wf_w, wf_w_st[[1]],snap="near")
-  newlocs_v <- wf_v_db4idw %>%
-    dplyr::select(x,y,ID)
-  locs_raster_v <- rast(newlocs_v, type="xyz", crs=crs(wf_v_st[[1]]), digits=0)
-  terra::writeRaster(locs_raster_v,"to_idw/locs_raster_v.tif",
-                     filetype = "GTiff", overwrite = TRUE)
-  
-  wf_v_db4idw %>%
-    dplyr::select(!c(x,y,centroids)) %>%
-    mutate_if(is.character, as.numeric) %>%
-    # mutate(across(where(is.numeric), round, 6)) %>%
-    mutate_if(is.numeric, round, 6) %>%
-    write.csv(paste0("to_idw/",substr(scenario_ver, 1, 3),"_fwch_v.csv"), row.names=FALSE, quote=FALSE)
-  
+# Important to remove zeros from both; moreover for subcountry == 1 
+
+## Walking ----
+if (optimizeD == 1) {
+  keep(annos, optimizeD, , country, countrydir, #endpath,
+       githubdir, country, countrydir, demanddir, admindir, emissionsdir, rTempdir, 
+       proj_gcs, epsg_gcs, proj_pcs, epsg_pcs, proj_authority, GEE_scale,
+       byregion, scenario_ver, pop_ver, mofuss_region, rTempdir, sure=TRUE) # shows you which variables will not be removed
+  ls()
+  gc()
+  Sys.sleep(5)
 }
+
+wf_w_list <- list.files(path = "demand_out/",
+                        pattern = "_wftons_w.*\\.tif$", full.names = TRUE)
+
+wf_w_stNoAdj <- rast(wf_w_list) %>%
+  terra::project(paste0(proj_authority,":",epsg_pcs), method= "bilinear", res = GEE_scale) #, threads=TRUE)
+
+# Correction due to projection for year 1 (w), its the same for any year.
+w_preProj <- raster(wf_w_list[[1]]) %>% cellStats(stat='sum', na.rm=TRUE)
+w_pstProj <- raster(wf_w_stNoAdj[[1]]) %>% cellStats(stat='sum', na.rm=TRUE)
+proj_factor_2010w <- w_preProj/w_pstProj
+wf_w_st <- wf_w_stNoAdj*proj_factor_2010w
+
+terra::writeRaster(wf_w_st[[1]], paste0("demand_out/wf_w_st_2010_db.tif"),
+                   filetype = "GTiff", overwrite = TRUE)
+# terra::writeRaster(wf_w_st[[41]], paste0("demand_out/wf_w_st_2050_db.tif"),
+#                    filetype = "GTiff", overwrite = TRUE)# Keep turned off
+
+if (optimizeD == 1) {
+  gc()
+  Sys.sleep(5)
+}
+
+# --- 1) Build value dfs (x, y, <layer_value>) ---
+layer_namesw <- if (!is.null(names(wf_w_st)) && all(nzchar(names(wf_w_st))))
+  names(wf_w_st) else paste0("lyr", seq_len(nlyr(wf_w_st)))
+
+val_dfsw <- map2(seq_len(nlyr(wf_w_st)), layer_namesw, function(k, nm) {
+  dfw <- as.data.frame(wf_w_st[[k]], xy = TRUE, na.rm = TRUE)
+  val_colw <- setdiff(names(dfw), c("x", "y"))[1]
+  transmute(dfw, x, y, !!nm := .data[[val_colw]])
+})
+
+# --- 2) Build a single (x, y) -> ID lookup from ANY layer (first non-NA) ---
+id_dfw <- map(seq_len(nlyr(wf_w_st)), function(k) {
+  dfw <- as.data.frame(wf_w_st[[k]], xy = TRUE, na.rm = TRUE)
+  tibble(x = dfw$x, y = dfw$y, ID = as.integer(row.names(dfw)))
+}) %>% bind_rows() %>%
+  group_by(x, y) %>%
+  summarise(ID = first(ID), .groups = "drop")   # take the first if duplicated
+
+# --- 3) Align all values by (x, y) ---
+wf_w_dbx <- reduce(val_dfsw, full_join, by = c("x", "y"))
+
+# centroids = present in first layer; move it to the end later
+first_val_namew <- names(val_dfsw[[1]])[3]
+wf_w_dbx <- wf_w_dbx %>%
+  mutate(centroids = !is.na(.data[[first_val_namew]]))
+
+# add ID by (x, y)
+wf_w_dbx <- wf_w_dbx %>%
+  left_join(id_dfw, by = c("x", "y"))
+
+# --- 4) Fill NAs only in value columns (not x,y,centroids,ID) ---
+val_colsw <- setdiff(names(wf_w_dbx), c("x", "y", "centroids", "ID"))
+wf_w_dbx[val_colsw] <- lapply(wf_w_dbx[val_colsw], function(v) replace(v, is.na(v), 0))
+
+# --- 5) Final column order: ID first, centroids last ---
+wf_w_db <- wf_w_dbx %>%
+  relocate(ID) %>%
+  relocate(centroids, .after = last_col())
+
+# Preview
+head(wf_w_db)
+
+id_conflictsw <- map(seq_len(nlyr(wf_w_st)), function(k) {
+  dfw <- as.data.frame(wf_w_st[[k]], xy = TRUE, na.rm = TRUE)
+  tibble(x = dfw$x, y = dfw$y, ID = as.integer(row.names(dfw)))
+}) %>% bind_rows() %>%
+  distinct(x, y, ID) %>%
+  count(x, y) %>%
+  filter(n > 1)
+
+if (nrow(id_conflictsw) > 0) {
+  warning("Found (x,y) points with multiple IDs across layers; using the first one.")
+}
+
+# wf_w_db <- wf_w_dbx %>%
+#   relocate(centroids, .after = last_col())
+
+# Output result
+head(wf_w_db) # Check the structure
+# all.equal(wf_w_db, wf_w_db2)
+colnames(wf_w_db) <- c("ID","x","y",paste0(annos,"_fw_w"),"centroids")
+# wf_w_db4idw_prezero <- tibble::rownames_to_column(wf_w_db, "ID")
+wf_w_db4idw_prezero <- wf_w_db
+head(wf_w_db4idw_prezero)
+
+### Take out zero here! Walking ----
+# Calculate the row sums for the specified columns
+target_colsw <- grep("^[0-9]{4}_fw_w$", names(wf_w_db4idw_prezero))
+rowSumsSubsetW <- rowSums(wf_w_db4idw_prezero[, target_colsw])
+
+# Check if all rows were filtered out
+if (all(rowSumsSubsetW < 0.1)) {
+  # Replace all values in the target columns with 0.2
+  wf_w_db4idw <- wf_w_db4idw_prezero
+  wf_w_db4idw[, target_colsw] <- 0.2
+} else {
+  # Keep only rows where the sum is >= 0.1
+  wf_w_db4idw <- wf_w_db4idw_prezero[rowSumsSubsetW >= 0.1, ]
+}
+
+# Creates a raster based in locs IDs - check the snaps
+# ext_wf_w <- ext(wf_w_st[[1]])
+# extalign <- terra::align(ext_wf_w, wf_w_st[[1]],snap="near")
+newlocs_w <- wf_w_db4idw %>%
+  dplyr::select(x,y,ID) %>%
+  mutate_at(c('ID'), as.numeric)
+locs_raster_w <- rast(newlocs_w, type="xyz", crs=crs(wf_w_st[[1]]), digits=0)
+terra::writeRaster(locs_raster_w,"to_idw/locs_raster_w.tif",
+                   filetype = "GTiff", overwrite = TRUE)
+
+wf_w_db4idw %>%
+  dplyr::select(!c(x,y,centroids)) %>%
+  mutate_if(is.character, as.numeric) %>%
+  # mutate(across(where(is.numeric), round, 6)) %>%
+  mutate_if(is.numeric, round, 6) %>%
+  write.csv(paste0("to_idw/",substr(scenario_ver, 1, 3),"_fwch_w.csv"), row.names=FALSE, quote=FALSE)
+
+## Vehicle ----
+if (optimizeD == 1) {
+  keep(annos, optimizeD, , country, countrydir, #endpath,
+       githubdir, country, countrydir, demanddir, admindir, emissionsdir, rTempdir, 
+       proj_gcs, epsg_gcs, proj_pcs, epsg_pcs, proj_authority, GEE_scale,
+       byregion, scenario_ver, pop_ver, mofuss_region, rTempdir, sure=TRUE)
+  ls()
+  gc()
+  Sys.sleep(5)
+}
+
+wf_v_list <- list.files(path = "demand_out/",
+                        pattern = "_wftons_v.*\\.tif$", full.names = TRUE)
+wf_v_stNoAdj <- rast(wf_v_list) %>%
+  terra::project(paste0(proj_authority,":",epsg_pcs), method= "bilinear", res = GEE_scale) #, threads=TRUE)
+
+# Correction due to projection for year 1 (v), its the same for any year.
+v_preProj <- raster(wf_v_list[[1]]) %>% cellStats(stat='sum', na.rm=TRUE)
+v_pstProj <- raster(wf_v_stNoAdj[[1]]) %>% cellStats(stat='sum', na.rm=TRUE)
+proj_factor_2010v <- v_preProj/v_pstProj
+wf_v_st <- wf_v_stNoAdj*proj_factor_2010v
+
+terra::writeRaster(wf_v_st[[1]], paste0("demand_out/wf_v_st_2010_db.tif"),
+                   filetype = "GTiff", overwrite = TRUE)
+# terra::writeRaster(wf_v_st[[41]], paste0("demand_out/wf_v_st_2050_db.tif"),
+#                    filetype = "GTiff", overwrite = TRUE) # Keep turned off
+
+if (optimizeD == 1) {
+  gc()
+  Sys.sleep(5)
+}
+
+# --- 1) Build value dfs (x, y, <layer_value>) ---
+layer_namesv <- if (!is.null(names(wf_v_st)) && all(nzchar(names(wf_v_st))))
+  names(wf_v_st) else paste0("lyr", seq_len(nlyr(wf_v_st)))
+
+val_dfsv <- map2(seq_len(nlyr(wf_v_st)), layer_namesv, function(k, nm) {
+  dfv <- as.data.frame(wf_v_st[[k]], xy = TRUE, na.rm = TRUE)
+  val_colv <- setdiff(names(dfv), c("x", "y"))[1]
+  transmute(dfv, x, y, !!nm := .data[[val_colv]])
+})
+
+# --- 2) Build a single (x, y) -> ID lookup from ANY layer (first non-NA) ---
+id_dfv <- map(seq_len(nlyr(wf_v_st)), function(k) {
+  dfv <- as.data.frame(wf_v_st[[k]], xy = TRUE, na.rm = TRUE)
+  tibble(x = dfv$x, y = dfv$y, ID = as.integer(row.names(dfv)))
+}) %>% bind_rows() %>%
+  group_by(x, y) %>%
+  summarise(ID = first(ID), .groups = "drop")   # take the first if duplicated
+
+# --- 3) Align all values by (x, y) ---
+wf_v_dbx <- reduce(val_dfsv, full_join, by = c("x", "y"))
+
+# centroids = present in first layer; move it to the end later
+first_val_namev <- names(val_dfsv[[1]])[3]
+wf_v_dbx <- wf_v_dbx %>%
+  mutate(centroids = !is.na(.data[[first_val_namev]]))
+
+# add ID by (x, y)
+wf_v_dbx <- wf_v_dbx %>%
+  left_join(id_dfv, by = c("x", "y"))
+
+# --- 4) Fill NAs only in value columns (not x,y,centroids,ID) ---
+val_colsv <- setdiff(names(wf_v_dbx), c("x", "y", "centroids", "ID"))
+wf_v_dbx[val_colsv] <- lapply(wf_v_dbx[val_colsv], function(v) replace(v, is.na(v), 0))
+
+# --- 5) Final column order: ID first, centroids last ---
+wf_v_db <- wf_v_dbx %>%
+  relocate(ID) %>%
+  relocate(centroids, .after = last_col())
+
+# Preview
+head(wf_v_db)
+
+id_conflictsv <- map(seq_len(nlyr(wf_v_st)), function(k) {
+  dfv <- as.data.frame(wf_v_st[[k]], xy = TRUE, na.rm = TRUE)
+  tibble(x = dfv$x, y = dfv$y, ID = as.integer(row.names(dfv)))
+}) %>% bind_rows() %>%
+  distinct(x, y, ID) %>%
+  count(x, y) %>%
+  filter(n > 1)
+
+if (nrow(id_conflictsv) > 0) {
+  warning("Found (x,y) points with multiple IDs across layers; using the first one.")
+}
+
+# Output result
+head(wf_v_db) # Check the structure
+# all.equal(wf_w_db, wf_w_db2)
+colnames(wf_v_db) <- c("ID","x","y",paste0(annos,"_fw_v"),"centroids")
+# wf_v_db4idw_prezero <- tibble::rownames_to_column(wf_v_db, "ID")
+wf_v_db4idw_prezero <- wf_v_db
+head(wf_v_db4idw_prezero)
+
+### Take out zero here! Vehicle ----
+# Calculate the row sums for the specified columns
+target_colsv <- grep("^[0-9]{4}_fw_v$", names(wf_v_db4idw_prezero))
+rowSumsSubsetV <- rowSums(wf_v_db4idw_prezero[, target_colsv])
+
+# Check if all rows were filtered out
+if (all(rowSumsSubsetV < 0.1)) {
+  # Replace all values in the target columns with 0.2
+  wf_v_db4idw <- wf_v_db4idw_prezero
+  wf_v_db4idw[, target_colsv] <- 0.2
+} else {
+  # Keep only rows where the sum is >= 0.1
+  wf_v_db4idw <- wf_v_db4idw_prezero[rowSumsSubsetV >= 0.1, ]
+}
+
+# Creates a raster based in locs IDs - check the snaps
+# ext_wf_w <- ext(wf_w_st[[1]])
+# extalign <- terra::align(ext_wf_w, wf_w_st[[1]],snap="near")
+newlocs_v <- wf_v_db4idw %>%
+  dplyr::select(x,y,ID)
+locs_raster_v <- rast(newlocs_v, type="xyz", crs=crs(wf_v_st[[1]]), digits=0)
+terra::writeRaster(locs_raster_v,"to_idw/locs_raster_v.tif",
+                   filetype = "GTiff", overwrite = TRUE)
+
+wf_v_db4idw %>%
+  dplyr::select(!c(x,y,centroids)) %>%
+  mutate_if(is.character, as.numeric) %>%
+  # mutate(across(where(is.numeric), round, 6)) %>%
+  mutate_if(is.numeric, round, 6) %>%
+  write.csv(paste0("to_idw/",substr(scenario_ver, 1, 3),"_fwch_v.csv"), row.names=FALSE, quote=FALSE)
+
+
 
 # Copy to MoFuSS ----
 
@@ -2038,3 +1746,4 @@ file.copy(from=paste0(demanddir,"/to_idw/",substr(scenario_ver, 1, 3),"_fwch_v.c
           overwrite = TRUE)
 
 # End of script ----
+

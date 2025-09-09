@@ -424,6 +424,17 @@ message("[End-Use] Done. Rasters in:\n  - ", enduse_dir_bau, "\n  - ", enduse_di
 
 
 # Compare Harvest vs Demand to extract % of unmet demand
+# Watch out harvest total start year 2010/2020
 
+# charcoal_emissions_bau_2020_2050 <- charcolDem_all_adj4unmetdemand * (efvalueCH4_ch_ctry + efvalueN2O_ch_ctry) / efchratio (6)
+# charcoal_emissions_ics_2020_2050 <- charcolDem_all_adj4unmetdemand * (efvalueCH4_ch_ctry + efvalueN2O_ch_ctry) / efchratio (6)
+# delta_charcoal_emissions
+# 
+# fuelwood_emissions_bau_2020_2050 <- fuelwoodDem_all_adj4unmetdemand * (efvalueCH4_fw_ctry + efvalueN2O_fw_ctry)
+# fuelwood_emissions_ics_2020_2050 <- fuelwoodDem_all_adj4unmetdemand * (efvalueCH4_fw_ctry + efvalueN2O_fw_ctry)
+# delta_fuelwood_emissions
+
+# Add all fuelwood from demand scenarios
+# Imp charcoal and Imp fuelwood uses the sae EF as bau charcoal and fuelwood
 
 
