@@ -184,7 +184,7 @@ if (lucinputdataset == "modis") {
   LULCt1map_yr <- as.numeric(string_numbers1)
   lucmodis_2010_merge_rcl <- rast(paste0(countrydir,"/LULCC/DownloadedDatasets/SourceData",country_name,"/InRaster/pre2010_v1_",LULCt1map_name))
 
-  rururb_gcs <- rast(paste0(demanddir,"/pop_out/WorldPop_rururb_2020.tif"))
+  rururb_gcs <- rast(paste0(demanddir,"/pop_out/WorldPop_rururbR_2020.tif"))
   rururb_pcs <- rururb_gcs %>% 
     terra::project(lucmodis_2010_merge_rcl, method="near", gdal=TRUE)
   # terra::writeRaster(rururb_pcs, paste0(lulccfiles,"/out_pcs/rururb_pcs.tif"), filetype = "GTiff", datatype="INT2S", overwrite = TRUE)
@@ -247,7 +247,7 @@ if (lucinputdataset == "modis") {
   LULCt2map_yr <- as.numeric(string_numbers2)
   luccopernicus_2015_merge_rcl <- rast(paste0(countrydir,"/LULCC/DownloadedDatasets/SourceData",country_name,"/InRaster/pre2015_v1_",LULCt2map_name))
 
-  rururb_gcs <- rast(paste0(demanddir,"/pop_out/WorldPop_rururb_2020.tif"))
+  rururb_gcs <- rast(paste0(demanddir,"/pop_out/WorldPop_rururbR_2020.tif"))
   rururb_pcs <- rururb_gcs %>% 
     terra::project(luccopernicus_2015_merge_rcl, method="near", gdal=TRUE)
   # terra::writeRaster(rururb_pcs, paste0(lulccfiles,"/out_pcs/rururb_pcs.tif"), filetype = "GTiff", datatype="INT2S", overwrite = TRUE)

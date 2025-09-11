@@ -1,106 +1,106 @@
-# # Author: A Ghilardi
-# # Version: 1.0
-# # Date: 2015
-# 
-# rm(list=ls(all=TRUE))
-# 
-# # unlink("Summary_Report//Mofuss_Summary_Report.pdf", force=TRUE)
-# # unlink("LaTeX//Mofuss_Summary_Report.pdf", force=TRUE)
-# # unlink("Mofuss_Summary_Report.pdf", force=TRUE)
-# # unlink("LaTeX//InputPara.csv", force=TRUE)
-# # unlink("LaTeX//NRBTable.csv", force=TRUE)
-# # unlink("LaTeX//fNRBTable.csv", force=TRUE)
-# # unlink("LaTeX//SumTable.csv", force=TRUE)
-# 
-# # Read in the arguments listed at the command line in Dinamica EGO'S "Run external process"
-# args=(commandArgs(TRUE))
-# 
-# # "args" is now a list of character vectors.
-# # First check to see if arguments are passed.
-# # Then cycle through each element of the list and evaluate the expressions.
-# if(length(args)==0){
-# 	print("No arguments supplied by DINAMICA.")
-# 	##Supply default values here (to be used when running the script through R directly)
-# 	RerunMC=1
-# 	BaUvsICS="BaU"
-# }else{
-#     for(i in 1:length(args)){
-#          eval(parse(text=args[[i]]))
-#     }
+# Author: A Ghilardi
+# Version: 1.0
+# Date: 2015
+
+rm(list=ls(all=TRUE))
+
+# unlink("Summary_Report//Mofuss_Summary_Report.pdf", force=TRUE)
+# unlink("LaTeX//Mofuss_Summary_Report.pdf", force=TRUE)
+# unlink("Mofuss_Summary_Report.pdf", force=TRUE)
+# unlink("LaTeX//InputPara.csv", force=TRUE)
+# unlink("LaTeX//NRBTable.csv", force=TRUE)
+# unlink("LaTeX//fNRBTable.csv", force=TRUE)
+# unlink("LaTeX//SumTable.csv", force=TRUE)
+
+# Read in the arguments listed at the command line in Dinamica EGO'S "Run external process"
+args=(commandArgs(TRUE))
+
+# "args" is now a list of character vectors.
+# First check to see if arguments are passed.
+# Then cycle through each element of the list and evaluate the expressions.
+if(length(args)==0){
+	print("No arguments supplied by DINAMICA.")
+	##Supply default values here (to be used when running the script through R directly)
+	RerunMC=1
+	BaUvsICS="BaU"
+}else{
+    for(i in 1:length(args)){
+         eval(parse(text=args[[i]]))
+    }
+}
+
+if (BaUvsICS == "ICS") {
+	unlink("OutICS//*", recursive = TRUE,force=TRUE)
+	unlink("LaTeX//Growth_Harvest_AniOutICS.mp4", force=TRUE)
+	unlink("HTML_animation_OutICS//*", recursive = TRUE,force=TRUE)
+	unlink("LaTeX//SumTableICS.csv", force=TRUE)
+	OutDir<-"OutICS"
+} else {
+	unlink("OutBaU//*", recursive = TRUE,force=TRUE)
+	unlink("LaTeX//Growth_Harvest_AniOutBaU.mp4", force=TRUE)
+	unlink("HTML_animation_OutBaU//*", recursive = TRUE,force=TRUE)
+	unlink("LaTeX//SumTableBaU.csv", force=TRUE)
+	OutDir<-"OutBaU"
+}
+
+
+# # Function to choose directory
+#   if (os == "Windows") {
+#     # Use tk_choose.dir for Windows
+#     mcprevdir <- tcltk::tk_choose.dir(default = normalizePath("~"), caption = "Choose the folder where the previous Monte Carlo parameters exist")
+#   } else if (os == "Linux") {
+#     # Use an alternative for Linux (e.g., `utils::choose.dir`, which works in RStudio)
+#     mcprevdir <- rstudioapi::selectDirectory(caption = "Choose the folder where the previous Monte Carlo parameters exist")
+#   } else {
+#     stop("Unsupported OS. Directory selection is not implemented for this system.")
+#   }
+#
+#   # Check if a directory was selected
+#   if (is.null(mcprevdir) || mcprevdir == "") {
+#     stop("No directory selected. Exiting.")
+#   }
+#
+# # Define source and destination
+# src_dir  <- file.path(mcprevdir, "Temp")
+# dest_dir <- "Temp"
+
+# # List of files to copy
+# files_to_copy <- c("i_st_all.csv", "k_all.csv", "rmax_all.csv")
+#
+# # Copy files
+# for (f in files_to_copy) {
+#   src_file  <- file.path(src_dir, f)
+#   dest_file <- file.path(dest_dir, f)
+#   if (file.exists(src_file)) {
+#     file.copy(src_file, dest_file, overwrite = TRUE)
+#     message("Copied: ", f)
+#   } else {
+#     warning("Missing in source: ", f)
+#   }
 # }
-# 
-# if (BaUvsICS == "ICS") {
-# 	unlink("OutICS//*", recursive = TRUE,force=TRUE)
-# 	unlink("LaTeX//Growth_Harvest_AniOutICS.mp4", force=TRUE)
-# 	unlink("HTML_animation_OutICS//*", recursive = TRUE,force=TRUE)	
-# 	unlink("LaTeX//SumTableICS.csv", force=TRUE)
-# 	OutDir<-"OutICS"
-# } else {
-# 	unlink("OutBaU//*", recursive = TRUE,force=TRUE)
-# 	unlink("LaTeX//Growth_Harvest_AniOutBaU.mp4", force=TRUE)
-# 	unlink("HTML_animation_OutBaU//*", recursive = TRUE,force=TRUE)	
-# 	unlink("LaTeX//SumTableBaU.csv", force=TRUE)
-# 	OutDir<-"OutBaU"
-# }
-# 
-# 
-# # # Function to choose directory
-# #   if (os == "Windows") {
-# #     # Use tk_choose.dir for Windows
-# #     mcprevdir <- tcltk::tk_choose.dir(default = normalizePath("~"), caption = "Choose the folder where the previous Monte Carlo parameters exist")
-# #   } else if (os == "Linux") {
-# #     # Use an alternative for Linux (e.g., `utils::choose.dir`, which works in RStudio)
-# #     mcprevdir <- rstudioapi::selectDirectory(caption = "Choose the folder where the previous Monte Carlo parameters exist")
-# #   } else {
-# #     stop("Unsupported OS. Directory selection is not implemented for this system.")
-# #   }
-# #   
-# #   # Check if a directory was selected
-# #   if (is.null(mcprevdir) || mcprevdir == "") {
-# #     stop("No directory selected. Exiting.")
-# #   }
-# # 
-# # # Define source and destination
-# # src_dir  <- file.path(mcprevdir, "Temp")
-# # dest_dir <- "Temp"
-# 
-# # # List of files to copy
-# # files_to_copy <- c("i_st_all.csv", "k_all.csv", "rmax_all.csv")
-# # 
-# # # Copy files
-# # for (f in files_to_copy) {
-# #   src_file  <- file.path(src_dir, f)
-# #   dest_file <- file.path(dest_dir, f)
-# #   if (file.exists(src_file)) {
-# #     file.copy(src_file, dest_file, overwrite = TRUE)
-# #     message("Copied: ", f)
-# #   } else {
-# #     warning("Missing in source: ", f)
-# #   }
-# # }
-# # 
-# # # Check if they exist in destination
-# # MCist   <- file.exists(file.path(dest_dir, "i_st_all.csv"))
-# # MCk     <- file.exists(file.path(dest_dir, "k_all.csv"))
-# # MCrmax  <- file.exists(file.path(dest_dir, "rmax_all.csv"))
-# # 
-# # # Print results
-# # cat("MCist exists:", MCist, "\n")
-# # cat("MCk exists:", MCk, "\n")
-# # cat("MCrmax exists:", MCrmax, "\n")
+#
+# # Check if they exist in destination
+# MCist   <- file.exists(file.path(dest_dir, "i_st_all.csv"))
+# MCk     <- file.exists(file.path(dest_dir, "k_all.csv"))
+# MCrmax  <- file.exists(file.path(dest_dir, "rmax_all.csv"))
+#
+# # Print results
+# cat("MCist exists:", MCist, "\n")
+# cat("MCk exists:", MCk, "\n")
+# cat("MCrmax exists:", MCrmax, "\n")
 # 
 # if (RerunMC==0) {
 # 	if (MCist == FALSE | MCk == FALSE | MCrmax == FALSE) {
 # 		shell.exec(file.path(getwd(), "LULCC/Wizard_imgs/bypassMCerror.pdf"))
-# 		stop()		
+# 		stop()
 # 	} else {
-# 		"Do nothing"	
+# 		"Do nothing"
 # 	}
 # 
 # } else{
 # 	textmsg<-"Using same MonteCarlo datasets"
 # 	write.csv(textmsg,paste("DebugOutputs//",textmsg,".csv",sep=""),row.names = FALSE)
-# } 
+# }
 
 
 

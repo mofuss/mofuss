@@ -11,13 +11,14 @@
 # limitations under the License.
 
 # MoFuSS
-# Version 4
+# Version 5
 # Date: Sep 2025
 
 # 2dolist ----
 # FIX THE MASK ISSUE WITH LINUX, THAT WAS PATCHED FOR THE MOMENT!
 # ALLOW OTHER SCENARIOS: Start in line 183
 # VERY IMPORTANT TO DEFINE A SOLID WORKFLOW FOR REGIONALIZING COUNTRIES, e.g. Zambia
+# Remove any reference to HSRL 
 
 # Internal parameters ----
 optimizeD = 0
@@ -289,10 +290,8 @@ if (aoi_poly == 1) {
   
   
   ### Selection of all overlapping countries for demand calculations
-  
-  #WORKING HERE!
-  
-  mofuss_regions0_gpkg <- vect(st_read("demand_in/mofuss_regions0.gpkg"))
+
+    mofuss_regions0_gpkg <- vect(st_read("demand_in/mofuss_regions0.gpkg"))
   # mofuss_regions0 <- as.data.frame(mofuss_regions0_gpkg)
   # Handle the case where aoi_poly is 1, regardless of byregion
   cat("aoi_poly is set to 1. This overrides other conditions.\n")
@@ -651,9 +650,9 @@ if (aoi_poly == 1) {
     #not_label = "NotLusaka"
   )
   
-  # Quick visual sanity check:
-  plot(result_vec, col = rainbow(nrow(result_vec))); result_vec
-  result_vec
+  # # Quick visual sanity check:
+  # plot(result_vec, col = rainbow(nrow(result_vec))); result_vec
+  # result_vec
   
   adm0_reg <- result_vec
   pop0_K <- crop(pop0, ext(adm0_reg) + .01)
@@ -1294,7 +1293,7 @@ suppressPackageStartupMessages({
 .merge_and_write <- function(paths, out_path) {
   if (!length(paths)) return(invisible(NULL))
   if (!dir.exists(dirname(out_path))) dir.create(dirname(out_path), recursive = TRUE, showWarnings = FALSE)
-  
+
   if (length(paths) == 1) {
     # copy/overwrite as a single raster
     r <- rast(paths[1])
@@ -1310,20 +1309,20 @@ suppressPackageStartupMessages({
 # Build a regex that matches: <pop_ver>_<any area>_<k>_<fuel_tag>_SUFFIX.tif
 # (pop_ver may contain dashes/letters/numbers/underscores)
 .build_pattern <- function(pop_ver, k, fuel_tag, suffix) {
-  sprintf("^%s_.+_%s_%s_%s\\.tif$", 
-          stringr::str_replace_all(pop_ver, "([\\W])", "\\\\\\1"), 
+  sprintf("^%s_.+_%s_%s_%s\\.tif$",
+          stringr::str_replace_all(pop_ver, "([\\W])", "\\\\\\1"),
           k, fuel_tag, suffix)
 }
 
 # For the special wftons_* (they don't have a fuel_tag at the end)
 .build_pattern_wf <- function(pop_ver, k, which) {
-  sprintf("^%s_.+_%s_%s\\.tif$", 
+  sprintf("^%s_.+_%s_%s\\.tif$",
           stringr::str_replace_all(pop_ver, "([\\W])", "\\\\\\1"),
           k, which)  # which ∈ {"wftons_w","wftons_v"}
 }
 
 if (subcountry != 1) {
-  
+
   # ---- Main: merge all areas into one raster per fuel per year (subcountry != 1; WHO labels)
   merge_across_areas_who <- function(
     years,                 # vector of years (k)
@@ -1335,12 +1334,14 @@ if (subcountry != 1) {
     # WHO fuel names as they appear in whodb/wfdb; tags are lowercased in filenames
     fuels_users   = c("Kerosene","Gas","Electricity","Biomass","Charcoal","Coal"),
     fuels_demand  = c("Kerosene","Gas","Electricity","Biomass","Charcoal","Coal"),
-    include_wftons = TRUE   # write merged wftons_w / wftons_v when present
+    include_wftons = TRUE,   # write merged wftons_w / wftons_v when present
+    include_poprururb = TRUE # write merged pop and rururb when present
+
   ) {
     # filename tags are lowercased by compute_fuel_maps()
     fuel_tags_users  <- tolower(fuels_users)
     fuel_tags_demand <- tolower(fuels_demand)
-    
+
     for (k in years) {
       # ---- USERS (by fuel)
       for (fu_tag in fuel_tags_users) {
@@ -1349,7 +1350,7 @@ if (subcountry != 1) {
         out_u <- file.path(out_pop_dir, sprintf("%s_%s_%s_users.tif", pop_ver, fu_tag, k))
         .merge_and_write(files_u, out_u)
       }
-      
+
       # ---- DEMAND (by fuel)
       for (fu_tag in fuel_tags_demand) {
         patt_d <- .build_pattern(pop_ver, k, fu_tag, "demand")
@@ -1357,7 +1358,7 @@ if (subcountry != 1) {
         out_d <- file.path(out_dem_dir, sprintf("%s_%s_%s_demand.tif", pop_ver, fu_tag, k))
         .merge_and_write(files_d, out_d)
       }
-      
+
       # ---- Special aggregates (optional)
       if (isTRUE(include_wftons)) {
         # wftons_w
@@ -1365,31 +1366,43 @@ if (subcountry != 1) {
         files_w <- list.files(in_dem_dir, pattern = patt_w, full.names = TRUE)
         out_w <- file.path(out_dem_dir, sprintf("%s_wftons_w_%s.tif", pop_ver, k))
         .merge_and_write(files_w, out_w)
-        
+
         # wftons_v
         patt_v <- .build_pattern_wf(pop_ver, k, "wftons_v")
         files_v <- list.files(in_dem_dir, pattern = patt_v, full.names = TRUE)
         out_v <- file.path(out_dem_dir, sprintf("%s_wftons_v_%s.tif", pop_ver, k))
         .merge_and_write(files_v, out_v)
       }
+
+      if (isTRUE(include_poprururb)) {
+        # population adjusted
+        patt_p <- .build_pattern_wf(pop_ver, k, "popadj")
+        files_p <- list.files(in_pop_dir, pattern = patt_p, full.names = TRUE)
+        out_p <- file.path(out_pop_dir, sprintf("%s_popadj_%s.tif", pop_ver, k))
+        .merge_and_write(files_p, out_p)
+        
+        # rural urban
+        patt_u <- .build_pattern_wf(pop_ver, k, "rururbR")
+        files_u <- list.files(in_pop_dir, pattern = patt_u, full.names = TRUE)
+        out_u <- file.path(out_pop_dir, sprintf("%s_rururbR_%s.tif", pop_ver, k))
+        .merge_and_write(files_u, out_u)
+      }
+
     }
     invisible(TRUE)
   }
-  
-  
+
   merge_across_areas_who(
     years = annos,
     pop_ver = pop_ver,
-    include_wftons = TRUE
+    include_wftons = TRUE,
+    include_poprururb = TRUE
   )
-  
 
-  
 } else if (subcountry == 1) {
 
-
-# ---- Main: merge all areas into one raster per fuel per year (subcountry == 1)
-merge_across_areas_sub1 <- function(
+  # ---- Main: merge all areas into one raster per fuel per year (subcountry == 1)
+  merge_across_areas_sub1 <- function(
     years,                 # vector of years (k)
     pop_ver,               # string tag used in filenames
     in_pop_dir    = "pop_temp",
@@ -1400,68 +1413,72 @@ merge_across_areas_sub1 <- function(
                       "gas","kerosene","electric","pellets","ethanol","biogas","other"),
     fuels_demand  = c("fuelwood","imp_fuelwood","charcoal","imp_charcoal",
                       "gas","kerosene","electric","pellets","ethanol","biogas","other"),
-    include_wftons = TRUE   # write merged wftons_w / wftons_v when present
-) {
-  for (k in years) {
-    # ---- USERS (by fuel)
-    for (fu in fuels_users) {
-      patt_u <- .build_pattern(pop_ver, k, fu, "users")
-      files_u <- list.files(in_pop_dir, pattern = patt_u, full.names = TRUE)
-      out_u <- file.path(out_pop_dir, sprintf("%s_%s_%s_users.tif", pop_ver, fu, k))
-      .merge_and_write(files_u, out_u)
+    include_wftons = TRUE,   # write merged wftons_w / wftons_v when present
+    include_poprururb = TRUE # write merged pop and rururb when present
+  ) {
+    for (k in years) {
+      # ---- USERS (by fuel)
+      for (fu in fuels_users) {
+        patt_u <- .build_pattern(pop_ver, k, fu, "users")
+        files_u <- list.files(in_pop_dir, pattern = patt_u, full.names = TRUE)
+        out_u <- file.path(out_pop_dir, sprintf("%s_%s_%s_users.tif", pop_ver, fu, k))
+        .merge_and_write(files_u, out_u)
+      }
+
+      # ---- DEMAND (by fuel)
+      for (fu in fuels_demand) {
+        patt_d <- .build_pattern(pop_ver, k, fu, "demand")
+        files_d <- list.files(in_dem_dir, pattern = patt_d, full.names = TRUE)
+        out_d <- file.path(out_dem_dir, sprintf("%s_%s_%s_demand.tif", pop_ver, fu, k))
+        .merge_and_write(files_d, out_d)
+      }
+
+      # ---- Special aggregates (optional)
+      if (isTRUE(include_wftons)) {
+        # wftons_w
+        patt_w <- .build_pattern_wf(pop_ver, k, "wftons_w")
+        files_w <- list.files(in_dem_dir, pattern = patt_w, full.names = TRUE)
+        out_w <- file.path(out_dem_dir, sprintf("%s_wftons_w_%s.tif", pop_ver, k))
+        .merge_and_write(files_w, out_w)
+
+        # wftons_v
+        patt_v <- .build_pattern_wf(pop_ver, k, "wftons_v")
+        files_v <- list.files(in_dem_dir, pattern = patt_v, full.names = TRUE)
+        out_v <- file.path(out_dem_dir, sprintf("%s_wftons_v_%s.tif", pop_ver, k))
+        .merge_and_write(files_v, out_v)
+      }
+
+      if (isTRUE(include_poprururb)) {
+        # population adjusted
+        patt_p <- .build_pattern_wf(pop_ver, k, "popadj")
+        files_p <- list.files(in_pop_dir, pattern = patt_p, full.names = TRUE)
+        out_p <- file.path(out_pop_dir, sprintf("%s_popadj_%s.tif", pop_ver, k))
+        .merge_and_write(files_p, out_p)
+
+        # rural urban
+        patt_u <- .build_pattern_wf(pop_ver, k, "rururbR")
+        files_u <- list.files(in_pop_dir, pattern = patt_u, full.names = TRUE)
+        out_u <- file.path(out_pop_dir, sprintf("%s_rururbR_%s.tif", pop_ver, k))
+        .merge_and_write(files_u, out_u)
+      }
+
     }
-    
-    # ---- DEMAND (by fuel)
-    for (fu in fuels_demand) {
-      patt_d <- .build_pattern(pop_ver, k, fu, "demand")
-      files_d <- list.files(in_dem_dir, pattern = patt_d, full.names = TRUE)
-      out_d <- file.path(out_dem_dir, sprintf("%s_%s_%s_demand.tif", pop_ver, fu, k))
-      .merge_and_write(files_d, out_d)
-    }
-    
-    # ---- Special aggregates (optional)
-    if (isTRUE(include_wftons)) {
-      # wftons_w
-      patt_w <- .build_pattern_wf(pop_ver, k, "wftons_w")
-      files_w <- list.files(in_dem_dir, pattern = patt_w, full.names = TRUE)
-      out_w <- file.path(out_dem_dir, sprintf("%s_wftons_w_%s.tif", pop_ver, k))
-      .merge_and_write(files_w, out_w)
-      
-      # wftons_v
-      patt_v <- .build_pattern_wf(pop_ver, k, "wftons_v")
-      files_v <- list.files(in_dem_dir, pattern = patt_v, full.names = TRUE)
-      out_v <- file.path(out_dem_dir, sprintf("%s_wftons_v_%s.tif", pop_ver, k))
-      .merge_and_write(files_v, out_v)
-    }
+    invisible(TRUE)
   }
-  invisible(TRUE)
-}
 
-# Example: merge all area-i tiles into national mosaics for these years
-merge_across_areas_sub1(
-  years = annos,      # e.g., c(2010, 2015, 2018, 2022)
-  pop_ver = pop_ver,  # same tag you used earlier
-  # directories default to pop_temp/demand_temp → pop_out/demand_out
-  include_wftons = TRUE
-)
-
+  # Example: merge all area-i tiles into national mosaics for these years
+  merge_across_areas_sub1(
+    years = annos,      # e.g., c(2010, 2015, 2018, 2022)
+    pop_ver = pop_ver,  # same tag you used earlier
+    # directories default to pop_temp/demand_temp → pop_out/demand_out
+    include_wftons = TRUE,
+    include_poprururb = TRUE
+  )
 
 }
-
-
-
-
-
-
-
-
-
-
-
 
 # Save in a format ingestible by MoFuSS (IDW C++ script) ----
 # Important to remove zeros from both; moreover for subcountry == 1 
-
 ## Walking ----
 if (optimizeD == 1) {
   keep(annos, optimizeD, , country, countrydir, #endpath,

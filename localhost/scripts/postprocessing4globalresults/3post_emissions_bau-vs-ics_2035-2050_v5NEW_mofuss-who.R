@@ -437,4 +437,236 @@ message("[End-Use] Done. Rasters in:\n  - ", enduse_dir_bau, "\n  - ", enduse_di
 # Add all fuelwood from demand scenarios
 # Imp charcoal and Imp fuelwood uses the sae EF as bau charcoal and fuelwood
 
+# # load rasters
+# efchratio <- 6
+# # Create "0_placeholder_results_1stmc" within output_dir
+# 
+# # Load these two rasters, always the same name, this is just for the adjusted demand!
+# bauharvest <- rast(paste0(output_dir,"/enduse_bau/bau_run001_harvest_sum_mc1.tif")) #Not adjusted yet! 2010-2050
+# icsharvest <- rast(paste0(output_dir,"/enduse_ics/ics_run001_harvest_sum_mc1.tif")) #Not adjusted yet! 2010-2050
+# 
+# # Load charcoal demand rasters and build tacks and then sum all layer sinto a final raster
+# baucharcoal1_stack <- rast(paste0(bau_dir,"/LULCC/DownloadedDatasets/SourceDataGlobal/demand/demand_out/WorldPop_charcoal_20XX_demand.tif")) # 2010 to 2050
+# baucharcoal2_stack <- rast(paste0(bau_dir,"/LULCC/DownloadedDatasets/SourceDataGlobal/demand/demand_out/WorldPop_imp_charcoal_20XX_demand.tif")) # 2010 to 2050
+# icscharcoal1_stack <- rast(paste0(ics_dir,"/LULCC/DownloadedDatasets/SourceDataGlobal/demand/demand_out/WorldPop_charcoal_20XX_demand.tif")) # 2010 to 2050
+# icscharcoal2_stack <- rast(paste0(ics_dir,"/LULCC/DownloadedDatasets/SourceDataGlobal/demand/demand_out/WorldPop_imp_charcoal_20XX_demand.tif")) # 2010 to 2050
+# baufuelwood1_stack <- rast(paste0(bau_dir,"/LULCC/DownloadedDatasets/SourceDataGlobal/demand/demand_out/WorldPop_fuelwood_20XX_demand.tif")) # 2010 to 2050
+# baufuelwood2_stack <- rast(paste0(bau_dir,"/LULCC/DownloadedDatasets/SourceDataGlobal/demand/demand_out/WorldPop_imp_fuelwood_20XX_demand.tif")) # 2010 to 2050
+# icsfuelwood1_stack <- rast(paste0(ics_dir,"/LULCC/DownloadedDatasets/SourceDataGlobal/demand/demand_out/WorldPop_fuelwood_20XX_demand.tif")) # 2010 to 2050
+# icsfuelwood2_stack <- rast(paste0(ics_dir,"/LULCC/DownloadedDatasets/SourceDataGlobal/demand/demand_out/WorldPop_imp_fuelwood_20XX_demand.tif")) # 2010 to 2050
+# 
+# #Add stacks for imp_
+# baucharcoal <- baucharcoal1_stack + baucharcoal2_stack
+# icscharcoal <- icscharcoal1_stack + icscharcoal2_stack
+# baufuelwood <- baufuelwood1_stack + baufuelwood2_stack
+# icsfuelwood <- icsfuelwood1_stack + icsfuelwood2_stack
+# 
+# # extract emission factor values for CH4 and N2O from this table: 
+# efdb <- read_csv(paste0(bau_dir,"/LULCC/DownloadedDatasets/SourceDataGlobal/demand/demand_in/efdb_all NEW.csv"))
+# 
+# # GID_0 fueltype       CO2    CH4     N2O `units are tCO2e/ton (and tCO2e/MWh for electricity)`
+# # <chr> <chr>        <dbl>  <dbl>   <dbl> <lgl>                                                
+# #   1 AGO   biogas       0     1.83   0.00151 NA                                                   
+# # 2 AGO   Biomass      1.75  0.126  0.0170  NA                                                   
+# # 3 AGO   Charcoal     6.21  2.57   0.106   NA                                                   
+# # 4 AGO   Coal         2.45  0.281  0.0106  NA                                                   
+# # 5 AGO   Electricity  0.832 0.0163 0.00101 NA                                                   
+# # 6 AGO   Ethanol      0     0.492  0.346   NA                                                   
+# # 7 AGO   Gas          3.72  0.157  0.00246 NA                                                   
+# # 8 AGO   Imp_biomass  1.52  0.277  0       NA                                                   
+# # 9 AGO   Imp_charcoal 6.21  2.83   0.106   NA                                                   
+# # 10 AGO   Kerosene     3.54  0.127  0.121   NA   
+# 
+# # Select GID_0 == ZMB and then match CH4 and N2O values for charcoal (including imp_charcoal) and fuelwood (including imp_charcoal)
+# 
+# baucharcoalCO2 <- baucharcoal * (efvalueCH4_ch_ctry + efvalueN2O_ch_ctry) / efchratio
+# icscharcoalCO2 <- icscharcoal * (efvalueCH4_ch_ctry + efvalueN2O_ch_ctry) / efchratio
+# baufuelwoodCO2 <- baufuelwood * (efvalueCH4_fw_ctry + efvalueN2O_fw_ctry)
+# icsfuelwoodCO2 <- icsfuelwood * (efvalueCH4_fw_ctry + efvalueN2O_fw_ctry)
+# 
+# delta_co2_mc1_chenduse <- baucharcoalCO2 - icscharcoalCO2
+# delta_co2_mc1_fwenduse <- baufuelwoodCO2 - icsfuelwoodCO2
+# 
+# # save rasters in this folder created above:
+# "0_placeholder_results_1stmc"
+# delta_co2_mc1_chenduse.tif
+# delta_co2_mc1_fwenduse.tif
+
+
+
+
+suppressPackageStartupMessages({
+  library(terra)
+  library(dplyr)
+  library(stringr)
+  library(readr)
+})
+
+# -------------------- CONFIG --------------------
+gid0      <- "ZMB"
+efchratio <- 6
+out_dir   <- file.path(output_dir, "0_placeholder_results_1stmc")
+dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
+
+bau_demand_dir <- file.path(bau_dir, "LULCC/DownloadedDatasets/SourceDataGlobal/demand/demand_out")
+ics_demand_dir <- file.path(ics_dir, "LULCC/DownloadedDatasets/SourceDataGlobal/demand/demand_out")
+
+# Optional (not used below, but kept around if you need them)
+bauharvest <- try(rast(file.path(output_dir, "enduse_bau/bau_run001_harvest_sum_mc1.tif")), silent = TRUE)
+icsharvest <- try(rast(file.path(output_dir, "enduse_ics/ics_run001_harvest_sum_mc1.tif")), silent = TRUE)
+
+# -------------------- EF TABLE --------------------
+efdb_path <- file.path(bau_dir, "LULCC/DownloadedDatasets/SourceDataGlobal/demand/demand_in/efdb_all NEW.csv")
+efdb <- read_csv(efdb_path, show_col_types = FALSE) %>%
+  mutate(fuel_std = str_to_title(trimws(fueltype))) %>%
+  filter(GID_0 == gid0) %>%
+  select(fuel_std, CO2, CH4, N2O)
+
+ef_name_map <- c(
+  fuelwood = "Biomass",
+  charcoal = "Charcoal",
+  gas      = "Gas",
+  kerosene = "Kerosene",
+  electric = "Electricity",
+  pellets  = "Pellets",
+  ethanol  = "Ethanol",
+  biogas   = "Biogas",
+  coal     = "Coal",
+  other    = "Other"
+)
+
+ef_for <- function(group_key) {
+  row <- efdb %>% filter(fuel_std == ef_name_map[[group_key]])
+  if (nrow(row) == 0) return(NA_real_)
+  as.numeric(row$CH4 + row$N2O)
+}
+
+# -------------------- FUEL GROUPS --------------------
+# Merge imp_* into base
+groups <- list(
+  fuelwood = c("fuelwood", "imp_fuelwood"),
+  charcoal = c("charcoal", "imp_charcoal"),
+  gas      = "gas",
+  kerosene = "kerosene",
+  electric = "electric",
+  pellets  = "pellets",
+  ethanol  = "ethanol",
+  biogas   = "biogas",
+  coal     = "coal",
+  other    = "other"
+)
+
+# -------------------- HELPERS --------------------
+pattern_for <- function(tag) sprintf("^WorldPop_%s_\\d{4}_demand\\.tif$", tag)
+parse_year  <- function(path) as.integer(stringr::str_match(basename(path), "_(\\d{4})_demand\\.tif$")[,2])
+
+# Pick a template grid (first BAU file if possible; else ICS; else stop)
+pick_template <- function() {
+  cand <- list.files(bau_demand_dir, "^WorldPop_.*_\\d{4}_demand\\.tif$", full.names = TRUE)
+  if (!length(cand)) cand <- list.files(ics_demand_dir, "^WorldPop_.*_\\d{4}_demand\\.tif$", full.names = TRUE)
+  if (!length(cand)) stop("No demand files found in BAU/ICS folders.")
+  rast(cand[1])
+}
+template <- pick_template()
+
+align_to_template <- function(r, tmpl) {
+  if (isTRUE(terra::compareGeom(r, tmpl, stopOnError = FALSE))) return(r)
+  if (terra::crs(r) == terra::crs(tmpl)) {
+    terra::resample(r, tmpl, method = "near")
+  } else {
+    terra::project(r, tmpl, method = "near")
+  }
+}
+
+# Return the set of years available for a group (union of tags) in a scenario dir
+years_for_group <- function(root_dir, tags) {
+  files <- unlist(lapply(tags, function(tag) list.files(root_dir, pattern_for(tag), full.names = TRUE)),
+                  use.names = FALSE)
+  if (!length(files)) return(integer(0))
+  sort(unique(vapply(files, parse_year, integer(1))))
+}
+
+# Sum *only common years* across BAU & ICS; sum across tags per year; return single-layer raster
+sum_common_years <- function(bau_dir, ics_dir, tags, tmpl) {
+  years_bau <- years_for_group(bau_dir, tags)
+  years_ics <- years_for_group(ics_dir, tags)
+  years     <- intersect(years_bau, years_ics)
+  if (!length(years)) return(NULL)
+  
+  # Build BAU + ICS sums over common years separately
+  sum_years_in_dir <- function(root_dir) {
+    yearly <- lapply(years, function(y) {
+      paths_y <- unlist(lapply(tags, function(tag) {
+        list.files(root_dir, sprintf("^WorldPop_%s_%d_demand\\.tif$", tag, y), full.names = TRUE)
+      }), use.names = FALSE)
+      if (!length(paths_y)) return(NULL)
+      rs <- lapply(paths_y, function(p) align_to_template(rast(p), tmpl))
+      terra::app(do.call(c, rs), fun = sum, na.rm = TRUE)
+    })
+    yearly <- Filter(Negate(is.null), yearly)
+    if (!length(yearly)) return(NULL)
+    # Sum all common years (single layer)
+    terra::app(do.call(c, yearly), fun = sum, na.rm = TRUE)
+  }
+  
+  list(
+    bau_sum = sum_years_in_dir(bau_dir),
+    ics_sum = sum_years_in_dir(ics_dir),
+    years   = years
+  )
+}
+
+# -------------------- MAIN --------------------
+for (g in names(groups)) {
+  tags <- groups[[g]]
+  ef   <- ef_for(g)
+  if (is.na(ef)) {
+    warning(sprintf("Missing EF (CH4+N2O) for '%s' in ZMB; skipping.", g))
+    next
+  }
+  
+  sums <- sum_common_years(bau_demand_dir, ics_demand_dir, tags, template)
+  if (is.null(sums)) {
+    warning(sprintf("No common years for '%s'; skipping.", g))
+    next
+  }
+  
+  r_bau <- sums$bau_sum
+  r_ics <- sums$ics_sum
+  
+  # Safety: ensure non-NULL both (should be, given common years)
+  if (is.null(r_bau) || is.null(r_ics)) {
+    warning(sprintf("Could not build sums for '%s'; skipping.", g))
+    next
+  }
+  
+  # Convert demand to emissions (tCO2e) using CH4+N2O; charcoal ÷ efchratio
+  bau_emis <- r_bau * ef
+  ics_emis <- r_ics * ef
+  if (g == "charcoal") {
+    bau_emis <- bau_emis / efchratio
+    ics_emis <- ics_emis / efchratio
+  }
+  
+  delta <- bau_emis - ics_emis   # single layer
+  
+  # Sanity check for solid fuels: ICS should never exceed BAU per pixel
+  if (g %in% c("fuelwood", "charcoal")) {
+    # Count any negative pixels and show the min (should be 0 if all good)
+    vals <- terra::values(delta, mat = FALSE)
+    neg_n <- sum(vals < 0, na.rm = TRUE)
+    if (neg_n > 0) {
+      neg_min <- min(vals, na.rm = TRUE)
+      warning(sprintf(
+        "Found %d negative pixels for '%s' (min=%.6g). This usually means misaligned grids or mismatched years.\nChecked common years: %s",
+        neg_n, g, neg_min, paste(sums$years, collapse = ", ")
+      ))
+    }
+  }
+  
+  out <- file.path(out_dir, sprintf("delta_co2_mc1_%senduse.tif", g))
+  terra::writeRaster(delta, out, filetype = "GTiff", overwrite = TRUE)
+}
+
+message("✓ Wrote single-layer BAU−ICS deltas to: ", out_dir)
 
