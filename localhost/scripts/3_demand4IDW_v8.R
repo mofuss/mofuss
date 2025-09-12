@@ -181,13 +181,11 @@ if (!dir.exists("demand_out")) {dir.create("demand_out")}
 if (!dir.exists("to_idw")) {dir.create("to_idw")} 
 
 # Reads WHO dataset
-if (subcountry != 1) {
-  whodb <- read_excel("demand_in/A_LMIC_Estimates_2050_popmedian.xlsx")
-  # undb <- read_excel("admin_regions/UN_Rural-Urban_Pop_projections_formatted.xlsx") # https://population.un.org/wpp/Download/Standard/Population/
-  terra::unique(whodb$fuel)
-  # terra::unique(whodb$year)
-  # terra::unique(whodb$iso3)
-}
+whodb <- read_excel("demand_in/A_LMIC_Estimates_2050_popmedian.xlsx")
+# undb <- read_excel("admin_regions/UN_Rural-Urban_Pop_projections_formatted.xlsx") # https://population.un.org/wpp/Download/Standard/Population/
+terra::unique(whodb$fuel)
+# terra::unique(whodb$year)
+# terra::unique(whodb$iso3)
 
 poprast <- paste0("demand_in/",pop_map_name) 
 
@@ -206,8 +204,6 @@ if (scenario_ver == "BaU") {
   wfdb <- read_csv("demand_in/cons_fuels_years_Proj1_Lusaka-NotLusaka.csv")
 } else if (scenario_ver == "ICS2_lusaka_notlusaka") {
   wfdb <- read_csv("demand_in/cons_fuels_years_Proj2_Lusaka-NotLusaka.csv")
-} else if (scenario_ver == "ICS3_lusaka_notlusaka") {
-  wfdb <- read_csv("demand_in/cons_fuels_years_Proj3_Lusaka-NotLusaka.csv")
 }
 unique(wfdb$fuel)
 
@@ -434,7 +430,7 @@ if (subcountry != 1) {
     summarise(urb_pop=sum(pop)*1000,
               .groups = 'drop') %>%
     left_join(totpopWHO, ., by="iso3") %>% 
-    mutate(furb = urb_pop/sum_pop) %>%
+    mutate(furb = round(urb_pop/sum_pop,2)) %>%
     left_join(whodb_join, ., by = "iso3") %>%
     dplyr::select(iso3, country, furb) %>%
     rename(GID_0 = iso3,
@@ -466,7 +462,7 @@ if (subcountry != 1) {
     summarise(urb_pop=sum(people)*1000,
               .groups = 'drop') %>%
     left_join(totpoprob, ., by="iso3") %>% 
-    mutate(furb = urb_pop/sum_pop) %>%
+    mutate(furb = round(urb_pop/sum_pop,2)) %>%
     left_join(robdb_join, ., by = "iso3") %>%
     dplyr::select(iso3, country, furb) %>%
     rename(GID_0 = iso3,
@@ -476,6 +472,7 @@ if (subcountry != 1) {
   
 }
 
+# La suma total en la resolución nativa: HRSL: 56,861,964.76; GPW: 44,953,897.44.
 pop0 <- rast(poprast) #in base year
 
 if (aoi_poly == 1) {
@@ -679,7 +676,7 @@ unique(adm0_reg$GID_0)
 # unique(adm2_reg$GID_2)
 
 for (i in adm0_reg$GID_0) { # Start of outer region (i) loop ----
-  # i = "ZMB_2"
+  # i = "ZMB_1"
   # i = "SLV"
   print(i)
   if (subcountry != 1) {
@@ -701,7 +698,7 @@ for (i in adm0_reg$GID_0) { # Start of outer region (i) loop ----
     ctry_vector <- adm0_reg %>%
       dplyr::filter(GID_0 == i)
   }
-
+  
   pop0_K2 <- crop(pop0_reg, ext(ctry_vector) + .01)
   if (os == "Windows") {
     pop0_ctry_ras <- mask(pop0_K2, ctry_vector)
@@ -715,9 +712,9 @@ for (i in adm0_reg$GID_0) { # Start of outer region (i) loop ----
   Sys.sleep(5)
   dev.off()
   
-  totpop <- global(pop0_ctry_ras, "sum", na.rm=TRUE) %>%
+  totpop <- round(global(pop0_ctry_ras, "sum", na.rm=TRUE),0) %>%
     pull(sum)
-  urbpop <- totpop * ctry_furb 
+  urbpop <- round(totpop * ctry_furb,0) 
   rurpop <- totpop - urbpop
   totpop
   urbpop
@@ -729,9 +726,9 @@ for (i in adm0_reg$GID_0) { # Start of outer region (i) loop ----
     pop0_ctry_rasadj <- pop0_ctry_ras*rob_ctry_pop/totpop
   }
   
-  totpopadj <- global(pop0_ctry_rasadj, "sum", na.rm=TRUE) %>%
+  totpopadj <- round(global(pop0_ctry_rasadj, "sum", na.rm=TRUE),0) %>%
     pull(sum)
-  urbpopadj <- totpopadj * ctry_furb
+  urbpopadj <- round(totpopadj * ctry_furb,0)
   rurpopadj <- totpopadj - urbpopadj
   totpopadj
   urbpopadj
@@ -740,7 +737,7 @@ for (i in adm0_reg$GID_0) { # Start of outer region (i) loop ----
   
   for (j in annos) { ## Start of inner years (j) loop ----
     # i="PNG"
-    # j=2020
+    j=2020
     
     gc()
     terraOptions(memfrac=0.9)
@@ -756,7 +753,11 @@ for (i in adm0_reg$GID_0) { # Start of outer region (i) loop ----
         ) %>%
         group_by(iso3) %>%
         summarise(
-          urb_frac = sum(pop[grepl("Urban", area)]) / sum(pop[grepl("Overall", area)]),
+          urb_frac = round(
+            sum(pop[grepl("Urban", area)]) /
+              sum(pop[grepl("Overall", area)]),
+            2
+          ),
           .groups = "drop"
         ) %>%
         dplyr::pull(urb_frac)
@@ -777,9 +778,9 @@ for (i in adm0_reg$GID_0) { # Start of outer region (i) loop ----
         pull(sum_pop)
       
       pop0_ctry_rasadj.anno<- pop0_ctry_ras*who_ctry_pop_annual/totpop
-      totpopadj.anno <- global(pop0_ctry_rasadj.anno, "sum", na.rm=TRUE) %>%
+      totpopadj.anno <- round(global(pop0_ctry_rasadj.anno, "sum", na.rm=TRUE),0) %>%
         pull(sum)
-      urbpopadj.anno <- totpopadj.anno * furb_who.anno
+      urbpopadj.anno <- round(totpopadj.anno * furb_who.anno,0)
       rurpopadj.anno <- totpopadj.anno - urbpopadj.anno
       totpopadj.anno
       urbpopadj.anno
@@ -796,7 +797,10 @@ for (i in adm0_reg$GID_0) { # Start of outer region (i) loop ----
         ) %>%
         group_by(iso3) %>%
         summarise(
-          urb_frac = sum(people[grepl("Urban", area)]) / sum(people),
+          urb_frac = round(
+            sum(people[grepl("Urban", area)]) / sum(people),
+            2
+          ),
           .groups = "drop"
         ) %>%
         dplyr::pull(urb_frac)
@@ -816,9 +820,9 @@ for (i in adm0_reg$GID_0) { # Start of outer region (i) loop ----
         pull(sum_pop)
       
       pop0_ctry_rasadj.anno<- pop0_ctry_ras*rob_ctry_pop_annual/totpop
-      totpopadj.anno <- global(pop0_ctry_rasadj.anno, "sum", na.rm=TRUE) %>%
+      totpopadj.anno <- round(global(pop0_ctry_rasadj.anno, "sum", na.rm=TRUE),0) %>%
         pull(sum)
-      urbpopadj.anno <- totpopadj.anno * furb_rob.anno
+      urbpopadj.anno <- round(totpopadj.anno * furb_rob.anno,0)
       rurpopadj.anno <- totpopadj.anno - urbpopadj.anno
       totpopadj.anno
       urbpopadj.anno
@@ -924,19 +928,153 @@ for (i in adm0_reg$GID_0) { # Start of outer region (i) loop ----
     terra::writeRaster(rururbpopulationR.anno, paste0("pop_temp/",pop_ver,"_",i,"_",j,"_rururbR.tif"), filetype = "GTiff", overwrite = TRUE)
     
     # Validation
-    urbpopmap.anno <- global(urbanpopulation.anno, "sum", na.rm=TRUE) %>% 
+    urbpopmap.anno <- round(global(urbanpopulation.anno, "sum", na.rm=TRUE),0) %>% 
       pull(sum)
     urbpopmap.anno
     urbpopadj.anno
-    (urbpopmap.anno/totpopadj.anno)
+    round((urbpopmap.anno/totpopadj.anno),2)
     
-    rurpopmap.anno <- global(ruralpopulation.anno, "sum", na.rm=TRUE) %>% 
+    rurpopmap.anno <- round(global(ruralpopulation.anno, "sum", na.rm=TRUE),0) %>% 
       pull(sum)
     rurpopmap.anno
     rurpopadj.anno
-    (rurpopmap.anno/totpopadj.anno)
+    round((rurpopmap.anno/totpopadj.anno),2)
     
     ### Spread population (whodb) and demand (wfdb) by ENERGY CARRIER use and urban vs rural ----
+    
+    
+    ## ========= CHARCOAL 2020 — sanity checks (no functions) =========
+    ## Assumes you already have: i (iso3 string), j=2020,
+    ## urbanpopulation.anno, ruralpopulation.anno, urbpopmap.anno, rurpopmap.anno,
+    ## and a demand column name in `demand_col` (e.g., "fuel_tons3")
+    
+    fuel_to_check <- "charcoal"
+    y_check <- 2020
+    
+    # 0) Be strict about matching
+    #    (We avoid grepl for year and iso3 here to prevent accidental partial matches.)
+    wf_local <- wfdb
+    if (!is.numeric(wf_local[[demand_col]])) {
+      warning(sprintf("Coercing wfdb$%s to numeric", demand_col))
+      wf_local[[demand_col]] <- as.numeric(wf_local[[demand_col]])
+    }
+    
+    # 1) Expected totals in TABLE for charcoal 2020 (Rural/Urban)
+    char_tbl <- wf_local %>%
+      dplyr::filter(iso3 == i) %>%
+      dplyr::filter(year == y_check) %>%
+      dplyr::filter(tolower(trimws(fuel)) == fuel_to_check) %>%
+      dplyr::filter(grepl("Rur|Urb", area))
+    
+    char_urb_expected <- char_tbl %>% dplyr::filter(grepl("Urb", area)) %>% dplyr::pull(all_of(demand_col)) %>% sum(na.rm = TRUE)
+    char_rur_expected <- char_tbl %>% dplyr::filter(grepl("Rur", area)) %>% dplyr::pull(all_of(demand_col)) %>% sum(na.rm = TRUE)
+    char_tot_expected <- char_urb_expected + char_rur_expected
+    
+    cat("\n[CHAR 2020] Table (wfdb) expected totals (tons):",
+        "\n  Urban:", format(char_urb_expected, big.mark=","), 
+        "\n  Rural:", format(char_rur_expected, big.mark=","), 
+        "\n  Total:", format(char_tot_expected, big.mark=","), "\n", sep=" ")
+    
+    # 2) Check denominators used for spreading = sums of the pop rasters you just made
+    U_sum <- as.numeric(global(urbanpopulation.anno, "sum", na.rm = TRUE)$sum)
+    R_sum <- as.numeric(global(ruralpopulation.anno, "sum", na.rm = TRUE)$sum)
+    cat("\n[CHAR 2020] Pop map denominators:",
+        "\n  Urban pop sum:", format(round(U_sum), big.mark=","),
+        "\n  Rural pop sum:", format(round(R_sum), big.mark=","), "\n", sep=" ")
+    
+    if (isTRUE(U_sum == 0) && char_urb_expected > 0) stop("Urban denominator is zero but expected urban demand > 0.")
+    if (isTRUE(R_sum == 0) && char_rur_expected > 0) stop("Rural denominator is zero but expected rural demand > 0.")
+    
+    # 3) Build the demand rasters exactly from the table totals / denominators (no rounding)
+    urbbioDem_char_anno <- if (U_sum == 0) urbanpopulation.anno * 0 else (urbanpopulation.anno * char_urb_expected / U_sum)
+    rurbioDem_char_anno <- if (R_sum == 0) ruralpopulation.anno * 0 else (ruralpopulation.anno * char_rur_expected / R_sum)
+    
+    # 4) Sums BEFORE writing to disk
+    char_urb_rsum <- as.numeric(global(urbbioDem_char_anno, "sum", na.rm = TRUE)$sum)
+    char_rur_rsum <- as.numeric(global(rurbioDem_char_anno, "sum", na.rm = TRUE)$sum)
+    char_tot_rsum <- char_urb_rsum + char_rur_rsum
+    
+    pctdiff <- function(a, b) ifelse(b == 0, NA_real_, 100 * (a - b) / b)
+    
+    cat("\n[CHAR 2020] Raster sums BEFORE write:",
+        "\n  Urban:", format(char_urb_rsum, big.mark=","),
+        sprintf("(Δ=%.4f%%)", pctdiff(char_urb_rsum, char_urb_expected)),
+        "\n  Rural:", format(char_rur_rsum, big.mark=","),
+        sprintf("(Δ=%.4f%%)", pctdiff(char_rur_rsum, char_rur_expected)),
+        "\n  Total:", format(char_tot_rsum, big.mark=","),
+        sprintf("(Δ=%.4f%%)\n", pctdiff(char_tot_rsum, char_tot_expected)),
+        sep=" ")
+    
+    # 5) Optional — write and re-read to rule out datatype truncation
+    #    Force float output to avoid any implicit integer casting.
+    out_dir_dbg <- "demand_temp_dbg"
+    if (!dir.exists(out_dir_dbg)) dir.create(out_dir_dbg, recursive = TRUE, showWarnings = FALSE)
+    char_urb_path <- file.path(out_dir_dbg, sprintf("%s_%s_%s_charcoal_URB_debug.tif", pop_ver, i, y_check))
+    char_rur_path <- file.path(out_dir_dbg, sprintf("%s_%s_%s_charcoal_RUR_debug.tif", pop_ver, i, y_check))
+    
+    terra::writeRaster(urbbioDem_char_anno, char_urb_path, overwrite=TRUE, filetype="GTiff", datatype="FLT4S", NAflag=-9999)
+    terra::writeRaster(rurbioDem_char_anno, char_rur_path, overwrite=TRUE, filetype="GTiff", datatype="FLT4S", NAflag=-9999)
+    
+    char_urb_re <- rast(char_urb_path)
+    char_rur_re <- rast(char_rur_path)
+    
+    char_urb_rsum_w <- as.numeric(global(char_urb_re, "sum", na.rm=TRUE)$sum)
+    char_rur_rsum_w <- as.numeric(global(char_rur_re, "sum", na.rm=TRUE)$sum)
+    char_tot_rsum_w <- char_urb_rsum_w + char_rur_rsum_w
+    
+    cat("\n[CHAR 2020] Raster sums AFTER write+read:",
+        "\n  Urban:", format(char_urb_rsum_w, big.mark=","),
+        sprintf("(Δ=%.4f%% vs table)", pctdiff(char_urb_rsum_w, char_urb_expected)),
+        "\n  Rural:", format(char_rur_rsum_w, big.mark=","),
+        sprintf("(Δ=%.4f%% vs table)", pctdiff(char_rur_rsum_w, char_rur_expected)),
+        "\n  Total:", format(char_tot_rsum_w, big.mark=","),
+        sprintf("(Δ=%.4f%% vs table)\n", pctdiff(char_tot_rsum_w, char_tot_expected)),
+        sep=" ")
+    
+    # 6) Hard guardrail — fail loud if discrepancy is suspicious (>0.2%)
+    tol_pct <- 0.2
+    if (!is.na(pctdiff(char_tot_rsum, char_tot_expected)) && abs(pctdiff(char_tot_rsum, char_tot_expected)) > tol_pct) {
+      stop(sprintf("[CHAR 2020] Spread total differs by %.3f%% from the table — investigate!", pctdiff(char_tot_rsum, char_tot_expected)))
+    }
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    ##################################
     suppressPackageStartupMessages({
       library(dplyr)
       library(terra)
@@ -1285,39 +1423,20 @@ suppressPackageStartupMessages({
   library(stringr)
 })
 
-# # Merge a list of rasters (paths) → single raster written to out_path
+# Merge a list of rasters (paths) → single raster written to out_path
 .merge_and_write <- function(paths, out_path) {
   if (!length(paths)) return(invisible(NULL))
-  dir.create(dirname(out_path), recursive = TRUE, showWarnings = FALSE)
-  
-  # ---- Single file: byte-copy (no re-encode, no rounding)
+  if (!dir.exists(dirname(out_path))) dir.create(dirname(out_path), recursive = TRUE, showWarnings = FALSE)
+
   if (length(paths) == 1) {
-    ok <- file.copy(paths[1], out_path, overwrite = TRUE)
-    if (!ok) stop(sprintf("file.copy failed: %s -> %s", paths[1], out_path))
-    return(invisible(out_path))
+    # copy/overwrite as a single raster
+    r <- rast(paths[1])
+    writeRaster(r, out_path, filetype = "GTiff", overwrite = TRUE)
+  } else {
+    rs <- lapply(paths, rast)
+    r  <- do.call(merge, rs)
+    writeRaster(r, out_path, filetype = "GTiff", overwrite = TRUE)
   }
-  
-  # ---- Multi file: MASS-CONSERVING MOSAIC (sum)
-  # 1) quick mass-in check
-  sum_in <- sum(vapply(paths, function(p)
-    as.numeric(global(rast(p), "sum", na.rm = TRUE)$sum), numeric(1)))
-  
-  # 2) mosaic with SUM over the union extent; uses nearest resampling where needed
-  rc <- sprc(paths)                       # SpatRasterCollection from file paths
-  r  <- mosaic(rc, fun = "sum")           # union extent, mass-preserving for splits
-  
-  # 3) write as float to avoid truncation
-  writeRaster(r, out_path, overwrite = TRUE, filetype = "GTiff",
-              datatype = "FLT4S", NAflag = -9999,
-              gdal = c("TILED=YES","COMPRESS=LZW","PREDICTOR=3","ZLEVEL=6","BIGTIFF=IF_NEEDED"))
-  
-  # 4) quick mass-out check (should match sum_in within tiny epsilon)
-  out_sum <- as.numeric(global(rast(out_path), "sum", na.rm = TRUE)$sum)
-  cat(sprintf("[merge] tiles=%d | in=%s | out=%s | Δ=%.4f%%\n",
-              length(paths),
-              format(sum_in, big.mark=","), format(out_sum, big.mark=","),
-              ifelse(sum_in==0, 0, 100*(out_sum - sum_in)/sum_in)))
-  
   invisible(out_path)
 }
 

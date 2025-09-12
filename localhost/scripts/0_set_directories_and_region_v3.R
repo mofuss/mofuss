@@ -519,6 +519,17 @@ if (webmofuss == 1) {
               overwrite = TRUE, recursive = TRUE, copy.mode = TRUE)
   }
   
+  demandtables2copy <- list.files(
+    path = paste0(githubdir, "/demand_tables"),
+    pattern = "\\.csv$|\\.xlsx$",
+    full.names = TRUE)
+  
+  for (dem in demandtables2copy) {
+    file.copy(from=dem, 
+              to=paste0(demanddir,"/demand_in"), 
+              overwrite = TRUE, recursive = TRUE, copy.mode = TRUE)
+  }
+  
   # Copy input tables from github repo into MoFuSS working folder ----
   growth2copy <- list.files(path = paste0(githubdir, "/global_growth"), 
                             pattern = "\\.csv$|\\.xlsx$", 
@@ -569,3 +580,4 @@ if (webmofuss == 1) {
 }
 
 # End of script ----
+
