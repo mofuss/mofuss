@@ -1286,40 +1286,56 @@ suppressPackageStartupMessages({
 })
 
 # # Merge a list of rasters (paths) → single raster written to out_path
-.merge_and_write <- function(paths, out_path) {
+# ---- Replace your .merge_and_write with this (same name, minimal change) ----
+.merge_and_write <- function(paths, out_path, fun = c("sum","max"), datatype = "FLT4S") {
+  fun <- match.arg(fun)
   if (!length(paths)) return(invisible(NULL))
   dir.create(dirname(out_path), recursive = TRUE, showWarnings = FALSE)
   
-  # ---- Single file: byte-copy (no re-encode, no rounding)
+  # Single file → byte copy
   if (length(paths) == 1) {
     ok <- file.copy(paths[1], out_path, overwrite = TRUE)
     if (!ok) stop(sprintf("file.copy failed: %s -> %s", paths[1], out_path))
     return(invisible(out_path))
   }
   
-  # ---- Multi file: MASS-CONSERVING MOSAIC (sum)
-  # 1) quick mass-in check
-  sum_in <- sum(vapply(paths, function(p)
-    as.numeric(global(rast(p), "sum", na.rm = TRUE)$sum), numeric(1)))
+  # Only compute mass-in/out when using SUM
+  sum_in <- NA_real_
+  if (fun == "sum") {
+    sum_in <- sum(vapply(paths, function(p)
+      as.numeric(global(rast(p), "sum", na.rm = TRUE)$sum), numeric(1)))
+  }
   
-  # 2) mosaic with SUM over the union extent; uses nearest resampling where needed
-  rc <- sprc(paths)                       # SpatRasterCollection from file paths
-  r  <- mosaic(rc, fun = "sum")           # union extent, mass-preserving for splits
+  # Mosaic with requested function ("sum" for continuous, "max" for categorical 1/2)
+  rc <- sprc(paths)
+  r  <- mosaic(rc, fun = fun)
   
-  # 3) write as float to avoid truncation
-  writeRaster(r, out_path, overwrite = TRUE, filetype = "GTiff",
-              datatype = "FLT4S", NAflag = -9999,
-              gdal = c("TILED=YES","COMPRESS=LZW","PREDICTOR=3","ZLEVEL=6","BIGTIFF=IF_NEEDED"))
+  # Choose safe defaults per datatype
+  # - Continuous: FLT4S with NAflag -9999, compression
+  # - Categorical: INT1U with NAflag 255 (can't be negative)
+  gdal_opts <- c("TILED=YES","COMPRESS=LZW","ZLEVEL=6","BIGTIFF=IF_NEEDED")
+  if (datatype == "FLT4S") {
+    writeRaster(r, out_path, overwrite = TRUE, filetype = "GTiff",
+                datatype = "FLT4S", NAflag = -9999, gdal = c(gdal_opts, "PREDICTOR=3"))
+  } else {
+    writeRaster(r, out_path, overwrite = TRUE, filetype = "GTiff",
+                datatype = datatype, NAflag = 255, gdal = gdal_opts)
+  }
   
-  # 4) quick mass-out check (should match sum_in within tiny epsilon)
-  out_sum <- as.numeric(global(rast(out_path), "sum", na.rm = TRUE)$sum)
-  cat(sprintf("[merge] tiles=%d | in=%s | out=%s | Δ=%.4f%%\n",
-              length(paths),
-              format(sum_in, big.mark=","), format(out_sum, big.mark=","),
-              ifelse(sum_in==0, 0, 100*(out_sum - sum_in)/sum_in)))
+  if (fun == "sum") {
+    out_sum <- as.numeric(global(rast(out_path), "sum", na.rm = TRUE)$sum)
+    cat(sprintf("[merge] fun=%s | tiles=%d | in=%s | out=%s | Δ=%.4f%%\n",
+                fun, length(paths),
+                format(sum_in, big.mark=","), format(out_sum, big.mark=","),
+                ifelse(sum_in==0, 0, 100*(out_sum - sum_in)/sum_in)))
+  } else {
+    cat(sprintf("[merge] fun=%s | tiles=%d | wrote=%s\n",
+                fun, length(paths), out_path))
+  }
   
   invisible(out_path)
 }
+
 
 # Build a regex that matches: <pop_ver>_<any area>_<k>_<fuel_tag>_SUFFIX.tif
 # (pop_ver may contain dashes/letters/numbers/underscores)
@@ -1397,10 +1413,11 @@ if (subcountry != 1) {
         .merge_and_write(files_p, out_p)
         
         # rural urban
+        # rural urban (CATEGORICAL: 1 = rural, 2 = urban)
         patt_u <- .build_pattern_wf(pop_ver, k, "rururbR")
         files_u <- list.files(in_pop_dir, pattern = patt_u, full.names = TRUE)
         out_u <- file.path(out_pop_dir, sprintf("%s_rururbR_%s.tif", pop_ver, k))
-        .merge_and_write(files_u, out_u)
+        .merge_and_write(files_u, out_u, fun = "max", datatype = "INT1U")
       }
 
     }
@@ -1471,10 +1488,11 @@ if (subcountry != 1) {
         .merge_and_write(files_p, out_p)
 
         # rural urban
+        # rural urban (CATEGORICAL: 1 = rural, 2 = urban)
         patt_u <- .build_pattern_wf(pop_ver, k, "rururbR")
         files_u <- list.files(in_pop_dir, pattern = patt_u, full.names = TRUE)
         out_u <- file.path(out_pop_dir, sprintf("%s_rururbR_%s.tif", pop_ver, k))
-        .merge_and_write(files_u, out_u)
+        .merge_and_write(files_u, out_u, fun = "max", datatype = "INT1U")
       }
 
     }
