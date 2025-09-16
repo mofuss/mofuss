@@ -36,8 +36,12 @@ rTempdir <- "C:/Users/aghil/Documents/MoFuSS_FAO_localhost/rTemp"
 gid0       <- "ZMB"
 efchratio  <- 6
 impchfw <- 0 #turns on and off imp_charcoal and imp_fuelwood
-first_yr <- 11 # 11=2020 2009+ first_yr
-last_yr <- 41 # 25=2030 41=2050
+# ---- Map window (Growth_less_harvXX.tif) ----
+# Use NULL to auto-span available years; or set explicit bounds like 11 and 25/41
+# frequent preset A:
+harv_first <- 11; harv_last <- 25
+# frequent preset B:
+# harv_first <- 11; harv_last <- 41
 
 output_dir <- paste0(output_dir2,"_",stringr::str_extract(ics_dir, "ics\\d+"))
 
@@ -47,6 +51,18 @@ required <- c("terra", "fs", "stringr", "dplyr", "readr")
 to_install <- setdiff(required, rownames(installed.packages()))
 if (length(to_install)) install.packages(to_install, quiet = TRUE)
 library(terra); library(fs); library(stringr); library(dplyr); library(readr)
+
+## ======================== 1) Temporal window ========================
+# Keep only Growth_less_harvXX.tif whose XX is within [first,last]
+.filter_harv_range <- function(files, ptn, first = NULL, last = NULL) {
+  if (!length(files)) return(character())
+  mm <- stringr::str_match(basename(files), stringr::regex(ptn, ignore_case = TRUE))
+  yy <- suppressWarnings(as.integer(mm[,2]))
+  keep <- !is.na(yy)
+  if (!is.null(first)) keep <- keep & (yy >= first)
+  if (!is.null(last))  keep <- keep & (yy <= last)
+  files[keep]
+}
 
 ## ======================== 1) Folder pickers ========================
 # (Tiny helper; we keep it because dialogs differ by OS/RStudio)
@@ -100,67 +116,151 @@ cat("\nBAU: ", bau_dir,
     "\nICS: ", ics_dir,
     "\nOUT: ", output_dir, "\n\n", sep = "")
 
-## ======================== 2) Find debugging_n runs ========================
-# (Make sure these are loaded once in your session)
-suppressPackageStartupMessages({
-  library(terra); library(fs); library(stringr); library(dplyr); library(readr)
-})
+## ======================== 2) Find debugging_n runs (strict) ========================
+# Expect exact names like ".../debugging_01", ".../debugging_41" (lowercase)
+.strict_run_rows <- function(root) {
+  all_dirs <- fs::dir_ls(root, type = "directory", recurse = TRUE)
+  m <- grepl("[/\\\\]debugging_\\d{2}$", all_dirs, perl = TRUE)      # exact "debugging_??"
+  cand <- all_dirs[m]
+  if (!length(cand)) return(tibble(run_dir = character(), run_id = integer()))
+  # last two digits → integer id
+  rid <- as.integer(sub(".*[/\\\\]debugging_(\\d{2})$", "\\1", cand, perl = TRUE))
+  tibble(run_dir = cand, run_id = rid) |> dplyr::arrange(run_id)
+}
 
-# Find runs in each scenario
-runs_bau <- dir_ls(bau_dir, type = "directory", recurse = TRUE, regexp = "debugging_\\d+$")
-runs_ics <- dir_ls(ics_dir, type = "directory", recurse = TRUE, regexp = "debugging_\\d+$")
+tb_bau <- .strict_run_rows(bau_dir) |> dplyr::rename(run_dir_bau = run_dir)
+tb_ics <- .strict_run_rows(ics_dir) |> dplyr::rename(run_dir_ics = run_dir)
 
-tb_bau <- tibble(run_dir_bau = runs_bau,
-                 run_id = as.integer(str_extract(basename(runs_bau), "\\d+"))) |> arrange(run_id)
-tb_ics <- tibble(run_dir_ics = runs_ics,
-                 run_id = as.integer(str_extract(basename(runs_ics), "\\d+"))) |> arrange(run_id)
+common_runs <- dplyr::inner_join(tb_bau, tb_ics, by = "run_id") |> dplyr::arrange(run_id)
 
-common_runs <- inner_join(tb_bau, tb_ics, by = "run_id")
-if (nrow(common_runs) == 0) stop("No common debugging_n runs between BAU and ICS.")
+cat(sprintf("[runs] BAU=%d | ICS=%d | common=%d (expected 41 if complete)\n",
+            nrow(tb_bau), nrow(tb_ics), nrow(common_runs)))
+if (nrow(common_runs) == 0) stop("No matching 'debugging_??' runs were found in both scenarios.")
 
-cat("Common runs found:", nrow(common_runs), "\n")
+# Build processing plan: for each common run, pick the LAST common Growth_less_harvXX.tif
+## ======================== Plan: pick LAST within [harv_first, harv_last] ========================
+# Expect exact filenames "Growth_less_harvXX.tif" (case-sensitive), XX in 01..41
+stopifnot(is.null(harv_first) || (is.numeric(harv_first) && harv_first >= 1 && harv_first <= 41))
+stopifnot(is.null(harv_last)  || (is.numeric(harv_last)  && harv_last  >= 1 && harv_last  <= 41))
 
-# Build processing plan: for each common run, pick the LATEST common Growth_less_harvXX.tif
-plan <- tibble(run_id = integer(), year_code = integer(), bau_file = character(), ics_file = character())
+plan <- tibble(
+  run_id    = integer(),
+  first_req = integer(),
+  last_req  = integer(),
+  year_used = integer(),
+  bau_file  = character(),
+  ics_file  = character()
+)
 
-# ptn <- "Growth_less_harv(\\d+)\\.tif$"  # case-insensitive pattern
-# Build regex: match only Growth_less_harvXX.tif where XX is in [first_yr, last_yr]
-ptn <- sprintf("^Growth_less_harv(%s)\\.tif$",
-               paste(sprintf("%02d", first_yr:last_yr), collapse = "|"))
+growth_window_log <- tibble(
+  run_id      = integer(),
+  avail_min   = integer(),
+  avail_max   = integer(),
+  first_req   = integer(),
+  last_req    = integer(),
+  used_min    = integer(),
+  used_max    = integer(),
+  chosen_year = integer(),
+  note        = character()
+)
+
+GROWTH_PTN <- "^Growth_less_harv(\\d{2})\\.tif$"     # case-sensitive; exactly 2 digits
 
 for (k in seq_len(nrow(common_runs))) {
-  # k = 2
+  rid   <- common_runs$run_id[k]
   dir_b <- common_runs$run_dir_bau[k]
   dir_i <- common_runs$run_dir_ics[k]
   
-  files_b <- dir_ls(dir_b, type = "file", glob = "*.tif")
-  files_i <- dir_ls(dir_i, type = "file", glob = "*.tif")
+  fb <- fs::dir_ls(dir_b, type = "file", glob = "*.tif")
+  fi <- fs::dir_ls(dir_i, type = "file", glob = "*.tif")
   
-  files_b <- files_b[grepl(ptn, basename(files_b), ignore.case = TRUE)]
-  files_i <- files_i[grepl(ptn, basename(files_i), ignore.case = TRUE)]
+  # keep only exact Growth_less_harvXX.tif (no ignore.case here)
+  fb <- fb[grepl(GROWTH_PTN, basename(fb))]
+  fi <- fi[grepl(GROWTH_PTN, basename(fi))]
   
-  yrs_b <- tibble(file = files_b,
-                  year_code = as.integer(str_match(basename(files_b), regex(ptn, ignore_case = TRUE))[,2]))
-  yrs_i <- tibble(file = files_i,
-                  year_code = as.integer(str_match(basename(files_i), regex(ptn, ignore_case = TRUE))[,2]))
+  if (!length(fb) || !length(fi)) {
+    growth_window_log <- dplyr::bind_rows(growth_window_log, tibble(
+      run_id = rid, avail_min = NA, avail_max = NA,
+      first_req = harv_first, last_req = harv_last,
+      used_min = NA, used_max = NA, chosen_year = NA,
+      note = "No Growth_less_harvXX.tif found in one/both runs"
+    ))
+    next
+  }
   
-  if (nrow(yrs_b) == 0 || nrow(yrs_i) == 0) next
-  common_years <- intersect(yrs_b$year_code, yrs_i$year_code)
-  if (!length(common_years)) next
+  # extract XX as integers (01..41)
+  xb <- as.integer(sub(GROWTH_PTN, "\\1", basename(fb)))
+  xi <- as.integer(sub(GROWTH_PTN, "\\1", basename(fi)))
   
-  y <- max(common_years)  # latest common year
-  plan <- bind_rows(plan, tibble(
-    run_id    = common_runs$run_id[k],
-    year_code = y,
-    bau_file  = yrs_b$file[yrs_b$year_code == y][1],
-    ics_file  = yrs_i$file[yrs_i$year_code == y][1]
+  common_xx <- sort(intersect(xb, xi))
+  if (!length(common_xx)) {
+    growth_window_log <- dplyr::bind_rows(growth_window_log, tibble(
+      run_id = rid, avail_min = NA, avail_max = NA,
+      first_req = harv_first, last_req = harv_last,
+      used_min = NA, used_max = NA, chosen_year = NA,
+      note = "No common XX between BAU and ICS"
+    ))
+    next
+  }
+  
+  avail_min <- min(common_xx); avail_max <- max(common_xx)
+  
+  # apply strict window (no fallback; you want it strict)
+  used_xx <- common_xx
+  if (!is.null(harv_first)) used_xx <- used_xx[used_xx >= harv_first]
+  if (!is.null(harv_last))  used_xx <- used_xx[used_xx <= harv_last]
+  
+  if (!length(used_xx)) {
+    growth_window_log <- dplyr::bind_rows(growth_window_log, tibble(
+      run_id = rid,
+      avail_min = avail_min, avail_max = avail_max,
+      first_req = harv_first, last_req = harv_last,
+      used_min = NA, used_max = NA, chosen_year = NA,
+      note = "Requested window has no overlap with available XX"
+    ))
+    next
+  }
+  
+  used_min <- min(used_xx); used_max <- max(used_xx)
+  y <- max(used_xx)  # choose last within window
+  
+  bau_file <- fb[xb == y][1]
+  ics_file <- fi[xi == y][1]
+  
+  plan <- dplyr::bind_rows(plan, tibble(
+    run_id    = rid,
+    first_req = harv_first,
+    last_req  = harv_last,
+    year_used = y,
+    bau_file  = bau_file,
+    ics_file  = ics_file
+  ))
+  
+  growth_window_log <- dplyr::bind_rows(growth_window_log, tibble(
+    run_id = rid,
+    avail_min = avail_min, avail_max = avail_max,
+    first_req = harv_first, last_req = harv_last,
+    used_min = used_min, used_max = used_max,
+    chosen_year = y,
+    note = "OK"
   ))
 }
 
-if (nrow(plan) == 0) stop("Plan is empty. Check file names match 'Growth_less_harvXX.tif' and there are overlapping years.")
+if (nrow(plan) == 0) {
+  stop(sprintf(
+    "Plan is empty with the strict matcher.\n- Runs detected: %d\n- Requested window: [%s, %s]\n- Check exact filenames 'Growth_less_harvXX.tif' and window overlap.",
+    nrow(common_runs),
+    ifelse(is.null(harv_first), "auto", harv_first),
+    ifelse(is.null(harv_last),  "auto", harv_last)
+  ))
+}
 
-write_csv(plan, file.path(paste0(output_dir,"/harvest"), "plan_runs_and_files.csv"))
-cat("Plan rows:", nrow(plan), "→", file.path(output_dir, "plan_runs_and_files.csv"), "\n")
+readr::write_csv(plan, file.path(paste0(output_dir,"/harvest"), "plan_runs_and_files.csv"))
+readr::write_csv(growth_window_log, file.path(paste0(output_dir,"/harvest"), "growth_window_log.csv"))
+
+cat("Plan rows: ", nrow(plan), " (each = one run using last map within window)\n", sep = "")
+
+
 
 ## ======================== 3) Terra options (progress/temp) ========================
 terraOptions(progress = 1)
@@ -181,7 +281,7 @@ S2 <- NULL  # sum of (delta_co2^2)
 n_stream <- 0L
 
 for (i in seq_len(nrow(plan))) {
-  # i = 1
+  #i = 1
   rid <- plan$run_id[i]; y <- plan$year_code[i]
   
   bau_agb <- rast(plan$bau_file[i])
@@ -305,28 +405,29 @@ summary_tbl <- per_run |>
   )
 write_csv(summary_tbl, file.path(paste0(output_dir,"/harvest"), "summary_sumco2.csv"))
 
-# Sum harvest to compare 2 demand from the next section ----
+# Sum harvest to comare 2 demand from the next section ----
 message("\n[End-Use] Summing all Harvest_totXX.tif per run (BAU & ICS)…")
 
 # Helpers -------------------------------------------------------------
-.sum_harvest_in_run <- function(run_dir, out_prefix, outdir, mc1_tag = FALSE) {
-  # list all .tif files in the run folder (non-recursive is usually enough; use recurse=TRUE if needed)
+.sum_harvest_in_run <- function(run_dir, out_prefix, outdir, mc1_tag = FALSE,
+                                first = NULL, last = NULL) {
   files <- fs::dir_ls(run_dir, type = "file", glob = "*.tif")
-  # keep Harvest_totXX.tif (case-insensitive), XX = 01..99+
-  #ptn   <- "(?i)^Harvest_tot(\\d+)\\.tif$"
-  ptn <- sprintf("(?i)^Harvest_tot(%s)\\.tif$",
-                 paste(sprintf("%02d", first_yr:last_yr), collapse = "|"))
+  ptn   <- "(?i)^Harvest_tot(\\d+)\\.tif$"
   
   files <- files[grepl(ptn, basename(files))]
-  if (!length(files)) return(list(ok = FALSE, msg = paste0("No Harvest_totXX.tif in: ", run_dir)))
+  files <- .filter_harv_range(files, "Harvest_tot(\\d+)\\.tif$", first, last)
   
-  # order by XX so logs look neat (not strictly required for the sum)
-  ord <- stringr::str_match(basename(files), regex(ptn))[,2] |> as.integer()
-  files <- files[order(ord)]
+  if (!length(files)) {
+    return(list(ok = FALSE, msg = paste0("No Harvest_totXX.tif in range in: ", run_dir)))
+  }
   
-  # read first to establish geometry
+  # order by XX for neat logs
+  ord <- as.integer(stringr::str_match(basename(files), stringr::regex("Harvest_tot(\\d+)\\.tif$", ignore_case = TRUE))[,2])
+  o   <- order(ord)
+  files <- files[o]
+  ord   <- ord[o]
+  
   r0 <- terra::rast(files[1])
-  # sanity: ensure all geometries match (CRS/grid/extent/resolution/origin)
   for (f in files[-1]) {
     if (!terra::compareGeom(r0, terra::rast(f), stopOnError = FALSE)) {
       stop("[End-Use] Geometry mismatch within run folder: ", run_dir,
@@ -334,29 +435,37 @@ message("\n[End-Use] Summing all Harvest_totXX.tif per run (BAU & ICS)…")
     }
   }
   
-  # stack + sum (terra sums cell-wise, ignoring NA)
-  # Use wrap in SpatRaster list to avoid unexpected memory spikes
   rlist <- lapply(files, terra::rast)
   rs    <- terra::rast(rlist)
   rsum  <- terra::app(rs, fun = sum, na.rm = TRUE)
   
-  # write outputs
   out_tif <- file.path(outdir, paste0(out_prefix, "_harvest_sum.tif"))
   terra::writeRaster(rsum, out_tif, overwrite = TRUE)
   
-  # global total (assumes per-pixel units are Mg biomass; change if different)
   gsum <- as.numeric(terra::global(rsum, "sum", na.rm = TRUE)[[1]])
   
-  # if this is Monte Carlo #1, save a convenience copy
+  # sources & log
+  src_txt <- file.path(outdir, paste0(out_prefix, "_harvest_sources.txt"))
+  readr::write_lines(basename(files), src_txt)
+  
   if (mc1_tag) {
+    # convenience copy + explicit sources list for MC1
     mc1_tif <- file.path(outdir, paste0(out_prefix, "_harvest_sum_mc1.tif"))
     # terra::writeRaster(rsum, mc1_tif, overwrite = TRUE)
-    # also stash the list of source files for traceability
-    readr::write_lines(files, file.path(outdir, paste0(out_prefix, "_harvest_sources_mc1.txt")))
+    readr::write_lines(basename(files), file.path(outdir, paste0(out_prefix, "_harvest_sources_mc1.txt")))
   }
   
-  list(ok = TRUE, out_tif = out_tif, global_sum = gsum, n_layers = length(files))
+  list(
+    ok = TRUE,
+    out_tif = out_tif,
+    global_sum = gsum,
+    n_layers = length(files),
+    first_used = min(ord),
+    last_used  = max(ord),
+    sources = basename(files)
+  )
 }
+
 
 # Output subfolders ---------------------------------------------------
 enduse_dir_bau <- file.path(paste0(output_dir,"/harvest"), "harvesttot_bau")
@@ -377,17 +486,23 @@ for (k in seq_len(nrow(common_runs))) {
   # BAU
   out_prefix_b <- sprintf("bau_run%03d", rid)
   res_b <- .sum_harvest_in_run(
-    run_dir = dir_b,
-    out_prefix = out_prefix_b,
-    outdir = enduse_dir_bau,
-    mc1_tag = (rid == 1L)
+    run_dir   = dir_b,
+    out_prefix= out_prefix_b,
+    outdir    = enduse_dir_bau,
+    mc1_tag   = (rid == 1L),
+    first     = harv_first,
+    last      = harv_last
   )
   if (isTRUE(res_b$ok)) {
-    harv_tbl_bau <- bind_rows(harv_tbl_bau,
-                              tibble(run_id = rid,
-                                     n_layers = res_b$n_layers,
-                                     global_sum_Mg = res_b$global_sum,
-                                     out_tif = res_b$out_tif))
+    harv_tbl_bau <- bind_rows(
+      harv_tbl_bau,
+      tibble(run_id = rid,
+             n_layers = res_b$n_layers,
+             first_used = res_b$first_used,
+             last_used  = res_b$last_used,
+             global_sum_Mg = res_b$global_sum,
+             out_tif = res_b$out_tif)
+    )
   } else {
     message("[End-Use][BAU] ", res_b$msg)
   }
@@ -395,17 +510,24 @@ for (k in seq_len(nrow(common_runs))) {
   # ICS
   out_prefix_i <- sprintf("ics_run%03d", rid)
   res_i <- .sum_harvest_in_run(
-    run_dir = dir_i,
-    out_prefix = out_prefix_i,
-    outdir = enduse_dir_ics,
-    mc1_tag = (rid == 1L)
+    run_dir   = dir_i,
+    out_prefix= out_prefix_i,
+    outdir    = enduse_dir_ics,
+    mc1_tag   = (rid == 1L),
+    first     = harv_first,
+    last      = harv_last
   )
   if (isTRUE(res_i$ok)) {
-    harv_tbl_ics <- bind_rows(harv_tbl_ics,
-                              tibble(run_id = rid,
-                                     n_layers = res_i$n_layers,
-                                     global_sum_Mg = res_i$global_sum,
-                                     out_tif = res_i$out_tif))
+    if (isTRUE(res_i$ok)) {
+      harv_tbl_ics <- bind_rows(
+        harv_tbl_ics,
+        tibble(run_id = rid,
+               n_layers = res_i$n_layers,
+               first_used = res_i$first_used,
+               last_used  = res_i$last_used,
+               global_sum_Mg = res_i$global_sum,
+               out_tif = res_i$out_tif)
+      )
   } else {
     message("[End-Use][ICS] ", res_i$msg)
   }
@@ -443,6 +565,13 @@ message("[End-Use] Done. Rasters in:\n  - ", enduse_dir_bau, "\n  - ", enduse_di
 # harvesttot_bau/bau_run001_harvest_sum.tif
 # harvesttot_ics/ics_run001_harvest_sum.tif
 
+
+suppressPackageStartupMessages({
+  library(terra)
+  library(dplyr)
+  library(stringr)
+  library(readr)
+})
 
 # ========================= 0) CONFIG =========================
 # gid0       <- "ZMB"
@@ -508,24 +637,9 @@ if (impchfw == 1) {
 
 # ========================= 3) TEMPLATE ======================
 # Pick a template grid from first demand file found (BAU first, then ICS)
-# normalize to 4-digit years if needed
-to_year <- function(xx) 2009 + xx
-fy <- to_year(first_yr)
-ly <- to_year(last_yr)
-
-# list & filter
-cand <- list.files(bau_demand_dir, "^WorldPop_.*_(\\d{4})_demand\\.tif$", full.names = TRUE)
-if (!length(cand)) cand <- list.files(ics_demand_dir, "^WorldPop_.*_(\\d{4})_demand\\.tif$", full.names = TRUE)
+cand <- list.files(bau_demand_dir, "^WorldPop_.*_\\d{4}_demand\\.tif$", full.names = TRUE)
+if (!length(cand)) cand <- list.files(ics_demand_dir, "^WorldPop_.*_\\d{4}_demand\\.tif$", full.names = TRUE)
 if (!length(cand)) stop("No demand files found in BAU/ICS folders.")
-
-yrs <- as.integer(sub(".*_(\\d{4})_demand\\.tif$", "\\1", basename(cand)))
-cand <- cand[yrs >= fy & yrs <= ly]
-
-if (!length(cand)) {
-  stop(sprintf("No demand files in range [%d, %d]. Available min=%d max=%d",
-               fy, ly, min(yrs), max(yrs)))
-}
-
 template <- rast(cand[1])
 cat("Template set from:", cand[1], "\n")
 
@@ -549,24 +663,11 @@ for (g in names(groups)) {
 
   bau_files <- list.files(bau_demand_dir, pattern = pat, full.names = TRUE)
   ics_files <- list.files(ics_demand_dir, pattern = pat, full.names = TRUE)
-  
-  # keep only files whose year is within [fy, ly]
-  year_from_name <- function(x) as.integer(sub(".*_(\\d{4})_demand\\.tif$", "\\1", basename(x)))
-  bau_years <- year_from_name(bau_files)
-  ics_years <- year_from_name(ics_files)
-  
-  bau_files <- bau_files[bau_years >= fy & bau_years <= ly]
-  ics_files <- ics_files[ics_years >= fy & ics_years <= ly]
-  
-  if (!length(bau_files) || !length(ics_files)) {
-    stop(sprintf("No demand files in [%d, %d] for group '%s' (BAU=%d, ICS=%d).",
-                 fy, ly, g, length(bau_files), length(ics_files)))
-  }
 
-  # if (!length(bau_files) || !length(ics_files)) {
-  #   warning(sprintf("No files for '%s' in one of the scenarios; skipping.", g))
-  #   next
-  # }
+  if (!length(bau_files) || !length(ics_files)) {
+    warning(sprintf("No files for '%s' in one of the scenarios; skipping.", g))
+    next
+  }
   cat("BAU files:", length(bau_files), " | ICS files:", length(ics_files), "\n")
 
   # 4.3) Extract available years in each scenario and intersect
@@ -771,4 +872,3 @@ writeRaster(delta_co2_total, delta_co2_total_path, overwrite = TRUE)
 
 cat("[OK]\n - Wrote projected harvest:", delta_co2_harvest_path,
     "\n - Wrote total delta:", delta_co2_total_path, "\n")
-

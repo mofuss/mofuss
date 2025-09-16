@@ -25,29 +25,31 @@
 # Or justs reducing the demand map by the fraction actually harvested which shouldn't be never more than 10%, 
 # moreover after calibration 
 # Add pixel base trajectories to see what happens on negative pixels
-
+# fixdir = 1 # WARNING: Check when 0 how paths are determined, mostly for the emissions folder
 
 # Internal parameters ----
-fixdir = 1
+fixdir = 1 # WARNING: Check when fixdir = 0 how paths are determined, mostly for the emissions folder
 bau_dir <- "C:/Users/aghil/Documents/MoFuSS_FAO_localhost/zmb_bau_1km_subc"
-ics_dir <- "C:/Users/aghil/Documents/MoFuSS_FAO_localhost/zmb_ics3_1km_subc"
+ics_dir <- "C:/Users/aghil/Documents/MoFuSS_FAO_localhost/zmb_ics2_1km_subc"
 output_dir2 <- "C:/Users/aghil/Documents/MoFuSS_FAO_localhost/emissions"
 rTempdir <- "C:/Users/aghil/Documents/MoFuSS_FAO_localhost/rTemp"
 gid0       <- "ZMB"
 efchratio  <- 6
-impchfw <- 0 #turns on and off imp_charcoal and imp_fuelwood
-first_yr <- 11 # 11=2020 2009+ first_yr
-last_yr <- 41 # 25=2030 41=2050
+impchfw <- 1 #turns on and off imp_charcoal and imp_fuelwood
+first_yr <- 11 # 11=2020
+last_yr <- 41 # 26=2035 41=2050
+co2_factor <- 0.47 * (44/12) # Factor: biomass → C (0.47), then C → CO2 (44/12) # 1 for debugging
+min_runs_for_mean_se <- 5 # We'll compute mean/SE whenever we have at least 2 runs
 
 output_dir <- paste0(output_dir2,"_",stringr::str_extract(ics_dir, "ics\\d+"))
 
-# ======================== EMISSIONS FROM HARVEST ========================
-## ======================== 0) Packages ========================
+# Load packages ----
 required <- c("terra", "fs", "stringr", "dplyr", "readr")
 to_install <- setdiff(required, rownames(installed.packages()))
 if (length(to_install)) install.packages(to_install, quiet = TRUE)
 library(terra); library(fs); library(stringr); library(dplyr); library(readr)
 
+# ======================== EMISSIONS FROM HARVEST ========================
 ## ======================== 1) Folder pickers ========================
 # (Tiny helper; we keep it because dialogs differ by OS/RStudio)
 
@@ -76,10 +78,12 @@ cat("Please select the folders explicitly (BAU → ICS → OUTPUT).\n")
 if (fixdir != 1L) {
   bau_dir    <- pick_dir("Select BAU scenario folder")
   ics_dir    <- pick_dir("Select ICS scenario folder")
-  output_dir <- pick_dir("Select OUTPUT folder (results will be written here)")
+  output_dir2 <- pick_dir("Select OUTPUT folder (results will be written here)")
+  output_dir <- paste0(output_dir2,"_",stringr::str_extract(ics_dir, "ics\\d+"))
   rTempdir   <- pick_dir("Select your Rtemp folder")
   }
 # Respect previous scenarios?
+unlink(paste0(output_dir2,"/"), recursive = TRUE)
 unlink(paste0(output_dir,"/"), recursive = TRUE)
 Sys.sleep(5)
 
@@ -167,13 +171,7 @@ terraOptions(progress = 1)
 terraOptions(tempdir = rTempdir)
 
 ## ======================== 4) Loop: compute ΔAGB → ΔCO2, write per-run rasters ========================
-# Factor: biomass → C (0.47), then C → CO2 (44/12)
-co2_factor <- 0.47 * (44/12)
-
 per_run <- tibble(run_id = integer(), year_code = integer(), sumco2_Mg = numeric())
-
-# We'll compute mean/SE whenever we have at least 2 runs
-min_runs_for_se <- 30
 
 # Accumulators for mean/SE
 S  <- NULL  # sum of delta_co2
@@ -277,13 +275,13 @@ summary_tbl <- per_run |>
   )
 write_csv(summary_tbl, file.path(paste0(output_dir,"/harvest"), "summary_sumco2.csv"))
 
-# Mean (always, if at least 30 run) and SE (if at least 30 runs)
-if (!is.null(S) && n_stream >= 30) {
+# Mean (always, if at least n run) and SE (if at least n runs)
+if (!is.null(S) && n_stream >= min_runs_for_mean_se) {
   mean_r <- S / n_stream
   writeRaster(mean_r, file.path(paste0(output_dir,"/harvest"), "delta_co2_mean.tif"), overwrite = TRUE)
 }
 
-if (!is.null(S2) && n_stream >= 30) {
+if (!is.null(S2) && n_stream >= min_runs_for_mean_se) {
   var_r <- (S2 - (S * S) / n_stream) / (n_stream - 1)  # unbiased variance
   se_r  <- sqrt(var_r) / sqrt(n_stream)
   writeRaster(se_r, file.path(paste0(output_dir,"/harvest"), "delta_co2_se.tif"), overwrite = TRUE)
@@ -305,7 +303,7 @@ summary_tbl <- per_run |>
   )
 write_csv(summary_tbl, file.path(paste0(output_dir,"/harvest"), "summary_sumco2.csv"))
 
-# Sum harvest to compare 2 demand from the next section ----
+## ======================== 6) Sum harvest to compare to demand in next section ========================
 message("\n[End-Use] Summing all Harvest_totXX.tif per run (BAU & ICS)…")
 
 # Helpers -------------------------------------------------------------
@@ -447,6 +445,7 @@ message("[End-Use] Done. Rasters in:\n  - ", enduse_dir_bau, "\n  - ", enduse_di
 # ========================= 0) CONFIG =========================
 # gid0       <- "ZMB"
 # efchratio  <- 6
+
 out_dir    <- file.path(output_dir, "enduse")
 dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
 
@@ -559,8 +558,9 @@ for (g in names(groups)) {
   ics_files <- ics_files[ics_years >= fy & ics_years <= ly]
   
   if (!length(bau_files) || !length(ics_files)) {
-    stop(sprintf("No demand files in [%d, %d] for group '%s' (BAU=%d, ICS=%d).",
+    warning(sprintf("No demand files in [%d, %d] for group '%s' (BAU=%d, ICS=%d).",
                  fy, ly, g, length(bau_files), length(ics_files)))
+    next
   }
 
   # if (!length(bau_files) || !length(ics_files)) {
@@ -593,7 +593,7 @@ for (g in names(groups)) {
     # STREAMING sum across tags for this year (NA-safe)
     year_sum <- NULL
     for (r in rs) {
-      year_sum <- if (is.null(year_sum)) r else terra::app(terra::c(year_sum, r), fun = sum, na.rm = TRUE)
+      year_sum <- if (is.null(year_sum)) r else sum(year_sum, r, na.rm = TRUE)
     }
     
     yearly_bau[[as.character(y)]] <- year_sum
@@ -622,7 +622,7 @@ for (g in names(groups)) {
     # STREAMING sum across tags for this year (NA-safe)
     year_sum <- NULL
     for (r in rs) {
-      year_sum <- if (is.null(year_sum)) r else terra::app(terra::c(year_sum, r), fun = sum, na.rm = TRUE)
+      year_sum <- if (is.null(year_sum)) r else sum(year_sum, r, na.rm = TRUE)
     }
     
     yearly_ics[[as.character(y)]] <- year_sum
@@ -700,6 +700,21 @@ delta <- bau_emis - ics_emis   # single layer
   out_file <- file.path(out_dir, sprintf("delta_co2_%senduse.tif", g))
   writeRaster(delta, out_file, filetype = "GTiff", overwrite = TRUE)
   cat("Wrote:", out_file, "\n")
+  
+  # Reclassify delta into -1, 0, 1
+  m <- matrix(c(
+    -Inf,   -0.9999, -1,
+    -0.9999, 0.9999, 0,
+    0.9999, Inf, 1
+  ), ncol = 3, byrow = TRUE)
+  
+  delta_reclass <- classify(delta, m, right = NA, include.lowest = TRUE)
+  
+  # Save reclassified result
+  out_file_reclass <- file.path(out_dir, sprintf("delta_co2_%senduse_disc.tif", g))
+  writeRaster(delta_reclass, out_file_reclass, filetype = "GTiff", overwrite = TRUE)
+  cat("Wrote:", out_file_reclass, "\n")
+  
 }
 
 cat("\n✓ Done. Outputs in: ", out_dir, "\n", sep = "")
@@ -712,7 +727,7 @@ ics_charcoal <- rast(paste0(output_dir,"/enduse/ics_sum_charcoal.tif"))
 ics_charcoal_total <- as.numeric(terra::global(ics_charcoal, "sum", na.rm = TRUE)[1,1])
 bau_charcoal_total
 ics_charcoal_total
-# I get totals of 790875789 for BAU and 763771314 for Proj1/2 so yours are 3-4% lower.
+# I get totals of 790875789 for BAU and 763771314 for **Proj1/2** so yours are 3-4% lower.
 # Charcoal demand 2010-2050
 
 
