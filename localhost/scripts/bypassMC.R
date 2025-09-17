@@ -89,6 +89,9 @@ walk(files_to_copy, ~ file_copy(.x, paste0(getwd(),"/Temp"), overwrite = TRUE))
 # Optional: quick check
 stopifnot(all(file_exists(file.path(paste0(getwd(),"/Temp"), path_file(files_to_copy)))))
 
+MCcsv <- read.csv(paste0(getwd(),"/Temp/Prune_factor_V.csv"))
+MC <- nrow(MCcsv)
+
 # Max AGB value for graphs and animation showing last MC run
 maxAGB_all<-read.csv("Temp//k_all.csv")
 MaxAGB<-(max(maxAGB_all, na.rm=TRUE))

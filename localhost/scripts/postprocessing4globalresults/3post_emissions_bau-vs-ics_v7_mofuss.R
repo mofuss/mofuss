@@ -30,7 +30,7 @@
 # Internal parameters ----
 fixdir = 1 # WARNING: Check when fixdir = 0 how paths are determined, mostly for the emissions folder
 bau_dir <- "C:/Users/aghil/Documents/MoFuSS_FAO_localhost/zmb_bau_1km_subc"
-ics_dir <- "C:/Users/aghil/Documents/MoFuSS_FAO_localhost/zmb_ics2_1km_subc"
+ics_dir <- "C:/Users/aghil/Documents/MoFuSS_FAO_localhost/zmb_ics3_1km_subc"
 output_dir2 <- "C:/Users/aghil/Documents/MoFuSS_FAO_localhost/emissions"
 rTempdir <- "C:/Users/aghil/Documents/MoFuSS_FAO_localhost/rTemp"
 gid0       <- "ZMB"
@@ -39,7 +39,7 @@ impchfw <- 1 #turns on and off imp_charcoal and imp_fuelwood
 first_yr <- 11 # 11=2020
 last_yr <- 41 # 26=2035 41=2050
 co2_factor <- 0.47 * (44/12) # Factor: biomass → C (0.47), then C → CO2 (44/12) # 1 for debugging
-min_runs_for_mean_se <- 5 # We'll compute mean/SE whenever we have at least 2 runs
+min_runs_for_mean_se <- 3 # We'll compute mean/SE whenever we have at least n runs
 
 output_dir <- paste0(output_dir2,"_",stringr::str_extract(ics_dir, "ics\\d+"))
 
@@ -453,7 +453,7 @@ bau_demand_dir <- file.path(bau_dir, "LULCC/DownloadedDatasets/SourceDataGlobal/
 ics_demand_dir <- file.path(ics_dir, "LULCC/DownloadedDatasets/SourceDataGlobal/demand/demand_out")
 
 # ========================= 1) EF TABLE ======================
-efdb_path <- file.path(bau_dir, "LULCC/DownloadedDatasets/SourceDataGlobal/demand/demand_in/efdb_all NEW.csv")
+efdb_path <- file.path(bau_dir, "LULCC/DownloadedDatasets/SourceDataGlobal/demand/demand_in/efdb_all.csv")
 
 efdb <- read_csv(efdb_path, show_col_types = FALSE) %>%
   mutate(fuel_std = str_to_title(trimws(fueltype))) %>%

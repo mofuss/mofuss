@@ -679,7 +679,7 @@ unique(adm0_reg$GID_0)
 # unique(adm2_reg$GID_2)
 
 for (i in adm0_reg$GID_0) { # Start of outer region (i) loop ----
-  # i = "ZMB_2"
+  # i = "ZMB_1"
   # i = "SLV"
   print(i)
   if (subcountry != 1) {
@@ -740,7 +740,7 @@ for (i in adm0_reg$GID_0) { # Start of outer region (i) loop ----
   
   for (j in annos) { ## Start of inner years (j) loop ----
     # i="PNG"
-    # j=2020
+    # j=2050
     
     gc()
     terraOptions(memfrac=0.9)
