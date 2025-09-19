@@ -442,7 +442,7 @@ message("[End-Use] Done. Rasters in:\n  - ", enduse_dir_bau, "\n  - ", enduse_di
 # harvesttot_ics/ics_run001_harvest_sum.tif
 
 
-# ========================= 0) CONFIG =========================
+# ========================= 0) Config =========================
 # gid0       <- "ZMB"
 # efchratio  <- 6
 
@@ -452,7 +452,7 @@ dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
 bau_demand_dir <- file.path(bau_dir, "LULCC/DownloadedDatasets/SourceDataGlobal/demand/demand_out")
 ics_demand_dir <- file.path(ics_dir, "LULCC/DownloadedDatasets/SourceDataGlobal/demand/demand_out")
 
-# ========================= 1) EF TABLE ======================
+# ========================= 1) EF table ======================
 efdb_path <- file.path(bau_dir, "LULCC/DownloadedDatasets/SourceDataGlobal/demand/demand_in/efdb_all.csv")
 
 efdb <- read_csv(efdb_path, show_col_types = FALSE) %>%
@@ -474,7 +474,7 @@ ef_name_map <- c(
   other    = "Other"
 )
 
-# ========================= 2) FUEL GROUPS ===================
+# ========================= 2) Fuel Groups ===================
 # Merge imp_* with base for fuelwood/charcoal; others are single tags
 # Example: switch between definitions depending on impchfw
 if (impchfw == 1) {
@@ -505,7 +505,7 @@ if (impchfw == 1) {
   )
 }
 
-# ========================= 3) TEMPLATE ======================
+# ========================= 3) Template ======================
 # Pick a template grid from first demand file found (BAU first, then ICS)
 # normalize to 4-digit years if needed
 to_year <- function(xx) 2009 + xx
@@ -528,10 +528,15 @@ if (!length(cand)) {
 template <- rast(cand[1])
 cat("Template set from:", cand[1], "\n")
 
-# ========================= 4) MAIN LOOP =====================
+# --- collectors for period summaries ---
+.pre_period  <- list()  # pre-CO2 (demand): BAU & ICS
+.post_period <- list()  # post-CO2 (emissions): BAU, ICS & Delta
+
+
+# ========================= 4) Main Loop =====================
 for (g in names(groups)) {
   cat("\n=== Group:", g, "===\n")
-  # g = "charcoal"
+  # g = "electric"
   # 4.1) Get EF (CH4 + N2O) for this group
   ef_key <- ef_name_map[[g]]
   row_g  <- efdb %>% filter(fuel_std == ef_key)
@@ -541,11 +546,11 @@ for (g in names(groups)) {
   }
   ef_val <- as.numeric(row_g$CH4 + row_g$N2O)
   cat("EF(CH4+N2O):", ef_val, "for", ef_key, "\n")
-
+  
   # 4.2) Collect all BAU/ICS files for this group's tags
   tags <- groups[[g]]
   pat  <- paste0("^WorldPop_(", paste(tags, collapse = "|"), ")_\\d{4}_demand\\.tif$")
-
+  
   bau_files <- list.files(bau_demand_dir, pattern = pat, full.names = TRUE)
   ics_files <- list.files(ics_demand_dir, pattern = pat, full.names = TRUE)
   
@@ -559,22 +564,22 @@ for (g in names(groups)) {
   
   if (!length(bau_files) || !length(ics_files)) {
     warning(sprintf("No demand files in [%d, %d] for group '%s' (BAU=%d, ICS=%d).",
-                 fy, ly, g, length(bau_files), length(ics_files)))
+                    fy, ly, g, length(bau_files), length(ics_files)))
     next
   }
-
+  
   # if (!length(bau_files) || !length(ics_files)) {
   #   warning(sprintf("No files for '%s' in one of the scenarios; skipping.", g))
   #   next
   # }
   cat("BAU files:", length(bau_files), " | ICS files:", length(ics_files), "\n")
-
+  
   # 4.3) Extract available years in each scenario and intersect
   get_years <- function(v) as.integer(str_match(basename(v), "_(\\d{4})_demand\\.tif$")[,2])
   years_bau <- sort(unique(get_years(bau_files)))
   years_ics <- sort(unique(get_years(ics_files)))
   years     <- intersect(years_bau, years_ics)
-
+  
   if (!length(years)) {
     warning(sprintf("No common years for '%s'; skipping.", g))
     next
@@ -610,7 +615,7 @@ for (g in names(groups)) {
     bau_sum <- if (is.null(bau_sum)) r else (bau_sum + r)   # switch to app+c(...) if you want NA-safe across years too
   }
   cat("BAU sum built. Layers:", terra::nlyr(bau_sum), "\n")
-
+  
   # 4.5) Sum ICS over tags per year, then sum across years (→ single layer)
   yearly_ics <- list()
   for (y in years) {
@@ -667,21 +672,21 @@ for (g in names(groups)) {
   cat(sprintf("Group %s [%d–%d] — ICS total (sum of non-NA pixels): %s\n",
               g, y_start, y_end, format(ics_total, big.mark = ",")))
   
-# 4.6) Convert demand to emissions (tCO2e) using CH4+N2O; charcoal ÷ efchratio
-bau_emis <- bau_sum * ef_val
-ics_emis <- ics_sum * ef_val
-if (g == "charcoal") {
-  bau_emis <- bau_emis / efchratio
-  ics_emis <- ics_emis / efchratio
-  cat("Applied charcoal ratio 1/", efchratio, "\n", sep = "")
-}
-
-delta <- bau_emis - ics_emis   # single layer
-
-
+  # 4.6) Convert demand to emissions (tCO2e) using CH4+N2O; charcoal ÷ efchratio
+  bau_emis <- bau_sum * ef_val
+  ics_emis <- ics_sum * ef_val
+  if (g == "charcoal") {
+    bau_emis <- bau_emis / efchratio
+    ics_emis <- ics_emis / efchratio
+    cat("Applied charcoal ratio 1/", efchratio, "\n", sep = "")
+  }
+  
+  delta <- bau_emis - ics_emis   # single layer
+  
+  
   # 4.7) Delta = BAU − ICS (single layer)
   delta <- bau_emis - ics_emis
-
+  
   # 4.8) Sanity check for solid fuels: ICS should not exceed BAU per pixel
   if (g %in% c("fuelwood", "charcoal")) {
     neg_count <- as.integer(global(ifel(delta < 0, 1, 0), "sum", na.rm = TRUE)[1,1])
@@ -696,10 +701,18 @@ delta <- bau_emis - ics_emis   # single layer
     }
   }
 
-  # 4.9) Write result
+  # 4.9) Period summary (rasters)
   out_file <- file.path(out_dir, sprintf("delta_co2_%senduse.tif", g))
   writeRaster(delta, out_file, filetype = "GTiff", overwrite = TRUE)
   cat("Wrote:", out_file, "\n")
+  
+  out_file_bau <- file.path(out_dir, sprintf("bau_co2_%senduse.tif", g))
+  writeRaster(bau_emis, out_file_bau, filetype = "GTiff", overwrite = TRUE)
+  cat("Wrote:", out_file_bau, "\n")
+  
+  out_file_ics <- file.path(out_dir, sprintf("ics_co2_%senduse.tif", g))
+  writeRaster(ics_emis, out_file_ics, filetype = "GTiff", overwrite = TRUE)
+  cat("Wrote:", out_file_ics, "\n")
   
   # Reclassify delta into -1, 0, 1
   m <- matrix(c(
@@ -715,9 +728,51 @@ delta <- bau_emis - ics_emis   # single layer
   writeRaster(delta_reclass, out_file_reclass, filetype = "GTiff", overwrite = TRUE)
   cat("Wrote:", out_file_reclass, "\n")
   
+  # 4.10) Period summary (tables)
+  .period_label <- sprintf("%d-%d", min(years), max(years))
+  
+  # (A) Pre-CO2 (demand) totals by fuel & scenario
+  .pre_unit <- if (tolower(g) == "electric") "kWh" else "tonnes_wood_equiv"
+  .pre_period[[g]] <- rbind(
+    data.frame(fuel = g, scenario = "BAU",  period = .period_label,
+               total = bau_total, unit = .pre_unit, stringsAsFactors = FALSE),
+    data.frame(fuel = g, scenario = "ICS",  period = .period_label,
+               total = ics_total, unit = .pre_unit, stringsAsFactors = FALSE)
+  )
+  
+  # (B) Post-CO2 (emissions) totals by fuel & scenario (tCO2e)
+  .bau_co2_total   <- as.numeric(terra::global(bau_emis,   "sum", na.rm = TRUE)[1,1])
+  .ics_co2_total   <- as.numeric(terra::global(ics_emis,   "sum", na.rm = TRUE)[1,1])
+  .delta_co2_total <- as.numeric(terra::global(delta,      "sum", na.rm = TRUE)[1,1])
+  
+  .post_period[[g]] <- rbind(
+    data.frame(fuel = g, scenario = "BAU",   period = .period_label,
+               total_tCO2e = .bau_co2_total,   unit = "tonnes_CO2e", stringsAsFactors = FALSE),
+    data.frame(fuel = g, scenario = "ICS",   period = .period_label,
+               total_tCO2e = .ics_co2_total,   unit = "tonnes_CO2e", stringsAsFactors = FALSE),
+    data.frame(fuel = g, scenario = "Delta", period = .period_label,
+               total_tCO2e = .delta_co2_total, unit = "tonnes_CO2e", stringsAsFactors = FALSE)
+  )
+  
 }
 
 cat("\n✓ Done. Outputs in: ", out_dir, "\n", sep = "")
+
+# 5) Write End Use Summary Tables ----------
+if (!dir.exists(out_dir)) dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
+
+pre_tbl  <- if (length(.pre_period))  do.call(rbind, .pre_period)  else data.frame()
+post_tbl <- if (length(.post_period)) do.call(rbind, .post_period) else data.frame()
+
+pre_path  <- file.path(out_dir, sprintf("summary_demand_%d-%d.csv", fy, ly))
+post_path <- file.path(out_dir, sprintf("summary_co2_%d-%d.csv",   fy, ly))
+
+if (nrow(pre_tbl))  utils::write.csv(pre_tbl,  pre_path,  row.names = FALSE, na = "")
+if (nrow(post_tbl)) utils::write.csv(post_tbl, post_path, row.names = FALSE, na = "")
+
+cat("\nSaved period demand summary  → ", pre_path,  "\n", sep = "")
+cat("Saved period CO2e summary     → ", post_path, "\n", sep = "")
+
 
 # ======================== SUMMARY ========================
 # --- Sanity check for saved demand maps 2010-2050 with no harvesting adjustment ----
