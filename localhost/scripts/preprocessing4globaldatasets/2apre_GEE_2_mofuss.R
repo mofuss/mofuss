@@ -139,6 +139,7 @@ if (GEE_scale == 1000 & GEE_tyRoi == "world"){
   DTEM <- merge(detoeste,deteste)
 } else if (GEE_scale == 100 & GEE_tyRoi == "countries") { # For single countries at 100m
   DTEM <- rast(paste0("DEM_SRTM_",GEE_tyRoi,"_",GEE_country,"_",GEE_scale,"scale.tif"))
+  #DTEM <- rast(paste0(GEE_tyRoi,"_CGIAR_SRTM90_V4_",GEE_country,"_",GEE_scale,"m.tif")) #Facus concat string
 } else if (GEE_scale == 1000 & GEE_tyRoi == "countries") { # For single countries at 1km
   DTEM <- rast(paste0("DEM_SRTM_",GEE_tyRoi,"_",GEE_country,"_",GEE_scale,"scale.tif"))
 }
@@ -182,6 +183,7 @@ if (GEE_scale == 1000 & GEE_tyRoi == "world"){
     terra::project(DTEM_pcs, method="bilinear", gdal=TRUE)
 } else if (GEE_scale == 100 & GEE_tyRoi == "countries") { # For single countries at 100m
   merge_AGB_ha <- rast(paste0("AGB_DAAC_",GEE_tyRoi,"_",GEE_country,"_",GEE_scale,"scale.tif")) %>%
+  # merge_AGB_ha <- rast(paste0(GEE_tyRoi,"_NASA_ORNL_biomass_carbon_density_v1_2010_",GEE_country,"_",GEE_scale,"m.tif")) %>% ### DESPUES DE VERLO CON FACU!
     setMinMax(force=TRUE) %>%
     terra::project(DTEM_pcs, method="bilinear", gdal=TRUE)
 } else if (GEE_scale == 1000 & GEE_tyRoi == "countries") { # For single countries at 1km
@@ -203,6 +205,7 @@ if (GEE_scale == 1000 & GEE_tyRoi == "world"){
   Loss <- merge(Lossoeste,Losseste) 
 } else if (GEE_scale == 100 & GEE_tyRoi == "countries") { # For single countries at 100m
   Loss <- rast(paste0("GFC_Lossyear_",GEE_tyRoi,"_",GEE_country,"_",GEE_scale,"scale.tif"))
+  # Loss <- rast(paste0(GEE_tyRoi,"_UMD_hansen_global_forest_change_2021_v1_9_",GEE_country,"_",GEE_scale,"m.tif"))
 } else if (GEE_scale == 1000 & GEE_tyRoi == "countries") { # For single countries at 1km
   Loss <- rast(paste0("GFC_Lossyear_",GEE_tyRoi,"_",GEE_country,"_",GEE_scale,"scale.tif"))
 }
