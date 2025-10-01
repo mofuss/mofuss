@@ -217,8 +217,5 @@ file.copy(
   overwrite = TRUE, recursive = TRUE, copy.mode = TRUE
 )
 
-# Define Terra temporal directory ----
-rTempdir <- paste0(countrydir,"/rTemp")
-
 # End of script ----
   
