@@ -160,7 +160,10 @@ fileConn <- file("LULCC/TempTables/Country.txt")
 writeLines(country_name, fileConn)
 close(fileConn)
 
-ctry <- read.table("LULCC/TempTables/Country.txt", stringsAsFactors = FALSE)
+ctry <- read.table("LULCC/TempTables/Country.txt", 
+                   sep = "\n", 
+                   stringsAsFactors = FALSE,
+                   header = FALSE)
 cty <- as.character(ctry$V1)
 mcty <- data.frame(`Key*` = 1, Country = cty)
 write.csv(mcty, "LULCC/TempTables/Country.csv", row.names = FALSE)
