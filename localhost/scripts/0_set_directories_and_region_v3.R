@@ -601,7 +601,12 @@ if (webmofuss == 1) {
 }
 
 # Define Terra temporal directory ----
-rTempdir <- paste0(countrydir,"/rTemp") 
+rTempdir <- file.path(countrydir, "rTemp")
+
+# Check if directory exists, otherwise create it
+if (!dir.exists(rTempdir)) {
+  dir.create(rTempdir, recursive = TRUE)
+}
 
 # End of script ----
 
