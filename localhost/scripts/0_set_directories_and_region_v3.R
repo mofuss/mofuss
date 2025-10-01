@@ -298,11 +298,16 @@ if (webmofuss == 1) {
     # Get the current date
     current_date <- format(Sys.Date(), "%Y%m%d")  # Format as YYYYMMDD
     
-    # Create the string with the current date
+    # # Create the string with the current date
+    # if (os == "Linux") {
+    #   countrydir <- paste0(countrydir_prelim, "/", regionname, "_", GEE_scale, "m_", current_date)
+    # } else if (os == "Windows") {
+    #   countrydir <- paste0(countrydir_prelim, "/", regionname, "_", GEE_scale, "m_", current_date)
+    # }
     if (os == "Linux") {
-      countrydir <- paste0(countrydir_prelim, "/", regionname, "_", GEE_scale, "m_", current_date)
+      countrydir <- paste0(countrydir_prelim, regionname, "_", GEE_scale, "m_", current_date)
     } else if (os == "Windows") {
-      countrydir <- paste0(countrydir_prelim, "/", regionname, "_", GEE_scale, "m_", current_date)
+      countrydir <- paste0(countrydir_prelim, regionname, "_", GEE_scale, "m_", current_date)
     }
     
     # Print the final string
@@ -322,6 +327,17 @@ if (webmofuss == 1) {
     } else {
       message("No valid file selected.")
     }
+  getwd()
+    # New version now has demand folder within the MoFuSS working directory 
+    if (GEE_scale == 100) {
+      dir.create(paste0(countrydir,"/LULCC/DownloadedDatasets/SourceData",country_name,"/demand100m"),recursive = TRUE, showWarnings = FALSE)
+      demanddir <- paste0(countrydir,"/LULCC/DownloadedDatasets/SourceData",country_name,"/demand100m")
+    } else {
+      dir.create(paste0(countrydir,"/LULCC/DownloadedDatasets/SourceData",country_name,"/demand"),recursive = TRUE, showWarnings = FALSE)
+      demanddir <- paste0(countrydir,"/LULCC/DownloadedDatasets/SourceData",country_name,"/demand")
+      }
+
+    print(demanddir)
     
   } else {
     
@@ -345,22 +361,25 @@ if (webmofuss == 1) {
   #   }
   # }
   # choose_directory3()
-  demanddir <- getwd()
+  #demanddir <- getwd()
   
-  # New version now has demand folder within the MoFuSS working directory 
-  # Base path
-  base_path <- file.path(countrydir, "LULCC/DownloadedDatasets")
-  # 1. Find any directory starting with "SourceData"
-  source_dir <- dir_ls(base_path, type = "directory", regexp = "SourceData.*$")
-  # 2. Inside that, list only immediate subfolders
-  subdirs <- dir_ls(source_dir, type = "directory", recurse = FALSE)
-  # keep those whose *basename* starts with "demand"
-  cand <- subdirs[startsWith(tolower(path_file(subdirs)), "demand")]
-  if (length(cand) == 0) {
-    stop("No folder starting with 'demand' found in: ", source_dir)
+  
+  if  (start_from_scratch != 1) {
+    # New version now has demand folder within the MoFuSS working directory 
+    # Base path
+    base_path <- file.path(countrydir, "LULCC/DownloadedDatasets")
+    # 1. Find any directory starting with "SourceData"
+    source_dir <- dir_ls(base_path, type = "directory", regexp = "SourceData.*$")
+    # 2. Inside that, list only immediate subfolders
+    subdirs <- dir_ls(source_dir, type = "directory", recurse = FALSE)
+    # keep those whose *basename* starts with "demand"
+    cand <- subdirs[startsWith(tolower(path_file(subdirs)), "demand")]
+    if (length(cand) == 0) {
+      stop("No folder starting with 'demand' found in: ", source_dir)
+    }
+    # 3. Assign to demanddir
+    demanddir <- cand
   }
-  # 3. Assign to demanddir
-  demanddir <- cand
   print(demanddir)
   
   choose_directory4 = function(caption = "Choose the directory where admin_regions files are") {
@@ -524,8 +543,10 @@ if (webmofuss == 1) {
     pattern = "\\.csv$|\\.xlsx$",
     full.names = TRUE)
   
+  dir.create(paste0(demanddir,"/demand_in"), recursive =TRUE)
   for (dem in demandtables2copy) {
     file.copy(from=dem, 
+              
               to=paste0(demanddir,"/demand_in"), 
               overwrite = TRUE, recursive = TRUE, copy.mode = TRUE)
   }

@@ -53,10 +53,11 @@ if (os == "Windows" & node_name == "WINLANASE") {
   
 } else if (os == "Windows" & node_name == "NRBV1"){
   #ADD node
-  demanddir <- "D:/demand"
-  admindir <- "D:/admin_regions"
-  emissionsdir <- "D:/emissions"
-  rTempdir <- "D:/rTemp"
+  # demanddir <- "D:/demand"
+  # admindir <- "D:/admin_regions"
+  # emissionsdir <- "D:/emissions"
+  # rTempdir <- "D:/rTemp"
+  gdrivedir <- "G:/Mi Unidad/webpages/2025_MoFuSSGlobal_Datasets/"
   
 }
 
