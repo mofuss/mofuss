@@ -601,7 +601,7 @@ if (webmofuss == 1) {
 }
 
 # Define Terra temporal directory ----
-rTempdir <- paste0(countrydir,"/rTemp")
+rTempdir <- paste0(countrydir,"/rTemp") 
 
 # End of script ----
 
