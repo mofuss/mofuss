@@ -35,10 +35,10 @@ library(tcltk)
 
 # Detect OS
 os <- Sys.info()["sysname"]
-
+webmofuss=1
 if (webmofuss == 1) {
 
-  # # from env for debugging outside webmofuss server
+  # # from .env for debugging outside webmofuss server as if it was webmofuss server - KEEP COMMENTING
   # getwd()
   # githubdir="/home/yayo/mofuss"
   # # scriptsmofuss=/var/www/html/mofuss/tools/uploads/68e885fec1f77/scripts/
