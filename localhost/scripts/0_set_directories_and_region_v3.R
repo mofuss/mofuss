@@ -599,5 +599,13 @@ if (!dir.exists(rTempdir)) {
   dir.create(rTempdir, recursive = TRUE)
 }
 
+# Define Demand directory ----
+demanddir <- file.path(countrydir, "demand")
+
+# Check if directory exists, otherwise create it
+if (!dir.exists(demanddir)) {
+  dir.create(demanddir, recursive = TRUE)
+}
+
 # End of script ----
 
