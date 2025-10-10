@@ -35,7 +35,8 @@ library(tcltk)
 
 # Detect OS
 os <- Sys.info()["sysname"]
-webmofuss=1
+
+# webmofuss = 1 for debugging outside webmofuss server as if it was webmofuss server - KEEP COMMENTING
 if (webmofuss == 1) {
 
   # # from .env for debugging outside webmofuss server as if it was webmofuss server - KEEP COMMENTING
@@ -50,7 +51,6 @@ if (webmofuss == 1) {
   # parameters_file_path="/home/yayo/Documents/webmofuss/LULCC/DownloadedDatasets/SourceDataGlobal/parameters.csv"
   # parameters_file="parameters.csv"
   # getwd()
-
   
   # Read parameters table ----
   country_parameters <- read_csv(parameters_file_path)
