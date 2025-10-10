@@ -44,13 +44,13 @@ if (webmofuss == 1) {
   # # scriptsmofuss=/var/www/html/mofuss/tools/uploads/68e885fec1f77/scripts/
   # countrydir="/home/yayo/Documents/webmofuss"
   # # demanddir=/var/www/html/mofuss/tools/uploads/68e885fec1f77/demand/
-  # admindir="/home/yayo/mofuss/admin_regions"
+  # admindir="/home/yayo/Documents/admin_regions"
   # # emissionsdir=/var/www/html/mofuss/tools/uploads/68e885fec1f77/emissions/
   # # rTempdir=/var/www/html/mofuss/tools/uploads/68e885fec1f77/rTemp/
   # parameters_file_path="/home/yayo/Documents/webmofuss/LULCC/DownloadedDatasets/SourceDataGlobal/parameters.csv"
   # parameters_file="parameters.csv"
   # getwd()
-  
+
   
   # Read parameters table ----
   country_parameters <- read_csv(parameters_file_path)

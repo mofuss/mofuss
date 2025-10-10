@@ -415,7 +415,7 @@ ASIA_adm0 <- rbind(R1_adm0,R6_adm0,NorEastEuro_adm0) %>%
 ASIA_adm0_db <- ASIA_adm0 %>% st_drop_geometry()
 
 setwd(admindir)
-
+getwd()
 # Sub-Saharan Africa ----
 # subregionsSSA <- read_excel("subregionsSSA_v4.xlsx")
 subregionsSSA <- readr::read_csv(subregionsSSA_v)
