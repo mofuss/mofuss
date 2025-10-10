@@ -999,805 +999,805 @@ if (subregionsSSA_v == "subregionsSSA_v5FAO.csv") {
     st_write("regions_adm2_p/SSA_adm2_zimbabwe_p.gpkg", delete_layer = TRUE)
 }
 
-# # Americas ----
-# # subregionsLATAM <- read_excel("subregionsLATAM_v3.xlsx")
-# subregionsLATAM <- read_csv(subregionsLATAM_v)
-# subregionsLATAM
-# unique(subregionsLATAM$Subregion)
-# 
-# LATAM_adm0_subregions <- LATAM_adm0 %>% 
-#   right_join(subregionsLATAM, by = "GID_0") %>%
-#   dplyr::select (-NAME_0.y) %>% 
-#   dplyr::rename(NAME_0 = NAME_0.x) %>%
-#   filter(!is.na(NAME_0))
-# LATAM_adm0_subregions %>% st_drop_geometry()
-# LATAM_adm0_subregions
-# unique(subregionsLATAM$Subregion)
-# # mapview(LATAM_adm0)
-# unique(LATAM_adm0$NAME_0)
-# 
-# # Build regions
-# LATAM_adm0_southern <- LATAM_adm0_subregions %>% dplyr::filter(Subregion %in% "Southern LATAM") %>% mutate(ID = 1:nrow(.))
-# LATAM_adm0_southern$mofuss_reg <- "LATAM_adm0_southern"
-# LATAM_adm0_CA <- LATAM_adm0_subregions %>% dplyr::filter(Subregion %in% "Central America") %>% mutate(ID = 1:nrow(.))
-# LATAM_adm0_CA$mofuss_reg <- "LATAM_adm0_CA"
-# LATAM_adm0_espanhola <- LATAM_adm0_subregions %>% dplyr::filter(Subregion %in% "Espanhola") %>% mutate(ID = 1:nrow(.))
-# LATAM_adm0_espanhola$mofuss_reg <- "LATAM_adm0_espanhola"
-# LATAM_adm0_jamaica <- LATAM_adm0_subregions %>% dplyr::filter(Subregion %in% "Jamaica") %>% mutate(ID = 1:nrow(.))
-# LATAM_adm0_jamaica$mofuss_reg <- "LATAM_adm0_jamaica"
-# LATAM_adm0_western <- LATAM_adm0_subregions %>% dplyr::filter(Subregion %in% "Western LATAM") %>% mutate(ID = 1:nrow(.))
-# LATAM_adm0_western$mofuss_reg <- "LATAM_adm0_western"
-# LATAM_adm0_brazil <- LATAM_adm0_subregions %>% dplyr::filter(Subregion %in% "Brazil") %>% mutate(ID = 1:nrow(.))
-# LATAM_adm0_brazil$mofuss_reg <- "LATAM_adm0_brazil"
-# LATAM_adm0_mexico <- LATAM_adm0_subregions %>% dplyr::filter(Subregion %in% "Mexico") %>% mutate(ID = 1:nrow(.))
-# LATAM_adm0_mexico$mofuss_reg <- "LATAM_adm0_mexico"
-# LATAM_adm0_bolivia <- LATAM_adm0_subregions %>% dplyr::filter(Subregion %in% "Bolivia") %>% mutate(ID = 1:nrow(.))
-# LATAM_adm0_bolivia$mofuss_reg <- "LATAM_adm0_bolivia"
-# LATAM_adm0_colombia <- LATAM_adm0_subregions %>% dplyr::filter(Subregion %in% "Colombia") %>% mutate(ID = 1:nrow(.))
-# LATAM_adm0_colombia$mofuss_reg <- "LATAM_adm0_colombia"
-# LATAM_adm0_guyana <- LATAM_adm0_subregions %>% dplyr::filter(Subregion %in% "Guyana") %>% mutate(ID = 1:nrow(.))
-# LATAM_adm0_guyana$mofuss_reg <- "LATAM_adm0_guyana"
-# LATAM_adm0_salvador <- LATAM_adm0_subregions %>% dplyr::filter(Subregion %in% "El Salvador") %>% mutate(ID = 1:nrow(.))
-# LATAM_adm0_salvador$mofuss_reg <- "LATAM_adm0_salvador"
-# 
-# # Saves each region separatedly for level 0
-# st_write(LATAM_adm0_southern, "regions_adm0/LATAM_adm0_southern.gpkg", delete_layer = TRUE)
-# st_write(LATAM_adm0_CA, "regions_adm0/LATAM_adm0_CA.gpkg", delete_layer = TRUE)
-# st_write(LATAM_adm0_espanhola, "regions_adm0/LATAM_adm0_espanhola.gpkg", delete_layer = TRUE)
-# st_write(LATAM_adm0_jamaica, "regions_adm0/LATAM_adm0_jamaica.gpkg", delete_layer = TRUE)
-# st_write(LATAM_adm0_western, "regions_adm0/LATAM_adm0_western.gpkg", delete_layer = TRUE)
-# # st_write(LATAM_adm0_northern, "regions_adm0/LATAM_adm0_northern.gpkg", delete_layer = TRUE)
-# st_write(LATAM_adm0_brazil, "regions_adm0/LATAM_adm0_brazil.gpkg", delete_layer = TRUE)
-# st_write(LATAM_adm0_mexico, "regions_adm0/LATAM_adm0_mexico.gpkg", delete_layer = TRUE)
-# st_write(LATAM_adm0_bolivia, "regions_adm0/LATAM_adm0_bolivia.gpkg", delete_layer = TRUE)
-# st_write(LATAM_adm0_colombia, "regions_adm0/LATAM_adm0_colombia.gpkg", delete_layer = TRUE)
-# st_write(LATAM_adm0_guyana, "regions_adm0/LATAM_adm0_guyana.gpkg", delete_layer = TRUE)
-# st_write(LATAM_adm0_salvador, "regions_adm0/LATAM_adm0_salvador.gpkg", delete_layer = TRUE)
-# 
-# LATAM_adm0_southern %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm0_p/LATAM_adm0_southern_p.gpkg", delete_layer = TRUE)
-# LATAM_adm0_CA %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm0_p/LATAM_adm0_CA_p.gpkg", delete_layer = TRUE)
-# LATAM_adm0_espanhola %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm0_p/LATAM_adm0_espanhola_p.gpkg", delete_layer = TRUE)
-# LATAM_adm0_jamaica %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm0_p/LATAM_adm0_jamaica_p.gpkg", delete_layer = TRUE)
-# LATAM_adm0_western %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm0_p/LATAM_adm0_western_p.gpkg", delete_layer = TRUE)
-# # LATAM_adm0_northern %>%
-# #   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-# #   st_write("regions_adm0_p/LATAM_adm0_northern_p.gpkg", delete_layer = TRUE)
-# LATAM_adm0_brazil %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm0_p/LATAM_adm0_brazil_p.gpkg", delete_layer = TRUE)
-# LATAM_adm0_mexico %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm0_p/LATAM_adm0_mexico_p.gpkg", delete_layer = TRUE)
-# LATAM_adm0_bolivia %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm0_p/LATAM_adm0_bolivia_p.gpkg", delete_layer = TRUE)
-# LATAM_adm0_colombia %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm0_p/LATAM_adm0_colombia_p.gpkg", delete_layer = TRUE)
-# LATAM_adm0_guyana %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm0_p/LATAM_adm0_guyana_p.gpkg", delete_layer = TRUE)
-# LATAM_adm0_salvador %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm0_p/LATAM_adm0_salvador_p.gpkg", delete_layer = TRUE)
-# 
-#   
-# # # Sub admin_regions #1
-# LATAM_adm1_southern <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% LATAM_adm0_southern$GID_0) %>% mutate(ID = 1:nrow(.))
-# LATAM_adm1_CA <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% LATAM_adm0_CA$GID_0) %>% mutate(ID = 1:nrow(.))
-# LATAM_adm1_espanhola <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% LATAM_adm0_espanhola$GID_0) %>% mutate(ID = 1:nrow(.))
-# LATAM_adm1_jamaica <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% LATAM_adm0_jamaica$GID_0) %>% mutate(ID = 1:nrow(.))
-# LATAM_adm1_western <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% LATAM_adm0_western$GID_0) %>% mutate(ID = 1:nrow(.))
-# # LATAM_adm1_northern <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% LATAM_adm0_northern$GID_0) %>% mutate(ID = 1:nrow(.))
-# LATAM_adm1_brazil <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% LATAM_adm0_brazil$GID_0) %>% mutate(ID = 1:nrow(.))
-# LATAM_adm1_mexico <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% LATAM_adm0_mexico$GID_0) %>% mutate(ID = 1:nrow(.))
-# LATAM_adm1_bolivia <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% LATAM_adm0_bolivia$GID_0) %>% mutate(ID = 1:nrow(.))
-# LATAM_adm1_colombia <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% LATAM_adm0_colombia$GID_0) %>% mutate(ID = 1:nrow(.))
-# LATAM_adm1_guyana <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% LATAM_adm0_guyana$GID_0) %>% mutate(ID = 1:nrow(.))
-# LATAM_adm1_salvador <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% LATAM_adm0_salvador$GID_0) %>% mutate(ID = 1:nrow(.))
-# 
-# # Saves each region separatedly for level 1
-# st_write(LATAM_adm1_southern, "regions_adm1/LATAM_adm1_southern.gpkg", delete_layer = TRUE)
-# st_write(LATAM_adm1_CA, "regions_adm1/LATAM_adm1_CA.gpkg", delete_layer = TRUE)
-# st_write(LATAM_adm1_espanhola, "regions_adm1/LATAM_adm1_espanhola.gpkg", delete_layer = TRUE)
-# st_write(LATAM_adm1_jamaica, "regions_adm1/LATAM_adm1_jamaica.gpkg", delete_layer = TRUE)
-# st_write(LATAM_adm1_western, "regions_adm1/LATAM_adm1_western.gpkg", delete_layer = TRUE)
-# # st_write(LATAM_adm1_northern, "regions_adm1/LATAM_adm1_northern.gpkg", delete_layer = TRUE)
-# st_write(LATAM_adm1_brazil, "regions_adm1/LATAM_adm1_brazil.gpkg", delete_layer = TRUE)
-# st_write(LATAM_adm1_mexico, "regions_adm1/LATAM_adm1_mexico.gpkg", delete_layer = TRUE)
-# st_write(LATAM_adm1_bolivia, "regions_adm1/LATAM_adm1_bolivia.gpkg", delete_layer = TRUE)
-# st_write(LATAM_adm1_colombia, "regions_adm1/LATAM_adm1_colombia.gpkg", delete_layer = TRUE)
-# st_write(LATAM_adm1_guyana, "regions_adm1/LATAM_adm1_guyana.gpkg", delete_layer = TRUE)
-# st_write(LATAM_adm1_salvador, "regions_adm1/LATAM_adm1_salvador.gpkg", delete_layer = TRUE)
-# 
-# LATAM_adm1_southern %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm1_p/LATAM_adm1_southern_p.gpkg", delete_layer = TRUE)
-# LATAM_adm1_CA %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm1_p/LATAM_adm1_CA_p.gpkg", delete_layer = TRUE)
-# LATAM_adm1_espanhola %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm1_p/LATAM_adm1_espanhola_p.gpkg", delete_layer = TRUE)
-# LATAM_adm1_jamaica %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm1_p/LATAM_adm1_jamaica_p.gpkg", delete_layer = TRUE)
-# LATAM_adm1_western %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm1_p/LATAM_adm1_western_p.gpkg", delete_layer = TRUE)
-# # LATAM_adm1_northern %>%
-# #   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-# #   st_write("regions_adm1_p/LATAM_adm1_northern_p.gpkg", delete_layer = TRUE)
-# LATAM_adm1_brazil %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm1_p/LATAM_adm1_brazil_p.gpkg", delete_layer = TRUE)
-# LATAM_adm1_mexico %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm1_p/LATAM_adm1_mexico_p.gpkg", delete_layer = TRUE)
-# LATAM_adm1_bolivia %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm1_p/LATAM_adm1_bolivia_p.gpkg", delete_layer = TRUE)
-# LATAM_adm1_colombia %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm1_p/LATAM_adm1_colombia_p.gpkg", delete_layer = TRUE)
-# LATAM_adm1_guyana %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm1_p/LATAM_adm1_guyana_p.gpkg", delete_layer = TRUE)
-# LATAM_adm1_salvador %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm1_p/LATAM_adm1_salvador_p.gpkg", delete_layer = TRUE)
-# 
-# # Sub admin_regions #2
-# LATAM_adm2_southern <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% LATAM_adm0_southern$GID_0) %>% mutate(ID = 1:nrow(.)) 
-# LATAM_adm2_CA <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% LATAM_adm0_CA$GID_0) %>% mutate(ID = 1:nrow(.))
-# LATAM_adm2_espanhola <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% LATAM_adm0_espanhola$GID_0) %>% mutate(ID = 1:nrow(.))
-# # LATAM_adm2_jamaica <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% LATAM_adm0_jamaica$GID_0) %>% mutate(ID = 1:nrow(.))
-# LATAM_adm2_jamaica <- LATAM_adm1_jamaica %>% # Saving ADM1 for Jamaica! cause no ADM2 available
-#   dplyr::mutate(GID_2 = GID_1,
-#                 NAME_2 = NAME_1)
-# LATAM_adm2_western <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% LATAM_adm0_western$GID_0) %>% mutate(ID = 1:nrow(.))
-# # LATAM_adm2_northern <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% LATAM_adm0_northern$GID_0) %>% mutate(ID = 1:nrow(.))
-# LATAM_adm2_brazil <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% LATAM_adm0_brazil$GID_0) %>% mutate(ID = 1:nrow(.))
-# LATAM_adm2_mexico <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% LATAM_adm0_mexico$GID_0) %>% mutate(ID = 1:nrow(.))
-# LATAM_adm2_bolivia <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% LATAM_adm0_bolivia$GID_0) %>% mutate(ID = 1:nrow(.))
-# LATAM_adm2_colombia <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% LATAM_adm0_colombia$GID_0) %>% mutate(ID = 1:nrow(.))
-# LATAM_adm2_guyana <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% LATAM_adm0_guyana$GID_0) %>% mutate(ID = 1:nrow(.))
-# LATAM_adm2_salvador <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% LATAM_adm0_salvador$GID_0) %>% mutate(ID = 1:nrow(.))
-# 
-# # Saves each region separatedly for level 2
-# st_write(LATAM_adm2_southern, "regions_adm2/LATAM_adm2_southern.gpkg", delete_layer = TRUE)
-# st_write(LATAM_adm2_CA, "regions_adm2/LATAM_adm2_CA.gpkg", delete_layer = TRUE)
-# st_write(LATAM_adm2_espanhola, "regions_adm2/LATAM_adm2_espanhola.gpkg", delete_layer = TRUE)
-# st_write(LATAM_adm2_jamaica, "regions_adm2/LATAM_adm2_jamaica.gpkg", delete_layer = TRUE) 
-# st_write(LATAM_adm2_western, "regions_adm2/LATAM_adm2_western.gpkg", delete_layer = TRUE)
-# # st_write(LATAM_adm2_northern, "regions_adm2/LATAM_adm2_northern.gpkg", delete_layer = TRUE)
-# st_write(LATAM_adm2_brazil, "regions_adm2/LATAM_adm2_brazil.gpkg", delete_layer = TRUE)
-# st_write(LATAM_adm2_mexico, "regions_adm2/LATAM_adm2_mexico.gpkg", delete_layer = TRUE)
-# st_write(LATAM_adm2_bolivia, "regions_adm2/LATAM_adm2_bolivia.gpkg", delete_layer = TRUE)
-# st_write(LATAM_adm2_colombia, "regions_adm2/LATAM_adm2_colombia.gpkg", delete_layer = TRUE)
-# st_write(LATAM_adm2_guyana, "regions_adm2/LATAM_adm2_guyana.gpkg", delete_layer = TRUE)
-# st_write(LATAM_adm2_salvador, "regions_adm2/LATAM_adm2_salvador.gpkg", delete_layer = TRUE)
-# 
-# LATAM_adm2_southern %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm2_p/LATAM_adm2_southern_p.gpkg", delete_layer = TRUE)
-# LATAM_adm2_CA %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm2_p/LATAM_adm2_CA_p.gpkg", delete_layer = TRUE)
-# LATAM_adm2_espanhola %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm2_p/LATAM_adm2_espanhola_p.gpkg", delete_layer = TRUE)
-# LATAM_adm2_jamaica %>% # Saving ADM1 for Jamaica! cause no ADM2 available
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm2_p/LATAM_adm2_jamaica_p.gpkg", delete_layer = TRUE) 
-# LATAM_adm2_western %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm2_p/LATAM_adm2_western_p.gpkg", delete_layer = TRUE)
-# # LATAM_adm2_northern %>%
-# #   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-# #   st_write("regions_adm2_p/LATAM_adm2_northern_p.gpkg", delete_layer = TRUE)
-# LATAM_adm2_brazil %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm2_p/LATAM_adm2_brazil_p.gpkg", delete_layer = TRUE)
-# LATAM_adm2_mexico %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm2_p/LATAM_adm2_mexico_p.gpkg", delete_layer = TRUE)
-# LATAM_adm2_bolivia %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm2_p/LATAM_adm2_bolivia_p.gpkg", delete_layer = TRUE)
-# LATAM_adm2_colombia %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm2_p/LATAM_adm2_colombia_p.gpkg", delete_layer = TRUE)
-# LATAM_adm2_guyana %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm2_p/LATAM_adm2_guyana_p.gpkg", delete_layer = TRUE)
-# LATAM_adm2_salvador %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm2_p/LATAM_adm2_salvador_p.gpkg", delete_layer = TRUE)
-# 
-# # Asia ----
-# # subregionsASIA <- read_excel("subregionsASIA_v5.xlsx")
-# subregionsASIA <- read_csv(subregionsASIA_v)
-# subregionsASIA
-# unique(subregionsASIA$Subregion)
-# unique(subregionsASIA$NAME_0)
-# unique(ASIA_adm0$NAME_0)
-# 
-# ASIA_adm0_subregions <- ASIA_adm0 %>% 
-#   right_join(subregionsASIA, by = "GID_0") %>%
-#   dplyr::select (-NAME_0.y) %>% 
-#   dplyr::rename(NAME_0 = NAME_0.x) %>%
-#   filter(!is.na(NAME_0))
-# ASIA_adm0_subregions %>% st_drop_geometry()
-# ASIA_adm0 %>% st_drop_geometry()
-# 
-# ASIA_adm0_subregions
-# unique(subregionsASIA$Subregion)
-# unique(ASIA_adm0$NAME_0)
-# 
-# # Build regions
-# ASIA_adm0_central <- ASIA_adm0_subregions %>% dplyr::filter(Subregion %in% "Central Asia") %>% mutate(ID = 1:nrow(.))
-# ASIA_adm0_central$mofuss_reg <- "ASIA_adm0_central"
-# ASIA_adm0_india <- ASIA_adm0_subregions %>% dplyr::filter(Subregion %in% "India") %>% mutate(ID = 1:nrow(.))
-# ASIA_adm0_india$mofuss_reg <- "ASIA_adm0_india"
-# ASIA_adm0_seasia <- ASIA_adm0_subregions %>% dplyr::filter(Subregion %in% "SEAsia") %>% mutate(ID = 1:nrow(.))
-# ASIA_adm0_seasia$mofuss_reg <- "ASIA_adm0_seasia"
-# ASIA_adm0_china <- ASIA_adm0_subregions %>% dplyr::filter(Subregion %in% "China") %>% mutate(ID = 1:nrow(.))
-# ASIA_adm0_china$mofuss_reg <- "ASIA_adm0_china"
-# ASIA_adm0_mongolia <- ASIA_adm0_subregions %>% dplyr::filter(Subregion %in% "Mongolia") %>% mutate(ID = 1:nrow(.))
-# ASIA_adm0_mongolia$mofuss_reg <- "ASIA_adm0_mongolia"
-# ASIA_adm0_middleeast <- ASIA_adm0_subregions %>% dplyr::filter(Subregion %in% "Middle East") %>% mutate(ID = 1:nrow(.))
-# ASIA_adm0_middleeast$mofuss_reg <- "ASIA_adm0_middleeast"
-# ASIA_adm0_srilanka <- ASIA_adm0_subregions %>% dplyr::filter(Subregion %in% "Sri Lanka") %>% mutate(ID = 1:nrow(.))
-# ASIA_adm0_srilanka$mofuss_reg <- "ASIA_adm0_srilanka"
-# ASIA_adm0_indonesia <- ASIA_adm0_subregions %>% dplyr::filter(Subregion %in% "Indonesia") %>% mutate(ID = 1:nrow(.))
-# ASIA_adm0_indonesia$mofuss_reg <- "ASIA_adm0_indonesia"
-# ASIA_adm0_malaysia <- ASIA_adm0_subregions %>% dplyr::filter(Subregion %in% "Malaysia") %>% mutate(ID = 1:nrow(.))
-# ASIA_adm0_malaysia$mofuss_reg <- "ASIA_adm0_malaysia"
-# ASIA_adm0_philippines <- ASIA_adm0_subregions %>% dplyr::filter(Subregion %in% "Philippines") %>% mutate(ID = 1:nrow(.))
-# ASIA_adm0_philippines$mofuss_reg <- "ASIA_adm0_philippines"
-# ASIA_adm0_timorleste <- ASIA_adm0_subregions %>% dplyr::filter(Subregion %in% "Timor-Leste") %>% mutate(ID = 1:nrow(.))
-# ASIA_adm0_timorleste$mofuss_reg <- "ASIA_adm0_timorleste"
-# ASIA_adm0_bangladesh <- ASIA_adm0_subregions %>% dplyr::filter(Subregion %in% "Bangladesh") %>% mutate(ID = 1:nrow(.))
-# ASIA_adm0_bangladesh$mofuss_reg <- "ASIA_adm0_bangladesh"
-# ASIA_adm0_bhutan <- ASIA_adm0_subregions %>% dplyr::filter(Subregion %in% "Bhutan") %>% mutate(ID = 1:nrow(.))
-# ASIA_adm0_bhutan$mofuss_reg <- "ASIA_adm0_bhutan"
-# ASIA_adm0_nepal <- ASIA_adm0_subregions %>% dplyr::filter(Subregion %in% "Nepal") %>% mutate(ID = 1:nrow(.))
-# ASIA_adm0_nepal$mofuss_reg <- "ASIA_adm0_nepal"
-# ASIA_adm0_myanmar <- ASIA_adm0_subregions %>% dplyr::filter(Subregion %in% "Myanmar") %>% mutate(ID = 1:nrow(.))
-# ASIA_adm0_myanmar$mofuss_reg <- "ASIA_adm0_myanmar"
-# ASIA_adm0_pakistan <- ASIA_adm0_subregions %>% dplyr::filter(Subregion %in% "Pakistan") %>% mutate(ID = 1:nrow(.))
-# ASIA_adm0_pakistan$mofuss_reg <- "ASIA_adm0_pakistan"
-# 
-# # Saves each region separatedly for level 0
-# st_write(ASIA_adm0_central, "regions_adm0/ASIA_adm0_central.gpkg", delete_layer = TRUE)
-# st_write(ASIA_adm0_india, "regions_adm0/ASIA_adm0_india.gpkg", delete_layer = TRUE)
-# st_write(ASIA_adm0_seasia, "regions_adm0/ASIA_adm0_seasia.gpkg", delete_layer = TRUE)
-# st_write(ASIA_adm0_china, "regions_adm0/ASIA_adm0_china.gpkg", delete_layer = TRUE)
-# st_write(ASIA_adm0_mongolia, "regions_adm0/ASIA_adm0_mongolia.gpkg", delete_layer = TRUE)
-# st_write(ASIA_adm0_middleeast, "regions_adm0/ASIA_adm0_middleeast.gpkg", delete_layer = TRUE)
-# st_write(ASIA_adm0_srilanka, "regions_adm0/ASIA_adm0_srilanka.gpkg", delete_layer = TRUE)
-# st_write(ASIA_adm0_indonesia, "regions_adm0/ASIA_adm0_indonesia.gpkg", delete_layer = TRUE)
-# st_write(ASIA_adm0_malaysia, "regions_adm0/ASIA_adm0_malaysia.gpkg", delete_layer = TRUE)
-# st_write(ASIA_adm0_philippines, "regions_adm0/ASIA_adm0_philippines.gpkg", delete_layer = TRUE)
-# st_write(ASIA_adm0_timorleste, "regions_adm0/ASIA_adm0_timorleste.gpkg", delete_layer = TRUE)
-# st_write(ASIA_adm0_bangladesh, "regions_adm0/ASIA_adm0_bangladesh.gpkg", delete_layer = TRUE)
-# st_write(ASIA_adm0_bhutan, "regions_adm0/ASIA_adm0_bhutan.gpkg", delete_layer = TRUE)
-# st_write(ASIA_adm0_nepal, "regions_adm0/ASIA_adm0_nepal.gpkg", delete_layer = TRUE)
-# st_write(ASIA_adm0_myanmar, "regions_adm0/ASIA_adm0_myanmar.gpkg", delete_layer = TRUE)
-# st_write(ASIA_adm0_pakistan, "regions_adm0/ASIA_adm0_pakistan.gpkg", delete_layer = TRUE)
-# 
-# unique(ASIA_adm0_seasia$GID_0)
-# 
-# ASIA_adm0_central %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm0_p/ASIA_adm0_central_p.gpkg", delete_layer = TRUE)
-# ASIA_adm0_india %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm0_p/ASIA_adm0_india_p.gpkg", delete_layer = TRUE)
-# ASIA_adm0_seasia %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm0_p/ASIA_adm0_seasia_p.gpkg", delete_layer = TRUE)
-# ASIA_adm0_china %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm0_p/ASIA_adm0_china_p.gpkg", delete_layer = TRUE)
-# ASIA_adm0_mongolia %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm0_p/ASIA_adm0_mongolia_p.gpkg", delete_layer = TRUE)
-# ASIA_adm0_middleeast %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm0_p/ASIA_adm0_middleeast_p.gpkg", delete_layer = TRUE)
-# ASIA_adm0_srilanka %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm0_p/ASIA_adm0_srilanka_p.gpkg", delete_layer = TRUE)
-# ASIA_adm0_indonesia %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm0_p/ASIA_adm0_indonesia_p.gpkg", delete_layer = TRUE)
-# ASIA_adm0_malaysia %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm0_p/ASIA_adm0_malaysia_p.gpkg", delete_layer = TRUE)
-# ASIA_adm0_philippines %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm0_p/ASIA_adm0_philippines_p.gpkg", delete_layer = TRUE)
-# ASIA_adm0_timorleste %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm0_p/ASIA_adm0_timorleste_p.gpkg", delete_layer = TRUE)
-# ASIA_adm0_bangladesh %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm0_p/ASIA_adm0_bangladesh_p.gpkg", delete_layer = TRUE)
-# ASIA_adm0_bhutan %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm0_p/ASIA_adm0_bhutan_p.gpkg", delete_layer = TRUE)
-# ASIA_adm0_nepal %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm0_p/ASIA_adm0_nepal_p.gpkg", delete_layer = TRUE)
-# ASIA_adm0_myanmar %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm0_p/ASIA_adm0_myanmar_p.gpkg", delete_layer = TRUE)
-# ASIA_adm0_pakistan %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm0_p/ASIA_adm0_pakistan_p.gpkg", delete_layer = TRUE)
-# 
-# # # Sub admin_regions #1
-# ASIA_adm1_central <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% ASIA_adm0_central$GID_0) %>% mutate(ID = 1:nrow(.))
-# ASIA_adm1_india <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% ASIA_adm0_india$GID_0) %>% mutate(ID = 1:nrow(.))
-# ASIA_adm1_seasia <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% ASIA_adm0_seasia$GID_0) %>% mutate(ID = 1:nrow(.))
-# ASIA_adm1_china <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% ASIA_adm0_china$GID_0) %>% mutate(ID = 1:nrow(.))
-# ASIA_adm1_mongolia <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% ASIA_adm0_mongolia$GID_0) %>% mutate(ID = 1:nrow(.))
-# ASIA_adm1_middleeast <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% ASIA_adm0_middleeast$GID_0) %>% mutate(ID = 1:nrow(.))
-# ASIA_adm1_srilanka <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% ASIA_adm0_srilanka$GID_0) %>% mutate(ID = 1:nrow(.))
-# ASIA_adm1_indonesia <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% ASIA_adm0_indonesia$GID_0) %>% mutate(ID = 1:nrow(.))
-# ASIA_adm1_malaysia <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% ASIA_adm0_malaysia$GID_0) %>% mutate(ID = 1:nrow(.))
-# ASIA_adm1_philippines <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% ASIA_adm0_philippines$GID_0) %>% mutate(ID = 1:nrow(.))
-# ASIA_adm1_timorleste <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% ASIA_adm0_timorleste$GID_0) %>% mutate(ID = 1:nrow(.))
-# ASIA_adm1_bangladesh <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% ASIA_adm0_bangladesh$GID_0) %>% mutate(ID = 1:nrow(.))
-# ASIA_adm1_bhutan <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% ASIA_adm0_bhutan$GID_0) %>% mutate(ID = 1:nrow(.))
-# ASIA_adm1_nepal <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% ASIA_adm0_nepal$GID_0) %>% mutate(ID = 1:nrow(.))
-# ASIA_adm1_myanmar <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% ASIA_adm0_myanmar$GID_0) %>% mutate(ID = 1:nrow(.))
-# ASIA_adm1_pakistan <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% ASIA_adm0_pakistan$GID_0) %>% mutate(ID = 1:nrow(.))
-# 
-# # Saves each region separatedly for level 1
-# st_write(ASIA_adm1_central, "regions_adm1/ASIA_adm1_central.gpkg", delete_layer = TRUE)
-# st_write(ASIA_adm1_india, "regions_adm1/ASIA_adm1_india.gpkg", delete_layer = TRUE)
-# st_write(ASIA_adm1_seasia, "regions_adm1/ASIA_adm1_seasia.gpkg", delete_layer = TRUE)
-# st_write(ASIA_adm1_china, "regions_adm1/ASIA_adm1_china.gpkg", delete_layer = TRUE)
-# st_write(ASIA_adm1_mongolia, "regions_adm1/ASIA_adm1_mongolia.gpkg", delete_layer = TRUE)
-# st_write(ASIA_adm1_middleeast, "regions_adm1/ASIA_adm1_middleeast.gpkg", delete_layer = TRUE)
-# st_write(ASIA_adm1_srilanka, "regions_adm1/ASIA_adm1_srilanka.gpkg", delete_layer = TRUE)
-# st_write(ASIA_adm1_indonesia, "regions_adm1/ASIA_adm1_indonesia.gpkg", delete_layer = TRUE)
-# st_write(ASIA_adm1_malaysia, "regions_adm1/ASIA_adm1_malaysia.gpkg", delete_layer = TRUE)
-# st_write(ASIA_adm1_philippines, "regions_adm1/ASIA_adm1_philippines.gpkg", delete_layer = TRUE)
-# st_write(ASIA_adm1_timorleste, "regions_adm1/ASIA_adm1_timorleste.gpkg", delete_layer = TRUE)
-# st_write(ASIA_adm1_bangladesh, "regions_adm1/ASIA_adm1_bangladesh.gpkg", delete_layer = TRUE)
-# st_write(ASIA_adm1_bhutan, "regions_adm1/ASIA_adm1_bhutan.gpkg", delete_layer = TRUE)
-# st_write(ASIA_adm1_nepal, "regions_adm1/ASIA_adm1_nepal.gpkg", delete_layer = TRUE)
-# st_write(ASIA_adm1_myanmar, "regions_adm1/ASIA_adm1_myanmar.gpkg", delete_layer = TRUE)
-# st_write(ASIA_adm1_pakistan, "regions_adm1/ASIA_adm1_pakistan.gpkg", delete_layer = TRUE)
-# 
-# ASIA_adm1_central %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm1_p/ASIA_adm1_central_p.gpkg", delete_layer = TRUE)
-# ASIA_adm1_india %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm1_p/ASIA_adm1_india_p.gpkg", delete_layer = TRUE)
-# ASIA_adm1_seasia %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm1_p/ASIA_adm1_seasia_p.gpkg", delete_layer = TRUE)
-# ASIA_adm1_china %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm1_p/ASIA_adm1_china_p.gpkg", delete_layer = TRUE)
-# ASIA_adm1_mongolia %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm1_p/ASIA_adm1_mongolia_p.gpkg", delete_layer = TRUE)
-# ASIA_adm1_middleeast %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm1_p/ASIA_adm1_middleeast_p.gpkg", delete_layer = TRUE)
-# ASIA_adm1_srilanka %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm1_p/ASIA_adm1_srilanka_p.gpkg", delete_layer = TRUE)
-# ASIA_adm1_indonesia %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm1_p/ASIA_adm1_indonesia_p.gpkg", delete_layer = TRUE)
-# ASIA_adm1_malaysia %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm1_p/ASIA_adm1_malaysia_p.gpkg", delete_layer = TRUE)
-# ASIA_adm1_philippines %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm1_p/ASIA_adm1_philippines_p.gpkg", delete_layer = TRUE)
-# ASIA_adm1_timorleste %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm1_p/ASIA_adm1_timorleste_p.gpkg", delete_layer = TRUE)
-# ASIA_adm1_bangladesh %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm1_p/ASIA_adm1_bangladesh_p.gpkg", delete_layer = TRUE)
-# ASIA_adm1_bhutan %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm1_p/ASIA_adm1_bhutan_p.gpkg", delete_layer = TRUE)
-# ASIA_adm1_nepal %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm1_p/ASIA_adm1_nepal_p.gpkg", delete_layer = TRUE)
-# ASIA_adm1_myanmar %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm1_p/ASIA_adm1_myanmar_p.gpkg", delete_layer = TRUE)
-# ASIA_adm1_pakistan %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm1_p/ASIA_adm1_pakistan_p.gpkg", delete_layer = TRUE)
-# 
-# # # Sub admin_regions #2
-# ASIA_adm2_central <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% ASIA_adm0_central$GID_0) %>% mutate(ID = 1:nrow(.))
-# ASIA_adm2_india <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% ASIA_adm0_india$GID_0) %>% mutate(ID = 1:nrow(.))
-# ASIA_adm2_seasia <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% ASIA_adm0_seasia$GID_0) %>% mutate(ID = 1:nrow(.))
-# ASIA_adm2_china <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% ASIA_adm0_china$GID_0) %>% mutate(ID = 1:nrow(.))
-# ASIA_adm2_mongolia <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% ASIA_adm0_mongolia$GID_0) %>% mutate(ID = 1:nrow(.))
-# ASIA_adm2_middleeast <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% ASIA_adm0_middleeast$GID_0) %>% mutate(ID = 1:nrow(.))
-# ASIA_adm2_srilanka <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% ASIA_adm0_srilanka$GID_0) %>% mutate(ID = 1:nrow(.))
-# ASIA_adm2_indonesia <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% ASIA_adm0_indonesia$GID_0) %>% mutate(ID = 1:nrow(.))
-# ASIA_adm2_malaysia <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% ASIA_adm0_malaysia$GID_0) %>% mutate(ID = 1:nrow(.))
-# ASIA_adm2_philippines <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% ASIA_adm0_philippines$GID_0) %>% mutate(ID = 1:nrow(.))
-# ASIA_adm2_timorleste <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% ASIA_adm0_timorleste$GID_0) %>% mutate(ID = 1:nrow(.))
-# ASIA_adm2_bangladesh <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% ASIA_adm0_bangladesh$GID_0) %>% mutate(ID = 1:nrow(.))
-# ASIA_adm2_bhutan <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% ASIA_adm0_bhutan$GID_0) %>% mutate(ID = 1:nrow(.))
-# ASIA_adm2_nepal <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% ASIA_adm0_nepal$GID_0) %>% mutate(ID = 1:nrow(.))
-# ASIA_adm2_myanmar <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% ASIA_adm0_myanmar$GID_0) %>% mutate(ID = 1:nrow(.))
-# ASIA_adm2_pakistan <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% ASIA_adm0_pakistan$GID_0) %>% mutate(ID = 1:nrow(.))
-# 
-# # Saves each region separatedly for level 2
-# st_write(ASIA_adm2_central, "regions_adm2/ASIA_adm2_central.gpkg", delete_layer = TRUE)
-# st_write(ASIA_adm2_india, "regions_adm2/ASIA_adm2_india.gpkg", delete_layer = TRUE)
-# st_write(ASIA_adm2_seasia, "regions_adm2/ASIA_adm2_seasia.gpkg", delete_layer = TRUE)
-# st_write(ASIA_adm2_china, "regions_adm2/ASIA_adm2_china.gpkg", delete_layer = TRUE)
-# st_write(ASIA_adm2_mongolia, "regions_adm2/ASIA_adm2_mongolia.gpkg", delete_layer = TRUE)
-# st_write(ASIA_adm2_middleeast, "regions_adm2/ASIA_adm2_middleeast.gpkg", delete_layer = TRUE)
-# st_write(ASIA_adm2_srilanka, "regions_adm2/ASIA_adm2_srilanka.gpkg", delete_layer = TRUE)
-# st_write(ASIA_adm2_indonesia, "regions_adm2/ASIA_adm2_indonesia.gpkg", delete_layer = TRUE)
-# st_write(ASIA_adm2_malaysia, "regions_adm2/ASIA_adm2_malaysia.gpkg", delete_layer = TRUE)
-# st_write(ASIA_adm2_philippines, "regions_adm2/ASIA_adm2_philippines.gpkg", delete_layer = TRUE)
-# st_write(ASIA_adm2_timorleste, "regions_adm2/ASIA_adm2_timorleste.gpkg", delete_layer = TRUE)
-# st_write(ASIA_adm2_bangladesh, "regions_adm2/ASIA_adm2_bangladesh.gpkg", delete_layer = TRUE)
-# st_write(ASIA_adm2_bhutan, "regions_adm2/ASIA_adm2_bhutan.gpkg", delete_layer = TRUE)
-# st_write(ASIA_adm2_nepal, "regions_adm2/ASIA_adm2_nepal.gpkg", delete_layer = TRUE)
-# st_write(ASIA_adm2_myanmar, "regions_adm2/ASIA_adm2_myanmar.gpkg", delete_layer = TRUE)
-# st_write(ASIA_adm2_pakistan, "regions_adm2/ASIA_adm2_pakistan.gpkg", delete_layer = TRUE)
-# 
-# ASIA_adm2_central %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm2_p/ASIA_adm2_central_p.gpkg", delete_layer = TRUE)
-# ASIA_adm2_india %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm2_p/ASIA_adm2_india_p.gpkg", delete_layer = TRUE)
-# ASIA_adm2_seasia %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm2_p/ASIA_adm2_seasia_p.gpkg", delete_layer = TRUE)
-# ASIA_adm2_china %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm2_p/ASIA_adm2_china_p.gpkg", delete_layer = TRUE)
-# ASIA_adm2_mongolia %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm2_p/ASIA_adm2_mongolia_p.gpkg", delete_layer = TRUE)
-# ASIA_adm2_middleeast %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm2_p/ASIA_adm2_middleeast_p.gpkg", delete_layer = TRUE)
-# ASIA_adm2_srilanka %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm2_p/ASIA_adm2_srilanka_p.gpkg", delete_layer = TRUE)
-# ASIA_adm2_indonesia %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm2_p/ASIA_adm2_indonesia_p.gpkg", delete_layer = TRUE)
-# ASIA_adm2_malaysia %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm2_p/ASIA_adm2_malaysia_p.gpkg", delete_layer = TRUE)
-# ASIA_adm2_philippines %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm2_p/ASIA_adm2_philippines_p.gpkg", delete_layer = TRUE)
-# ASIA_adm2_timorleste %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm2_p/ASIA_adm2_timorleste_p.gpkg", delete_layer = TRUE)
-# ASIA_adm2_bangladesh %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm2_p/ASIA_adm2_bangladesh_p.gpkg", delete_layer = TRUE)
-# ASIA_adm2_bhutan %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm2_p/ASIA_adm2_bhutan_p.gpkg", delete_layer = TRUE)
-# ASIA_adm2_nepal %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm2_p/ASIA_adm2_nepal_p.gpkg", delete_layer = TRUE)
-# ASIA_adm2_myanmar %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm2_p/ASIA_adm2_myanmar_p.gpkg", delete_layer = TRUE)
-# ASIA_adm2_pakistan %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm2_p/ASIA_adm2_pakistan_p.gpkg", delete_layer = TRUE)
-# 
-# # Oceania----
-# # subregionsOCEANIA <- read_excel("subregionsOCEANIA.xlsx")
-# subregionsOCEANIA <- read_csv(subregionsOCEANIA_v)
-# subregionsOCEANIA
-# unique(subregionsOCEANIA$Subregion)
-# unique(subregionsOCEANIA$NAME_0)
-# unique(OCEANIA_adm0$NAME_0)
-# 
-# OCEANIA_adm0_subregions <- OCEANIA_adm0 %>% 
-#   right_join(subregionsOCEANIA, by = "GID_0") %>%
-#   dplyr::select (-NAME_0.y) %>% 
-#   dplyr::rename(NAME_0 = NAME_0.x) %>%
-#   filter(!is.na(NAME_0))
-# OCEANIA_adm0_subregions %>% st_drop_geometry()
-# OCEANIA_adm0 %>% st_drop_geometry()
-# 
-# OCEANIA_adm0_subregions
-# unique(subregionsOCEANIA$Subregion)
-# unique(OCEANIA_adm0$NAME_0)
-# 
-# # Build regions
-# OCEANIA_adm0_papuanewguinea <- OCEANIA_adm0_subregions %>% dplyr::filter(Subregion %in% "Papua New Guinea") %>% mutate(ID = 1:nrow(.))
-# OCEANIA_adm0_papuanewguinea$mofuss_reg <- "OCEANIA_adm0_papuanewguinea"
-# 
-# # Saves each region separatedly for level 0
-# st_write(OCEANIA_adm0_papuanewguinea, "regions_adm0/OCEANIA_adm0_papuanewguinea.gpkg", delete_layer = TRUE)
-# 
-# OCEANIA_adm0_papuanewguinea %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm0_p/OCEANIA_adm0_papuanewguinea_p.gpkg", delete_layer = TRUE)
-# 
-# # # Sub admin_regions #1
-# OCEANIA_adm1_papuanewguinea <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% OCEANIA_adm0_papuanewguinea$GID_0) %>% mutate(ID = 1:nrow(.))
-# 
-# # Saves each region separatedly for level 1
-# st_write(OCEANIA_adm1_papuanewguinea, "regions_adm1/OCEANIA_adm1_papuanewguinea.gpkg", delete_layer = TRUE)
-# 
-# OCEANIA_adm1_papuanewguinea %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm1_p/OCEANIA_adm1_papuanewguinea_p.gpkg", delete_layer = TRUE)
-# 
-# # # Sub admin_regions #2
-# OCEANIA_adm2_papuanewguinea <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% OCEANIA_adm0_papuanewguinea$GID_0) %>% mutate(ID = 1:nrow(.))
-# 
-# # Saves each region separatedly for level 2
-# st_write(OCEANIA_adm2_papuanewguinea, "regions_adm2/OCEANIA_adm2_papuanewguinea.gpkg", delete_layer = TRUE)
-# 
-# OCEANIA_adm2_papuanewguinea %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm2_p/OCEANIA_adm2_papuanewguinea_p.gpkg", delete_layer = TRUE)
-# 
-# # North Africa ----
-# # subregionsNorAfr <- read_excel("subregionsNorAfri_v3.xlsx")
-# subregionsNorAfr <- read_csv(subregionsNorAfri_v)
-# subregionsNorAfr
-# unique(subregionsNorAfr$Subregion)
-# unique(NorAfr_adm0$NAME_0)
-# 
-# NorAfr_adm0_subregions <- NorAfr_adm0 %>% 
-#   right_join(subregionsNorAfr, by = "GID_0") %>%
-#   dplyr::select (-NAME_0.y) %>% 
-#   dplyr::rename(NAME_0 = NAME_0.x) %>%
-#   filter(!is.na(NAME_0))
-# NorAfr_adm0_subregions %>% st_drop_geometry()
-# NorAfr_adm0 %>% st_drop_geometry()
-# 
-# # Build regions
-# NorAfr_adm0_west <- NorAfr_adm0_subregions %>% dplyr::filter(Subregion %in% "Northern Africa") %>% mutate(ID = 1:nrow(.))
-# NorAfr_adm0_west$mofuss_reg <- "NorAfr_adm0_west"
-# 
-# # Saves each region separatedly for level 0
-# st_write(NorAfr_adm0_west, "regions_adm0/NorAfr_adm0_west.gpkg", delete_layer = TRUE)
-# 
-# NorAfr_adm0_west %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm0_p/NorAfr_adm0_west_p.gpkg", delete_layer = TRUE)
-# 
+# Americas ----
+# subregionsLATAM <- read_excel("subregionsLATAM_v3.xlsx")
+subregionsLATAM <- read_csv(subregionsLATAM_v)
+subregionsLATAM
+unique(subregionsLATAM$Subregion)
+
+LATAM_adm0_subregions <- LATAM_adm0 %>%
+  right_join(subregionsLATAM, by = "GID_0") %>%
+  dplyr::select (-NAME_0.y) %>%
+  dplyr::rename(NAME_0 = NAME_0.x) %>%
+  filter(!is.na(NAME_0))
+LATAM_adm0_subregions %>% st_drop_geometry()
+LATAM_adm0_subregions
+unique(subregionsLATAM$Subregion)
+# mapview(LATAM_adm0)
+unique(LATAM_adm0$NAME_0)
+
+# Build regions
+LATAM_adm0_southern <- LATAM_adm0_subregions %>% dplyr::filter(Subregion %in% "Southern LATAM") %>% mutate(ID = 1:nrow(.))
+LATAM_adm0_southern$mofuss_reg <- "LATAM_adm0_southern"
+LATAM_adm0_CA <- LATAM_adm0_subregions %>% dplyr::filter(Subregion %in% "Central America") %>% mutate(ID = 1:nrow(.))
+LATAM_adm0_CA$mofuss_reg <- "LATAM_adm0_CA"
+LATAM_adm0_espanhola <- LATAM_adm0_subregions %>% dplyr::filter(Subregion %in% "Espanhola") %>% mutate(ID = 1:nrow(.))
+LATAM_adm0_espanhola$mofuss_reg <- "LATAM_adm0_espanhola"
+LATAM_adm0_jamaica <- LATAM_adm0_subregions %>% dplyr::filter(Subregion %in% "Jamaica") %>% mutate(ID = 1:nrow(.))
+LATAM_adm0_jamaica$mofuss_reg <- "LATAM_adm0_jamaica"
+LATAM_adm0_western <- LATAM_adm0_subregions %>% dplyr::filter(Subregion %in% "Western LATAM") %>% mutate(ID = 1:nrow(.))
+LATAM_adm0_western$mofuss_reg <- "LATAM_adm0_western"
+LATAM_adm0_brazil <- LATAM_adm0_subregions %>% dplyr::filter(Subregion %in% "Brazil") %>% mutate(ID = 1:nrow(.))
+LATAM_adm0_brazil$mofuss_reg <- "LATAM_adm0_brazil"
+LATAM_adm0_mexico <- LATAM_adm0_subregions %>% dplyr::filter(Subregion %in% "Mexico") %>% mutate(ID = 1:nrow(.))
+LATAM_adm0_mexico$mofuss_reg <- "LATAM_adm0_mexico"
+LATAM_adm0_bolivia <- LATAM_adm0_subregions %>% dplyr::filter(Subregion %in% "Bolivia") %>% mutate(ID = 1:nrow(.))
+LATAM_adm0_bolivia$mofuss_reg <- "LATAM_adm0_bolivia"
+LATAM_adm0_colombia <- LATAM_adm0_subregions %>% dplyr::filter(Subregion %in% "Colombia") %>% mutate(ID = 1:nrow(.))
+LATAM_adm0_colombia$mofuss_reg <- "LATAM_adm0_colombia"
+LATAM_adm0_guyana <- LATAM_adm0_subregions %>% dplyr::filter(Subregion %in% "Guyana") %>% mutate(ID = 1:nrow(.))
+LATAM_adm0_guyana$mofuss_reg <- "LATAM_adm0_guyana"
+LATAM_adm0_salvador <- LATAM_adm0_subregions %>% dplyr::filter(Subregion %in% "El Salvador") %>% mutate(ID = 1:nrow(.))
+LATAM_adm0_salvador$mofuss_reg <- "LATAM_adm0_salvador"
+
+# Saves each region separatedly for level 0
+st_write(LATAM_adm0_southern, "regions_adm0/LATAM_adm0_southern.gpkg", delete_layer = TRUE)
+st_write(LATAM_adm0_CA, "regions_adm0/LATAM_adm0_CA.gpkg", delete_layer = TRUE)
+st_write(LATAM_adm0_espanhola, "regions_adm0/LATAM_adm0_espanhola.gpkg", delete_layer = TRUE)
+st_write(LATAM_adm0_jamaica, "regions_adm0/LATAM_adm0_jamaica.gpkg", delete_layer = TRUE)
+st_write(LATAM_adm0_western, "regions_adm0/LATAM_adm0_western.gpkg", delete_layer = TRUE)
+# st_write(LATAM_adm0_northern, "regions_adm0/LATAM_adm0_northern.gpkg", delete_layer = TRUE)
+st_write(LATAM_adm0_brazil, "regions_adm0/LATAM_adm0_brazil.gpkg", delete_layer = TRUE)
+st_write(LATAM_adm0_mexico, "regions_adm0/LATAM_adm0_mexico.gpkg", delete_layer = TRUE)
+st_write(LATAM_adm0_bolivia, "regions_adm0/LATAM_adm0_bolivia.gpkg", delete_layer = TRUE)
+st_write(LATAM_adm0_colombia, "regions_adm0/LATAM_adm0_colombia.gpkg", delete_layer = TRUE)
+st_write(LATAM_adm0_guyana, "regions_adm0/LATAM_adm0_guyana.gpkg", delete_layer = TRUE)
+st_write(LATAM_adm0_salvador, "regions_adm0/LATAM_adm0_salvador.gpkg", delete_layer = TRUE)
+
+LATAM_adm0_southern %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm0_p/LATAM_adm0_southern_p.gpkg", delete_layer = TRUE)
+LATAM_adm0_CA %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm0_p/LATAM_adm0_CA_p.gpkg", delete_layer = TRUE)
+LATAM_adm0_espanhola %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm0_p/LATAM_adm0_espanhola_p.gpkg", delete_layer = TRUE)
+LATAM_adm0_jamaica %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm0_p/LATAM_adm0_jamaica_p.gpkg", delete_layer = TRUE)
+LATAM_adm0_western %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm0_p/LATAM_adm0_western_p.gpkg", delete_layer = TRUE)
+# LATAM_adm0_northern %>%
+#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+#   st_write("regions_adm0_p/LATAM_adm0_northern_p.gpkg", delete_layer = TRUE)
+LATAM_adm0_brazil %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm0_p/LATAM_adm0_brazil_p.gpkg", delete_layer = TRUE)
+LATAM_adm0_mexico %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm0_p/LATAM_adm0_mexico_p.gpkg", delete_layer = TRUE)
+LATAM_adm0_bolivia %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm0_p/LATAM_adm0_bolivia_p.gpkg", delete_layer = TRUE)
+LATAM_adm0_colombia %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm0_p/LATAM_adm0_colombia_p.gpkg", delete_layer = TRUE)
+LATAM_adm0_guyana %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm0_p/LATAM_adm0_guyana_p.gpkg", delete_layer = TRUE)
+LATAM_adm0_salvador %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm0_p/LATAM_adm0_salvador_p.gpkg", delete_layer = TRUE)
+
+
 # # Sub admin_regions #1
-# NorAfr_adm1_west <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% NorAfr_adm0_west$GID_0) %>% mutate(ID = 1:nrow(.))
-# 
-# st_write(NorAfr_adm1_west, "regions_adm1/NorAfr_adm1_west.gpkg", delete_layer = TRUE)
-# 
-# NorAfr_adm1_west %>%
+LATAM_adm1_southern <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% LATAM_adm0_southern$GID_0) %>% mutate(ID = 1:nrow(.))
+LATAM_adm1_CA <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% LATAM_adm0_CA$GID_0) %>% mutate(ID = 1:nrow(.))
+LATAM_adm1_espanhola <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% LATAM_adm0_espanhola$GID_0) %>% mutate(ID = 1:nrow(.))
+LATAM_adm1_jamaica <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% LATAM_adm0_jamaica$GID_0) %>% mutate(ID = 1:nrow(.))
+LATAM_adm1_western <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% LATAM_adm0_western$GID_0) %>% mutate(ID = 1:nrow(.))
+# LATAM_adm1_northern <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% LATAM_adm0_northern$GID_0) %>% mutate(ID = 1:nrow(.))
+LATAM_adm1_brazil <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% LATAM_adm0_brazil$GID_0) %>% mutate(ID = 1:nrow(.))
+LATAM_adm1_mexico <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% LATAM_adm0_mexico$GID_0) %>% mutate(ID = 1:nrow(.))
+LATAM_adm1_bolivia <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% LATAM_adm0_bolivia$GID_0) %>% mutate(ID = 1:nrow(.))
+LATAM_adm1_colombia <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% LATAM_adm0_colombia$GID_0) %>% mutate(ID = 1:nrow(.))
+LATAM_adm1_guyana <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% LATAM_adm0_guyana$GID_0) %>% mutate(ID = 1:nrow(.))
+LATAM_adm1_salvador <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% LATAM_adm0_salvador$GID_0) %>% mutate(ID = 1:nrow(.))
+
+# Saves each region separatedly for level 1
+st_write(LATAM_adm1_southern, "regions_adm1/LATAM_adm1_southern.gpkg", delete_layer = TRUE)
+st_write(LATAM_adm1_CA, "regions_adm1/LATAM_adm1_CA.gpkg", delete_layer = TRUE)
+st_write(LATAM_adm1_espanhola, "regions_adm1/LATAM_adm1_espanhola.gpkg", delete_layer = TRUE)
+st_write(LATAM_adm1_jamaica, "regions_adm1/LATAM_adm1_jamaica.gpkg", delete_layer = TRUE)
+st_write(LATAM_adm1_western, "regions_adm1/LATAM_adm1_western.gpkg", delete_layer = TRUE)
+# st_write(LATAM_adm1_northern, "regions_adm1/LATAM_adm1_northern.gpkg", delete_layer = TRUE)
+st_write(LATAM_adm1_brazil, "regions_adm1/LATAM_adm1_brazil.gpkg", delete_layer = TRUE)
+st_write(LATAM_adm1_mexico, "regions_adm1/LATAM_adm1_mexico.gpkg", delete_layer = TRUE)
+st_write(LATAM_adm1_bolivia, "regions_adm1/LATAM_adm1_bolivia.gpkg", delete_layer = TRUE)
+st_write(LATAM_adm1_colombia, "regions_adm1/LATAM_adm1_colombia.gpkg", delete_layer = TRUE)
+st_write(LATAM_adm1_guyana, "regions_adm1/LATAM_adm1_guyana.gpkg", delete_layer = TRUE)
+st_write(LATAM_adm1_salvador, "regions_adm1/LATAM_adm1_salvador.gpkg", delete_layer = TRUE)
+
+LATAM_adm1_southern %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm1_p/LATAM_adm1_southern_p.gpkg", delete_layer = TRUE)
+LATAM_adm1_CA %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm1_p/LATAM_adm1_CA_p.gpkg", delete_layer = TRUE)
+LATAM_adm1_espanhola %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm1_p/LATAM_adm1_espanhola_p.gpkg", delete_layer = TRUE)
+LATAM_adm1_jamaica %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm1_p/LATAM_adm1_jamaica_p.gpkg", delete_layer = TRUE)
+LATAM_adm1_western %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm1_p/LATAM_adm1_western_p.gpkg", delete_layer = TRUE)
+# LATAM_adm1_northern %>%
 #   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm1_p/NorAfr_adm1_west_p.gpkg", delete_layer = TRUE)
-# 
+#   st_write("regions_adm1_p/LATAM_adm1_northern_p.gpkg", delete_layer = TRUE)
+LATAM_adm1_brazil %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm1_p/LATAM_adm1_brazil_p.gpkg", delete_layer = TRUE)
+LATAM_adm1_mexico %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm1_p/LATAM_adm1_mexico_p.gpkg", delete_layer = TRUE)
+LATAM_adm1_bolivia %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm1_p/LATAM_adm1_bolivia_p.gpkg", delete_layer = TRUE)
+LATAM_adm1_colombia %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm1_p/LATAM_adm1_colombia_p.gpkg", delete_layer = TRUE)
+LATAM_adm1_guyana %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm1_p/LATAM_adm1_guyana_p.gpkg", delete_layer = TRUE)
+LATAM_adm1_salvador %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm1_p/LATAM_adm1_salvador_p.gpkg", delete_layer = TRUE)
+
+# Sub admin_regions #2
+LATAM_adm2_southern <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% LATAM_adm0_southern$GID_0) %>% mutate(ID = 1:nrow(.))
+LATAM_adm2_CA <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% LATAM_adm0_CA$GID_0) %>% mutate(ID = 1:nrow(.))
+LATAM_adm2_espanhola <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% LATAM_adm0_espanhola$GID_0) %>% mutate(ID = 1:nrow(.))
+# LATAM_adm2_jamaica <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% LATAM_adm0_jamaica$GID_0) %>% mutate(ID = 1:nrow(.))
+LATAM_adm2_jamaica <- LATAM_adm1_jamaica %>% # Saving ADM1 for Jamaica! cause no ADM2 available
+  dplyr::mutate(GID_2 = GID_1,
+                NAME_2 = NAME_1)
+LATAM_adm2_western <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% LATAM_adm0_western$GID_0) %>% mutate(ID = 1:nrow(.))
+# LATAM_adm2_northern <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% LATAM_adm0_northern$GID_0) %>% mutate(ID = 1:nrow(.))
+LATAM_adm2_brazil <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% LATAM_adm0_brazil$GID_0) %>% mutate(ID = 1:nrow(.))
+LATAM_adm2_mexico <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% LATAM_adm0_mexico$GID_0) %>% mutate(ID = 1:nrow(.))
+LATAM_adm2_bolivia <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% LATAM_adm0_bolivia$GID_0) %>% mutate(ID = 1:nrow(.))
+LATAM_adm2_colombia <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% LATAM_adm0_colombia$GID_0) %>% mutate(ID = 1:nrow(.))
+LATAM_adm2_guyana <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% LATAM_adm0_guyana$GID_0) %>% mutate(ID = 1:nrow(.))
+LATAM_adm2_salvador <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% LATAM_adm0_salvador$GID_0) %>% mutate(ID = 1:nrow(.))
+
+# Saves each region separatedly for level 2
+st_write(LATAM_adm2_southern, "regions_adm2/LATAM_adm2_southern.gpkg", delete_layer = TRUE)
+st_write(LATAM_adm2_CA, "regions_adm2/LATAM_adm2_CA.gpkg", delete_layer = TRUE)
+st_write(LATAM_adm2_espanhola, "regions_adm2/LATAM_adm2_espanhola.gpkg", delete_layer = TRUE)
+st_write(LATAM_adm2_jamaica, "regions_adm2/LATAM_adm2_jamaica.gpkg", delete_layer = TRUE)
+st_write(LATAM_adm2_western, "regions_adm2/LATAM_adm2_western.gpkg", delete_layer = TRUE)
+# st_write(LATAM_adm2_northern, "regions_adm2/LATAM_adm2_northern.gpkg", delete_layer = TRUE)
+st_write(LATAM_adm2_brazil, "regions_adm2/LATAM_adm2_brazil.gpkg", delete_layer = TRUE)
+st_write(LATAM_adm2_mexico, "regions_adm2/LATAM_adm2_mexico.gpkg", delete_layer = TRUE)
+st_write(LATAM_adm2_bolivia, "regions_adm2/LATAM_adm2_bolivia.gpkg", delete_layer = TRUE)
+st_write(LATAM_adm2_colombia, "regions_adm2/LATAM_adm2_colombia.gpkg", delete_layer = TRUE)
+st_write(LATAM_adm2_guyana, "regions_adm2/LATAM_adm2_guyana.gpkg", delete_layer = TRUE)
+st_write(LATAM_adm2_salvador, "regions_adm2/LATAM_adm2_salvador.gpkg", delete_layer = TRUE)
+
+LATAM_adm2_southern %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm2_p/LATAM_adm2_southern_p.gpkg", delete_layer = TRUE)
+LATAM_adm2_CA %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm2_p/LATAM_adm2_CA_p.gpkg", delete_layer = TRUE)
+LATAM_adm2_espanhola %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm2_p/LATAM_adm2_espanhola_p.gpkg", delete_layer = TRUE)
+LATAM_adm2_jamaica %>% # Saving ADM1 for Jamaica! cause no ADM2 available
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm2_p/LATAM_adm2_jamaica_p.gpkg", delete_layer = TRUE)
+LATAM_adm2_western %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm2_p/LATAM_adm2_western_p.gpkg", delete_layer = TRUE)
+# LATAM_adm2_northern %>%
+#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+#   st_write("regions_adm2_p/LATAM_adm2_northern_p.gpkg", delete_layer = TRUE)
+LATAM_adm2_brazil %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm2_p/LATAM_adm2_brazil_p.gpkg", delete_layer = TRUE)
+LATAM_adm2_mexico %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm2_p/LATAM_adm2_mexico_p.gpkg", delete_layer = TRUE)
+LATAM_adm2_bolivia %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm2_p/LATAM_adm2_bolivia_p.gpkg", delete_layer = TRUE)
+LATAM_adm2_colombia %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm2_p/LATAM_adm2_colombia_p.gpkg", delete_layer = TRUE)
+LATAM_adm2_guyana %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm2_p/LATAM_adm2_guyana_p.gpkg", delete_layer = TRUE)
+LATAM_adm2_salvador %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm2_p/LATAM_adm2_salvador_p.gpkg", delete_layer = TRUE)
+
+# Asia ----
+# subregionsASIA <- read_excel("subregionsASIA_v5.xlsx")
+subregionsASIA <- read_csv(subregionsASIA_v)
+subregionsASIA
+unique(subregionsASIA$Subregion)
+unique(subregionsASIA$NAME_0)
+unique(ASIA_adm0$NAME_0)
+
+ASIA_adm0_subregions <- ASIA_adm0 %>%
+  right_join(subregionsASIA, by = "GID_0") %>%
+  dplyr::select (-NAME_0.y) %>%
+  dplyr::rename(NAME_0 = NAME_0.x) %>%
+  filter(!is.na(NAME_0))
+ASIA_adm0_subregions %>% st_drop_geometry()
+ASIA_adm0 %>% st_drop_geometry()
+
+ASIA_adm0_subregions
+unique(subregionsASIA$Subregion)
+unique(ASIA_adm0$NAME_0)
+
+# Build regions
+ASIA_adm0_central <- ASIA_adm0_subregions %>% dplyr::filter(Subregion %in% "Central Asia") %>% mutate(ID = 1:nrow(.))
+ASIA_adm0_central$mofuss_reg <- "ASIA_adm0_central"
+ASIA_adm0_india <- ASIA_adm0_subregions %>% dplyr::filter(Subregion %in% "India") %>% mutate(ID = 1:nrow(.))
+ASIA_adm0_india$mofuss_reg <- "ASIA_adm0_india"
+ASIA_adm0_seasia <- ASIA_adm0_subregions %>% dplyr::filter(Subregion %in% "SEAsia") %>% mutate(ID = 1:nrow(.))
+ASIA_adm0_seasia$mofuss_reg <- "ASIA_adm0_seasia"
+ASIA_adm0_china <- ASIA_adm0_subregions %>% dplyr::filter(Subregion %in% "China") %>% mutate(ID = 1:nrow(.))
+ASIA_adm0_china$mofuss_reg <- "ASIA_adm0_china"
+ASIA_adm0_mongolia <- ASIA_adm0_subregions %>% dplyr::filter(Subregion %in% "Mongolia") %>% mutate(ID = 1:nrow(.))
+ASIA_adm0_mongolia$mofuss_reg <- "ASIA_adm0_mongolia"
+ASIA_adm0_middleeast <- ASIA_adm0_subregions %>% dplyr::filter(Subregion %in% "Middle East") %>% mutate(ID = 1:nrow(.))
+ASIA_adm0_middleeast$mofuss_reg <- "ASIA_adm0_middleeast"
+ASIA_adm0_srilanka <- ASIA_adm0_subregions %>% dplyr::filter(Subregion %in% "Sri Lanka") %>% mutate(ID = 1:nrow(.))
+ASIA_adm0_srilanka$mofuss_reg <- "ASIA_adm0_srilanka"
+ASIA_adm0_indonesia <- ASIA_adm0_subregions %>% dplyr::filter(Subregion %in% "Indonesia") %>% mutate(ID = 1:nrow(.))
+ASIA_adm0_indonesia$mofuss_reg <- "ASIA_adm0_indonesia"
+ASIA_adm0_malaysia <- ASIA_adm0_subregions %>% dplyr::filter(Subregion %in% "Malaysia") %>% mutate(ID = 1:nrow(.))
+ASIA_adm0_malaysia$mofuss_reg <- "ASIA_adm0_malaysia"
+ASIA_adm0_philippines <- ASIA_adm0_subregions %>% dplyr::filter(Subregion %in% "Philippines") %>% mutate(ID = 1:nrow(.))
+ASIA_adm0_philippines$mofuss_reg <- "ASIA_adm0_philippines"
+ASIA_adm0_timorleste <- ASIA_adm0_subregions %>% dplyr::filter(Subregion %in% "Timor-Leste") %>% mutate(ID = 1:nrow(.))
+ASIA_adm0_timorleste$mofuss_reg <- "ASIA_adm0_timorleste"
+ASIA_adm0_bangladesh <- ASIA_adm0_subregions %>% dplyr::filter(Subregion %in% "Bangladesh") %>% mutate(ID = 1:nrow(.))
+ASIA_adm0_bangladesh$mofuss_reg <- "ASIA_adm0_bangladesh"
+ASIA_adm0_bhutan <- ASIA_adm0_subregions %>% dplyr::filter(Subregion %in% "Bhutan") %>% mutate(ID = 1:nrow(.))
+ASIA_adm0_bhutan$mofuss_reg <- "ASIA_adm0_bhutan"
+ASIA_adm0_nepal <- ASIA_adm0_subregions %>% dplyr::filter(Subregion %in% "Nepal") %>% mutate(ID = 1:nrow(.))
+ASIA_adm0_nepal$mofuss_reg <- "ASIA_adm0_nepal"
+ASIA_adm0_myanmar <- ASIA_adm0_subregions %>% dplyr::filter(Subregion %in% "Myanmar") %>% mutate(ID = 1:nrow(.))
+ASIA_adm0_myanmar$mofuss_reg <- "ASIA_adm0_myanmar"
+ASIA_adm0_pakistan <- ASIA_adm0_subregions %>% dplyr::filter(Subregion %in% "Pakistan") %>% mutate(ID = 1:nrow(.))
+ASIA_adm0_pakistan$mofuss_reg <- "ASIA_adm0_pakistan"
+
+# Saves each region separatedly for level 0
+st_write(ASIA_adm0_central, "regions_adm0/ASIA_adm0_central.gpkg", delete_layer = TRUE)
+st_write(ASIA_adm0_india, "regions_adm0/ASIA_adm0_india.gpkg", delete_layer = TRUE)
+st_write(ASIA_adm0_seasia, "regions_adm0/ASIA_adm0_seasia.gpkg", delete_layer = TRUE)
+st_write(ASIA_adm0_china, "regions_adm0/ASIA_adm0_china.gpkg", delete_layer = TRUE)
+st_write(ASIA_adm0_mongolia, "regions_adm0/ASIA_adm0_mongolia.gpkg", delete_layer = TRUE)
+st_write(ASIA_adm0_middleeast, "regions_adm0/ASIA_adm0_middleeast.gpkg", delete_layer = TRUE)
+st_write(ASIA_adm0_srilanka, "regions_adm0/ASIA_adm0_srilanka.gpkg", delete_layer = TRUE)
+st_write(ASIA_adm0_indonesia, "regions_adm0/ASIA_adm0_indonesia.gpkg", delete_layer = TRUE)
+st_write(ASIA_adm0_malaysia, "regions_adm0/ASIA_adm0_malaysia.gpkg", delete_layer = TRUE)
+st_write(ASIA_adm0_philippines, "regions_adm0/ASIA_adm0_philippines.gpkg", delete_layer = TRUE)
+st_write(ASIA_adm0_timorleste, "regions_adm0/ASIA_adm0_timorleste.gpkg", delete_layer = TRUE)
+st_write(ASIA_adm0_bangladesh, "regions_adm0/ASIA_adm0_bangladesh.gpkg", delete_layer = TRUE)
+st_write(ASIA_adm0_bhutan, "regions_adm0/ASIA_adm0_bhutan.gpkg", delete_layer = TRUE)
+st_write(ASIA_adm0_nepal, "regions_adm0/ASIA_adm0_nepal.gpkg", delete_layer = TRUE)
+st_write(ASIA_adm0_myanmar, "regions_adm0/ASIA_adm0_myanmar.gpkg", delete_layer = TRUE)
+st_write(ASIA_adm0_pakistan, "regions_adm0/ASIA_adm0_pakistan.gpkg", delete_layer = TRUE)
+
+unique(ASIA_adm0_seasia$GID_0)
+
+ASIA_adm0_central %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm0_p/ASIA_adm0_central_p.gpkg", delete_layer = TRUE)
+ASIA_adm0_india %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm0_p/ASIA_adm0_india_p.gpkg", delete_layer = TRUE)
+ASIA_adm0_seasia %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm0_p/ASIA_adm0_seasia_p.gpkg", delete_layer = TRUE)
+ASIA_adm0_china %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm0_p/ASIA_adm0_china_p.gpkg", delete_layer = TRUE)
+ASIA_adm0_mongolia %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm0_p/ASIA_adm0_mongolia_p.gpkg", delete_layer = TRUE)
+ASIA_adm0_middleeast %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm0_p/ASIA_adm0_middleeast_p.gpkg", delete_layer = TRUE)
+ASIA_adm0_srilanka %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm0_p/ASIA_adm0_srilanka_p.gpkg", delete_layer = TRUE)
+ASIA_adm0_indonesia %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm0_p/ASIA_adm0_indonesia_p.gpkg", delete_layer = TRUE)
+ASIA_adm0_malaysia %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm0_p/ASIA_adm0_malaysia_p.gpkg", delete_layer = TRUE)
+ASIA_adm0_philippines %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm0_p/ASIA_adm0_philippines_p.gpkg", delete_layer = TRUE)
+ASIA_adm0_timorleste %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm0_p/ASIA_adm0_timorleste_p.gpkg", delete_layer = TRUE)
+ASIA_adm0_bangladesh %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm0_p/ASIA_adm0_bangladesh_p.gpkg", delete_layer = TRUE)
+ASIA_adm0_bhutan %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm0_p/ASIA_adm0_bhutan_p.gpkg", delete_layer = TRUE)
+ASIA_adm0_nepal %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm0_p/ASIA_adm0_nepal_p.gpkg", delete_layer = TRUE)
+ASIA_adm0_myanmar %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm0_p/ASIA_adm0_myanmar_p.gpkg", delete_layer = TRUE)
+ASIA_adm0_pakistan %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm0_p/ASIA_adm0_pakistan_p.gpkg", delete_layer = TRUE)
+
+# # Sub admin_regions #1
+ASIA_adm1_central <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% ASIA_adm0_central$GID_0) %>% mutate(ID = 1:nrow(.))
+ASIA_adm1_india <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% ASIA_adm0_india$GID_0) %>% mutate(ID = 1:nrow(.))
+ASIA_adm1_seasia <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% ASIA_adm0_seasia$GID_0) %>% mutate(ID = 1:nrow(.))
+ASIA_adm1_china <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% ASIA_adm0_china$GID_0) %>% mutate(ID = 1:nrow(.))
+ASIA_adm1_mongolia <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% ASIA_adm0_mongolia$GID_0) %>% mutate(ID = 1:nrow(.))
+ASIA_adm1_middleeast <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% ASIA_adm0_middleeast$GID_0) %>% mutate(ID = 1:nrow(.))
+ASIA_adm1_srilanka <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% ASIA_adm0_srilanka$GID_0) %>% mutate(ID = 1:nrow(.))
+ASIA_adm1_indonesia <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% ASIA_adm0_indonesia$GID_0) %>% mutate(ID = 1:nrow(.))
+ASIA_adm1_malaysia <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% ASIA_adm0_malaysia$GID_0) %>% mutate(ID = 1:nrow(.))
+ASIA_adm1_philippines <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% ASIA_adm0_philippines$GID_0) %>% mutate(ID = 1:nrow(.))
+ASIA_adm1_timorleste <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% ASIA_adm0_timorleste$GID_0) %>% mutate(ID = 1:nrow(.))
+ASIA_adm1_bangladesh <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% ASIA_adm0_bangladesh$GID_0) %>% mutate(ID = 1:nrow(.))
+ASIA_adm1_bhutan <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% ASIA_adm0_bhutan$GID_0) %>% mutate(ID = 1:nrow(.))
+ASIA_adm1_nepal <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% ASIA_adm0_nepal$GID_0) %>% mutate(ID = 1:nrow(.))
+ASIA_adm1_myanmar <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% ASIA_adm0_myanmar$GID_0) %>% mutate(ID = 1:nrow(.))
+ASIA_adm1_pakistan <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% ASIA_adm0_pakistan$GID_0) %>% mutate(ID = 1:nrow(.))
+
+# Saves each region separatedly for level 1
+st_write(ASIA_adm1_central, "regions_adm1/ASIA_adm1_central.gpkg", delete_layer = TRUE)
+st_write(ASIA_adm1_india, "regions_adm1/ASIA_adm1_india.gpkg", delete_layer = TRUE)
+st_write(ASIA_adm1_seasia, "regions_adm1/ASIA_adm1_seasia.gpkg", delete_layer = TRUE)
+st_write(ASIA_adm1_china, "regions_adm1/ASIA_adm1_china.gpkg", delete_layer = TRUE)
+st_write(ASIA_adm1_mongolia, "regions_adm1/ASIA_adm1_mongolia.gpkg", delete_layer = TRUE)
+st_write(ASIA_adm1_middleeast, "regions_adm1/ASIA_adm1_middleeast.gpkg", delete_layer = TRUE)
+st_write(ASIA_adm1_srilanka, "regions_adm1/ASIA_adm1_srilanka.gpkg", delete_layer = TRUE)
+st_write(ASIA_adm1_indonesia, "regions_adm1/ASIA_adm1_indonesia.gpkg", delete_layer = TRUE)
+st_write(ASIA_adm1_malaysia, "regions_adm1/ASIA_adm1_malaysia.gpkg", delete_layer = TRUE)
+st_write(ASIA_adm1_philippines, "regions_adm1/ASIA_adm1_philippines.gpkg", delete_layer = TRUE)
+st_write(ASIA_adm1_timorleste, "regions_adm1/ASIA_adm1_timorleste.gpkg", delete_layer = TRUE)
+st_write(ASIA_adm1_bangladesh, "regions_adm1/ASIA_adm1_bangladesh.gpkg", delete_layer = TRUE)
+st_write(ASIA_adm1_bhutan, "regions_adm1/ASIA_adm1_bhutan.gpkg", delete_layer = TRUE)
+st_write(ASIA_adm1_nepal, "regions_adm1/ASIA_adm1_nepal.gpkg", delete_layer = TRUE)
+st_write(ASIA_adm1_myanmar, "regions_adm1/ASIA_adm1_myanmar.gpkg", delete_layer = TRUE)
+st_write(ASIA_adm1_pakistan, "regions_adm1/ASIA_adm1_pakistan.gpkg", delete_layer = TRUE)
+
+ASIA_adm1_central %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm1_p/ASIA_adm1_central_p.gpkg", delete_layer = TRUE)
+ASIA_adm1_india %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm1_p/ASIA_adm1_india_p.gpkg", delete_layer = TRUE)
+ASIA_adm1_seasia %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm1_p/ASIA_adm1_seasia_p.gpkg", delete_layer = TRUE)
+ASIA_adm1_china %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm1_p/ASIA_adm1_china_p.gpkg", delete_layer = TRUE)
+ASIA_adm1_mongolia %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm1_p/ASIA_adm1_mongolia_p.gpkg", delete_layer = TRUE)
+ASIA_adm1_middleeast %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm1_p/ASIA_adm1_middleeast_p.gpkg", delete_layer = TRUE)
+ASIA_adm1_srilanka %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm1_p/ASIA_adm1_srilanka_p.gpkg", delete_layer = TRUE)
+ASIA_adm1_indonesia %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm1_p/ASIA_adm1_indonesia_p.gpkg", delete_layer = TRUE)
+ASIA_adm1_malaysia %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm1_p/ASIA_adm1_malaysia_p.gpkg", delete_layer = TRUE)
+ASIA_adm1_philippines %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm1_p/ASIA_adm1_philippines_p.gpkg", delete_layer = TRUE)
+ASIA_adm1_timorleste %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm1_p/ASIA_adm1_timorleste_p.gpkg", delete_layer = TRUE)
+ASIA_adm1_bangladesh %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm1_p/ASIA_adm1_bangladesh_p.gpkg", delete_layer = TRUE)
+ASIA_adm1_bhutan %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm1_p/ASIA_adm1_bhutan_p.gpkg", delete_layer = TRUE)
+ASIA_adm1_nepal %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm1_p/ASIA_adm1_nepal_p.gpkg", delete_layer = TRUE)
+ASIA_adm1_myanmar %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm1_p/ASIA_adm1_myanmar_p.gpkg", delete_layer = TRUE)
+ASIA_adm1_pakistan %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm1_p/ASIA_adm1_pakistan_p.gpkg", delete_layer = TRUE)
+
 # # Sub admin_regions #2
-# NorAfr_adm2_west <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% NorAfr_adm0_west$GID_0) %>% mutate(ID = 1:nrow(.))
-# 
-# st_write(NorAfr_adm2_west, "regions_adm2/NorAfr_adm2_west.gpkg", delete_layer = TRUE)
-# 
-# NorAfr_adm2_west %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm2_p/NorAfr_adm2_west_p.gpkg", delete_layer = TRUE)
-# 
-# # Load all vector layers for each admin_regions level ----
-# regions.list0 <- list.files(path = "regions_adm0",
-#                             pattern="*.gpkg", full.names = TRUE)
-# mofuss_regions0 <- lapply(regions.list0, st_read)
-# mofuss_regions0 <- do.call("rbind", mofuss_regions0)
-# # mofuss_regions0 <- mofuss_regions00 %>%
-# #   select (ID)
-# st_write(mofuss_regions0, "regions_adm0/mofuss_regions0.gpkg", delete_layer = TRUE)
-# st_write(mofuss_regions0, "regions_adm0/mofuss_regions0.shp", delete_layer = TRUE)
-# 
-# unique(mofuss_regions0$GID_0)
-# 
-# # Load all vector layers for each admin_regions level
-# regions.list1 <- list.files(path = "regions_adm1",
-#                            pattern="*.gpkg", full.names = TRUE)
-# mofuss_regions1 <- lapply(regions.list1, st_read)
-# mofuss_regions1 <- do.call("rbind", mofuss_regions1)
-# mofuss_regions1 %>%
-#   dplyr::select (ID)
-# 
-# st_write(mofuss_regions1, "regions_adm1/mofuss_regions1.gpkg", delete_layer = TRUE)
-# st_write(mofuss_regions1, "regions_adm1/mofuss_regions1.shp", delete_layer = TRUE)
-# 
-# # Load all vector layers for each admin_regions level
-# regions.list2 <- list.files(path = "regions_adm2",
-#                             pattern="*.gpkg", full.names = TRUE)
-# mofuss_regions2 <- lapply(regions.list2, st_read)
-# mofuss_regions2 <- do.call("rbind", mofuss_regions2)
-# st_write(mofuss_regions2, "regions_adm2/mofuss_regions2.gpkg", delete_layer = TRUE)
-# st_write(mofuss_regions2, "regions_adm2/mofuss_regions2.shp", delete_layer = TRUE)
-# 
-# 
-# # Simplifed polygons for the websever ----
-# 
-# if (run_ms == "Yes"){
-# 
-# library(sf)
-# library(tictoc)
-# #library(mapview)
-# library(tidyverse)
-# library(readxl)
-# # library(hacksaw)
-# library(rmapshaper)
-#   
-# # Using the system mapshaper - COULD NOT INSTALL IT IN WIN10!!!
-# check_sys_mapshaper()
-# system("mapshaper --version")
-# # https://github.com/mbloch/mapshaper
-# # https://github.com/ateucher/rmapshaper#using-the-system-mapshaper
-# # https://nodejs.org/en
-# 
-# adm0_regtest <- st_read("regions_adm0/mofuss_regions0.gpkg")
-# adm1_regtest <- st_read("regions_adm1/mofuss_regions1.gpkg")
-# adm2_regtest <- st_read("regions_adm2/mofuss_regions2.gpkg")
-# 
-# # https://epsg.io/paste0(proj_authority,":",epsg_pcs) World Mercator
-# # https://epsg.io/1078-method Equal Earth
-# # EqualEarth? <- sf::st_transform(adm0_regtest, "+proj=eqearth")
-# 
-# mofuss_regions0_simp <- adm0_regtest %>%
-#   # mutate(fNRB = sample(0:100, n(), replace = TRUE),
-#   #        fNRBsd = sample(0:50, n(), replace = TRUE),
-#   #        NRB = sample(0:3300, n(), replace = TRUE),
-#   #        NRBsd = sample(0:1100, n(), replace = TRUE)) %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   ms_simplify(sys = TRUE) %>%
-#   st_transform(epsg_gcs)
-# st_write(mofuss_regions0_simp, "regions_adm0/mofuss_regions0_simp.shp", delete_layer = TRUE)
-# 
-# # # Save geojson
-# # # (Optional) keep only needed attributes
-# # wanted <- c("NAME_0", "GID_0")
-# # mofuss_regions0_simp <- mofuss_regions0_simp[, intersect(wanted, names(mofuss_regions0_simp))]
-# # 
-# # # Write UTF-8 GeoJSON (ideal for GEE)
-# # sf::st_write(
-# #   mofuss_regions0_simp,
-# #   dsn = "regions_adm0/mofuss_regions0_simp.geojson",
-# #   driver = "GeoJSON",
-# #   delete_dsn = TRUE,
-# #   layer_options = c(
-# #     "RFC7946=YES",            # lon/lat order per spec
-# #     "COORDINATE_PRECISION=6"  # smaller file; good precision
-# #   )
-# # )
-# # 
-# # # Quick check
-# # check <- sf::st_read("regions_adm0/mofuss_regions0_simp.geojson", quiet = TRUE)
-# # print(head(check$NAME_0))
-# 
-# mofuss_regions1_simp <- adm1_regtest %>%
-#   # mutate(fNRB = sample(0:100, n(), replace = TRUE),
-#   #        fNRBsd = sample(0:50, n(), replace = TRUE),
-#   #        NRB = sample(0:330, n(), replace = TRUE),
-#   #        NRBsd = sample(0:110, n(), replace = TRUE)) %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   ms_simplify(sys = TRUE, sys_mem = 16) %>%
-#   st_transform(epsg_gcs)
-# st_write(mofuss_regions1_simp, "regions_adm1/mofuss_regions1_simp.shp", delete_layer = TRUE)
-# 
-# # with st_simplify & ms_simplify
-# mofuss_regions2_simp <- adm2_regtest %>%
-#   # mutate(fNRB = sample(0:100, n(), replace = TRUE),
-#   #        fNRBsd = sample(0:50, n(), replace = TRUE),
-#   #        NRB = sample(0:33, n(), replace = TRUE),
-#   #        NRBsd = sample(0:11, n(), replace = TRUE)) %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_simplify(preserveTopology = TRUE, dTolerance = 50) %>%
-#   # ms_simplify()
-#   ms_simplify(keep = 0.6, keep_shapes = FALSE, sys = TRUE, sys_mem = 24) %>%
-#   st_transform(epsg_gcs)
-# st_write(mofuss_regions2_simp, "regions_adm2/mofuss_regions2_simp.shp", delete_layer = TRUE)
-# 
-# }
-# 
-# # Project mofuss layers
-# 
-# st_read("regions_adm0/mofuss_regions0.gpkg") %>% 
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm0_p/mofuss_regions0_p.gpkg", delete_layer = TRUE)
-# 
-# st_read("regions_adm1/mofuss_regions1.gpkg") %>% 
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm1_p/mofuss_regions1_p.gpkg", delete_layer = TRUE)
-# 
-# st_read("regions_adm2/mofuss_regions2.gpkg") %>% 
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm2_p/mofuss_regions2_p.gpkg", delete_layer = TRUE)
-# 
-# # Update demand_in folder with latest mofuss_regions0.gpkg
-# file.copy(from="regions_adm0/mofuss_regions0.gpkg",
-#           to=paste0(demanddir,"/demand_in"),
-#           overwrite = TRUE)
-# 
-# # Update demand_in folder with latest mofuss_regions1.gpkg
-# file.copy(from="regions_adm1/mofuss_regions1.gpkg",
-#           to=paste0(demanddir,"/demand_in"),
-#           overwrite = TRUE)
-# 
-# # Update demand_in folder with latest mofuss_regions2.gpkg
-# file.copy(from="regions_adm2/mofuss_regions2.gpkg",
-#           to=paste0(demanddir,"/demand_in"),
-#           overwrite = TRUE)
-# 
-# # Ecoregions 2017 ----
-# # Read input layers
-# mofuss_regions04crop <- st_read("regions_adm0/mofuss_regions0.gpkg")
-# # ecoregions_raw <- st_read("ecoregions2017.gpkg") %>% 
-# #   dplyr::select(-OBJECTID, -BIOME_NUM, -BIOME_NAME, -REALM, -ECO_BIOME_, -NNH, -ECO_ID,
-# #                 -SHAPE_LENG, -SHAPE_AREA, -COLOR, -COLOR_BIO, -COLOR_NNH,
-# #                 -LICENSE) %>%
-# #   mutate(ECO_ID = 1:nrow(.))
-# 
-# ecoregions_raw <- st_read("ecoregions2017.gpkg") %>% 
-#   dplyr::select(-OBJECTID, -BIOME_NUM, -BIOME_NAME, -REALM, -ECO_BIOME_, -NNH,
+ASIA_adm2_central <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% ASIA_adm0_central$GID_0) %>% mutate(ID = 1:nrow(.))
+ASIA_adm2_india <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% ASIA_adm0_india$GID_0) %>% mutate(ID = 1:nrow(.))
+ASIA_adm2_seasia <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% ASIA_adm0_seasia$GID_0) %>% mutate(ID = 1:nrow(.))
+ASIA_adm2_china <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% ASIA_adm0_china$GID_0) %>% mutate(ID = 1:nrow(.))
+ASIA_adm2_mongolia <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% ASIA_adm0_mongolia$GID_0) %>% mutate(ID = 1:nrow(.))
+ASIA_adm2_middleeast <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% ASIA_adm0_middleeast$GID_0) %>% mutate(ID = 1:nrow(.))
+ASIA_adm2_srilanka <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% ASIA_adm0_srilanka$GID_0) %>% mutate(ID = 1:nrow(.))
+ASIA_adm2_indonesia <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% ASIA_adm0_indonesia$GID_0) %>% mutate(ID = 1:nrow(.))
+ASIA_adm2_malaysia <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% ASIA_adm0_malaysia$GID_0) %>% mutate(ID = 1:nrow(.))
+ASIA_adm2_philippines <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% ASIA_adm0_philippines$GID_0) %>% mutate(ID = 1:nrow(.))
+ASIA_adm2_timorleste <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% ASIA_adm0_timorleste$GID_0) %>% mutate(ID = 1:nrow(.))
+ASIA_adm2_bangladesh <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% ASIA_adm0_bangladesh$GID_0) %>% mutate(ID = 1:nrow(.))
+ASIA_adm2_bhutan <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% ASIA_adm0_bhutan$GID_0) %>% mutate(ID = 1:nrow(.))
+ASIA_adm2_nepal <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% ASIA_adm0_nepal$GID_0) %>% mutate(ID = 1:nrow(.))
+ASIA_adm2_myanmar <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% ASIA_adm0_myanmar$GID_0) %>% mutate(ID = 1:nrow(.))
+ASIA_adm2_pakistan <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% ASIA_adm0_pakistan$GID_0) %>% mutate(ID = 1:nrow(.))
+
+# Saves each region separatedly for level 2
+st_write(ASIA_adm2_central, "regions_adm2/ASIA_adm2_central.gpkg", delete_layer = TRUE)
+st_write(ASIA_adm2_india, "regions_adm2/ASIA_adm2_india.gpkg", delete_layer = TRUE)
+st_write(ASIA_adm2_seasia, "regions_adm2/ASIA_adm2_seasia.gpkg", delete_layer = TRUE)
+st_write(ASIA_adm2_china, "regions_adm2/ASIA_adm2_china.gpkg", delete_layer = TRUE)
+st_write(ASIA_adm2_mongolia, "regions_adm2/ASIA_adm2_mongolia.gpkg", delete_layer = TRUE)
+st_write(ASIA_adm2_middleeast, "regions_adm2/ASIA_adm2_middleeast.gpkg", delete_layer = TRUE)
+st_write(ASIA_adm2_srilanka, "regions_adm2/ASIA_adm2_srilanka.gpkg", delete_layer = TRUE)
+st_write(ASIA_adm2_indonesia, "regions_adm2/ASIA_adm2_indonesia.gpkg", delete_layer = TRUE)
+st_write(ASIA_adm2_malaysia, "regions_adm2/ASIA_adm2_malaysia.gpkg", delete_layer = TRUE)
+st_write(ASIA_adm2_philippines, "regions_adm2/ASIA_adm2_philippines.gpkg", delete_layer = TRUE)
+st_write(ASIA_adm2_timorleste, "regions_adm2/ASIA_adm2_timorleste.gpkg", delete_layer = TRUE)
+st_write(ASIA_adm2_bangladesh, "regions_adm2/ASIA_adm2_bangladesh.gpkg", delete_layer = TRUE)
+st_write(ASIA_adm2_bhutan, "regions_adm2/ASIA_adm2_bhutan.gpkg", delete_layer = TRUE)
+st_write(ASIA_adm2_nepal, "regions_adm2/ASIA_adm2_nepal.gpkg", delete_layer = TRUE)
+st_write(ASIA_adm2_myanmar, "regions_adm2/ASIA_adm2_myanmar.gpkg", delete_layer = TRUE)
+st_write(ASIA_adm2_pakistan, "regions_adm2/ASIA_adm2_pakistan.gpkg", delete_layer = TRUE)
+
+ASIA_adm2_central %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm2_p/ASIA_adm2_central_p.gpkg", delete_layer = TRUE)
+ASIA_adm2_india %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm2_p/ASIA_adm2_india_p.gpkg", delete_layer = TRUE)
+ASIA_adm2_seasia %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm2_p/ASIA_adm2_seasia_p.gpkg", delete_layer = TRUE)
+ASIA_adm2_china %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm2_p/ASIA_adm2_china_p.gpkg", delete_layer = TRUE)
+ASIA_adm2_mongolia %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm2_p/ASIA_adm2_mongolia_p.gpkg", delete_layer = TRUE)
+ASIA_adm2_middleeast %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm2_p/ASIA_adm2_middleeast_p.gpkg", delete_layer = TRUE)
+ASIA_adm2_srilanka %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm2_p/ASIA_adm2_srilanka_p.gpkg", delete_layer = TRUE)
+ASIA_adm2_indonesia %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm2_p/ASIA_adm2_indonesia_p.gpkg", delete_layer = TRUE)
+ASIA_adm2_malaysia %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm2_p/ASIA_adm2_malaysia_p.gpkg", delete_layer = TRUE)
+ASIA_adm2_philippines %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm2_p/ASIA_adm2_philippines_p.gpkg", delete_layer = TRUE)
+ASIA_adm2_timorleste %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm2_p/ASIA_adm2_timorleste_p.gpkg", delete_layer = TRUE)
+ASIA_adm2_bangladesh %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm2_p/ASIA_adm2_bangladesh_p.gpkg", delete_layer = TRUE)
+ASIA_adm2_bhutan %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm2_p/ASIA_adm2_bhutan_p.gpkg", delete_layer = TRUE)
+ASIA_adm2_nepal %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm2_p/ASIA_adm2_nepal_p.gpkg", delete_layer = TRUE)
+ASIA_adm2_myanmar %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm2_p/ASIA_adm2_myanmar_p.gpkg", delete_layer = TRUE)
+ASIA_adm2_pakistan %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm2_p/ASIA_adm2_pakistan_p.gpkg", delete_layer = TRUE)
+
+# Oceania----
+# subregionsOCEANIA <- read_excel("subregionsOCEANIA.xlsx")
+subregionsOCEANIA <- read_csv(subregionsOCEANIA_v)
+subregionsOCEANIA
+unique(subregionsOCEANIA$Subregion)
+unique(subregionsOCEANIA$NAME_0)
+unique(OCEANIA_adm0$NAME_0)
+
+OCEANIA_adm0_subregions <- OCEANIA_adm0 %>%
+  right_join(subregionsOCEANIA, by = "GID_0") %>%
+  dplyr::select (-NAME_0.y) %>%
+  dplyr::rename(NAME_0 = NAME_0.x) %>%
+  filter(!is.na(NAME_0))
+OCEANIA_adm0_subregions %>% st_drop_geometry()
+OCEANIA_adm0 %>% st_drop_geometry()
+
+OCEANIA_adm0_subregions
+unique(subregionsOCEANIA$Subregion)
+unique(OCEANIA_adm0$NAME_0)
+
+# Build regions
+OCEANIA_adm0_papuanewguinea <- OCEANIA_adm0_subregions %>% dplyr::filter(Subregion %in% "Papua New Guinea") %>% mutate(ID = 1:nrow(.))
+OCEANIA_adm0_papuanewguinea$mofuss_reg <- "OCEANIA_adm0_papuanewguinea"
+
+# Saves each region separatedly for level 0
+st_write(OCEANIA_adm0_papuanewguinea, "regions_adm0/OCEANIA_adm0_papuanewguinea.gpkg", delete_layer = TRUE)
+
+OCEANIA_adm0_papuanewguinea %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm0_p/OCEANIA_adm0_papuanewguinea_p.gpkg", delete_layer = TRUE)
+
+# # Sub admin_regions #1
+OCEANIA_adm1_papuanewguinea <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% OCEANIA_adm0_papuanewguinea$GID_0) %>% mutate(ID = 1:nrow(.))
+
+# Saves each region separatedly for level 1
+st_write(OCEANIA_adm1_papuanewguinea, "regions_adm1/OCEANIA_adm1_papuanewguinea.gpkg", delete_layer = TRUE)
+
+OCEANIA_adm1_papuanewguinea %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm1_p/OCEANIA_adm1_papuanewguinea_p.gpkg", delete_layer = TRUE)
+
+# # Sub admin_regions #2
+OCEANIA_adm2_papuanewguinea <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% OCEANIA_adm0_papuanewguinea$GID_0) %>% mutate(ID = 1:nrow(.))
+
+# Saves each region separatedly for level 2
+st_write(OCEANIA_adm2_papuanewguinea, "regions_adm2/OCEANIA_adm2_papuanewguinea.gpkg", delete_layer = TRUE)
+
+OCEANIA_adm2_papuanewguinea %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm2_p/OCEANIA_adm2_papuanewguinea_p.gpkg", delete_layer = TRUE)
+
+# North Africa ----
+# subregionsNorAfr <- read_excel("subregionsNorAfri_v3.xlsx")
+subregionsNorAfr <- read_csv(subregionsNorAfri_v)
+subregionsNorAfr
+unique(subregionsNorAfr$Subregion)
+unique(NorAfr_adm0$NAME_0)
+
+NorAfr_adm0_subregions <- NorAfr_adm0 %>%
+  right_join(subregionsNorAfr, by = "GID_0") %>%
+  dplyr::select (-NAME_0.y) %>%
+  dplyr::rename(NAME_0 = NAME_0.x) %>%
+  filter(!is.na(NAME_0))
+NorAfr_adm0_subregions %>% st_drop_geometry()
+NorAfr_adm0 %>% st_drop_geometry()
+
+# Build regions
+NorAfr_adm0_west <- NorAfr_adm0_subregions %>% dplyr::filter(Subregion %in% "Northern Africa") %>% mutate(ID = 1:nrow(.))
+NorAfr_adm0_west$mofuss_reg <- "NorAfr_adm0_west"
+
+# Saves each region separatedly for level 0
+st_write(NorAfr_adm0_west, "regions_adm0/NorAfr_adm0_west.gpkg", delete_layer = TRUE)
+
+NorAfr_adm0_west %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm0_p/NorAfr_adm0_west_p.gpkg", delete_layer = TRUE)
+
+# Sub admin_regions #1
+NorAfr_adm1_west <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% NorAfr_adm0_west$GID_0) %>% mutate(ID = 1:nrow(.))
+
+st_write(NorAfr_adm1_west, "regions_adm1/NorAfr_adm1_west.gpkg", delete_layer = TRUE)
+
+NorAfr_adm1_west %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm1_p/NorAfr_adm1_west_p.gpkg", delete_layer = TRUE)
+
+# Sub admin_regions #2
+NorAfr_adm2_west <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% NorAfr_adm0_west$GID_0) %>% mutate(ID = 1:nrow(.))
+
+st_write(NorAfr_adm2_west, "regions_adm2/NorAfr_adm2_west.gpkg", delete_layer = TRUE)
+
+NorAfr_adm2_west %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm2_p/NorAfr_adm2_west_p.gpkg", delete_layer = TRUE)
+
+# Load all vector layers for each admin_regions level ----
+regions.list0 <- list.files(path = "regions_adm0",
+                            pattern="*.gpkg", full.names = TRUE)
+mofuss_regions0 <- lapply(regions.list0, st_read)
+mofuss_regions0 <- do.call("rbind", mofuss_regions0)
+# mofuss_regions0 <- mofuss_regions00 %>%
+#   select (ID)
+st_write(mofuss_regions0, "regions_adm0/mofuss_regions0.gpkg", delete_layer = TRUE)
+st_write(mofuss_regions0, "regions_adm0/mofuss_regions0.shp", delete_layer = TRUE)
+
+unique(mofuss_regions0$GID_0)
+
+# Load all vector layers for each admin_regions level
+regions.list1 <- list.files(path = "regions_adm1",
+                           pattern="*.gpkg", full.names = TRUE)
+mofuss_regions1 <- lapply(regions.list1, st_read)
+mofuss_regions1 <- do.call("rbind", mofuss_regions1)
+mofuss_regions1 %>%
+  dplyr::select (ID)
+
+st_write(mofuss_regions1, "regions_adm1/mofuss_regions1.gpkg", delete_layer = TRUE)
+st_write(mofuss_regions1, "regions_adm1/mofuss_regions1.shp", delete_layer = TRUE)
+
+# Load all vector layers for each admin_regions level
+regions.list2 <- list.files(path = "regions_adm2",
+                            pattern="*.gpkg", full.names = TRUE)
+mofuss_regions2 <- lapply(regions.list2, st_read)
+mofuss_regions2 <- do.call("rbind", mofuss_regions2)
+st_write(mofuss_regions2, "regions_adm2/mofuss_regions2.gpkg", delete_layer = TRUE)
+st_write(mofuss_regions2, "regions_adm2/mofuss_regions2.shp", delete_layer = TRUE)
+
+
+# Simplifed polygons for the websever ----
+
+if (run_ms == "Yes"){
+
+library(sf)
+library(tictoc)
+#library(mapview)
+library(tidyverse)
+library(readxl)
+# library(hacksaw)
+library(rmapshaper)
+
+# Using the system mapshaper - COULD NOT INSTALL IT IN WIN10!!!
+check_sys_mapshaper()
+system("mapshaper --version")
+# https://github.com/mbloch/mapshaper
+# https://github.com/ateucher/rmapshaper#using-the-system-mapshaper
+# https://nodejs.org/en
+
+adm0_regtest <- st_read("regions_adm0/mofuss_regions0.gpkg")
+adm1_regtest <- st_read("regions_adm1/mofuss_regions1.gpkg")
+adm2_regtest <- st_read("regions_adm2/mofuss_regions2.gpkg")
+
+# https://epsg.io/paste0(proj_authority,":",epsg_pcs) World Mercator
+# https://epsg.io/1078-method Equal Earth
+# EqualEarth? <- sf::st_transform(adm0_regtest, "+proj=eqearth")
+
+mofuss_regions0_simp <- adm0_regtest %>%
+  # mutate(fNRB = sample(0:100, n(), replace = TRUE),
+  #        fNRBsd = sample(0:50, n(), replace = TRUE),
+  #        NRB = sample(0:3300, n(), replace = TRUE),
+  #        NRBsd = sample(0:1100, n(), replace = TRUE)) %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  ms_simplify(sys = TRUE) %>%
+  st_transform(epsg_gcs)
+st_write(mofuss_regions0_simp, "regions_adm0/mofuss_regions0_simp.shp", delete_layer = TRUE)
+
+# # Save geojson
+# # (Optional) keep only needed attributes
+# wanted <- c("NAME_0", "GID_0")
+# mofuss_regions0_simp <- mofuss_regions0_simp[, intersect(wanted, names(mofuss_regions0_simp))]
+#
+# # Write UTF-8 GeoJSON (ideal for GEE)
+# sf::st_write(
+#   mofuss_regions0_simp,
+#   dsn = "regions_adm0/mofuss_regions0_simp.geojson",
+#   driver = "GeoJSON",
+#   delete_dsn = TRUE,
+#   layer_options = c(
+#     "RFC7946=YES",            # lon/lat order per spec
+#     "COORDINATE_PRECISION=6"  # smaller file; good precision
+#   )
+# )
+#
+# # Quick check
+# check <- sf::st_read("regions_adm0/mofuss_regions0_simp.geojson", quiet = TRUE)
+# print(head(check$NAME_0))
+
+mofuss_regions1_simp <- adm1_regtest %>%
+  # mutate(fNRB = sample(0:100, n(), replace = TRUE),
+  #        fNRBsd = sample(0:50, n(), replace = TRUE),
+  #        NRB = sample(0:330, n(), replace = TRUE),
+  #        NRBsd = sample(0:110, n(), replace = TRUE)) %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  ms_simplify(sys = TRUE, sys_mem = 16) %>%
+  st_transform(epsg_gcs)
+st_write(mofuss_regions1_simp, "regions_adm1/mofuss_regions1_simp.shp", delete_layer = TRUE)
+
+# with st_simplify & ms_simplify
+mofuss_regions2_simp <- adm2_regtest %>%
+  # mutate(fNRB = sample(0:100, n(), replace = TRUE),
+  #        fNRBsd = sample(0:50, n(), replace = TRUE),
+  #        NRB = sample(0:33, n(), replace = TRUE),
+  #        NRBsd = sample(0:11, n(), replace = TRUE)) %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_simplify(preserveTopology = TRUE, dTolerance = 50) %>%
+  # ms_simplify()
+  ms_simplify(keep = 0.6, keep_shapes = FALSE, sys = TRUE, sys_mem = 24) %>%
+  st_transform(epsg_gcs)
+st_write(mofuss_regions2_simp, "regions_adm2/mofuss_regions2_simp.shp", delete_layer = TRUE)
+
+}
+
+# Project mofuss layers
+
+st_read("regions_adm0/mofuss_regions0.gpkg") %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm0_p/mofuss_regions0_p.gpkg", delete_layer = TRUE)
+
+st_read("regions_adm1/mofuss_regions1.gpkg") %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm1_p/mofuss_regions1_p.gpkg", delete_layer = TRUE)
+
+st_read("regions_adm2/mofuss_regions2.gpkg") %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm2_p/mofuss_regions2_p.gpkg", delete_layer = TRUE)
+
+# Update demand_in folder with latest mofuss_regions0.gpkg
+file.copy(from="regions_adm0/mofuss_regions0.gpkg",
+          to=paste0(demanddir,"/demand_in"),
+          overwrite = TRUE)
+
+# Update demand_in folder with latest mofuss_regions1.gpkg
+file.copy(from="regions_adm1/mofuss_regions1.gpkg",
+          to=paste0(demanddir,"/demand_in"),
+          overwrite = TRUE)
+
+# Update demand_in folder with latest mofuss_regions2.gpkg
+file.copy(from="regions_adm2/mofuss_regions2.gpkg",
+          to=paste0(demanddir,"/demand_in"),
+          overwrite = TRUE)
+
+# Ecoregions 2017 ----
+# Read input layers
+mofuss_regions04crop <- st_read("regions_adm0/mofuss_regions0.gpkg")
+# ecoregions_raw <- st_read("ecoregions2017.gpkg") %>%
+#   dplyr::select(-OBJECTID, -BIOME_NUM, -BIOME_NAME, -REALM, -ECO_BIOME_, -NNH, -ECO_ID,
 #                 -SHAPE_LENG, -SHAPE_AREA, -COLOR, -COLOR_BIO, -COLOR_NNH,
-#                 -LICENSE) 
-# 
-# all(st_is_valid(ecoregions_raw))
-# # Find the invalid geometries
-# which(!st_is_valid(ecoregions_raw))
-# # Try fixing them
-# ecoregions_fixed <- st_make_valid(ecoregions_raw)
-# all(st_is_valid(ecoregions_fixed))  # Should return TRUE now
-# 
-# # Intersect and drop Z/M
-# ecoregions_intersected <- ecoregions_fixed %>%
-#   st_intersection(mofuss_regions04crop) %>%
-#   st_zm(drop = TRUE, what = "ZM")
-# 
-# # Save to GPKG
-# st_write(ecoregions_intersected, "ecoregions/ecoregions2017.gpkg",
-#          layer = "ecoregions_mofuss", delete_layer = TRUE)
-# 
-# # Project ecoregions
-# ecoregions_p <- ecoregions_intersected %>% 
-#   st_transform(paste0(proj_authority,":",epsg_pcs))
-# st_write(ecoregions_p,"ecoregions_p/ecoregions2017_p.gpkg", 
-#          layer = "ecoregions_mofuss", delete_layer = TRUE)
-# 
-# # # Check categories for certain terms (FAO's project in thei case)
-# # ecoregions_intersected %>%
-# #   filter(grepl("miombo|mopane|baikiaea woodlands", ECO_NAME, ignore.case = TRUE)) %>%
-# #   pull(ECO_NAME) %>%
-# #   unique()
-# 
-# # End of script ----
-# 
+#                 -LICENSE) %>%
+#   mutate(ECO_ID = 1:nrow(.))
+
+ecoregions_raw <- st_read("ecoregions2017.gpkg") %>%
+  dplyr::select(-OBJECTID, -BIOME_NUM, -BIOME_NAME, -REALM, -ECO_BIOME_, -NNH,
+                -SHAPE_LENG, -SHAPE_AREA, -COLOR, -COLOR_BIO, -COLOR_NNH,
+                -LICENSE)
+
+all(st_is_valid(ecoregions_raw))
+# Find the invalid geometries
+which(!st_is_valid(ecoregions_raw))
+# Try fixing them
+ecoregions_fixed <- st_make_valid(ecoregions_raw)
+all(st_is_valid(ecoregions_fixed))  # Should return TRUE now
+
+# Intersect and drop Z/M
+ecoregions_intersected <- ecoregions_fixed %>%
+  st_intersection(mofuss_regions04crop) %>%
+  st_zm(drop = TRUE, what = "ZM")
+
+# Save to GPKG
+st_write(ecoregions_intersected, "ecoregions/ecoregions2017.gpkg",
+         layer = "ecoregions_mofuss", delete_layer = TRUE)
+
+# Project ecoregions
+ecoregions_p <- ecoregions_intersected %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs))
+st_write(ecoregions_p,"ecoregions_p/ecoregions2017_p.gpkg",
+         layer = "ecoregions_mofuss", delete_layer = TRUE)
+
+# # Check categories for certain terms (FAO's project in thei case)
+# ecoregions_intersected %>%
+#   filter(grepl("miombo|mopane|baikiaea woodlands", ECO_NAME, ignore.case = TRUE)) %>%
+#   pull(ECO_NAME) %>%
+#   unique()
+
+# End of script ----
+
