@@ -434,572 +434,571 @@ SSA_adm0_subregions %>% st_drop_geometry()
 
 # Build regions
 SSA_adm0_eastern <- SSA_adm0_subregions %>% dplyr::filter(Subregion %in% "Eastern Africa") %>% mutate(ID = 1:nrow(.))
-SSA_adm0_eastern
-# SSA_adm0_eastern$mofuss_reg <- "SSA_adm0_eastern"
-# #SSA_adm0_southeastern <- SSA_adm0_subregions %>% dplyr::filter(Subregion %in% "Southeastern Africa") %>% mutate(ID = 1:nrow(.))
-# #SSA_adm0_southeastern$mofuss_reg <- "SSA_adm0_southeastern"
-# SSA_adm0_southern <- SSA_adm0_subregions %>% dplyr::filter(Subregion %in% "Southern Africa") %>% mutate(ID = 1:nrow(.))
-# SSA_adm0_southern$mofuss_reg <- "SSA_adm0_southern"
-# SSA_adm0_western <- SSA_adm0_subregions %>% dplyr::filter(Subregion %in% "Western Africa") %>% mutate(ID = 1:nrow(.))
-# SSA_adm0_western$mofuss_reg <- "SSA_adm0_western"
-# SSA_adm0_madagascar <- SSA_adm0_subregions %>% dplyr::filter(Subregion %in% "Madagascar") %>% mutate(ID = 1:nrow(.))
-# SSA_adm0_madagascar$mofuss_reg <- "SSA_adm0_madagascar"
-# SSA_adm0_stp <- SSA_adm0_subregions %>% dplyr::filter(Subregion %in% "São Tomé and Príncipe") %>% mutate(ID = 1:nrow(.))
-# SSA_adm0_stp$mofuss_reg <- "SSA_adm0_stp"
-# SSA_adm0_comoros <- SSA_adm0_subregions %>% dplyr::filter(Subregion %in% "Comoros") %>% mutate(ID = 1:nrow(.))
-# SSA_adm0_comoros$mofuss_reg <- "SSA_adm0_comoros"
-# SSA_adm0_mauritius <- SSA_adm0_subregions %>% dplyr::filter(Subregion %in% "Mauritius") %>% mutate(ID = 1:nrow(.))
-# SSA_adm0_mauritius$mofuss_reg <- "SSA_adm0_mauritius"
-# SSA_adm0_central <- SSA_adm0_subregions %>% dplyr::filter(Subregion %in% "Central Africa") %>% mutate(ID = 1:nrow(.))
-# SSA_adm0_central$mofuss_reg <- "SSA_adm0_central"
-# SSA_adm0_northcentral <- SSA_adm0_subregions %>% dplyr::filter(Subregion %in% "Northcentral Africa") %>% mutate(ID = 1:nrow(.))
-# SSA_adm0_northcentral$mofuss_reg <- "SSA_adm0_northcentral"
-# SSA_adm0_kenya <- SSA_adm0_subregions %>% dplyr::filter(Subregion %in% "Kenya") %>% mutate(ID = 1:nrow(.))
-# SSA_adm0_kenya$mofuss_reg <- "SSA_adm0_kenya"
-# SSA_adm0_uganda <- SSA_adm0_subregions %>% dplyr::filter(Subregion %in% "Uganda") %>% mutate(ID = 1:nrow(.))
-# SSA_adm0_uganda$mofuss_reg <- "SSA_adm0_uganda"
-# SSA_adm0_mali <- SSA_adm0_subregions %>% dplyr::filter(Subregion %in% "Mali") %>% mutate(ID = 1:nrow(.))
-# SSA_adm0_mali$mofuss_reg <- "SSA_adm0_mali"
-# SSA_adm0_chad <- SSA_adm0_subregions %>% dplyr::filter(Subregion %in% "Chad") %>% mutate(ID = 1:nrow(.))
-# SSA_adm0_chad$mofuss_reg <- "SSA_adm0_chad"
-# SSA_adm0_niger <- SSA_adm0_subregions %>% dplyr::filter(Subregion %in% "Niger") %>% mutate(ID = 1:nrow(.))
-# SSA_adm0_niger$mofuss_reg <- "SSA_adm0_niger"
-# SSA_adm0_caboverde <- SSA_adm0_subregions %>% dplyr::filter(Subregion %in% "Cabo Verde") %>% mutate(ID = 1:nrow(.))
-# SSA_adm0_caboverde$mofuss_reg <- "SSA_adm0_caboverde"
-# SSA_adm0_westcentral <- SSA_adm0_subregions %>% dplyr::filter(Subregion %in% "Westcentral Africa") %>% mutate(ID = 1:nrow(.))
-# SSA_adm0_westcentral$mofuss_reg <- "SSA_adm0_westcentral"
-# SSA_adm0_westsouthern <- SSA_adm0_subregions %>% dplyr::filter(Subregion %in% "Westsouthern Africa") %>% mutate(ID = 1:nrow(.))
-# SSA_adm0_westsouthern$mofuss_reg <- "SSA_adm0_westsouthern"
-# SSA_adm0_mauritania <- SSA_adm0_subregions %>% dplyr::filter(Subregion %in% "Mauritania") %>% mutate(ID = 1:nrow(.))
-# SSA_adm0_mauritania$mofuss_reg <- "SSA_adm0_mauritania"
-# SSA_adm0_benin <- SSA_adm0_subregions %>% dplyr::filter(Subregion %in% "Benin") %>% mutate(ID = 1:nrow(.))
-# SSA_adm0_benin$mofuss_reg <- "SSA_adm0_benin"
-# SSA_adm0_burkinafaso <- SSA_adm0_subregions %>% dplyr::filter(Subregion %in% "Burkina Faso") %>% mutate(ID = 1:nrow(.))
-# SSA_adm0_burkinafaso$mofuss_reg <- "SSA_adm0_burkinafaso"
-# SSA_adm0_cdivoire <- SSA_adm0_subregions %>% dplyr::filter(Subregion %in% "Côte d'Ivoire") %>% mutate(ID = 1:nrow(.))
-# SSA_adm0_cdivoire$mofuss_reg <- "SSA_adm0_cdivoire"
-# SSA_adm0_ghana <- SSA_adm0_subregions %>% dplyr::filter(Subregion %in% "Ghana") %>% mutate(ID = 1:nrow(.))
-# SSA_adm0_ghana$mofuss_reg <- "SSA_adm0_ghana"
-# SSA_adm0_senegambia <- SSA_adm0_subregions %>% dplyr::filter(Subregion %in% "Senegambia") %>% mutate(ID = 1:nrow(.))
-# SSA_adm0_senegambia$mofuss_reg <- "SSA_adm0_senegambia"
-# SSA_adm0_togo <- SSA_adm0_subregions %>% dplyr::filter(Subregion %in% "Togo") %>% mutate(ID = 1:nrow(.))
-# SSA_adm0_togo$mofuss_reg <- "SSA_adm0_togo"
-# # SSA_adm0_malawi <- SSA_adm0_subregions %>% dplyr::filter(Subregion %in% "Malawi") %>% mutate(ID = 1:nrow(.))
-# # SSA_adm0_malawi$mofuss_reg <- "SSA_adm0_malawi"
-# # SSA_adm0_mozambique <- SSA_adm0_subregions %>% dplyr::filter(Subregion %in% "Mozambique") %>% mutate(ID = 1:nrow(.))
-# # SSA_adm0_mozambique$mofuss_reg <- "SSA_adm0_mozambique"
-# if (subregionsSSA_v == "subregionsSSA_v5FAO.csv") {
-#   SSA_adm0_miombo_mopane <- SSA_adm0_subregions %>% dplyr::filter(Subregion %in% "Miombo Mopane") %>% mutate(ID = 1:nrow(.))
-#   SSA_adm0_miombo_mopane$mofuss_reg <- "SSA_adm0_miombo_mopane"
-# } else if (subregionsSSA_v != "subregionsSSA_v5FAO.csv") {
-#   SSA_adm0_angola <- SSA_adm0_subregions %>% dplyr::filter(Subregion %in% "Angola") %>% mutate(ID = 1:nrow(.))
-#   SSA_adm0_angola$mofuss_reg <- "SSA_adm0_angola"
-#   SSA_adm0_malambique <- SSA_adm0_subregions %>% dplyr::filter(Subregion %in% "Malambique") %>% mutate(ID = 1:nrow(.))
-#   SSA_adm0_malambique$mofuss_reg <- "SSA_adm0_malambique"
-#   SSA_adm0_tanzania <- SSA_adm0_subregions %>% dplyr::filter(Subregion %in% "Tanzania") %>% mutate(ID = 1:nrow(.))
-#   SSA_adm0_tanzania$mofuss_reg <- "SSA_adm0_tanzania"
-#   SSA_adm0_zambia <- SSA_adm0_subregions %>% dplyr::filter(Subregion %in% "Zambia") %>% mutate(ID = 1:nrow(.))
-#   SSA_adm0_zambia$mofuss_reg <- "SSA_adm0_zambia"
-#   SSA_adm0_zimbabwe <- SSA_adm0_subregions %>% dplyr::filter(Subregion %in% "Zimbabwe") %>% mutate(ID = 1:nrow(.))
-#   SSA_adm0_zimbabwe$mofuss_reg <- "SSA_adm0_zimbabwe"
-# }
-# 
-# 
-# # Saves each region separatedly for level 0
-# st_write(SSA_adm0_eastern, "regions_adm0/SSA_adm0_eastern.gpkg", delete_layer = TRUE)
-# #st_write(SSA_adm0_southeastern, "regions_adm0/SSA_adm0_southeastern.gpkg", delete_layer = TRUE)
-# st_write(SSA_adm0_southern, "regions_adm0/SSA_adm0_southern.gpkg", delete_layer = TRUE)
-# st_write(SSA_adm0_western, "regions_adm0/SSA_adm0_western.gpkg", delete_layer = TRUE)
-# st_write(SSA_adm0_madagascar, "regions_adm0/SSA_adm0_madagascar.gpkg", delete_layer = TRUE)
-# st_write(SSA_adm0_stp, "regions_adm0/SSA_adm0_stp.gpkg", delete_layer = TRUE)
-# st_write(SSA_adm0_comoros, "regions_adm0/SSA_adm0_comoros.gpkg", delete_layer = TRUE)
-# st_write(SSA_adm0_mauritius, "regions_adm0/SSA_adm0_mauritius.gpkg", delete_layer = TRUE)
-# st_write(SSA_adm0_central, "regions_adm0/SSA_adm0_central.gpkg", delete_layer = TRUE)
-# st_write(SSA_adm0_northcentral, "regions_adm0/SSA_adm0_northcentral.gpkg", delete_layer = TRUE)
-# st_write(SSA_adm0_kenya, "regions_adm0/SSA_adm0_kenya.gpkg", delete_layer = TRUE)
-# st_write(SSA_adm0_uganda, "regions_adm0/SSA_adm0_uganda.gpkg", delete_layer = TRUE)
-# st_write(SSA_adm0_mali, "regions_adm0/SSA_adm0_mali.gpkg", delete_layer = TRUE)
-# st_write(SSA_adm0_chad, "regions_adm0/SSA_adm0_chad.gpkg", delete_layer = TRUE)
-# st_write(SSA_adm0_niger, "regions_adm0/SSA_adm0_niger.gpkg", delete_layer = TRUE)
-# st_write(SSA_adm0_caboverde, "regions_adm0/SSA_adm0_caboverde.gpkg", delete_layer = TRUE)
-# st_write(SSA_adm0_westcentral, "regions_adm0/SSA_adm0_westcentral.gpkg", delete_layer = TRUE)
-# st_write(SSA_adm0_westsouthern, "regions_adm0/SSA_adm0_westsouthern.gpkg", delete_layer = TRUE)
-# st_write(SSA_adm0_mauritania, "regions_adm0/SSA_adm0_mauritania.gpkg", delete_layer = TRUE)
-# st_write(SSA_adm0_benin, "regions_adm0/SSA_adm0_benin.gpkg", delete_layer = TRUE)
-# st_write(SSA_adm0_burkinafaso, "regions_adm0/SSA_adm0_burkinafaso.gpkg", delete_layer = TRUE)
-# st_write(SSA_adm0_cdivoire, "regions_adm0/SSA_adm0_cdivoire.gpkg", delete_layer = TRUE)
-# st_write(SSA_adm0_ghana, "regions_adm0/SSA_adm0_ghana.gpkg", delete_layer = TRUE)
-# st_write(SSA_adm0_senegambia, "regions_adm0/SSA_adm0_senegambia.gpkg", delete_layer = TRUE)
-# st_write(SSA_adm0_togo, "regions_adm0/SSA_adm0_togo.gpkg", delete_layer = TRUE)
-# #st_write(SSA_adm0_mozambique, "regions_adm0/SSA_adm0_mozambique.gpkg", delete_layer = TRUE)
-# if (subregionsSSA_v == "subregionsSSA_v5FAO.csv") {
-#   st_write(SSA_adm0_miombo_mopane, "regions_adm0/SSA_adm0_miombo_mopane.gpkg", delete_layer = TRUE)
-# } else if (subregionsSSA_v != "subregionsSSA_v5FAO.csv") {
-#   st_write(SSA_adm0_angola, "regions_adm0/SSA_adm0_angola.gpkg", delete_layer = TRUE)
-#   st_write(SSA_adm0_malambique, "regions_adm0/SSA_adm0_malambique.gpkg", delete_layer = TRUE)
-#   st_write(SSA_adm0_tanzania, "regions_adm0/SSA_adm0_tanzania.gpkg", delete_layer = TRUE)
-#   st_write(SSA_adm0_zambia, "regions_adm0/SSA_adm0_zambia.gpkg", delete_layer = TRUE)
-#   st_write(SSA_adm0_zimbabwe, "regions_adm0/SSA_adm0_zimbabwe.gpkg", delete_layer = TRUE)
-# }
-# 
-# SSA_adm0_eastern %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm0_p/SSA_adm0_eastern_p.gpkg", delete_layer = TRUE)
-# # SSA_adm0_southeastern %>%
-# #  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-# #  st_write("regions_adm0_p/SSA_adm0_southeastern_p.gpkg", delete_layer = TRUE)
-# SSA_adm0_southern %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm0_p/SSA_adm0_southern_p.gpkg", delete_layer = TRUE)
-# SSA_adm0_western %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm0_p/SSA_adm0_western_p.gpkg", delete_layer = TRUE)
-# SSA_adm0_madagascar %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm0_p/SSA_adm0_madagascar_p.gpkg", delete_layer = TRUE)
-# SSA_adm0_stp %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm0_p/SSA_adm0_stp_p.gpkg", delete_layer = TRUE)
-# SSA_adm0_comoros %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm0_p/SSA_adm0_comoros_p.gpkg", delete_layer = TRUE)
-# SSA_adm0_mauritius %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm0_p/SSA_adm0_mauritius_p.gpkg", delete_layer = TRUE)
-# SSA_adm0_central %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm0_p/SSA_adm0_central_p.gpkg", delete_layer = TRUE)
-# SSA_adm0_northcentral %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm0_p/SSA_adm0_northcentral_p.gpkg", delete_layer = TRUE)
-# SSA_adm0_kenya %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm0_p/SSA_adm0_kenya_p.gpkg", delete_layer = TRUE)
-# SSA_adm0_uganda %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm0_p/SSA_adm0_uganda_p.gpkg", delete_layer = TRUE)
-# SSA_adm0_mali %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm0_p/SSA_adm0_mali_p.gpkg", delete_layer = TRUE)
-# SSA_adm0_chad %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm0_p/SSA_adm0_chad_p.gpkg", delete_layer = TRUE)
-# SSA_adm0_niger %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm0_p/SSA_adm0_niger_p.gpkg", delete_layer = TRUE)
-# SSA_adm0_caboverde %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm0_p/SSA_adm0_caboverde_p.gpkg", delete_layer = TRUE)
-# SSA_adm0_westcentral %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm0_p/SSA_adm0_westcentral_p.gpkg", delete_layer = TRUE)
-# SSA_adm0_westsouthern %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm0_p/SSA_adm0_westsouthern_p.gpkg", delete_layer = TRUE)
-# SSA_adm0_mauritania %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm0_p/SSA_adm0_mauritania_p.gpkg", delete_layer = TRUE)
-# SSA_adm0_benin %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm0_p/SSA_adm0_benin_p.gpkg", delete_layer = TRUE)
-# SSA_adm0_burkinafaso %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm0_p/SSA_adm0_burkinafaso_p.gpkg", delete_layer = TRUE)
-# SSA_adm0_cdivoire %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm0_p/SSA_adm0_cdivoire_p.gpkg", delete_layer = TRUE)
-# SSA_adm0_ghana %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm0_p/SSA_adm0_ghana_p.gpkg", delete_layer = TRUE)
-# SSA_adm0_senegambia %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm0_p/SSA_adm0_senegambia_p.gpkg", delete_layer = TRUE)
-# SSA_adm0_togo %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm0_p/SSA_adm0_togo_p.gpkg", delete_layer = TRUE)
-# # SSA_adm0_mozambique %>%
-# #   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-# #   st_write("regions_adm0_p/SSA_adm0_mozambique_p.gpkg", delete_layer = TRUE)
-# if (subregionsSSA_v == "subregionsSSA_v5FAO.csv") {
-#   SSA_adm0_miombo_mopane %>%
-#     st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#     st_write("regions_adm0_p/SSA_adm0_miombo_mopane_p.gpkg", delete_layer = TRUE)
-# } else if (subregionsSSA_v != "subregionsSSA_v5FAO.csv") {
-#   SSA_adm0_angola %>%
-#     st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#     st_write("regions_adm0_p/SSA_adm0_angola_p.gpkg", delete_layer = TRUE)
-#   SSA_adm0_malambique %>%
-#     st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#     st_write("regions_adm0_p/SSA_adm0_malambique_p.gpkg", delete_layer = TRUE)
-#   SSA_adm0_tanzania %>%
-#     st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#     st_write("regions_adm0_p/SSA_adm0_tanzania_p.gpkg", delete_layer = TRUE)
-#   SSA_adm0_zambia %>%
-#     st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#     st_write("regions_adm0_p/SSA_adm0_zambia_p.gpkg", delete_layer = TRUE)
-#   SSA_adm0_zimbabwe %>%
-#     st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#     st_write("regions_adm0_p/SSA_adm0_zimbabwe_p.gpkg", delete_layer = TRUE)
-# }
-# 
-# ## SSA Sub admin_regions #1 ----
-# SSA_adm1_eastern <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_eastern$GID_0) %>% mutate(ID = 1:nrow(.))
-# # SSA_adm1_southeastern <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_southeastern$GID_0) %>% mutate(ID = 1:nrow(.))
-# SSA_adm1_southern <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_southern$GID_0) %>% mutate(ID = 1:nrow(.))
-# SSA_adm1_western <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_western$GID_0) %>% mutate(ID = 1:nrow(.))
-# SSA_adm1_madagascar <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_madagascar$GID_0) %>% mutate(ID = 1:nrow(.))
-# SSA_adm1_stp <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_stp$GID_0) %>% mutate(ID = 1:nrow(.))
-# SSA_adm1_comoros <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_comoros$GID_0) %>% mutate(ID = 1:nrow(.))
-# SSA_adm1_mauritius <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_mauritius$GID_0) %>% mutate(ID = 1:nrow(.))
-# SSA_adm1_central <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_central$GID_0) %>% mutate(ID = 1:nrow(.))
-# SSA_adm1_northcentral <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_northcentral$GID_0) %>% mutate(ID = 1:nrow(.))
-# SSA_adm1_kenya <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_kenya$GID_0) %>% mutate(ID = 1:nrow(.))
-# SSA_adm1_uganda <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_uganda$GID_0) %>% mutate(ID = 1:nrow(.))
-# SSA_adm1_mali <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_mali$GID_0) %>% mutate(ID = 1:nrow(.))
-# SSA_adm1_chad <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_chad$GID_0) %>% mutate(ID = 1:nrow(.))
-# SSA_adm1_niger <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_niger$GID_0) %>% mutate(ID = 1:nrow(.))
-# SSA_adm1_caboverde <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_caboverde$GID_0) %>% mutate(ID = 1:nrow(.))
-# SSA_adm1_westcentral <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_westcentral$GID_0) %>% mutate(ID = 1:nrow(.))
-# SSA_adm1_westsouthern <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_westsouthern$GID_0) %>% mutate(ID = 1:nrow(.))
-# SSA_adm1_mauritania <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_mauritania$GID_0) %>% mutate(ID = 1:nrow(.))
-# SSA_adm1_benin <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_benin$GID_0) %>% mutate(ID = 1:nrow(.))
-# SSA_adm1_burkinafaso <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_burkinafaso$GID_0) %>% mutate(ID = 1:nrow(.))
-# SSA_adm1_cdivoire <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_cdivoire$GID_0) %>% mutate(ID = 1:nrow(.))
-# SSA_adm1_ghana <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_ghana$GID_0) %>% mutate(ID = 1:nrow(.))
-# SSA_adm1_senegambia <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_senegambia$GID_0) %>% mutate(ID = 1:nrow(.))
-# SSA_adm1_togo <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_togo$GID_0) %>% mutate(ID = 1:nrow(.))
-# #SSA_adm1_mozambique <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_mozambique$GID_0) %>% mutate(ID = 1:nrow(.))
-# if (subregionsSSA_v == "subregionsSSA_v5FAO.csv") {
-#   SSA_adm1_miombo_mopane <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_miombo_mopane$GID_0) %>% mutate(ID = 1:nrow(.))
-# } else if (subregionsSSA_v != "subregionsSSA_v5FAO.csv") {
-#   SSA_adm1_angola <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_angola$GID_0) %>% mutate(ID = 1:nrow(.))
-#   SSA_adm1_malambique <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_malambique$GID_0) %>% mutate(ID = 1:nrow(.))
-#   SSA_adm1_tanzania <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_tanzania$GID_0) %>% mutate(ID = 1:nrow(.))
-#   SSA_adm1_zambia <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_zambia$GID_0) %>% mutate(ID = 1:nrow(.))
-#   SSA_adm1_zimbabwe <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_zimbabwe$GID_0) %>% mutate(ID = 1:nrow(.))
-# }
-# 
-# st_write(SSA_adm1_eastern, "regions_adm1/SSA_adm1_eastern.gpkg", delete_layer = TRUE)
-# # st_write(SSA_adm1_southeastern, "regions_adm1/SSA_adm1_southeastern.gpkg", delete_layer = TRUE)
-# st_write(SSA_adm1_southern, "regions_adm1/SSA_adm1_southern.gpkg", delete_layer = TRUE)
-# st_write(SSA_adm1_western, "regions_adm1/SSA_adm1_western.gpkg", delete_layer = TRUE)
-# st_write(SSA_adm1_madagascar, "regions_adm1/SSA_adm1_madagascar.gpkg", delete_layer = TRUE)
-# st_write(SSA_adm1_stp, "regions_adm1/SSA_adm1_stp.gpkg", delete_layer = TRUE)
-# st_write(SSA_adm1_comoros, "regions_adm1/SSA_adm1_comoros.gpkg", delete_layer = TRUE)
-# st_write(SSA_adm1_mauritius, "regions_adm1/SSA_adm1_mauritius.gpkg", delete_layer = TRUE)
-# st_write(SSA_adm1_central, "regions_adm1/SSA_adm1_central.gpkg", delete_layer = TRUE)
-# st_write(SSA_adm1_northcentral, "regions_adm1/SSA_adm1_northcentral.gpkg", delete_layer = TRUE)
-# st_write(SSA_adm1_kenya, "regions_adm1/SSA_adm1_kenya.gpkg", delete_layer = TRUE)
-# st_write(SSA_adm1_uganda, "regions_adm1/SSA_adm1_uganda.gpkg", delete_layer = TRUE)
-# st_write(SSA_adm1_mali, "regions_adm1/SSA_adm1_mali.gpkg", delete_layer = TRUE)
-# st_write(SSA_adm1_chad, "regions_adm1/SSA_adm1_chad.gpkg", delete_layer = TRUE)
-# st_write(SSA_adm1_niger, "regions_adm1/SSA_adm1_niger.gpkg", delete_layer = TRUE)
-# st_write(SSA_adm1_caboverde, "regions_adm1/SSA_adm1_caboverde.gpkg", delete_layer = TRUE)
-# st_write(SSA_adm1_westcentral, "regions_adm1/SSA_adm1_westcentral.gpkg", delete_layer = TRUE)
-# st_write(SSA_adm1_westsouthern, "regions_adm1/SSA_adm1_westsouthern.gpkg", delete_layer = TRUE)
-# st_write(SSA_adm1_mauritania, "regions_adm1/SSA_adm1_mauritania.gpkg", delete_layer = TRUE)
-# st_write(SSA_adm1_benin, "regions_adm1/SSA_adm1_benin.gpkg", delete_layer = TRUE)
-# st_write(SSA_adm1_burkinafaso, "regions_adm1/SSA_adm1_burkinafaso.gpkg", delete_layer = TRUE)
-# st_write(SSA_adm1_cdivoire, "regions_adm1/SSA_adm1_cdivoire.gpkg", delete_layer = TRUE)
-# st_write(SSA_adm1_ghana, "regions_adm1/SSA_adm1_ghana.gpkg", delete_layer = TRUE)
-# st_write(SSA_adm1_senegambia, "regions_adm1/SSA_adm1_senegambia.gpkg", delete_layer = TRUE)
-# st_write(SSA_adm1_togo, "regions_adm1/SSA_adm1_togo.gpkg", delete_layer = TRUE)
-# #st_write(SSA_adm1_mozambique, "regions_adm1/SSA_adm1_mozambique.gpkg", delete_layer = TRUE)
-# if (subregionsSSA_v == "subregionsSSA_v5FAO.csv") {
-#   st_write(SSA_adm1_miombo_mopane, "regions_adm1/SSA_adm1_miombo_mopane.gpkg", delete_layer = TRUE)
-# } else if (subregionsSSA_v != "subregionsSSA_v5FAO.csv") {
-#   st_write(SSA_adm1_angola, "regions_adm1/SSA_adm1_angola.gpkg", delete_layer = TRUE)
-#   st_write(SSA_adm1_malambique, "regions_adm1/SSA_adm1_malambique.gpkg", delete_layer = TRUE)
-#   st_write(SSA_adm1_tanzania, "regions_adm1/SSA_adm1_tanzania.gpkg", delete_layer = TRUE)
-#   st_write(SSA_adm1_zambia, "regions_adm1/SSA_adm1_zambia.gpkg", delete_layer = TRUE)
-#   st_write(SSA_adm1_zimbabwe, "regions_adm1/SSA_adm1_zimbabwe.gpkg", delete_layer = TRUE)
-# }
-# 
-# 
-# 
-# SSA_adm1_eastern %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm1_p/SSA_adm1_eastern_p.gpkg", delete_layer = TRUE)
-# # SSA_adm1_southeastern %>%
-# # st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-# # st_write("regions_adm1_p/SSA_adm1_southeastern_p.gpkg", delete_layer = TRUE)
-# SSA_adm1_southern %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm1_p/SSA_adm1_southern_p.gpkg", delete_layer = TRUE)
-# SSA_adm1_western %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm1_p/SSA_adm1_western_p.gpkg", delete_layer = TRUE)
-# SSA_adm1_madagascar %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm1_p/SSA_adm1_madagascar_p.gpkg", delete_layer = TRUE)
-# SSA_adm1_stp %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm1_p/SSA_adm1_stp_p.gpkg", delete_layer = TRUE)
-# SSA_adm1_comoros %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm1_p/SSA_adm1_comoros_p.gpkg", delete_layer = TRUE)
-# SSA_adm1_mauritius %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm1_p/SSA_adm1_mauritius_p.gpkg", delete_layer = TRUE)
-# SSA_adm1_central %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm1_p/SSA_adm1_central_p.gpkg", delete_layer = TRUE)
-# SSA_adm1_northcentral %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm1_p/SSA_adm1_northcentral_p.gpkg", delete_layer = TRUE)
-# SSA_adm1_kenya %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm1_p/SSA_adm1_kenya_p.gpkg", delete_layer = TRUE)
-# SSA_adm1_uganda %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm1_p/SSA_adm1_uganda_p.gpkg", delete_layer = TRUE)
-# SSA_adm1_mali %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm1_p/SSA_adm1_mali_p.gpkg", delete_layer = TRUE)
-# SSA_adm1_chad %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm1_p/SSA_adm1_chad_p.gpkg", delete_layer = TRUE)
-# SSA_adm1_niger %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm1_p/SSA_adm1_niger_p.gpkg", delete_layer = TRUE)
-# SSA_adm1_caboverde %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm1_p/SSA_adm1_caboverde_p.gpkg", delete_layer = TRUE)
-# SSA_adm1_westcentral %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm1_p/SSA_adm1_westcentral_p.gpkg", delete_layer = TRUE)
-# SSA_adm1_westsouthern %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm1_p/SSA_adm1_westsouthern_p.gpkg", delete_layer = TRUE)
-# SSA_adm1_mauritania %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm1_p/SSA_adm1_mauritania_p.gpkg", delete_layer = TRUE)
-# SSA_adm1_benin %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm1_p/SSA_adm1_benin_p.gpkg", delete_layer = TRUE)
-# SSA_adm1_burkinafaso %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm1_p/SSA_adm1_burkinafaso_p.gpkg", delete_layer = TRUE)
-# SSA_adm1_cdivoire %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm1_p/SSA_adm1_cdivoire_p.gpkg", delete_layer = TRUE)
-# SSA_adm1_ghana %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm1_p/SSA_adm1_ghana_p.gpkg", delete_layer = TRUE)
-# SSA_adm1_senegambia %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm1_p/SSA_adm1_senegambia_p.gpkg", delete_layer = TRUE)
-# SSA_adm1_togo %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm1_p/SSA_adm1_togo_p.gpkg", delete_layer = TRUE)
-# # SSA_adm1_mozambique %>%
-# #   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-# #   st_write("regions_adm1_p/SSA_adm1_mozambique_p.gpkg", delete_layer = TRUE)
-# if (subregionsSSA_v == "subregionsSSA_v5FAO.csv") {
-#   SSA_adm1_miombo_mopane %>%
-#     st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#     st_write("regions_adm1_p/SSA_adm1_miombo_mopane_p.gpkg", delete_layer = TRUE)
-# } else if (subregionsSSA_v != "subregionsSSA_v5FAO.csv") {
-#   SSA_adm1_angola %>%
-#     st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#     st_write("regions_adm1_p/SSA_adm1_angola_p.gpkg", delete_layer = TRUE)
-#   SSA_adm1_malambique %>%
-#     st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#     st_write("regions_adm1_p/SSA_adm1_malambique_p.gpkg", delete_layer = TRUE)
-#   SSA_adm1_tanzania %>%
-#     st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#     st_write("regions_adm1_p/SSA_adm1_tanzania_p.gpkg", delete_layer = TRUE)
-#   SSA_adm1_zambia %>%
-#     st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#     st_write("regions_adm1_p/SSA_adm1_zambia_p.gpkg", delete_layer = TRUE)
-#   SSA_adm1_zimbabwe %>%
-#     st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#     st_write("regions_adm1_p/SSA_adm1_zimbabwe_p.gpkg", delete_layer = TRUE)
-# }
-# 
-# ## SSA Sub admin_regions #2 ----
-# SSA_adm2_eastern <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_eastern$GID_0) %>% mutate(ID = 1:nrow(.))
-# # SSA_adm2_southeastern <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_southeastern$GID_0) %>% mutate(ID = 1:nrow(.))
-# SSA_adm2_southern <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_southern$GID_0) %>% mutate(ID = 1:nrow(.))
-# SSA_adm2_western <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_western$GID_0) %>% mutate(ID = 1:nrow(.))
-# SSA_adm2_madagascar <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_madagascar$GID_0) %>% mutate(ID = 1:nrow(.))
-# SSA_adm2_stp <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_stp$GID_0) %>% mutate(ID = 1:nrow(.))
-# # SSA_adm2_comoros <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_comoros$GID_0) %>% mutate(ID = 1:nrow(.))
-# # SSA_adm2_mauritius <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_mauritius$GID_0) %>% mutate(ID = 1:nrow(.))
-# SSA_adm2_comoros <- SSA_adm1_comoros %>% # Saving ADM1 for Comoros cause no ADM2 available
-#   dplyr::mutate(GID_2 = GID_1,
-#                 NAME_2 = NAME_1)
-# SSA_adm2_mauritius <- SSA_adm1_mauritius %>% # Saving ADM1 for Mauritius cause no ADM2 available
-#   dplyr::mutate(GID_2 = GID_1,
-#                 NAME_2 = NAME_1)
-# SSA_adm2_central <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_central$GID_0) %>% mutate(ID = 1:nrow(.))
-# SSA_adm2_northcentral <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_northcentral$GID_0) %>% mutate(ID = 1:nrow(.))
-# SSA_adm2_kenya <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_kenya$GID_0) %>% mutate(ID = 1:nrow(.))
-# SSA_adm2_uganda <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_uganda$GID_0) %>% mutate(ID = 1:nrow(.))
-# SSA_adm2_mali <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_mali$GID_0) %>% mutate(ID = 1:nrow(.))
-# SSA_adm2_chad <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_chad$GID_0) %>% mutate(ID = 1:nrow(.))
-# SSA_adm2_niger <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_niger$GID_0) %>% mutate(ID = 1:nrow(.))
-# # SSA_adm2_caboverde <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_caboverde$GID_0) %>% mutate(ID = 1:nrow(.))
-# SSA_adm2_caboverde <- SSA_adm1_caboverde %>% # Saving ADM1 for Mauritius cause no ADM2 available
-#   dplyr::mutate(GID_2 = GID_1,
-#                 NAME_2 = NAME_1)
-# SSA_adm2_westcentral <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_westcentral$GID_0) %>% mutate(ID = 1:nrow(.))
-# SSA_adm2_westsouthern <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_westsouthern$GID_0) %>% mutate(ID = 1:nrow(.))
-# SSA_adm2_mauritania <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_mauritania$GID_0) %>% mutate(ID = 1:nrow(.))
-# SSA_adm2_benin <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_benin$GID_0) %>% mutate(ID = 1:nrow(.))
-# SSA_adm2_burkinafaso <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_burkinafaso$GID_0) %>% mutate(ID = 1:nrow(.))
-# SSA_adm2_cdivoire <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_cdivoire$GID_0) %>% mutate(ID = 1:nrow(.))
-# SSA_adm2_ghana <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_ghana$GID_0) %>% mutate(ID = 1:nrow(.))
-# SSA_adm2_senegambia <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_senegambia$GID_0) %>% mutate(ID = 1:nrow(.))
-# SSA_adm2_togo <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_togo$GID_0) %>% mutate(ID = 1:nrow(.))
-# #SSA_adm2_mozambique <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_mozambique$GID_0) %>% mutate(ID = 1:nrow(.))
-# if (subregionsSSA_v == "subregionsSSA_v5FAO.csv") {
-#   SSA_adm2_miombo_mopane <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_miombo_mopane$GID_0) %>% mutate(ID = 1:nrow(.))
-# } else if (subregionsSSA_v != "subregionsSSA_v5FAO.csv") {
-#   SSA_adm2_angola <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_angola$GID_0) %>% mutate(ID = 1:nrow(.))
-#   SSA_adm2_malambique <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_malambique$GID_0) %>% mutate(ID = 1:nrow(.))
-#   SSA_adm2_tanzania <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_tanzania$GID_0) %>% mutate(ID = 1:nrow(.))
-#   SSA_adm2_zambia <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_zambia$GID_0) %>% mutate(ID = 1:nrow(.))
-#   SSA_adm2_zimbabwe <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_zimbabwe$GID_0) %>% mutate(ID = 1:nrow(.))
-# }
-# 
-# st_write(SSA_adm2_eastern, "regions_adm2/SSA_adm2_eastern.gpkg", delete_layer = TRUE)
-# # st_write(SSA_adm2_southeastern, "regions_adm2/SSA_adm2_southeastern.gpkg", delete_layer = TRUE)
-# st_write(SSA_adm2_southern, "regions_adm2/SSA_adm2_southern.gpkg", delete_layer = TRUE)
-# st_write(SSA_adm2_western, "regions_adm2/SSA_adm2_western.gpkg", delete_layer = TRUE)
-# st_write(SSA_adm2_madagascar, "regions_adm2/SSA_adm2_madagascar.gpkg", delete_layer = TRUE)
-# st_write(SSA_adm2_stp, "regions_adm2/SSA_adm2_stp.gpkg", delete_layer = TRUE)
-# st_write(SSA_adm2_comoros, "regions_adm2/SSA_adm2_comoros.gpkg", delete_layer = TRUE)
-# st_write(SSA_adm2_mauritius, "regions_adm2/SSA_adm2_mauritius.gpkg", delete_layer = TRUE)
-# st_write(SSA_adm2_central, "regions_adm2/SSA_adm2_central.gpkg", delete_layer = TRUE)
-# st_write(SSA_adm2_northcentral, "regions_adm2/SSA_adm2_northcentral.gpkg", delete_layer = TRUE)
-# st_write(SSA_adm2_kenya, "regions_adm2/SSA_adm2_kenya.gpkg", delete_layer = TRUE)
-# st_write(SSA_adm2_uganda, "regions_adm2/SSA_adm2_uganda.gpkg", delete_layer = TRUE)
-# st_write(SSA_adm2_mali, "regions_adm2/SSA_adm2_mali.gpkg", delete_layer = TRUE)
-# st_write(SSA_adm2_chad, "regions_adm2/SSA_adm2_chad.gpkg", delete_layer = TRUE)
-# st_write(SSA_adm2_niger, "regions_adm2/SSA_adm2_niger.gpkg", delete_layer = TRUE)
-# st_write(SSA_adm2_caboverde, "regions_adm2/SSA_adm2_caboverde.gpkg", delete_layer = TRUE)
-# st_write(SSA_adm2_westcentral, "regions_adm2/SSA_adm2_westcentral.gpkg", delete_layer = TRUE)
-# st_write(SSA_adm2_westsouthern, "regions_adm2/SSA_adm2_westsouthern.gpkg", delete_layer = TRUE)
-# st_write(SSA_adm2_mauritania, "regions_adm2/SSA_adm2_mauritania.gpkg", delete_layer = TRUE)
-# st_write(SSA_adm2_benin, "regions_adm2/SSA_adm2_benin.gpkg", delete_layer = TRUE)
-# st_write(SSA_adm2_burkinafaso, "regions_adm2/SSA_adm2_burkinafaso.gpkg", delete_layer = TRUE)
-# st_write(SSA_adm2_cdivoire, "regions_adm2/SSA_adm2_cdivoire.gpkg", delete_layer = TRUE)
-# st_write(SSA_adm2_ghana, "regions_adm2/SSA_adm2_ghana.gpkg", delete_layer = TRUE)
-# st_write(SSA_adm2_senegambia, "regions_adm2/SSA_adm2_senegambia.gpkg", delete_layer = TRUE)
-# st_write(SSA_adm2_togo, "regions_adm2/SSA_adm2_togo.gpkg", delete_layer = TRUE)
-# #st_write(SSA_adm2_mozambique, "regions_adm2/SSA_adm2_mozambique.gpkg", delete_layer = TRUE)
-# if (subregionsSSA_v == "subregionsSSA_v5FAO.csv") {
-#   st_write(SSA_adm2_miombo_mopane, "regions_adm2/SSA_adm2_miombo_mopane.gpkg", delete_layer = TRUE)
-# } else if (subregionsSSA_v != "subregionsSSA_v5FAO.csv") {
-#   st_write(SSA_adm2_angola, "regions_adm2/SSA_adm2_angola.gpkg", delete_layer = TRUE)
-#   st_write(SSA_adm2_malambique, "regions_adm2/SSA_adm2_malambique.gpkg", delete_layer = TRUE)
-#   st_write(SSA_adm2_tanzania, "regions_adm2/SSA_adm2_tanzania.gpkg", delete_layer = TRUE)
-#   st_write(SSA_adm2_zambia, "regions_adm2/SSA_adm2_zambia.gpkg", delete_layer = TRUE)
-#   st_write(SSA_adm2_zimbabwe, "regions_adm2/SSA_adm2_zimbabwe.gpkg", delete_layer = TRUE)
-# }
-# 
-# 
-# SSA_adm2_eastern %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm2_p/SSA_adm2_eastern_p.gpkg", delete_layer = TRUE)
-# # SSA_adm2_southeastern %>%
-# #   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-# #   st_write("regions_adm2_p/SSA_adm2_southeastern_p.gpkg", delete_layer = TRUE)
-# SSA_adm2_southern %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm2_p/SSA_adm2_southern_p.gpkg", delete_layer = TRUE)
-# SSA_adm2_western %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm2_p/SSA_adm2_western_p.gpkg", delete_layer = TRUE)
-# SSA_adm2_madagascar %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm2_p/SSA_adm2_madagascar_p.gpkg", delete_layer = TRUE)
-# SSA_adm2_stp %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm2_p/SSA_adm2_stp_p.gpkg", delete_layer = TRUE)
-# SSA_adm2_comoros %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm2_p/SSA_adm2_comoros_p.gpkg", delete_layer = TRUE)
-# SSA_adm2_mauritius %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm2_p/SSA_adm2_mauritius_p.gpkg", delete_layer = TRUE)
-# SSA_adm2_central %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm2_p/SSA_adm2_central_p.gpkg", delete_layer = TRUE)
-# SSA_adm2_northcentral %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm2_p/SSA_adm2_northcentral_p.gpkg", delete_layer = TRUE)
-# SSA_adm2_kenya %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm2_p/SSA_adm2_kenya_p.gpkg", delete_layer = TRUE)
-# SSA_adm2_uganda %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm2_p/SSA_adm2_uganda_p.gpkg", delete_layer = TRUE)
-# SSA_adm2_mali %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm2_p/SSA_adm2_mali_p.gpkg", delete_layer = TRUE)
-# SSA_adm2_chad %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm2_p/SSA_adm2_chad_p.gpkg", delete_layer = TRUE)
-# SSA_adm2_niger %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm2_p/SSA_adm2_niger_p.gpkg", delete_layer = TRUE)
-# SSA_adm2_caboverde %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm2_p/SSA_adm2_caboverde_p.gpkg", delete_layer = TRUE)
-# SSA_adm2_westcentral %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm2_p/SSA_adm2_westcentral_p.gpkg", delete_layer = TRUE)
-# SSA_adm2_westsouthern %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm2_p/SSA_adm2_westsouthern_p.gpkg", delete_layer = TRUE)
-# SSA_adm2_mauritania %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm2_p/SSA_adm2_mauritania_p.gpkg", delete_layer = TRUE)
-# SSA_adm2_benin %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm2_p/SSA_adm2_benin_p.gpkg", delete_layer = TRUE)
-# SSA_adm2_burkinafaso %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm2_p/SSA_adm2_burkinafaso_p.gpkg", delete_layer = TRUE)
-# SSA_adm2_cdivoire %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm2_p/SSA_adm2_cdivoire_p.gpkg", delete_layer = TRUE)
-# SSA_adm2_ghana %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm2_p/SSA_adm2_ghana_p.gpkg", delete_layer = TRUE)
-# SSA_adm2_senegambia %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm2_p/SSA_adm2_senegambia_p.gpkg", delete_layer = TRUE)
-# SSA_adm2_togo %>%
-#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#   st_write("regions_adm2_p/SSA_adm2_togo_p.gpkg", delete_layer = TRUE)
-# # SSA_adm2_mozambique %>%
-# #   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-# #   st_write("regions_adm2_p/SSA_adm2_mozambique_p.gpkg", delete_layer = TRUE)
-# if (subregionsSSA_v == "subregionsSSA_v5FAO.csv") {
-#   SSA_adm2_miombo_mopane %>%
-#     st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#     st_write("regions_adm2_p/SSA_adm2_miombo_mopane_p.gpkg", delete_layer = TRUE)
-# } else if (subregionsSSA_v != "subregionsSSA_v5FAO.csv") {
-#   SSA_adm2_angola %>%
-#     st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#     st_write("regions_adm2_p/SSA_adm2_angola_p.gpkg", delete_layer = TRUE)
-#   SSA_adm2_malambique %>%
-#     st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#     st_write("regions_adm2_p/SSA_adm2_malambique_p.gpkg", delete_layer = TRUE)
-#   SSA_adm2_tanzania %>%
-#     st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#     st_write("regions_adm2_p/SSA_adm2_tanzania_p.gpkg", delete_layer = TRUE)
-#   SSA_adm2_zambia %>%
-#     st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#     st_write("regions_adm2_p/SSA_adm2_zambia_p.gpkg", delete_layer = TRUE)
-#   SSA_adm2_zimbabwe %>%
-#     st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
-#     st_write("regions_adm2_p/SSA_adm2_zimbabwe_p.gpkg", delete_layer = TRUE)
-# }
-# 
+SSA_adm0_eastern$mofuss_reg <- "SSA_adm0_eastern"
+#SSA_adm0_southeastern <- SSA_adm0_subregions %>% dplyr::filter(Subregion %in% "Southeastern Africa") %>% mutate(ID = 1:nrow(.))
+#SSA_adm0_southeastern$mofuss_reg <- "SSA_adm0_southeastern"
+SSA_adm0_southern <- SSA_adm0_subregions %>% dplyr::filter(Subregion %in% "Southern Africa") %>% mutate(ID = 1:nrow(.))
+SSA_adm0_southern$mofuss_reg <- "SSA_adm0_southern"
+SSA_adm0_western <- SSA_adm0_subregions %>% dplyr::filter(Subregion %in% "Western Africa") %>% mutate(ID = 1:nrow(.))
+SSA_adm0_western$mofuss_reg <- "SSA_adm0_western"
+SSA_adm0_madagascar <- SSA_adm0_subregions %>% dplyr::filter(Subregion %in% "Madagascar") %>% mutate(ID = 1:nrow(.))
+SSA_adm0_madagascar$mofuss_reg <- "SSA_adm0_madagascar"
+SSA_adm0_stp <- SSA_adm0_subregions %>% dplyr::filter(Subregion %in% "São Tomé and Príncipe") %>% mutate(ID = 1:nrow(.))
+SSA_adm0_stp$mofuss_reg <- "SSA_adm0_stp"
+SSA_adm0_comoros <- SSA_adm0_subregions %>% dplyr::filter(Subregion %in% "Comoros") %>% mutate(ID = 1:nrow(.))
+SSA_adm0_comoros$mofuss_reg <- "SSA_adm0_comoros"
+SSA_adm0_mauritius <- SSA_adm0_subregions %>% dplyr::filter(Subregion %in% "Mauritius") %>% mutate(ID = 1:nrow(.))
+SSA_adm0_mauritius$mofuss_reg <- "SSA_adm0_mauritius"
+SSA_adm0_central <- SSA_adm0_subregions %>% dplyr::filter(Subregion %in% "Central Africa") %>% mutate(ID = 1:nrow(.))
+SSA_adm0_central$mofuss_reg <- "SSA_adm0_central"
+SSA_adm0_northcentral <- SSA_adm0_subregions %>% dplyr::filter(Subregion %in% "Northcentral Africa") %>% mutate(ID = 1:nrow(.))
+SSA_adm0_northcentral$mofuss_reg <- "SSA_adm0_northcentral"
+SSA_adm0_kenya <- SSA_adm0_subregions %>% dplyr::filter(Subregion %in% "Kenya") %>% mutate(ID = 1:nrow(.))
+SSA_adm0_kenya$mofuss_reg <- "SSA_adm0_kenya"
+SSA_adm0_uganda <- SSA_adm0_subregions %>% dplyr::filter(Subregion %in% "Uganda") %>% mutate(ID = 1:nrow(.))
+SSA_adm0_uganda$mofuss_reg <- "SSA_adm0_uganda"
+SSA_adm0_mali <- SSA_adm0_subregions %>% dplyr::filter(Subregion %in% "Mali") %>% mutate(ID = 1:nrow(.))
+SSA_adm0_mali$mofuss_reg <- "SSA_adm0_mali"
+SSA_adm0_chad <- SSA_adm0_subregions %>% dplyr::filter(Subregion %in% "Chad") %>% mutate(ID = 1:nrow(.))
+SSA_adm0_chad$mofuss_reg <- "SSA_adm0_chad"
+SSA_adm0_niger <- SSA_adm0_subregions %>% dplyr::filter(Subregion %in% "Niger") %>% mutate(ID = 1:nrow(.))
+SSA_adm0_niger$mofuss_reg <- "SSA_adm0_niger"
+SSA_adm0_caboverde <- SSA_adm0_subregions %>% dplyr::filter(Subregion %in% "Cabo Verde") %>% mutate(ID = 1:nrow(.))
+SSA_adm0_caboverde$mofuss_reg <- "SSA_adm0_caboverde"
+SSA_adm0_westcentral <- SSA_adm0_subregions %>% dplyr::filter(Subregion %in% "Westcentral Africa") %>% mutate(ID = 1:nrow(.))
+SSA_adm0_westcentral$mofuss_reg <- "SSA_adm0_westcentral"
+SSA_adm0_westsouthern <- SSA_adm0_subregions %>% dplyr::filter(Subregion %in% "Westsouthern Africa") %>% mutate(ID = 1:nrow(.))
+SSA_adm0_westsouthern$mofuss_reg <- "SSA_adm0_westsouthern"
+SSA_adm0_mauritania <- SSA_adm0_subregions %>% dplyr::filter(Subregion %in% "Mauritania") %>% mutate(ID = 1:nrow(.))
+SSA_adm0_mauritania$mofuss_reg <- "SSA_adm0_mauritania"
+SSA_adm0_benin <- SSA_adm0_subregions %>% dplyr::filter(Subregion %in% "Benin") %>% mutate(ID = 1:nrow(.))
+SSA_adm0_benin$mofuss_reg <- "SSA_adm0_benin"
+SSA_adm0_burkinafaso <- SSA_adm0_subregions %>% dplyr::filter(Subregion %in% "Burkina Faso") %>% mutate(ID = 1:nrow(.))
+SSA_adm0_burkinafaso$mofuss_reg <- "SSA_adm0_burkinafaso"
+SSA_adm0_cdivoire <- SSA_adm0_subregions %>% dplyr::filter(Subregion %in% "Côte d'Ivoire") %>% mutate(ID = 1:nrow(.))
+SSA_adm0_cdivoire$mofuss_reg <- "SSA_adm0_cdivoire"
+SSA_adm0_ghana <- SSA_adm0_subregions %>% dplyr::filter(Subregion %in% "Ghana") %>% mutate(ID = 1:nrow(.))
+SSA_adm0_ghana$mofuss_reg <- "SSA_adm0_ghana"
+SSA_adm0_senegambia <- SSA_adm0_subregions %>% dplyr::filter(Subregion %in% "Senegambia") %>% mutate(ID = 1:nrow(.))
+SSA_adm0_senegambia$mofuss_reg <- "SSA_adm0_senegambia"
+SSA_adm0_togo <- SSA_adm0_subregions %>% dplyr::filter(Subregion %in% "Togo") %>% mutate(ID = 1:nrow(.))
+SSA_adm0_togo$mofuss_reg <- "SSA_adm0_togo"
+# SSA_adm0_malawi <- SSA_adm0_subregions %>% dplyr::filter(Subregion %in% "Malawi") %>% mutate(ID = 1:nrow(.))
+# SSA_adm0_malawi$mofuss_reg <- "SSA_adm0_malawi"
+# SSA_adm0_mozambique <- SSA_adm0_subregions %>% dplyr::filter(Subregion %in% "Mozambique") %>% mutate(ID = 1:nrow(.))
+# SSA_adm0_mozambique$mofuss_reg <- "SSA_adm0_mozambique"
+if (subregionsSSA_v == "subregionsSSA_v5FAO.csv") {
+  SSA_adm0_miombo_mopane <- SSA_adm0_subregions %>% dplyr::filter(Subregion %in% "Miombo Mopane") %>% mutate(ID = 1:nrow(.))
+  SSA_adm0_miombo_mopane$mofuss_reg <- "SSA_adm0_miombo_mopane"
+} else if (subregionsSSA_v != "subregionsSSA_v5FAO.csv") {
+  SSA_adm0_angola <- SSA_adm0_subregions %>% dplyr::filter(Subregion %in% "Angola") %>% mutate(ID = 1:nrow(.))
+  SSA_adm0_angola$mofuss_reg <- "SSA_adm0_angola"
+  SSA_adm0_malambique <- SSA_adm0_subregions %>% dplyr::filter(Subregion %in% "Malambique") %>% mutate(ID = 1:nrow(.))
+  SSA_adm0_malambique$mofuss_reg <- "SSA_adm0_malambique"
+  SSA_adm0_tanzania <- SSA_adm0_subregions %>% dplyr::filter(Subregion %in% "Tanzania") %>% mutate(ID = 1:nrow(.))
+  SSA_adm0_tanzania$mofuss_reg <- "SSA_adm0_tanzania"
+  SSA_adm0_zambia <- SSA_adm0_subregions %>% dplyr::filter(Subregion %in% "Zambia") %>% mutate(ID = 1:nrow(.))
+  SSA_adm0_zambia$mofuss_reg <- "SSA_adm0_zambia"
+  SSA_adm0_zimbabwe <- SSA_adm0_subregions %>% dplyr::filter(Subregion %in% "Zimbabwe") %>% mutate(ID = 1:nrow(.))
+  SSA_adm0_zimbabwe$mofuss_reg <- "SSA_adm0_zimbabwe"
+}
+
+
+# Saves each region separatedly for level 0
+st_write(SSA_adm0_eastern, "regions_adm0/SSA_adm0_eastern.gpkg", delete_layer = TRUE)
+#st_write(SSA_adm0_southeastern, "regions_adm0/SSA_adm0_southeastern.gpkg", delete_layer = TRUE)
+st_write(SSA_adm0_southern, "regions_adm0/SSA_adm0_southern.gpkg", delete_layer = TRUE)
+st_write(SSA_adm0_western, "regions_adm0/SSA_adm0_western.gpkg", delete_layer = TRUE)
+st_write(SSA_adm0_madagascar, "regions_adm0/SSA_adm0_madagascar.gpkg", delete_layer = TRUE)
+st_write(SSA_adm0_stp, "regions_adm0/SSA_adm0_stp.gpkg", delete_layer = TRUE)
+st_write(SSA_adm0_comoros, "regions_adm0/SSA_adm0_comoros.gpkg", delete_layer = TRUE)
+st_write(SSA_adm0_mauritius, "regions_adm0/SSA_adm0_mauritius.gpkg", delete_layer = TRUE)
+st_write(SSA_adm0_central, "regions_adm0/SSA_adm0_central.gpkg", delete_layer = TRUE)
+st_write(SSA_adm0_northcentral, "regions_adm0/SSA_adm0_northcentral.gpkg", delete_layer = TRUE)
+st_write(SSA_adm0_kenya, "regions_adm0/SSA_adm0_kenya.gpkg", delete_layer = TRUE)
+st_write(SSA_adm0_uganda, "regions_adm0/SSA_adm0_uganda.gpkg", delete_layer = TRUE)
+st_write(SSA_adm0_mali, "regions_adm0/SSA_adm0_mali.gpkg", delete_layer = TRUE)
+st_write(SSA_adm0_chad, "regions_adm0/SSA_adm0_chad.gpkg", delete_layer = TRUE)
+st_write(SSA_adm0_niger, "regions_adm0/SSA_adm0_niger.gpkg", delete_layer = TRUE)
+st_write(SSA_adm0_caboverde, "regions_adm0/SSA_adm0_caboverde.gpkg", delete_layer = TRUE)
+st_write(SSA_adm0_westcentral, "regions_adm0/SSA_adm0_westcentral.gpkg", delete_layer = TRUE)
+st_write(SSA_adm0_westsouthern, "regions_adm0/SSA_adm0_westsouthern.gpkg", delete_layer = TRUE)
+st_write(SSA_adm0_mauritania, "regions_adm0/SSA_adm0_mauritania.gpkg", delete_layer = TRUE)
+st_write(SSA_adm0_benin, "regions_adm0/SSA_adm0_benin.gpkg", delete_layer = TRUE)
+st_write(SSA_adm0_burkinafaso, "regions_adm0/SSA_adm0_burkinafaso.gpkg", delete_layer = TRUE)
+st_write(SSA_adm0_cdivoire, "regions_adm0/SSA_adm0_cdivoire.gpkg", delete_layer = TRUE)
+st_write(SSA_adm0_ghana, "regions_adm0/SSA_adm0_ghana.gpkg", delete_layer = TRUE)
+st_write(SSA_adm0_senegambia, "regions_adm0/SSA_adm0_senegambia.gpkg", delete_layer = TRUE)
+st_write(SSA_adm0_togo, "regions_adm0/SSA_adm0_togo.gpkg", delete_layer = TRUE)
+#st_write(SSA_adm0_mozambique, "regions_adm0/SSA_adm0_mozambique.gpkg", delete_layer = TRUE)
+if (subregionsSSA_v == "subregionsSSA_v5FAO.csv") {
+  st_write(SSA_adm0_miombo_mopane, "regions_adm0/SSA_adm0_miombo_mopane.gpkg", delete_layer = TRUE)
+} else if (subregionsSSA_v != "subregionsSSA_v5FAO.csv") {
+  st_write(SSA_adm0_angola, "regions_adm0/SSA_adm0_angola.gpkg", delete_layer = TRUE)
+  st_write(SSA_adm0_malambique, "regions_adm0/SSA_adm0_malambique.gpkg", delete_layer = TRUE)
+  st_write(SSA_adm0_tanzania, "regions_adm0/SSA_adm0_tanzania.gpkg", delete_layer = TRUE)
+  st_write(SSA_adm0_zambia, "regions_adm0/SSA_adm0_zambia.gpkg", delete_layer = TRUE)
+  st_write(SSA_adm0_zimbabwe, "regions_adm0/SSA_adm0_zimbabwe.gpkg", delete_layer = TRUE)
+}
+
+SSA_adm0_eastern %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm0_p/SSA_adm0_eastern_p.gpkg", delete_layer = TRUE)
+# SSA_adm0_southeastern %>%
+#  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+#  st_write("regions_adm0_p/SSA_adm0_southeastern_p.gpkg", delete_layer = TRUE)
+SSA_adm0_southern %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm0_p/SSA_adm0_southern_p.gpkg", delete_layer = TRUE)
+SSA_adm0_western %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm0_p/SSA_adm0_western_p.gpkg", delete_layer = TRUE)
+SSA_adm0_madagascar %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm0_p/SSA_adm0_madagascar_p.gpkg", delete_layer = TRUE)
+SSA_adm0_stp %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm0_p/SSA_adm0_stp_p.gpkg", delete_layer = TRUE)
+SSA_adm0_comoros %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm0_p/SSA_adm0_comoros_p.gpkg", delete_layer = TRUE)
+SSA_adm0_mauritius %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm0_p/SSA_adm0_mauritius_p.gpkg", delete_layer = TRUE)
+SSA_adm0_central %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm0_p/SSA_adm0_central_p.gpkg", delete_layer = TRUE)
+SSA_adm0_northcentral %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm0_p/SSA_adm0_northcentral_p.gpkg", delete_layer = TRUE)
+SSA_adm0_kenya %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm0_p/SSA_adm0_kenya_p.gpkg", delete_layer = TRUE)
+SSA_adm0_uganda %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm0_p/SSA_adm0_uganda_p.gpkg", delete_layer = TRUE)
+SSA_adm0_mali %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm0_p/SSA_adm0_mali_p.gpkg", delete_layer = TRUE)
+SSA_adm0_chad %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm0_p/SSA_adm0_chad_p.gpkg", delete_layer = TRUE)
+SSA_adm0_niger %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm0_p/SSA_adm0_niger_p.gpkg", delete_layer = TRUE)
+SSA_adm0_caboverde %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm0_p/SSA_adm0_caboverde_p.gpkg", delete_layer = TRUE)
+SSA_adm0_westcentral %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm0_p/SSA_adm0_westcentral_p.gpkg", delete_layer = TRUE)
+SSA_adm0_westsouthern %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm0_p/SSA_adm0_westsouthern_p.gpkg", delete_layer = TRUE)
+SSA_adm0_mauritania %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm0_p/SSA_adm0_mauritania_p.gpkg", delete_layer = TRUE)
+SSA_adm0_benin %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm0_p/SSA_adm0_benin_p.gpkg", delete_layer = TRUE)
+SSA_adm0_burkinafaso %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm0_p/SSA_adm0_burkinafaso_p.gpkg", delete_layer = TRUE)
+SSA_adm0_cdivoire %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm0_p/SSA_adm0_cdivoire_p.gpkg", delete_layer = TRUE)
+SSA_adm0_ghana %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm0_p/SSA_adm0_ghana_p.gpkg", delete_layer = TRUE)
+SSA_adm0_senegambia %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm0_p/SSA_adm0_senegambia_p.gpkg", delete_layer = TRUE)
+SSA_adm0_togo %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm0_p/SSA_adm0_togo_p.gpkg", delete_layer = TRUE)
+# SSA_adm0_mozambique %>%
+#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+#   st_write("regions_adm0_p/SSA_adm0_mozambique_p.gpkg", delete_layer = TRUE)
+if (subregionsSSA_v == "subregionsSSA_v5FAO.csv") {
+  SSA_adm0_miombo_mopane %>%
+    st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+    st_write("regions_adm0_p/SSA_adm0_miombo_mopane_p.gpkg", delete_layer = TRUE)
+} else if (subregionsSSA_v != "subregionsSSA_v5FAO.csv") {
+  SSA_adm0_angola %>%
+    st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+    st_write("regions_adm0_p/SSA_adm0_angola_p.gpkg", delete_layer = TRUE)
+  SSA_adm0_malambique %>%
+    st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+    st_write("regions_adm0_p/SSA_adm0_malambique_p.gpkg", delete_layer = TRUE)
+  SSA_adm0_tanzania %>%
+    st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+    st_write("regions_adm0_p/SSA_adm0_tanzania_p.gpkg", delete_layer = TRUE)
+  SSA_adm0_zambia %>%
+    st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+    st_write("regions_adm0_p/SSA_adm0_zambia_p.gpkg", delete_layer = TRUE)
+  SSA_adm0_zimbabwe %>%
+    st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+    st_write("regions_adm0_p/SSA_adm0_zimbabwe_p.gpkg", delete_layer = TRUE)
+}
+
+## SSA Sub admin_regions #1 ----
+SSA_adm1_eastern <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_eastern$GID_0) %>% mutate(ID = 1:nrow(.))
+# SSA_adm1_southeastern <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_southeastern$GID_0) %>% mutate(ID = 1:nrow(.))
+SSA_adm1_southern <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_southern$GID_0) %>% mutate(ID = 1:nrow(.))
+SSA_adm1_western <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_western$GID_0) %>% mutate(ID = 1:nrow(.))
+SSA_adm1_madagascar <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_madagascar$GID_0) %>% mutate(ID = 1:nrow(.))
+SSA_adm1_stp <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_stp$GID_0) %>% mutate(ID = 1:nrow(.))
+SSA_adm1_comoros <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_comoros$GID_0) %>% mutate(ID = 1:nrow(.))
+SSA_adm1_mauritius <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_mauritius$GID_0) %>% mutate(ID = 1:nrow(.))
+SSA_adm1_central <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_central$GID_0) %>% mutate(ID = 1:nrow(.))
+SSA_adm1_northcentral <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_northcentral$GID_0) %>% mutate(ID = 1:nrow(.))
+SSA_adm1_kenya <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_kenya$GID_0) %>% mutate(ID = 1:nrow(.))
+SSA_adm1_uganda <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_uganda$GID_0) %>% mutate(ID = 1:nrow(.))
+SSA_adm1_mali <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_mali$GID_0) %>% mutate(ID = 1:nrow(.))
+SSA_adm1_chad <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_chad$GID_0) %>% mutate(ID = 1:nrow(.))
+SSA_adm1_niger <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_niger$GID_0) %>% mutate(ID = 1:nrow(.))
+SSA_adm1_caboverde <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_caboverde$GID_0) %>% mutate(ID = 1:nrow(.))
+SSA_adm1_westcentral <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_westcentral$GID_0) %>% mutate(ID = 1:nrow(.))
+SSA_adm1_westsouthern <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_westsouthern$GID_0) %>% mutate(ID = 1:nrow(.))
+SSA_adm1_mauritania <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_mauritania$GID_0) %>% mutate(ID = 1:nrow(.))
+SSA_adm1_benin <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_benin$GID_0) %>% mutate(ID = 1:nrow(.))
+SSA_adm1_burkinafaso <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_burkinafaso$GID_0) %>% mutate(ID = 1:nrow(.))
+SSA_adm1_cdivoire <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_cdivoire$GID_0) %>% mutate(ID = 1:nrow(.))
+SSA_adm1_ghana <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_ghana$GID_0) %>% mutate(ID = 1:nrow(.))
+SSA_adm1_senegambia <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_senegambia$GID_0) %>% mutate(ID = 1:nrow(.))
+SSA_adm1_togo <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_togo$GID_0) %>% mutate(ID = 1:nrow(.))
+#SSA_adm1_mozambique <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_mozambique$GID_0) %>% mutate(ID = 1:nrow(.))
+if (subregionsSSA_v == "subregionsSSA_v5FAO.csv") {
+  SSA_adm1_miombo_mopane <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_miombo_mopane$GID_0) %>% mutate(ID = 1:nrow(.))
+} else if (subregionsSSA_v != "subregionsSSA_v5FAO.csv") {
+  SSA_adm1_angola <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_angola$GID_0) %>% mutate(ID = 1:nrow(.))
+  SSA_adm1_malambique <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_malambique$GID_0) %>% mutate(ID = 1:nrow(.))
+  SSA_adm1_tanzania <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_tanzania$GID_0) %>% mutate(ID = 1:nrow(.))
+  SSA_adm1_zambia <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_zambia$GID_0) %>% mutate(ID = 1:nrow(.))
+  SSA_adm1_zimbabwe <- gadm_adm1_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_zimbabwe$GID_0) %>% mutate(ID = 1:nrow(.))
+}
+
+st_write(SSA_adm1_eastern, "regions_adm1/SSA_adm1_eastern.gpkg", delete_layer = TRUE)
+# st_write(SSA_adm1_southeastern, "regions_adm1/SSA_adm1_southeastern.gpkg", delete_layer = TRUE)
+st_write(SSA_adm1_southern, "regions_adm1/SSA_adm1_southern.gpkg", delete_layer = TRUE)
+st_write(SSA_adm1_western, "regions_adm1/SSA_adm1_western.gpkg", delete_layer = TRUE)
+st_write(SSA_adm1_madagascar, "regions_adm1/SSA_adm1_madagascar.gpkg", delete_layer = TRUE)
+st_write(SSA_adm1_stp, "regions_adm1/SSA_adm1_stp.gpkg", delete_layer = TRUE)
+st_write(SSA_adm1_comoros, "regions_adm1/SSA_adm1_comoros.gpkg", delete_layer = TRUE)
+st_write(SSA_adm1_mauritius, "regions_adm1/SSA_adm1_mauritius.gpkg", delete_layer = TRUE)
+st_write(SSA_adm1_central, "regions_adm1/SSA_adm1_central.gpkg", delete_layer = TRUE)
+st_write(SSA_adm1_northcentral, "regions_adm1/SSA_adm1_northcentral.gpkg", delete_layer = TRUE)
+st_write(SSA_adm1_kenya, "regions_adm1/SSA_adm1_kenya.gpkg", delete_layer = TRUE)
+st_write(SSA_adm1_uganda, "regions_adm1/SSA_adm1_uganda.gpkg", delete_layer = TRUE)
+st_write(SSA_adm1_mali, "regions_adm1/SSA_adm1_mali.gpkg", delete_layer = TRUE)
+st_write(SSA_adm1_chad, "regions_adm1/SSA_adm1_chad.gpkg", delete_layer = TRUE)
+st_write(SSA_adm1_niger, "regions_adm1/SSA_adm1_niger.gpkg", delete_layer = TRUE)
+st_write(SSA_adm1_caboverde, "regions_adm1/SSA_adm1_caboverde.gpkg", delete_layer = TRUE)
+st_write(SSA_adm1_westcentral, "regions_adm1/SSA_adm1_westcentral.gpkg", delete_layer = TRUE)
+st_write(SSA_adm1_westsouthern, "regions_adm1/SSA_adm1_westsouthern.gpkg", delete_layer = TRUE)
+st_write(SSA_adm1_mauritania, "regions_adm1/SSA_adm1_mauritania.gpkg", delete_layer = TRUE)
+st_write(SSA_adm1_benin, "regions_adm1/SSA_adm1_benin.gpkg", delete_layer = TRUE)
+st_write(SSA_adm1_burkinafaso, "regions_adm1/SSA_adm1_burkinafaso.gpkg", delete_layer = TRUE)
+st_write(SSA_adm1_cdivoire, "regions_adm1/SSA_adm1_cdivoire.gpkg", delete_layer = TRUE)
+st_write(SSA_adm1_ghana, "regions_adm1/SSA_adm1_ghana.gpkg", delete_layer = TRUE)
+st_write(SSA_adm1_senegambia, "regions_adm1/SSA_adm1_senegambia.gpkg", delete_layer = TRUE)
+st_write(SSA_adm1_togo, "regions_adm1/SSA_adm1_togo.gpkg", delete_layer = TRUE)
+#st_write(SSA_adm1_mozambique, "regions_adm1/SSA_adm1_mozambique.gpkg", delete_layer = TRUE)
+if (subregionsSSA_v == "subregionsSSA_v5FAO.csv") {
+  st_write(SSA_adm1_miombo_mopane, "regions_adm1/SSA_adm1_miombo_mopane.gpkg", delete_layer = TRUE)
+} else if (subregionsSSA_v != "subregionsSSA_v5FAO.csv") {
+  st_write(SSA_adm1_angola, "regions_adm1/SSA_adm1_angola.gpkg", delete_layer = TRUE)
+  st_write(SSA_adm1_malambique, "regions_adm1/SSA_adm1_malambique.gpkg", delete_layer = TRUE)
+  st_write(SSA_adm1_tanzania, "regions_adm1/SSA_adm1_tanzania.gpkg", delete_layer = TRUE)
+  st_write(SSA_adm1_zambia, "regions_adm1/SSA_adm1_zambia.gpkg", delete_layer = TRUE)
+  st_write(SSA_adm1_zimbabwe, "regions_adm1/SSA_adm1_zimbabwe.gpkg", delete_layer = TRUE)
+}
+
+
+
+SSA_adm1_eastern %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm1_p/SSA_adm1_eastern_p.gpkg", delete_layer = TRUE)
+# SSA_adm1_southeastern %>%
+# st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+# st_write("regions_adm1_p/SSA_adm1_southeastern_p.gpkg", delete_layer = TRUE)
+SSA_adm1_southern %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm1_p/SSA_adm1_southern_p.gpkg", delete_layer = TRUE)
+SSA_adm1_western %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm1_p/SSA_adm1_western_p.gpkg", delete_layer = TRUE)
+SSA_adm1_madagascar %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm1_p/SSA_adm1_madagascar_p.gpkg", delete_layer = TRUE)
+SSA_adm1_stp %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm1_p/SSA_adm1_stp_p.gpkg", delete_layer = TRUE)
+SSA_adm1_comoros %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm1_p/SSA_adm1_comoros_p.gpkg", delete_layer = TRUE)
+SSA_adm1_mauritius %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm1_p/SSA_adm1_mauritius_p.gpkg", delete_layer = TRUE)
+SSA_adm1_central %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm1_p/SSA_adm1_central_p.gpkg", delete_layer = TRUE)
+SSA_adm1_northcentral %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm1_p/SSA_adm1_northcentral_p.gpkg", delete_layer = TRUE)
+SSA_adm1_kenya %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm1_p/SSA_adm1_kenya_p.gpkg", delete_layer = TRUE)
+SSA_adm1_uganda %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm1_p/SSA_adm1_uganda_p.gpkg", delete_layer = TRUE)
+SSA_adm1_mali %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm1_p/SSA_adm1_mali_p.gpkg", delete_layer = TRUE)
+SSA_adm1_chad %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm1_p/SSA_adm1_chad_p.gpkg", delete_layer = TRUE)
+SSA_adm1_niger %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm1_p/SSA_adm1_niger_p.gpkg", delete_layer = TRUE)
+SSA_adm1_caboverde %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm1_p/SSA_adm1_caboverde_p.gpkg", delete_layer = TRUE)
+SSA_adm1_westcentral %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm1_p/SSA_adm1_westcentral_p.gpkg", delete_layer = TRUE)
+SSA_adm1_westsouthern %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm1_p/SSA_adm1_westsouthern_p.gpkg", delete_layer = TRUE)
+SSA_adm1_mauritania %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm1_p/SSA_adm1_mauritania_p.gpkg", delete_layer = TRUE)
+SSA_adm1_benin %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm1_p/SSA_adm1_benin_p.gpkg", delete_layer = TRUE)
+SSA_adm1_burkinafaso %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm1_p/SSA_adm1_burkinafaso_p.gpkg", delete_layer = TRUE)
+SSA_adm1_cdivoire %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm1_p/SSA_adm1_cdivoire_p.gpkg", delete_layer = TRUE)
+SSA_adm1_ghana %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm1_p/SSA_adm1_ghana_p.gpkg", delete_layer = TRUE)
+SSA_adm1_senegambia %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm1_p/SSA_adm1_senegambia_p.gpkg", delete_layer = TRUE)
+SSA_adm1_togo %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm1_p/SSA_adm1_togo_p.gpkg", delete_layer = TRUE)
+# SSA_adm1_mozambique %>%
+#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+#   st_write("regions_adm1_p/SSA_adm1_mozambique_p.gpkg", delete_layer = TRUE)
+if (subregionsSSA_v == "subregionsSSA_v5FAO.csv") {
+  SSA_adm1_miombo_mopane %>%
+    st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+    st_write("regions_adm1_p/SSA_adm1_miombo_mopane_p.gpkg", delete_layer = TRUE)
+} else if (subregionsSSA_v != "subregionsSSA_v5FAO.csv") {
+  SSA_adm1_angola %>%
+    st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+    st_write("regions_adm1_p/SSA_adm1_angola_p.gpkg", delete_layer = TRUE)
+  SSA_adm1_malambique %>%
+    st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+    st_write("regions_adm1_p/SSA_adm1_malambique_p.gpkg", delete_layer = TRUE)
+  SSA_adm1_tanzania %>%
+    st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+    st_write("regions_adm1_p/SSA_adm1_tanzania_p.gpkg", delete_layer = TRUE)
+  SSA_adm1_zambia %>%
+    st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+    st_write("regions_adm1_p/SSA_adm1_zambia_p.gpkg", delete_layer = TRUE)
+  SSA_adm1_zimbabwe %>%
+    st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+    st_write("regions_adm1_p/SSA_adm1_zimbabwe_p.gpkg", delete_layer = TRUE)
+}
+
+## SSA Sub admin_regions #2 ----
+SSA_adm2_eastern <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_eastern$GID_0) %>% mutate(ID = 1:nrow(.))
+# SSA_adm2_southeastern <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_southeastern$GID_0) %>% mutate(ID = 1:nrow(.))
+SSA_adm2_southern <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_southern$GID_0) %>% mutate(ID = 1:nrow(.))
+SSA_adm2_western <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_western$GID_0) %>% mutate(ID = 1:nrow(.))
+SSA_adm2_madagascar <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_madagascar$GID_0) %>% mutate(ID = 1:nrow(.))
+SSA_adm2_stp <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_stp$GID_0) %>% mutate(ID = 1:nrow(.))
+# SSA_adm2_comoros <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_comoros$GID_0) %>% mutate(ID = 1:nrow(.))
+# SSA_adm2_mauritius <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_mauritius$GID_0) %>% mutate(ID = 1:nrow(.))
+SSA_adm2_comoros <- SSA_adm1_comoros %>% # Saving ADM1 for Comoros cause no ADM2 available
+  dplyr::mutate(GID_2 = GID_1,
+                NAME_2 = NAME_1)
+SSA_adm2_mauritius <- SSA_adm1_mauritius %>% # Saving ADM1 for Mauritius cause no ADM2 available
+  dplyr::mutate(GID_2 = GID_1,
+                NAME_2 = NAME_1)
+SSA_adm2_central <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_central$GID_0) %>% mutate(ID = 1:nrow(.))
+SSA_adm2_northcentral <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_northcentral$GID_0) %>% mutate(ID = 1:nrow(.))
+SSA_adm2_kenya <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_kenya$GID_0) %>% mutate(ID = 1:nrow(.))
+SSA_adm2_uganda <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_uganda$GID_0) %>% mutate(ID = 1:nrow(.))
+SSA_adm2_mali <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_mali$GID_0) %>% mutate(ID = 1:nrow(.))
+SSA_adm2_chad <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_chad$GID_0) %>% mutate(ID = 1:nrow(.))
+SSA_adm2_niger <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_niger$GID_0) %>% mutate(ID = 1:nrow(.))
+# SSA_adm2_caboverde <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_caboverde$GID_0) %>% mutate(ID = 1:nrow(.))
+SSA_adm2_caboverde <- SSA_adm1_caboverde %>% # Saving ADM1 for Mauritius cause no ADM2 available
+  dplyr::mutate(GID_2 = GID_1,
+                NAME_2 = NAME_1)
+SSA_adm2_westcentral <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_westcentral$GID_0) %>% mutate(ID = 1:nrow(.))
+SSA_adm2_westsouthern <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_westsouthern$GID_0) %>% mutate(ID = 1:nrow(.))
+SSA_adm2_mauritania <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_mauritania$GID_0) %>% mutate(ID = 1:nrow(.))
+SSA_adm2_benin <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_benin$GID_0) %>% mutate(ID = 1:nrow(.))
+SSA_adm2_burkinafaso <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_burkinafaso$GID_0) %>% mutate(ID = 1:nrow(.))
+SSA_adm2_cdivoire <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_cdivoire$GID_0) %>% mutate(ID = 1:nrow(.))
+SSA_adm2_ghana <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_ghana$GID_0) %>% mutate(ID = 1:nrow(.))
+SSA_adm2_senegambia <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_senegambia$GID_0) %>% mutate(ID = 1:nrow(.))
+SSA_adm2_togo <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_togo$GID_0) %>% mutate(ID = 1:nrow(.))
+#SSA_adm2_mozambique <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_mozambique$GID_0) %>% mutate(ID = 1:nrow(.))
+if (subregionsSSA_v == "subregionsSSA_v5FAO.csv") {
+  SSA_adm2_miombo_mopane <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_miombo_mopane$GID_0) %>% mutate(ID = 1:nrow(.))
+} else if (subregionsSSA_v != "subregionsSSA_v5FAO.csv") {
+  SSA_adm2_angola <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_angola$GID_0) %>% mutate(ID = 1:nrow(.))
+  SSA_adm2_malambique <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_malambique$GID_0) %>% mutate(ID = 1:nrow(.))
+  SSA_adm2_tanzania <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_tanzania$GID_0) %>% mutate(ID = 1:nrow(.))
+  SSA_adm2_zambia <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_zambia$GID_0) %>% mutate(ID = 1:nrow(.))
+  SSA_adm2_zimbabwe <- gadm_adm2_sel %>% dplyr::filter(GID_0 %in% SSA_adm0_zimbabwe$GID_0) %>% mutate(ID = 1:nrow(.))
+}
+
+st_write(SSA_adm2_eastern, "regions_adm2/SSA_adm2_eastern.gpkg", delete_layer = TRUE)
+# st_write(SSA_adm2_southeastern, "regions_adm2/SSA_adm2_southeastern.gpkg", delete_layer = TRUE)
+st_write(SSA_adm2_southern, "regions_adm2/SSA_adm2_southern.gpkg", delete_layer = TRUE)
+st_write(SSA_adm2_western, "regions_adm2/SSA_adm2_western.gpkg", delete_layer = TRUE)
+st_write(SSA_adm2_madagascar, "regions_adm2/SSA_adm2_madagascar.gpkg", delete_layer = TRUE)
+st_write(SSA_adm2_stp, "regions_adm2/SSA_adm2_stp.gpkg", delete_layer = TRUE)
+st_write(SSA_adm2_comoros, "regions_adm2/SSA_adm2_comoros.gpkg", delete_layer = TRUE)
+st_write(SSA_adm2_mauritius, "regions_adm2/SSA_adm2_mauritius.gpkg", delete_layer = TRUE)
+st_write(SSA_adm2_central, "regions_adm2/SSA_adm2_central.gpkg", delete_layer = TRUE)
+st_write(SSA_adm2_northcentral, "regions_adm2/SSA_adm2_northcentral.gpkg", delete_layer = TRUE)
+st_write(SSA_adm2_kenya, "regions_adm2/SSA_adm2_kenya.gpkg", delete_layer = TRUE)
+st_write(SSA_adm2_uganda, "regions_adm2/SSA_adm2_uganda.gpkg", delete_layer = TRUE)
+st_write(SSA_adm2_mali, "regions_adm2/SSA_adm2_mali.gpkg", delete_layer = TRUE)
+st_write(SSA_adm2_chad, "regions_adm2/SSA_adm2_chad.gpkg", delete_layer = TRUE)
+st_write(SSA_adm2_niger, "regions_adm2/SSA_adm2_niger.gpkg", delete_layer = TRUE)
+st_write(SSA_adm2_caboverde, "regions_adm2/SSA_adm2_caboverde.gpkg", delete_layer = TRUE)
+st_write(SSA_adm2_westcentral, "regions_adm2/SSA_adm2_westcentral.gpkg", delete_layer = TRUE)
+st_write(SSA_adm2_westsouthern, "regions_adm2/SSA_adm2_westsouthern.gpkg", delete_layer = TRUE)
+st_write(SSA_adm2_mauritania, "regions_adm2/SSA_adm2_mauritania.gpkg", delete_layer = TRUE)
+st_write(SSA_adm2_benin, "regions_adm2/SSA_adm2_benin.gpkg", delete_layer = TRUE)
+st_write(SSA_adm2_burkinafaso, "regions_adm2/SSA_adm2_burkinafaso.gpkg", delete_layer = TRUE)
+st_write(SSA_adm2_cdivoire, "regions_adm2/SSA_adm2_cdivoire.gpkg", delete_layer = TRUE)
+st_write(SSA_adm2_ghana, "regions_adm2/SSA_adm2_ghana.gpkg", delete_layer = TRUE)
+st_write(SSA_adm2_senegambia, "regions_adm2/SSA_adm2_senegambia.gpkg", delete_layer = TRUE)
+st_write(SSA_adm2_togo, "regions_adm2/SSA_adm2_togo.gpkg", delete_layer = TRUE)
+#st_write(SSA_adm2_mozambique, "regions_adm2/SSA_adm2_mozambique.gpkg", delete_layer = TRUE)
+if (subregionsSSA_v == "subregionsSSA_v5FAO.csv") {
+  st_write(SSA_adm2_miombo_mopane, "regions_adm2/SSA_adm2_miombo_mopane.gpkg", delete_layer = TRUE)
+} else if (subregionsSSA_v != "subregionsSSA_v5FAO.csv") {
+  st_write(SSA_adm2_angola, "regions_adm2/SSA_adm2_angola.gpkg", delete_layer = TRUE)
+  st_write(SSA_adm2_malambique, "regions_adm2/SSA_adm2_malambique.gpkg", delete_layer = TRUE)
+  st_write(SSA_adm2_tanzania, "regions_adm2/SSA_adm2_tanzania.gpkg", delete_layer = TRUE)
+  st_write(SSA_adm2_zambia, "regions_adm2/SSA_adm2_zambia.gpkg", delete_layer = TRUE)
+  st_write(SSA_adm2_zimbabwe, "regions_adm2/SSA_adm2_zimbabwe.gpkg", delete_layer = TRUE)
+}
+
+
+SSA_adm2_eastern %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm2_p/SSA_adm2_eastern_p.gpkg", delete_layer = TRUE)
+# SSA_adm2_southeastern %>%
+#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+#   st_write("regions_adm2_p/SSA_adm2_southeastern_p.gpkg", delete_layer = TRUE)
+SSA_adm2_southern %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm2_p/SSA_adm2_southern_p.gpkg", delete_layer = TRUE)
+SSA_adm2_western %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm2_p/SSA_adm2_western_p.gpkg", delete_layer = TRUE)
+SSA_adm2_madagascar %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm2_p/SSA_adm2_madagascar_p.gpkg", delete_layer = TRUE)
+SSA_adm2_stp %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm2_p/SSA_adm2_stp_p.gpkg", delete_layer = TRUE)
+SSA_adm2_comoros %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm2_p/SSA_adm2_comoros_p.gpkg", delete_layer = TRUE)
+SSA_adm2_mauritius %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm2_p/SSA_adm2_mauritius_p.gpkg", delete_layer = TRUE)
+SSA_adm2_central %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm2_p/SSA_adm2_central_p.gpkg", delete_layer = TRUE)
+SSA_adm2_northcentral %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm2_p/SSA_adm2_northcentral_p.gpkg", delete_layer = TRUE)
+SSA_adm2_kenya %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm2_p/SSA_adm2_kenya_p.gpkg", delete_layer = TRUE)
+SSA_adm2_uganda %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm2_p/SSA_adm2_uganda_p.gpkg", delete_layer = TRUE)
+SSA_adm2_mali %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm2_p/SSA_adm2_mali_p.gpkg", delete_layer = TRUE)
+SSA_adm2_chad %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm2_p/SSA_adm2_chad_p.gpkg", delete_layer = TRUE)
+SSA_adm2_niger %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm2_p/SSA_adm2_niger_p.gpkg", delete_layer = TRUE)
+SSA_adm2_caboverde %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm2_p/SSA_adm2_caboverde_p.gpkg", delete_layer = TRUE)
+SSA_adm2_westcentral %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm2_p/SSA_adm2_westcentral_p.gpkg", delete_layer = TRUE)
+SSA_adm2_westsouthern %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm2_p/SSA_adm2_westsouthern_p.gpkg", delete_layer = TRUE)
+SSA_adm2_mauritania %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm2_p/SSA_adm2_mauritania_p.gpkg", delete_layer = TRUE)
+SSA_adm2_benin %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm2_p/SSA_adm2_benin_p.gpkg", delete_layer = TRUE)
+SSA_adm2_burkinafaso %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm2_p/SSA_adm2_burkinafaso_p.gpkg", delete_layer = TRUE)
+SSA_adm2_cdivoire %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm2_p/SSA_adm2_cdivoire_p.gpkg", delete_layer = TRUE)
+SSA_adm2_ghana %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm2_p/SSA_adm2_ghana_p.gpkg", delete_layer = TRUE)
+SSA_adm2_senegambia %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm2_p/SSA_adm2_senegambia_p.gpkg", delete_layer = TRUE)
+SSA_adm2_togo %>%
+  st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+  st_write("regions_adm2_p/SSA_adm2_togo_p.gpkg", delete_layer = TRUE)
+# SSA_adm2_mozambique %>%
+#   st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+#   st_write("regions_adm2_p/SSA_adm2_mozambique_p.gpkg", delete_layer = TRUE)
+if (subregionsSSA_v == "subregionsSSA_v5FAO.csv") {
+  SSA_adm2_miombo_mopane %>%
+    st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+    st_write("regions_adm2_p/SSA_adm2_miombo_mopane_p.gpkg", delete_layer = TRUE)
+} else if (subregionsSSA_v != "subregionsSSA_v5FAO.csv") {
+  SSA_adm2_angola %>%
+    st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+    st_write("regions_adm2_p/SSA_adm2_angola_p.gpkg", delete_layer = TRUE)
+  SSA_adm2_malambique %>%
+    st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+    st_write("regions_adm2_p/SSA_adm2_malambique_p.gpkg", delete_layer = TRUE)
+  SSA_adm2_tanzania %>%
+    st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+    st_write("regions_adm2_p/SSA_adm2_tanzania_p.gpkg", delete_layer = TRUE)
+  SSA_adm2_zambia %>%
+    st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+    st_write("regions_adm2_p/SSA_adm2_zambia_p.gpkg", delete_layer = TRUE)
+  SSA_adm2_zimbabwe %>%
+    st_transform(paste0(proj_authority,":",epsg_pcs)) %>%
+    st_write("regions_adm2_p/SSA_adm2_zimbabwe_p.gpkg", delete_layer = TRUE)
+}
+
 # # Americas ----
 # # subregionsLATAM <- read_excel("subregionsLATAM_v3.xlsx")
 # subregionsLATAM <- read_csv(subregionsLATAM_v)
@@ -1801,4 +1800,4 @@ SSA_adm0_eastern
 # #   unique()
 # 
 # # End of script ----
-
+# 
