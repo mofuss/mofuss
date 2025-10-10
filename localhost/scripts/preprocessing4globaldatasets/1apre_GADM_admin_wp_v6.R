@@ -352,8 +352,8 @@ gadm_adm0_sel_db <- gadm_adm0_sel %>% st_drop_geometry()
 gadm_adm0_sel_db
 
 # Read the WHO dataset in order to filter the GADM dataset by WHO availability (regions)
-setwd(demanddir)
-whodb <- read_excel("demand_in/A_LMIC_Estimates_2050_popmedian.xlsx")
+setwd(githubdir)
+whodb <- read_excel("demand_tables/A_LMIC_Estimates_2050_popmedian.xlsx")
 head(whodb)
 whodb_sel_u <- whodb %>% dplyr::select(iso3,country,region) %>% 
   unique()
