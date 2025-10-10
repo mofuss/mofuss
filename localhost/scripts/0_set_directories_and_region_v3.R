@@ -37,29 +37,20 @@ library(tcltk)
 os <- Sys.info()["sysname"]
 
 if (webmofuss == 1) {
+
+  # # from env for debugging outside webmofuss server
+  # getwd()
+  # githubdir="/home/yayo/mofuss"
+  # # scriptsmofuss=/var/www/html/mofuss/tools/uploads/68e885fec1f77/scripts/
+  # countrydir="/home/yayo/Documents/webmofuss"
+  # # demanddir=/var/www/html/mofuss/tools/uploads/68e885fec1f77/demand/
+  # admindir="/home/yayo/mofuss/admin_regions"
+  # # emissionsdir=/var/www/html/mofuss/tools/uploads/68e885fec1f77/emissions/
+  # # rTempdir=/var/www/html/mofuss/tools/uploads/68e885fec1f77/rTemp/
+  # parameters_file_path="/home/yayo/Documents/webmofuss/LULCC/DownloadedDatasets/SourceDataGlobal/parameters.csv"
+  # parameters_file="parameters.csv"
+  # getwd()
   
-  # 1km
-  #githubdir <- "/home/mofuss/Documents/mofuss"
-  #countrydir <- "/home/mofuss/global1000m"
-  # country <- "C:\\Users\\aghil\\Documents\\mofuss\\countries\\Global.tif"
-  #demanddir <- "/home/mofuss/demand"
-  #admindir <- "/home/mofuss/admin_regions"
-  #emissionsdir <- "/home/mofuss/emissions"
-  #rTempdir <- "/home/mofuss/rTemp"
-  #parameters_file_path <- "/home/mofuss/global1000m/LULCC/DownloadedDatasets/SourceDataGlobal/parameters_world1000m.csv"
-  #parameters_file_path <- "/home/mofuss/MDG_1000m_Linuxtest/LULCC/DownloadedDatasets/SourceDataGlobal/parameters_world1000m.xlsx"
-  
-  # # Extract the country name
-  # country_name <- gsub(pattern = "(.*countries[\\])(.*)(.tif.*)", 
-  #                      replacement = "\\2",
-  #                      country)
-  
-  # geedir <- "G:/Mi unidad/webpages/2024_MoFuSSGlobal_Datasets/GEE2MoFuSS"
-  # demdir <- "E:/DTEM"
-  # gripdir <- "E:/GRIP"
-  # hydrodir <- "E:/HydroSHEDS"
-  # borderdir <- "E:/borders"
-  # lulccfiles <- "E:/lulcc"
   
   # Read parameters table ----
   country_parameters <- read_csv(parameters_file_path)
