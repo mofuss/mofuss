@@ -600,7 +600,7 @@ if (!dir.exists(rTempdir)) {
 }
 
 # Define Demand directory ----
-demanddir <- file.path(countrydir, "demand")
+demanddir <- file.path(countrydir,"/LULCC/DownloadedDatasets/SourceDataGlobal/demand")
 
 # Check if directory exists, otherwise create it
 if (!dir.exists(demanddir)) {

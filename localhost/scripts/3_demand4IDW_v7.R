@@ -189,7 +189,7 @@ if (subcountry != 1) {
   # terra::unique(whodb$year)
   # terra::unique(whodb$iso3)
 }
-
+getwd()
 poprast <- paste0("demand_in/",pop_map_name) 
 
 # Define scenarios ----
@@ -491,7 +491,7 @@ if (aoi_poly == 1) {
   } else if(os == "Linux") {
     pop0_reg <- pop0_K
   }
-  plot(pop0_reg, main=paste0("You selected ",mofuss_region))
+  plot(pop0_reg, main=paste0("Overlapping with your AoI")) #,mofuss_region2))
   lines(adm0_reg)
   Sys.sleep(10)
   
