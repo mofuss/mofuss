@@ -18,6 +18,12 @@
 # URGENTLY fix this very old and outdated chunck to make it 
 # work smoothly with GEE at varying scales!!
 # Fix for linux cluster
+# if (GEE_scale == 1000) {
+#   print("Global growth parameters tables copied succesfully")
+# } else if (GEE_scale != 1000) {
+#   # Exclude the specific files
+#   growth2copy <- growth2copy[!basename(growth2copy) %in% c("growth_parameters_v3_copernicus.csv", "growth_parameters_v3_modis.csv")]
+# }
 
 # Internal parameters ----
 # # Select MoFuSS platform:
@@ -219,6 +225,95 @@ file.copy(
   to = paste0(countrydir, "/LULCC/"),
   overwrite = TRUE, recursive = TRUE, copy.mode = TRUE
 )
+
+# Clean MoFuSS working folder ----
+unlink(paste0(countrydir,"/LULCC/DownloadedDatasets/SourceData",country_name,"/InTables"), recursive= TRUE, force=TRUE)
+unlink(paste0(countrydir,"/LULCC/DownloadedDatasets/SourceData",country_name,"/InVector"), recursive= TRUE, force=TRUE)
+# unlink(paste0(countrydir,"/LULCC/DownloadedDatasets/SourceData",country_name,"/InVector_GCS"), recursive= TRUE, force=TRUE)
+
+if (!dir.exists(paste0(countrydir,"/LULCC/DownloadedDatasets/SourceData",country_name,"/InTables"))) {
+  dir.create(paste0(countrydir,"/LULCC/DownloadedDatasets/SourceData",country_name,"/InTables"))
+}
+
+if (!dir.exists(paste0(countrydir,"/LULCC/DownloadedDatasets/SourceData",country_name,"/InVector"))) {
+  dir.create(paste0(countrydir,"/LULCC/DownloadedDatasets/SourceData",country_name,"/InVector"))
+}
+
+# if (!dir.exists(paste0(countrydir,"/LULCC/DownloadedDatasets/SourceData",country_name,"/InVector_GCS"))) {
+#   dir.create(paste0(countrydir,"/LULCC/DownloadedDatasets/SourceData",country_name,"/InVector_GCS"))
+# }
+
+# Copy input tables from github repo into MoFuSS working folder ----
+friction2copy <- list.files(
+  path = paste0(githubdir, "/friction"),
+  pattern = "\\.csv$|\\.xlsx$",
+  full.names = TRUE)
+
+for (f in friction2copy) {
+  file.copy(from=f, 
+            to=paste0(countrydir,"/LULCC/DownloadedDatasets/SourceData",country_name,"/InTables/"), 
+            overwrite = TRUE, recursive = TRUE, copy.mode = TRUE)
+}
+
+demandtables2copy <- list.files(
+  path = paste0(githubdir, "/demand_tables"),
+  pattern = "\\.csv$|\\.xlsx$",
+  full.names = TRUE)
+
+dir.create(paste0(demanddir,"/demand_in"), recursive =TRUE)
+for (dem in demandtables2copy) {
+  file.copy(from=dem, 
+            
+            to=paste0(demanddir,"/demand_in"), 
+            overwrite = TRUE, recursive = TRUE, copy.mode = TRUE)
+}
+
+# Copy input tables from github repo into MoFuSS working folder ----
+growth2copy <- list.files(path = paste0(githubdir, "/global_growth"), 
+                          pattern = "\\.csv$|\\.xlsx$", 
+                          full.names = TRUE)
+
+# Read parameters table (recognizing the delimiter) ----
+detect_delimiter <- function(file_path) {
+  # Read the first line of the file
+  first_line <- readLines(file_path, n = 1)
+  # Check if the first line contains ',' or ';'
+  if (grepl(";", first_line)) {
+    return(";")
+  } else {
+    return(",")
+  }
+}
+# Detect the delimiter
+delimiter <- detect_delimiter(parameters_file_path)
+# Read the CSV file with the detected delimiter
+country_parameters <- read_delim(parameters_file_path, delim = delimiter)
+print(tibble::as_tibble(country_parameters), n=100)
+
+country_parameters %>%
+  dplyr::filter(Var == "GEE_scale") %>%
+  pull(ParCHR) -> GEE_scale
+# if (GEE_scale == 1000) {
+#   print("Global growth parameters tables copied succesfully")
+# } else if (GEE_scale != 1000) {
+#   # Exclude the specific files
+#   growth2copy <- growth2copy[!basename(growth2copy) %in% c("growth_parameters_v3_copernicus.csv", "growth_parameters_v3_modis.csv")]
+# }
+
+for (g in growth2copy) {
+  file.copy(from=g, 
+            to=paste0(countrydir,"/LULCC/DownloadedDatasets/SourceData",country_name,"/InTables/"), 
+            overwrite = TRUE, recursive = TRUE, copy.mode = TRUE)
+}
+
+admin2copyv2 <- list.files(path = paste0(githubdir, "/admin_regions"), 
+                           pattern = "\\.csv$|\\.xlsx$", 
+                           full.names = TRUE)
+for (t in admin2copyv2) {
+  file.copy(from=t, 
+            to=paste0(admindir,"/"), 
+            overwrite = TRUE, recursive = TRUE, copy.mode = TRUE)
+}
 
 # End of script ----
   

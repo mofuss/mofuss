@@ -20,8 +20,8 @@
 
 # Internal parameters ----
 temdirdefined <- 1
-fixdir <-  1
-string_pattern_yes <- "zmb_" #String pattern to be searched when selecting folders for the rasters' geocomputation
+fixdir <-  0
+string_pattern_yes <- "mwi_" #String pattern to be searched when selecting folders for the rasters' geocomputation
 string_pattern_no <- "idw" #String pattern to be searched when selecting folders for the rasters' geocomputation
  
 # Load packages ----

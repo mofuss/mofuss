@@ -39,11 +39,19 @@ directories_to_remove <- c(
   "LULCC/InVector", "LULCC/Out_lulcc", "LULCC/SourceData", 
   "LULCC/TempRaster", "LULCC/TempTables", "LULCC/TempVector", 
   "LULCC/TempVector_GCS", "LULCC/Wizard_imgs",
-  "LULCC/lucdynamics_luc1", "LULCC/lucdynamics_luc2", "LULCC/lucdynamics_luc3"
+  "LULCC/lucdynamics_luc1", "LULCC/lucdynamics_luc2", "LULCC/lucdynamics_luc3",
+  paste0("LULCC/DownloadedDatasets/SourceData",country_name,"/demand100m/demand_out"),
+  paste0("LULCC/DownloadedDatasets/SourceData",country_name,"/demand100m/demand_temp"),
+  paste0("LULCC/DownloadedDatasets/SourceData",country_name,"/demand100m/pop_maps_byregion"),
+  paste0("LULCC/DownloadedDatasets/SourceData",country_name,"/demand100m/pop_out"),
+  paste0("LULCC/DownloadedDatasets/SourceData",country_name,"/demand100m/pop_temp"),
+  paste0("LULCC/DownloadedDatasets/SourceData",country_name,"/demand100m/to_idw"),
+  paste0("LULCC/DownloadedDatasets/SourceData",country_name,"/inTables"),
+  paste0("LULCC/DownloadedDatasets/SourceData",country_name,"/inVector")
 )
 
 file_patterns_to_remove <- c(
-  "*.Rout", "*.txt", "*.log", "*.aux", "*.lof", 
+  "*.Rout", "*.txt", "*.log", "*.aux", "*.lof",
   "*.lot", "*.out", "*.toc", "*.R", "*.egoml"
 )
 
@@ -54,7 +62,9 @@ latex_patterns_to_remove <- c(
 
 lulcc_patterns_to_remove <- c(
   "LULCC//*.Rout", "LULCC//*.csv", "LULCC//*.egoml", 
-  "LULCC//*.bat", "LULCC//*.sh"
+  "LULCC//*.bat", "LULCC//*.sh",
+  paste0("LULCC/DownloadedDatasets/SourceData",country_name,"/demand100m/demand_in//*.xlsx"),
+  paste0("LULCC/DownloadedDatasets/SourceData",country_name,"/demand100m/demand_in//*.csv")
 )
 
 # Remove directories
