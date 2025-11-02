@@ -306,14 +306,14 @@ for (g in growth2copy) {
             overwrite = TRUE, recursive = TRUE, copy.mode = TRUE)
 }
 
-admin2copyv2 <- list.files(path = paste0(githubdir, "/admin_regions"), 
-                           pattern = "\\.csv$|\\.xlsx$", 
-                           full.names = TRUE)
-for (t in admin2copyv2) {
-  file.copy(from=t, 
-            to=paste0(admindir,"/"), 
-            overwrite = TRUE, recursive = TRUE, copy.mode = TRUE)
-}
+# admin2copyv2 <- list.files(path = paste0(githubdir, "/admin_regions"), 
+#                            pattern = "\\.csv$|\\.xlsx$", 
+#                            full.names = TRUE)
+# for (t in admin2copyv2) {
+#   file.copy(from=t, 
+#             to=paste0(admindir,"/"), 
+#             overwrite = TRUE, recursive = TRUE, copy.mode = TRUE)
+# }
 
 # End of script ----
   
