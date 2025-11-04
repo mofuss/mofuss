@@ -60,8 +60,9 @@ directories_to_remove <- c(
   file.path(demand_base, "pop_out"),
   file.path(demand_base, "pop_temp"),
   file.path(demand_base, "to_idw"),
-  file.path(base_path, "inTables"),
-  file.path(base_path, "inVector")
+  file.path(base_path, "InTables"),
+  file.path(base_path, "InVector"),
+  file.path(base_path, "InVector_GCS")
 )
 
 # Expand wildcards and keep only existing paths

@@ -72,7 +72,7 @@ dirs_to_create <- c(
   "HTML_animation_OutBaU", "HTML_animation_OutICS", "Logs", "OutBaU", "OutICS", "Summary_Report", "Temp", "rTemp",
   "In", "In/DemandScenarios", "LULCC/InVector", "LULCC/SourceData", "LULCC/SourceData/InRaster",
   "LULCC/SourceData/InRaster_GCS", "LULCC/SourceData/InTables", "LULCC/SourceData/InVector",
-  "LULCC/SourceData/InVector_GCS", "LULCC/TempRaster", "LULCC/TempTables", "LULCC/TempVector",
+  "LULCC/SourceData/InVector_GCS", "LULCC/SourceData/InVector_GCS", "LULCC/TempRaster", "LULCC/TempTables", "LULCC/TempVector",
   "LULCC/TempVector_GCS", "LULCC/Wizard_imgs"
 )
 
@@ -244,9 +244,9 @@ if (!dir.exists(paste0(countrydir,"/LULCC/DownloadedDatasets/SourceData",country
   dir.create(paste0(countrydir,"/LULCC/DownloadedDatasets/SourceData",country_name,"/InVector"))
 }
 
-# if (!dir.exists(paste0(countrydir,"/LULCC/DownloadedDatasets/SourceData",country_name,"/InVector_GCS"))) {
-#   dir.create(paste0(countrydir,"/LULCC/DownloadedDatasets/SourceData",country_name,"/InVector_GCS"))
-# }
+if (!dir.exists(paste0(countrydir,"/LULCC/DownloadedDatasets/SourceData",country_name,"/InVector_GCS"))) {
+  dir.create(paste0(countrydir,"/LULCC/DownloadedDatasets/SourceData",country_name,"/InVector_GCS"))
+}
 
 # Copy input tables from github repo into MoFuSS working folder ----
 friction2copy <- list.files(
@@ -276,7 +276,17 @@ for (dem in demandtables2copy) {
             overwrite = TRUE, recursive = TRUE, copy.mode = TRUE)
 }
 
-# Copy input tables from github repo into MoFuSS working folder ----
+aoiexamples2copy <- list.files(
+  path = paste0(githubdir, "/InVector_GCS"),
+  pattern = "\\.kml$",
+  full.names = TRUE)
+
+for (aois in aoiexamples2copy) {
+  file.copy(from=aois,
+            to=paste0("LULCC/DownloadedDatasets/SourceData", country, "/InVector_GCS/"), 
+            overwrite = TRUE, recursive = TRUE, copy.mode = TRUE)
+}
+
 growth2copy <- list.files(path = paste0(githubdir, "/global_growth"), 
                           pattern = "\\.csv$|\\.xlsx$", 
                           full.names = TRUE)
@@ -313,15 +323,6 @@ for (g in growth2copy) {
             to=paste0(countrydir,"/LULCC/DownloadedDatasets/SourceData",country_name,"/InTables/"), 
             overwrite = TRUE, recursive = TRUE, copy.mode = TRUE)
 }
-
-# admin2copyv2 <- list.files(path = paste0(githubdir, "/admin_regions"), 
-#                            pattern = "\\.csv$|\\.xlsx$", 
-#                            full.names = TRUE)
-# for (t in admin2copyv2) {
-#   file.copy(from=t, 
-#             to=paste0(admindir,"/"), 
-#             overwrite = TRUE, recursive = TRUE, copy.mode = TRUE)
-# }
 
 # End of script ----
   
