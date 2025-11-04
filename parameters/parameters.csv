@@ -17,7 +17,7 @@ pop_map_name,wp_global1000m_gcs.tif
 pop_map_yr,2020
 demand_col,fuel_tons3
 SCENARIO,
-scenario_ver,BaU
+scenario_ver,BaU_lusaka_notlusaka
 idw_debug,NO
 friction,R
 END YEAR OF SIMULATION,
@@ -25,12 +25,13 @@ end_year,2050
 REGION TO BE PROCESSED,
 byregion,Country
 region2BprocessedCont,SSA
-region2BprocessedReg,ASIA_adm0_nepal
+region2BprocessedReg,SSA_adm0_malambique
 region2BprocessedCtry,Zambia
 region2BprocessedCtry_iso,ZMB
+subcountry,1
 AREA OF INTEREST,
 aoi_poly,0
-aoi_poly_file,Zambia_exampleAoI.kml
+aoi_poly_file,Lusaka_FAO_charcoal1_AoI.kml
 ecoregions_ID,ECO_ID
 ecoregions_NAME,ECO_NAME
 ext_analysis_ID,ID
