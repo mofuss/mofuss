@@ -25,6 +25,11 @@
 #   growth2copy <- growth2copy[!basename(growth2copy) %in% c("growth_parameters_v3_copernicus.csv", "growth_parameters_v3_modis.csv")]
 # }
 
+# 263 file.copy(from=f, 
+#           to=paste0(countrydir,"/LULCC/SourceData/InTables/"), 
+#           overwrite = TRUE, recursive = TRUE, copy.mode = TRUE) # Check before Rob's node
+
+
 # Internal parameters ----
 # # Select MoFuSS platform:
 # webmofuss <- 1 # "1" is web-MoFuSS running in our Ubuntu server, "0" is localhost (Windows or Linux)
@@ -47,7 +52,7 @@ directories_to_remove <- c(
   "Debugging", "DebuggingBaU", "DebuggingICS", "HTML_animation_OutBaU", "HTML_animation_OutICS", 
   "Logs", "OutBaU", "OutICS", "Summary_Report", "Temp", "TempBaU", "TempICS", "In",
   "LULCC/InVector", "LULCC/Out_lulcc", "LULCC/TempRaster", "LULCC/TempTables",
-  "LULCC/TempVector", "LULCC/TempVector_GCS" #, "LULCC/SourceData"
+  "LULCC/TempVector", "LULCC/TempVector_GCS", "LULCC/SourceData"
 )
 
 file_patterns_to_remove <- c(
@@ -253,6 +258,9 @@ for (f in friction2copy) {
   file.copy(from=f, 
             to=paste0(countrydir,"/LULCC/DownloadedDatasets/SourceData",country_name,"/InTables/"), 
             overwrite = TRUE, recursive = TRUE, copy.mode = TRUE)
+  file.copy(from=f, 
+            to=paste0(countrydir,"/LULCC/SourceData/InTables/"), 
+            overwrite = TRUE, recursive = TRUE, copy.mode = TRUE) # Check before Rob's node
 }
 
 demandtables2copy <- list.files(
@@ -306,14 +314,14 @@ for (g in growth2copy) {
             overwrite = TRUE, recursive = TRUE, copy.mode = TRUE)
 }
 
-admin2copyv2 <- list.files(path = paste0(githubdir, "/admin_regions"), 
-                           pattern = "\\.csv$|\\.xlsx$", 
-                           full.names = TRUE)
-for (t in admin2copyv2) {
-  file.copy(from=t, 
-            to=paste0(admindir,"/"), 
-            overwrite = TRUE, recursive = TRUE, copy.mode = TRUE)
-}
+# admin2copyv2 <- list.files(path = paste0(githubdir, "/admin_regions"), 
+#                            pattern = "\\.csv$|\\.xlsx$", 
+#                            full.names = TRUE)
+# for (t in admin2copyv2) {
+#   file.copy(from=t, 
+#             to=paste0(admindir,"/"), 
+#             overwrite = TRUE, recursive = TRUE, copy.mode = TRUE)
+# }
 
 # End of script ----
   

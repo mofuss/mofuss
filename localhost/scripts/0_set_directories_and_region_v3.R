@@ -592,6 +592,17 @@ if (webmofuss == 1) {
   
 }
 
+
+# Copy admin csv ----
+admin2copyv2 <- list.files(path = paste0(githubdir, "/admin_regions"),
+                           pattern = "\\.csv$|\\.xlsx$",
+                           full.names = TRUE)
+for (t in admin2copyv2) {
+  file.copy(from=t,
+            to=paste0(admindir,"/"),
+            overwrite = TRUE, recursive = TRUE, copy.mode = TRUE)
+}
+
 # Define Terra temporal directory ----
 rTempdir <- file.path(countrydir, "rTemp")
 
