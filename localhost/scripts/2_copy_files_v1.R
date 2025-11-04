@@ -193,7 +193,9 @@ src.dir <- paste0("LULCC/DownloadedDatasets/SourceData", country)
 dir.names <- dir(src.dir)
 dir.names <- dir.names[!dir.names %in% "DemandScenarios"]
 
-lapply(dir.names, function(RO) {
+dir.namesD <- dir.names[dir.names != "demand"]
+
+lapply(dir.namesD, function(RO) {
   src.dir <- paste0("LULCC/DownloadedDatasets/SourceData", country, "/", RO, "/")
   dest.dir <- paste0("LULCC/SourceData/", RO, "/")
   file.names <- dir(src.dir)
