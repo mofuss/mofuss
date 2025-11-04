@@ -285,6 +285,11 @@ for (aois in aoiexamples2copy) {
   file.copy(from=aois,
             to=paste0("LULCC/DownloadedDatasets/SourceData", country, "/InVector_GCS/"), 
             overwrite = TRUE, recursive = TRUE, copy.mode = TRUE)
+  
+  file.copy(from=aois, 
+            to=paste0(countrydir,"/LULCC/SourceData/InVector_GCS/"), 
+            overwrite = TRUE, recursive = TRUE, copy.mode = TRUE)
+  
 }
 
 growth2copy <- list.files(path = paste0(githubdir, "/global_growth"), 
