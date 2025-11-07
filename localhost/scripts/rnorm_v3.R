@@ -11,6 +11,8 @@ library(msm)
 library(raster)
 library(tidyverse)
 library(readxl)
+library(readr)
+library(tibble)
 
 # Get list of directories starting with 'debugging_'
 debugging_to_remove <- list.files(path = ".", pattern = "^debugging_", full.names = TRUE, recursive = FALSE)
@@ -45,7 +47,7 @@ args=(commandArgs(TRUE))
 if(length(args)==0){
   print("No arguments supplied by DINAMICA.")
   ##Supply default values here (to be used when running the script through R directly)
-  MC=30# MonteCarlo runs
+  MC=30 # MonteCarlo runs
   IT=2010 # Initial year
   K_MC=1
   TOF_MC=1
@@ -129,14 +131,20 @@ read.csv("LULCC/TempTables/Country.csv") %>%
   pull(Country) -> country_name
 
 # Specify the directory where the file is located
-parameters_directory <- paste0(getwd(),"/LULCC/DownloadedDatasets/SourceData",country_name)
+parameters_directory <- paste0(getwd(), "/LULCC/DownloadedDatasets/SourceData", country_name)
 
 # Use list.files() to find the file that matches the pattern
 parameters_name <- list.files(path = parameters_directory, pattern = "^parameters.*\\.csv$", full.names = TRUE)
 
-# Read the Excel file
-country_parameters <- read_csv(parameters_name)
-print(tibble::as_tibble(country_parameters), n=30)
+# Detect the separator by checking the first line
+first_line <- readLines(parameters_name, n = 1)
+sep <- if (grepl(";", first_line)) ";" else ","
+
+# Read the CSV file with the detected separator
+country_parameters <- read_delim(parameters_name, delim = sep)
+
+# Print the tibble (up to 30 rows)
+print(as_tibble(country_parameters), n = 30)
 
 # if (webmofuss == 1) {
 #   # Read parameters table in webmofuss
