@@ -209,6 +209,8 @@ if (scenario_ver == "BaU") {
   wfdb <- read_csv("demand_in/cons_fuels_years_Proj2_Lusaka-NotLusaka.csv")
 } else if (scenario_ver == "ICS3_lusaka_notlusaka") {
   wfdb <- read_csv("demand_in/cons_fuels_years_Proj3_Lusaka-NotLusaka.csv")
+}  else if (scenario_ver == "MWI_BAU_fuel_cons") {
+  wfdb <- read_csv("demand_in/MWI_BAU_fuel_cons.csv")
 }
 unique(wfdb$fuel)
 
