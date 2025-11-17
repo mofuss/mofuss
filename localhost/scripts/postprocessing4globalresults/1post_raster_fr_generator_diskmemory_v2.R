@@ -71,6 +71,7 @@ if (fixdir == 1){
 
 # Loop through each adm0 directory----
 for (dir in adm0_dirs) {
+  dir = "E:/rob_first_project"
   print(paste("Processing directory:", dir))
   setwd(dir)
   getwd()
@@ -86,8 +87,21 @@ for (dir in adm0_dirs) {
   # Use list.files() to find the file that matches the pattern
   parameters_name <- list.files(path = parameters_directory, pattern = "^parameters.*\\.csv$", full.names = TRUE)
   
-  # Read the Excel file
-  country_parameters <- read_csv(parameters_name)
+  # Read parameters table (recognizing the delimiter)
+  detect_delimiter <- function(file_path) {
+    # Read the first line of the file
+    first_line <- readLines(file_path, n = 1)
+    # Check if the first line contains ',' or ';'
+    if (grepl(";", first_line)) {
+      return(";")
+    } else {
+      return(",")
+    }
+  }
+  # Detect the delimiter
+  delimiter <- detect_delimiter(parameters_name)
+  # Read the CSV file with the detected delimiter
+  country_parameters <- read_delim(parameters_name, delim = delimiter)
   print(tibble::as_tibble(country_parameters), n=100)
   
   country_parameters %>%
