@@ -58,10 +58,7 @@ country_parameters %>%
   dplyr::filter(Var == "demand_col") %>%
   pull(ParCHR) -> demand_col
 
-# Set directory to demand_in
-setwd(paste0(demanddir,"/demand_in"))
-getwd()
-
+# Set directory to demand
 setwd(demanddir)
 
 # Reads WHO dataset
