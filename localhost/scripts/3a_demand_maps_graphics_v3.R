@@ -173,14 +173,26 @@ two_map_vertical_gadm <- function(
 }
 
 # Guess legend from filename
+files <- list.files(paste0(demanddir, "/demand_out"), 
+                    pattern = "\\.tif$", 
+                    full.names = TRUE)
+r_res <- rast(files[1])   # load the first TIFF
+res_xy <- res(r_res)      # returns c(res_x, res_y) in map units
+pixel_size_label <- case_when(
+  all(res_xy >= 90 & res_xy <= 110) ~ "1 ha",
+  all(res_xy >= 900 & res_xy <= 1100) ~ "1 km²",
+  TRUE ~ paste0("Pixel size = ", round(res_xy[1]), " m × ", round(res_xy[2]), " m")
+)
+pixel_size_label
+
 .guess_legend <- function(path) {
   n <- tolower(basename(path))
-  if (grepl("users\\.tif$", n)) return("People per 1 ha cell")
-  if (grepl("demand\\.tif$", n) && grepl("(biomass|charcoal)", n)) return("Tonnes of wood eq per 1 ha cell")
-  if (grepl("demand\\.tif$", n) && grepl("(electricity)", n)) return("MWh per 1 ha cell")
-  if (grepl("demand\\.tif$", n)) return("Tonnes of fuel per 1 ha cell")
-  if (grepl("popadj", n)) return("People per 1 ha cell")
-  "Value per 1 ha cell"
+  if (grepl("users\\.tif$", n)) return(paste0("People per ",pixel_size_label," cell"))
+  if (grepl("demand\\.tif$", n) && grepl("(Fuelwood|Charcoal)", n)) return(paste0("Tonnes of wood eq per ",pixel_size_label," cell"))
+  if (grepl("demand\\.tif$", n) && grepl("(Electricity)", n)) return(paste0("MWh per ",pixel_size_label," cell"))
+  if (grepl("demand\\.tif$", n)) return(paste0("Tonnes of fuel per ",pixel_size_label," cell"))
+  if (grepl("popadj", n)) return(paste0("People per ",pixel_size_label," cell"))
+  paste0("Value per ",pixel_size_label," cell")
 }
 
 # Variable/type for output name from filename like: WorldPop_biomass_2050_users.tif

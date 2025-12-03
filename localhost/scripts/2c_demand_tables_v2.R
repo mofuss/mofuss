@@ -93,6 +93,23 @@ if (scenario_ver == "BaU") {
 }
 unique(wfdb$fuel)
 
+wfdb <- wfdb %>%
+  mutate(
+    # 1. trim spaces and lowercase everything first
+    fuel = tolower(trimws(fuel)),
+    
+    # 2. replace "biomass" → "fuelwood"
+    fuel = if_else(fuel == "biomass", "fuelwood", fuel),
+    
+    # 3. replace "electric" → "electricity"
+    fuel = if_else(fuel == "electric", "electricity", fuel),
+    
+    # 4. capitalize first letter only ONCE, after all replacements
+    fuel = str_to_title(fuel)
+  )
+
+unique(wfdb$fuel)
+
 outdir <- "demand_atlas"
 full_path <- file.path(countrydir, outdir)
 
@@ -216,7 +233,7 @@ col_sym <- rlang::sym(demand_col)
 wfdb_twofuels <- wfdb %>%
   filter(iso3 == region2BprocessedCtry_iso,
          year >= year_min_wfdb, year <= year_max,
-         fuel %in% c("Biomass", "Charcoal")) %>%
+         fuel %in% c("Fuelwood", "Charcoal")) %>%
   mutate(
     area = order_area(area)
   ) %>%

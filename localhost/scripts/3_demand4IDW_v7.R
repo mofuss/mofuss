@@ -215,13 +215,31 @@ if (scenario_ver == "BaU") {
 unique(wfdb$fuel)
 
 # Make all fuel types small caps and add consecutive numbers to GID_0 _1 _2 etc
-if (subcountry == 1) {
+# if (subcountry == 1) {
+#   
+#   wfdb <- wfdb %>%
+#     mutate(
+#       fuel = tolower(fuel),  # normalize everything to lowercase first
+#       iso3 = paste0(iso3, "_", dense_rank(country))
+#     )
+#   
+# } else if (subcountry != 1) {
+  
   wfdb <- wfdb %>%
     mutate(
-      fuel = tolower(fuel),  # normalize everything to lowercase first
-      iso3 = paste0(iso3, "_", dense_rank(country))
+      # 1. trim spaces and lowercase everything first
+      fuel = tolower(trimws(fuel)),
+      
+      # 2. replace "biomass" → "fuelwood"
+      fuel = if_else(fuel == "biomass", "fuelwood", fuel),
+      
+      # 3. replace "electric" → "electricity"
+      fuel = if_else(fuel == "electric", "electricity", fuel),
+      
+      # 4. capitalize first letter only ONCE, after all replacements
+      fuel = str_to_title(fuel)
     )
-}
+#}
 
 unique(wfdb$fuel)
 head(wfdb)
@@ -965,9 +983,12 @@ for (i in adm0_reg$GID_0) { # Start of outer region (i) loop ----
     write_percap   = FALSE,
     wfdb_fuels_for_demand = NULL 
     ) {
-      allowed_whodb <- c("Kerosene","Gas","Electricity","Biomass","Charcoal","Coal")
-      allowed_wfdb  <- c("fuelwood","charcoal","imp_fuelwood","imp_charcoal",
-                         "gas","kerosene","electric","pellets","ethanol","biogas","other")
+      # allowed_whodb <- c("Kerosene","Gas","Electricity","Biomass","Charcoal","Coal")
+      allowed_whodb <- unique(wfdb$fuel)
+
+      # allowed_wfdb  <- c("fuelwood","charcoal","imp_fuelwood","imp_charcoal",
+      #                    "gas","kerosene","electric","pellets","ethanol","biogas","other")
+      allowed_wfdb <- unique(wfdb$fuel)
       
       if (subcountry != 1) {
         if (!(fuel_name %in% allowed_whodb)) {
@@ -1101,7 +1122,8 @@ for (i in adm0_reg$GID_0) { # Start of outer region (i) loop ----
     
     if (subcountry != 1) {
       
-      fuels_who <- c("Kerosene","Gas","Electricity","Biomass","Charcoal","Coal")
+      # fuels_who <- c("Kerosene","Gas","Electricity","Biomass","Charcoal","Coal")
+      fuels_who <- unique(wfdb$fuel)
       
       results <- lapply(fuels_who, function(fu)
         compute_fuel_maps(
@@ -1151,14 +1173,26 @@ for (i in adm0_reg$GID_0) { # Start of outer region (i) loop ----
           list(urb = res$urb_dem_rast, rur = res$rur_dem_rast)
         }
         
-        fw <- get_dem_who("Biomass")
-        ch <- get_dem_who("Charcoal")
+        fuels_avail <- unique(wfdb$fuel)
         
-        # wftons_w: rural Biomass
-        wf_w_sum <- app(c(fw$rur), fun = sum, na.rm = TRUE)
+        safe_get_dem_who <- function(fuel_name) {
+          if (fuel_name %in% fuels_avail) {
+            get_dem_who(fuel_name)
+          } else {
+            NULL
+          }
+        }
         
-        # wftons_v: urban Biomass + urban Charcoal + rural Charcoal
-        wf_v_sum <- app(c(fw$urb, ch$urb, ch$rur), fun = sum, na.rm = TRUE)
+        fw  <- safe_get_dem_who("Fuelwood")
+        ifw <- safe_get_dem_who("Imp_fuelwood")
+        ch  <- safe_get_dem_who("Charcoal")
+        ich <- safe_get_dem_who("Imp_charcoal")
+        
+        # ---- wftons_w: rural fuelwood + rural imp_fuelwood
+        wf_w_sum   <- app(c(fw$rur, ifw$rur), fun = sum, na.rm = TRUE)
+        
+        # ---- wftons_v: urban fw + urban ifw + urban ch + urban ich + rural ch + rural ich
+        wf_v_sum   <- app( c(fw$urb, ifw$urb, ch$urb, ich$urb, ch$rur, ich$rur), fun = sum, na.rm = TRUE)
         
         if (!dir.exists(out_dir)) dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
         terra::writeRaster(wf_w_sum, file.path(out_dir, paste0(pop_ver, "_", i, "_", j, "_wftons_w.tif")),
@@ -1184,8 +1218,9 @@ for (i in adm0_reg$GID_0) { # Start of outer region (i) loop ----
       
     } else if (subcountry == 1) {
       
-      fuels_wfdb <- c("fuelwood","charcoal","imp_fuelwood","imp_charcoal",
-                      "gas","kerosene","electric","pellets","ethanol","biogas","other")
+      # fuels_wfdb <- c("fuelwood","charcoal","imp_fuelwood","imp_charcoal",
+      #                 "gas","kerosene","electric","pellets","ethanol","biogas","other")
+      fuels_wfdb <- unique(wfdb$fuel)
       
       results <- lapply(fuels_wfdb, function(fu)
         compute_fuel_maps(
@@ -1233,18 +1268,26 @@ for (i in adm0_reg$GID_0) { # Start of outer region (i) loop ----
           list(urb = res$urb_dem_rast, rur = res$rur_dem_rast)
         }
         
-        fw  <- get_dem("fuelwood")
-        ifw <- get_dem("imp_fuelwood")
-        ch  <- get_dem("charcoal")
-        ich <- get_dem("imp_charcoal")
+        fuels_avail <- unique(wfdb$fuel)
+        
+        safe_get_dem <- function(fuel_name) {
+          if (fuel_name %in% fuels_avail) {
+            get_dem(fuel_name)
+          } else {
+            NULL
+          }
+        }
+        
+        fw  <- safe_get_dem("Fuelwood")
+        ifw <- safe_get_dem("Imp_fuelwood")
+        ch  <- safe_get_dem("Charcoal")
+        ich <- safe_get_dem("Imp_charcoal")
         
         # ---- wftons_w: rural fuelwood + rural imp_fuelwood
-        wf_w_stack <- c(fw$rur, ifw$rur)
-        wf_w_sum   <- app(wf_w_stack, fun = sum, na.rm = TRUE)
+        wf_w_sum   <- app(c(fw$rur, ifw$rur), fun = sum, na.rm = TRUE)
         
         # ---- wftons_v: urban fw + urban ifw + urban ch + urban ich + rural ch + rural ich
-        wf_v_stack <- c(fw$urb, ifw$urb, ch$urb, ich$urb, ch$rur, ich$rur)
-        wf_v_sum   <- app(wf_v_stack, fun = sum, na.rm = TRUE)
+        wf_v_sum   <- app(c(fw$urb, ifw$urb, ch$urb, ich$urb, ch$rur, ich$rur), fun = sum, na.rm = TRUE)
         
         if (!dir.exists(out_dir)) dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
         
@@ -1366,8 +1409,8 @@ if (subcountry != 1) {
     out_pop_dir   = "pop_out",
     out_dem_dir   = "demand_out",
     # WHO fuel names as they appear in whodb/wfdb; tags are lowercased in filenames
-    fuels_users   = c("Kerosene","Gas","Electricity","Biomass","Charcoal","Coal"),
-    fuels_demand  = c("Kerosene","Gas","Electricity","Biomass","Charcoal","Coal"),
+    fuels_users   = unique(wfdb$fuel), #c("Kerosene","Gas","Electricity","Biomass","Charcoal","Coal"),
+    fuels_demand  = unique(wfdb$fuel), #c("Kerosene","Gas","Electricity","Biomass","Charcoal","Coal"),
     include_wftons = TRUE,   # write merged wftons_w / wftons_v when present
     include_poprururb = TRUE # write merged pop and rururb when present
 
@@ -1444,10 +1487,10 @@ if (subcountry != 1) {
     in_dem_dir    = "demand_temp",
     out_pop_dir   = "pop_out",
     out_dem_dir   = "demand_out",
-    fuels_users   = c("fuelwood","imp_fuelwood","charcoal","imp_charcoal",
-                      "gas","kerosene","electric","pellets","ethanol","biogas","other"),
-    fuels_demand  = c("fuelwood","imp_fuelwood","charcoal","imp_charcoal",
-                      "gas","kerosene","electric","pellets","ethanol","biogas","other"),
+    fuels_users   = unique(wfdb$fuel), #("fuelwood","imp_fuelwood","charcoal","imp_charcoal",
+                      #"gas","kerosene","electric","pellets","ethanol","biogas","other"),
+    fuels_demand  = unique(wfdb$fuel), #c("fuelwood","imp_fuelwood","charcoal","imp_charcoal",
+                      #"gas","kerosene","electric","pellets","ethanol","biogas","other"),
     include_wftons = TRUE,   # write merged wftons_w / wftons_v when present
     include_poprururb = TRUE # write merged pop and rururb when present
   ) {
