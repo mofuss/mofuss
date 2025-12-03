@@ -193,53 +193,62 @@ getwd()
 poprast <- paste0("demand_in/",pop_map_name) 
 
 # Define scenarios ----
+detect_delimiter <- function(file) {
+  line1 <- readLines(file, n = 1)
+  if (stringr::str_detect(line1, ";")) return(";")
+  return(",")
+}
+
+read_wfdb <- function(file) {
+  delim <- detect_delimiter(file)
+  readr::read_delim(file, delim = delim, show_col_types = FALSE)
+}
+
+
+# Define scenarios ----
 if (scenario_ver == "BaU") {
-  wfdb <- read_csv("demand_in/cons_fuels_years.csv")
+  wfdb <- read_wfdb("demand_in/cons_fuels_years.csv")
+  
 } else if (scenario_ver == "ICS") {
-  wfdb <- read_csv("demand_in/cons_fuels_years_proj.csv")
+  wfdb <- read_wfdb("demand_in/cons_fuels_years_proj.csv")
+  
 } else if (scenario_ver == "BaU_vehicle_only") {
-  wfdb <- read_csv("demand_in/cons_fuels_years_charc_and_urb_fw_only.csv")
+  wfdb <- read_wfdb("demand_in/cons_fuels_years_charc_and_urb_fw_only.csv")
+  
 } else if (scenario_ver == "BaU_walking_only") {
-  wfdb <- read_csv("demand_in/cons_fuels_years_rural_fw_only.csv")
+  wfdb <- read_wfdb("demand_in/cons_fuels_years_rural_fw_only.csv")
+  
 } else if (scenario_ver == "BaU_lusaka_notlusaka") {
-  wfdb <- read_csv("demand_in/cons_fuels_years_BAU_Lusaka-NotLusaka.csv")
+  wfdb <- read_wfdb("demand_in/cons_fuels_years_BAU_Lusaka-NotLusaka.csv")
+  
 } else if (scenario_ver == "ICS1_lusaka_notlusaka") {
-  wfdb <- read_csv("demand_in/cons_fuels_years_Proj1_Lusaka-NotLusaka.csv")
+  wfdb <- read_wfdb("demand_in/cons_fuels_years_Proj1_Lusaka-NotLusaka.csv")
+  
 } else if (scenario_ver == "ICS2_lusaka_notlusaka") {
-  wfdb <- read_csv("demand_in/cons_fuels_years_Proj2_Lusaka-NotLusaka.csv")
+  wfdb <- read_wfdb("demand_in/cons_fuels_years_Proj2_Lusaka-NotLusaka.csv")
+  
 } else if (scenario_ver == "ICS3_lusaka_notlusaka") {
-  wfdb <- read_csv("demand_in/cons_fuels_years_Proj3_Lusaka-NotLusaka.csv")
-}  else if (scenario_ver == "MWI_BAU_fuel_cons") {
-  wfdb <- read_csv("demand_in/MWI_BAU_fuel_cons.csv")
+  wfdb <- read_wfdb("demand_in/cons_fuels_years_Proj3_Lusaka-NotLusaka.csv")
+  
+} else if (scenario_ver == "MWI_BAU_fuel_cons") {
+  wfdb <- read_wfdb("demand_in/MWI_BAU_fuel_cons.csv")
 }
 unique(wfdb$fuel)
 
-# Make all fuel types small caps and add consecutive numbers to GID_0 _1 _2 etc
-# if (subcountry == 1) {
-#   
-#   wfdb <- wfdb %>%
-#     mutate(
-#       fuel = tolower(fuel),  # normalize everything to lowercase first
-#       iso3 = paste0(iso3, "_", dense_rank(country))
-#     )
-#   
-# } else if (subcountry != 1) {
-  
-  wfdb <- wfdb %>%
-    mutate(
-      # 1. trim spaces and lowercase everything first
-      fuel = tolower(trimws(fuel)),
-      
-      # 2. replace "biomass" → "fuelwood"
-      fuel = if_else(fuel == "biomass", "fuelwood", fuel),
-      
-      # 3. replace "electric" → "electricity"
-      fuel = if_else(fuel == "electric", "electricity", fuel),
-      
-      # 4. capitalize first letter only ONCE, after all replacements
-      fuel = str_to_title(fuel)
-    )
-#}
+wfdb <- wfdb %>%
+  mutate(
+    # 1. trim spaces and lowercase everything first
+    fuel = tolower(trimws(fuel)),
+    
+    # 2. replace "biomass" → "fuelwood"
+    fuel = if_else(fuel == "biomass", "fuelwood", fuel),
+    
+    # 3. replace "electric" → "electricity"
+    fuel = if_else(fuel == "electric", "electricity", fuel),
+    
+    # 4. capitalize first letter only ONCE, after all replacements
+    fuel = str_to_title(fuel)
+  )
 
 unique(wfdb$fuel)
 head(wfdb)
