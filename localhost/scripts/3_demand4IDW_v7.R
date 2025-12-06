@@ -52,7 +52,9 @@ library(raster)
 library(readxl)
 library(rlang)
 library(sf)
+library(stringr)
 library(svDialogs)
+library(terra)
 library(tibble)
 library(tictoc)
 library(tidyterra)
@@ -185,10 +187,30 @@ if (!dir.exists("to_idw")) {dir.create("to_idw")}
 if (subcountry != 1) {
   whodb <- read_excel("demand_in/A_LMIC_Estimates_2050_popmedian.xlsx")
   # undb <- read_excel("admin_regions/UN_Rural-Urban_Pop_projections_formatted.xlsx") # https://population.un.org/wpp/Download/Standard/Population/
-  terra::unique(whodb$fuel)
-  # terra::unique(whodb$year)
-  # terra::unique(whodb$iso3)
+  whodb <- whodb %>%
+    # Remove anything starting with "total" (any capitalization)
+    filter(!str_detect(fuel, regex("^total", ignore_case = TRUE))) %>%
+    
+    # Remove rows where area == "Overall" (any capitalization)
+    filter(!str_detect(area, regex("^overall$", ignore_case = TRUE))) %>%
+    
+    mutate(
+      # 1. trim spaces and lowercase everything first
+      fuel = tolower(trimws(fuel)),
+      
+      # 2. replace "biomass" → "fuelwood"
+      fuel = if_else(fuel == "biomass", "fuelwood", fuel),
+      
+      # 3. replace "electric" → "electricity"
+      fuel = if_else(fuel == "electric", "electricity", fuel),
+      
+      # 4. Capitalize first letter after all replacements
+      fuel = str_to_title(fuel)
+    )
+terra::unique(whodb$fuel)
+terra::unique(whodb$area)
 }
+
 getwd()
 poprast <- paste0("demand_in/",pop_map_name) 
 
@@ -203,7 +225,6 @@ read_wfdb <- function(file) {
   delim <- detect_delimiter(file)
   readr::read_delim(file, delim = delim, show_col_types = FALSE)
 }
-
 
 # Define scenarios ----
 if (scenario_ver == "BaU") {
@@ -250,9 +271,14 @@ wfdb <- wfdb %>%
     fuel = str_to_title(fuel)
   )
 
-unique(wfdb$fuel)
 head(wfdb)
 print(scenario_ver) # save as text to recover later down the river
+
+if (scenario_ver %in% c("BaU", "ICS")) {
+  if (!identical(unique(wfdb$fuel), unique(whodb$fuel))) {
+    stop("Fuel categories do not match for this subcountry.")
+  }
+}
 
 setwd(countrydir)
 write.table(scenario_ver, "LULCC/TempTables/scenario_ver.txt")
@@ -444,20 +470,20 @@ countries.list <- mofuss_regions0 %>%
 if (subcountry != 1) {
   
   totpopWHO <- whodb %>% 
-    dplyr::filter(grepl('Total', fuel)) %>%
-    dplyr::filter(grepl(yr, year)) %>%
-    dplyr::filter(!grepl('Over', area)) %>%
+    dplyr::filter(year == yr) %>%
+    dplyr::filter(area %in% c("Urban", "Rural")) %>%
     group_by(iso3) %>% 
-    summarise(sum_pop=sum(pop)*1000,
-              .groups = 'drop')
-  
+    summarise(
+      sum_pop = sum(pop) * 1000,
+      .groups = "drop"
+    )
+
   # Reads furb in 2018 from WHO dataset
   whodb_join <- whodb %>%
     dplyr::select(iso3, country) %>%
     terra::unique()
   
   furb_who <- whodb %>%
-    dplyr::filter(grepl('Total', fuel)) %>%
     dplyr::filter(grepl(yr, year)) %>%
     dplyr::filter(grepl('Urban', area)) %>%
     group_by(iso3) %>% 
@@ -470,15 +496,13 @@ if (subcountry != 1) {
     rename(GID_0 = iso3,
            NAME_0 = country)
   
-  furb_who %>%
-    dplyr::filter(GID_0 == "ZMB")
+  # furb_who %>%
+  #   dplyr::filter(GID_0 == "ZMB")
   
 } else if (subcountry == 1) {
   
   totpoprob <- wfdb %>%
-    # dplyr::filter(grepl('Total', fuel)) %>%
     dplyr::filter(grepl(yr, year)) %>%
-    # dplyr::filter(!grepl('Over', area)) %>%
     group_by(iso3) %>%
     summarise(sum_pop=sum(people)*1000, 
               .groups = 'drop')
@@ -489,7 +513,6 @@ if (subcountry != 1) {
     terra::unique()
   
   furb_rob <- wfdb %>% # algo pasa con algunas librerias rio abajo que rompen esta parte si ya estan cargadas
-    # dplyr::filter(grepl('Total', fuel)) %>%
     dplyr::filter(grepl(yr, year)) %>%
     dplyr::filter(grepl('Urban', area)) %>%
     group_by(iso3) %>% 
@@ -781,25 +804,23 @@ for (i in adm0_reg$GID_0) { # Start of outer region (i) loop ----
       furb_who.anno <- whodb %>%
         filter(
           iso3 == i,
-          !grepl("Total", fuel),
           grepl(j, year)
         ) %>%
         group_by(iso3) %>%
         summarise(
-          urb_frac = sum(pop[grepl("Urban", area)]) / sum(pop[grepl("Overall", area)]),
+          urb_frac = sum(pop[area == "Urban"]) /
+            sum(pop[area %in% c("Urban", "Rural")]),
           .groups = "drop"
         ) %>%
-        dplyr::pull(urb_frac)
-      
+        pull(urb_frac)
       
       totpopWHO_annual <- whodb %>% 
-        # dplyr::filter(grepl(i, iso3)) %>% # searchs for the pattern, anywhere within the string
-        dplyr::filter(grepl('Total', fuel)) %>% #Porque usar grelp?
-        # dplyr::filter(grepl(yr, year)) %>%
-        dplyr::filter(!grepl('Over', area)) %>%
-        group_by(iso3,year) %>% 
-        summarise(sum_pop=sum(pop)*1000,
-                  .groups = 'drop')
+        filter(area %in% c("Urban", "Rural")) %>%
+        group_by(iso3, year) %>% 
+        summarise(
+          sum_pop = sum(pop) * 1000,
+          .groups = 'drop'
+        )
       
       who_ctry_pop_annual <- totpopWHO_annual %>%
         dplyr::filter(iso3 == i) %>%
@@ -832,10 +853,6 @@ for (i in adm0_reg$GID_0) { # Start of outer region (i) loop ----
         dplyr::pull(urb_frac)
       
       totpopROB_annual <- wfdb %>% 
-        # dplyr::filter(grepl(i, iso3)) %>% # searchs for the pattern, anywhere within the string
-        # dplyr::filter(grepl('Total', fuel)) %>% #Porque usar grelp?
-        # dplyr::filter(grepl(yr, year)) %>%
-        # dplyr::filter(!grepl('Over', area)) %>%
         group_by(iso3,year) %>% 
         summarise(sum_pop=sum(people)*1000,
                   .groups = 'drop')
@@ -1335,12 +1352,7 @@ for (i in adm0_reg$GID_0) { # Start of outer region (i) loop ----
 Sys.sleep(3)
 
 # Load country pop and demand rasters and merge into original region ----
-suppressPackageStartupMessages({
-  library(terra)
-  library(stringr)
-})
-
-# # Merge a list of rasters (paths) → single raster written to out_path
+# Merge a list of rasters (paths) → single raster written to out_path
 # ---- Replace your .merge_and_write with this (same name, minimal change) ----
 .merge_and_write <- function(paths, out_path, fun = c("sum","max"), datatype = "FLT4S") {
   fun <- match.arg(fun)

@@ -58,19 +58,37 @@ country_parameters %>%
   dplyr::filter(Var == "demand_col") %>%
   pull(ParCHR) -> demand_col
 
-# Set directory to demand_in
-setwd(paste0(demanddir,"/demand_in"))
-getwd()
-
+# Set directory to demand
 setwd(demanddir)
+
+# Reads WHO dataset
 
 # Reads WHO dataset
 if (subcountry != 1) {
   whodb <- read_excel("demand_in/A_LMIC_Estimates_2050_popmedian.xlsx")
   # undb <- read_excel("admin_regions/UN_Rural-Urban_Pop_projections_formatted.xlsx") # https://population.un.org/wpp/Download/Standard/Population/
+  whodb <- whodb %>%
+    # Remove anything starting with "total" (any capitalization)
+    filter(!str_detect(fuel, regex("^total", ignore_case = TRUE))) %>%
+    
+    # Remove rows where area == "Overall" (any capitalization)
+    filter(!str_detect(area, regex("^overall$", ignore_case = TRUE))) %>%
+    
+    mutate(
+      # 1. trim spaces and lowercase everything first
+      fuel = tolower(trimws(fuel)),
+      
+      # 2. replace "biomass" → "fuelwood"
+      fuel = if_else(fuel == "biomass", "fuelwood", fuel),
+      
+      # 3. replace "electric" → "electricity"
+      fuel = if_else(fuel == "electric", "electricity", fuel),
+      
+      # 4. Capitalize first letter after all replacements
+      fuel = str_to_title(fuel)
+    )
   terra::unique(whodb$fuel)
-  # terra::unique(whodb$year)
-  # terra::unique(whodb$iso3)
+  terra::unique(whodb$area)
 }
 getwd()
 
@@ -94,6 +112,23 @@ if (scenario_ver == "BaU") {
 }  else if (scenario_ver == "MWI_BAU_fuel_cons") {
   wfdb <- read_csv("demand_in/MWI_BAU_fuel_cons.csv")
 }
+unique(wfdb$fuel)
+
+wfdb <- wfdb %>%
+  mutate(
+    # 1. trim spaces and lowercase everything first
+    fuel = tolower(trimws(fuel)),
+    
+    # 2. replace "biomass" → "fuelwood"
+    fuel = if_else(fuel == "biomass", "fuelwood", fuel),
+    
+    # 3. replace "electric" → "electricity"
+    fuel = if_else(fuel == "electric", "electricity", fuel),
+    
+    # 4. capitalize first letter only ONCE, after all replacements
+    fuel = str_to_title(fuel)
+  )
+
 unique(wfdb$fuel)
 
 outdir <- "demand_atlas"
@@ -150,14 +185,31 @@ order_area <- function(x) {
 # 1) WHODB (keep area; people = pop*1000; drop total categories)
 # ─────────────────────────────────────────────────────────────────────────────
 whodb_clean <- whodb %>%
-  filter(iso3 == region2BprocessedCtry_iso,
-         year >= year_min_whodb, year <= year_max,
-         !fuel %in% c("Total Polluting", "Total Clean")) %>%
-  mutate(
-    pop  = pop * 1000,
-    area = order_area(area)
+  filter(
+    iso3 == region2BprocessedCtry_iso,
+    year >= year_min_whodb,
+    year <= year_max
   ) %>%
+  mutate(pop = pop * 1000) %>%
+  
+  # create Overall rows
+  { 
+    base <- .
+    overall <- base %>%
+      filter(area %in% c("Rural", "Urban")) %>%
+      group_by(iso3, year, fuel) %>%
+      summarise(
+        area = "Overall",
+        pop  = sum(pop, na.rm = TRUE),
+        .groups = "drop"
+      )
+    
+    bind_rows(base, overall)
+  } %>%
+  
+  mutate(area = order_area(area)) %>%
   arrange(year, area, fuel)
+
 
 # Long table: year, area, fuel, pop
 write_csv(
@@ -212,14 +264,14 @@ ggsave(
 )
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 2) WFDB (keep area; Biomass + Charcoal only; Charcoal ÷ efchratio)
+# 2) WFDB (keep area; Fuelwood + Charcoal only; Charcoal ÷ efchratio)
 # ─────────────────────────────────────────────────────────────────────────────
 col_sym <- rlang::sym(demand_col)
 
 wfdb_twofuels <- wfdb %>%
   filter(iso3 == region2BprocessedCtry_iso,
          year >= year_min_wfdb, year <= year_max,
-         fuel %in% c("Biomass", "Charcoal")) %>%
+         fuel %in% c("Fuelwood", "Charcoal")) %>%
   mutate(
     area = order_area(area)
   ) %>%
@@ -238,7 +290,7 @@ write_csv(
   file.path(outdir, sprintf("wfdb_fw_char_long_%s_%s_%s_%s_byarea.csv", region2BprocessedCtry_iso, demand_col, year_min_wfdb, year_max))
 )
 
-# Wide table: one row per (year, area), columns = Biomass [t], Charcoal [t]
+# Wide table: one row per (year, area), columns = Fuelwood [t], Charcoal [t]
 wfdb_twofuels_wide <- wfdb_twofuels %>%
   mutate(colname = paste0(fuel, " [t]")) %>%
   select(year, area, colname, value_t) %>%
@@ -262,7 +314,7 @@ ymax_overall_wfdb <- wfdb_twofuels %>%
 p_wfdb <- ggplot(wfdb_twofuels, aes(x = year, y = value_t, fill = fuel)) +
   geom_area(alpha = 0.95, color = "grey30", linewidth = 0.2) +
   labs(
-    title = sprintf("Biomass & Charcoal demand in %s (tonnes, charcoal ÷ %s)", region2BprocessedCtry_iso, efchratio),
+    title = sprintf("Fuelwood & Charcoal demand in %s (tonnes, charcoal ÷ %s)", region2BprocessedCtry_iso, efchratio),
     subtitle = sprintf("%d–%d • Faceted by area (Y from max stacked in Overall) • source col: %s",
                        year_min_wfdb, year_max, demand_col),
     x = NULL, y = "Tonnes", fill = "Fuel"
@@ -284,4 +336,3 @@ ggsave(
   file.path(outdir, sprintf("wfdb_fw_char_stack_faceted_%s_%s_%s_%s.png", region2BprocessedCtry_iso, demand_col, year_min_wfdb, year_max)),
   p_wfdb, width = 14, height = 7, dpi = 300, bg = "white"
 )
-
