@@ -9,58 +9,9 @@ year_min_whodb  <- 1990
 year_min_wfdb   <- 2010
 year_max        <- 2050
 
-# Load libraries ----
-library(readxl)
-library(dplyr)
-library(tidyr)
-library(purrr)
-library(stringr)
-library(tibble)
-library(openxlsx)  # or writexl if you prefer
-
-# Detect OS
-os <- Sys.info()["sysname"]
-
-setwd(countrydir)
-getwd()
-
-# Read parameters table ----
-# Read parameters table (recognizing the delimiter)
-detect_delimiter <- function(file_path) {
-  # Read the first line of the file
-  first_line <- readLines(file_path, n = 1)
-  # Check if the first line contains ',' or ';'
-  if (grepl(";", first_line)) {
-    return(";")
-  } else {
-    return(",")
-  }
-}
-# Detect the delimiter
-delimiter <- detect_delimiter(parameters_file_path)
-# Read the CSV file with the detected delimiter
+# Print parameters table ----
 country_parameters <- read_delim(parameters_file_path, delim = delimiter)
 print(tibble::as_tibble(country_parameters), n=100)
-
-country_parameters %>%
-  dplyr::filter(Var == "region2BprocessedCtry_iso") %>%
-  pull(ParCHR) -> region2BprocessedCtry_iso
-
-country_parameters %>%
-  dplyr::filter(Var == "subcountry") %>%
-  pull(ParCHR) -> subcountry
-
-country_parameters %>%
-  dplyr::filter(Var == "scenario_ver") %>%
-  pull(ParCHR) -> scenario_ver
-
-country_parameters %>%
-  dplyr::filter(Var == "demand_col") %>%
-  pull(ParCHR) -> demand_col
-
-# Set directory to demand_in
-setwd(paste0(demanddir,"/demand_in"))
-getwd()
 
 setwd(demanddir)
 
@@ -212,14 +163,14 @@ ggsave(
 )
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 2) WFDB (keep area; Biomass + Charcoal only; Charcoal ÷ efchratio)
+# 2) WFDB (keep area; Fuelwood + Charcoal only; Charcoal ÷ efchratio)
 # ─────────────────────────────────────────────────────────────────────────────
 col_sym <- rlang::sym(demand_col)
 
 wfdb_twofuels <- wfdb %>%
   filter(iso3 == region2BprocessedCtry_iso,
          year >= year_min_wfdb, year <= year_max,
-         fuel %in% c("Biomass", "Charcoal")) %>%
+         fuel %in% c("Fuelwood", "Charcoal")) %>%
   mutate(
     area = order_area(area)
   ) %>%
@@ -238,7 +189,7 @@ write_csv(
   file.path(outdir, sprintf("wfdb_fw_char_long_%s_%s_%s_%s_byarea.csv", region2BprocessedCtry_iso, demand_col, year_min_wfdb, year_max))
 )
 
-# Wide table: one row per (year, area), columns = Biomass [t], Charcoal [t]
+# Wide table: one row per (year, area), columns = Fuelwood [t], Charcoal [t]
 wfdb_twofuels_wide <- wfdb_twofuels %>%
   mutate(colname = paste0(fuel, " [t]")) %>%
   select(year, area, colname, value_t) %>%
@@ -262,7 +213,7 @@ ymax_overall_wfdb <- wfdb_twofuels %>%
 p_wfdb <- ggplot(wfdb_twofuels, aes(x = year, y = value_t, fill = fuel)) +
   geom_area(alpha = 0.95, color = "grey30", linewidth = 0.2) +
   labs(
-    title = sprintf("Biomass & Charcoal demand in %s (tonnes, charcoal ÷ %s)", region2BprocessedCtry_iso, efchratio),
+    title = sprintf("Fuelwood & Charcoal demand in %s (tonnes, charcoal ÷ %s)", region2BprocessedCtry_iso, efchratio),
     subtitle = sprintf("%d–%d • Faceted by area (Y from max stacked in Overall) • source col: %s",
                        year_min_wfdb, year_max, demand_col),
     x = NULL, y = "Tonnes", fill = "Fuel"
