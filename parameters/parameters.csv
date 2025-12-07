@@ -7,17 +7,18 @@ proj_gcs,proj=longlat +datum=WGS84 +no_defs +type=crs
 proj_pcs,proj=merc +lon_0=0 +k=1 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs +type=crs
 GEE to MoFuSS,
 GEE_tyRoi,countries
-GEE_country,MDG
-GEE_scale,1000
+GEE_country,SLV
+GEE_scale,100
 AGB stats for K,
 pdecil,0.95
 POPULATION MAP,
 pop_ver,WorldPop
-pop_map_name,wp_global1000m_gcs.tif
+pop_map_name,wp_slv100m_gcs.tif
 pop_map_yr,2020
 demand_col,fuel_tons3
+demand_tuning,0
 SCENARIO,
-scenario_ver,BaU_lusaka_notlusaka
+scenario_ver,BaU
 idw_debug,NO
 friction,R
 END YEAR OF SIMULATION,
@@ -26,12 +27,12 @@ REGION TO BE PROCESSED,
 byregion,Country
 region2BprocessedCont,SSA
 region2BprocessedReg,SSA_adm0_malambique
-region2BprocessedCtry,Zambia
-region2BprocessedCtry_iso,ZMB
-subcountry,1
+region2BprocessedCtry,El Salvador
+region2BprocessedCtry_iso,SLV
+subcountry,0
 AREA OF INTEREST,
 aoi_poly,0
-aoi_poly_file,Lusaka_FAO_charcoal1_AoI.kml
+aoi_poly_file,test1.kml
 ecoregions_ID,ECO_ID
 ecoregions_NAME,ECO_NAME
 ext_analysis_ID,ID
@@ -45,7 +46,7 @@ DIGITAL TERRAIN ELEVATION MODEL,
 DTEM_in_GCS,NO
 DTEM_name,DTEM_pcs.tif
 LAND USE COVER MAPS,
-LULCt1map,YES
+LULCt1map,NO
 LULCt2map,YES
 LULCt3map,NO
 LULCt1map_yr,2010
@@ -90,7 +91,7 @@ RIVERS,
 rivers_raster,YES
 rivers_name_r,hydrorivers7_pcs.tif
 rivers_name,hydrorivers7_pcs.gpkg
-rivers_fieldname, ORD_FLOW
+rivers_fieldname,ORD_FLOW
 LAKES AND WATER BODIES,
 lakes_raster,YES
 lakes_name_r,hydrolakes_pcs.tif
