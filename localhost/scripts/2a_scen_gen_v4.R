@@ -6,7 +6,6 @@
 
 # Internal parameters ----
 years_target <- 1990:2050
-demand_tuning_byass = 0 # 0 means demand will be affected
 
 # Load libraries ----
 library(readxl)
@@ -61,9 +60,6 @@ country_parameters %>%
   dplyr::filter(Var == "demand_tuning") %>%
   pull(ParCHR) %>%
   as.integer(.) -> demand_tuning
-if (demand_tuning_byass == 1){
-  demand_tuning = 0
-}
 
 # Set directory to demand_in
 setwd(paste0(demanddir,"/demand_in"))
