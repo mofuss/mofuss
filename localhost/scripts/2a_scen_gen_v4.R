@@ -164,6 +164,53 @@ fix_wfdb <- function(infile, outfile) {
   invisible(wfdb_fixed)
 }
 
+# WFDB ----
+fix_rob <- function(infile, outfile) {
+  # Detect delimiter and read
+  delim <- detect_delimiter(infile)
+  wfdb_rob_raw <- read_delim(infile, delim = delim, show_col_types = FALSE)
+  
+  # 1) Rename Biomass -> Fuelwood and drop Total* fuels
+  wfdb_rob_clean <- wfdb_rob_raw %>%
+    mutate(
+      fuel = if_else(fuel == "Biomass", "Fuelwood", fuel)
+    ) %>%
+    filter(!fuel %in% c("Total Polluting", "Total Clean"))
+  
+  # 2) Keep only Rural + Urban for base
+  base_ru <- wfdb_rob_clean %>%
+    filter(area %in% c("Rural", "Urban"))
+  
+  # 3) Create new Overall rows as Rural + Urban sum
+  #    Group by all ID variables that make sense
+  group_vars <- intersect(
+    c("iso3", "country", "region", "fuel", "year"),
+    names(base_ru)
+  )
+  
+  wfdb_rob_overall <- base_ru %>%
+    group_by(across(all_of(group_vars))) %>%
+    summarise(
+      area = "Overall",
+      across(where(is.numeric), ~ sum(.x, na.rm = TRUE)),
+      .groups = "drop"
+    )
+  
+  # 4) Combine back: Rural + Urban + Overall
+  wfdb_rob_fixed <- bind_rows(base_ru, wfdb_rob_overall) %>%
+    mutate(
+      area = factor(area, levels = c("Rural", "Urban", "Overall"))
+    ) %>%
+    arrange(iso3, fuel, year, area)
+  
+  # 5) Write fixed table
+  write_csv(wfdb_rob_fixed, outfile)
+  
+  invisible(wfdb_rob_fixed)
+}
+
+
+
 # Original BaU
 fix_wfdb(
   infile  = "cons_fuels_years_original.csv",
@@ -171,6 +218,12 @@ fix_wfdb(
 )
 
 # Original projected
+fix_wfdb(
+  infile  = "cons_fuels_years_proj_original.csv",
+  outfile = "cons_fuels_years_proj.csv"
+)
+
+# Fix Robs new datasets for demand? Warning
 fix_wfdb(
   infile  = "cons_fuels_years_proj_original.csv",
   outfile = "cons_fuels_years_proj.csv"
