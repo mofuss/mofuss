@@ -164,8 +164,24 @@ fix_wfdb <- function(infile, outfile) {
   invisible(wfdb_fixed)
 }
 
-# WFDB ----
+# Original BaU
+fix_wfdb(
+  infile  = "cons_fuels_years_original.csv",
+  outfile = "cons_fuels_years.csv"
+)
+
+# Original projected
+fix_wfdb(
+  infile  = "cons_fuels_years_proj_original.csv",
+  outfile = "cons_fuels_years_proj.csv"
+)
+
+
+# WFDB Rob----
 fix_rob <- function(infile, outfile) {
+  
+  # browser()   # <-- execution will PAUSE here
+  
   # Detect delimiter and read
   delim <- detect_delimiter(infile)
   wfdb_rob_raw <- read_delim(infile, delim = delim, show_col_types = FALSE)
@@ -176,6 +192,34 @@ fix_rob <- function(infile, outfile) {
       fuel = if_else(fuel == "Biomass", "Fuelwood", fuel)
     ) %>%
     filter(!fuel %in% c("Total Polluting", "Total Clean"))
+  
+  # unique(wfdb_rob_raw$fuel)
+  
+  wfdb_rob_clean <- wfdb_rob_raw %>%
+    # Remove anything starting with "total" (any capitalization)
+    filter(!str_detect(fuel, regex("^total", ignore_case = TRUE))) %>%
+    
+    # Remove rows where area == "Overall" (any capitalization)
+    filter(!str_detect(area, regex("^overall$", ignore_case = TRUE))) %>%
+    
+    mutate(
+      # 1. trim spaces and lowercase everything first
+      fuel = tolower(trimws(fuel)),
+      
+      # 2. replace "biomass" → "fuelwood"
+      fuel = if_else(fuel == "biomass", "fuelwood", fuel),
+      
+      # 3. replace "electric" → "electricity"
+      fuel = if_else(fuel == "electric", "electricity", fuel),
+      
+      # 4. Capitalize first letter after all replacements
+      fuel = str_to_title(fuel)
+    ) %>%
+    
+    # ✅ DROP ALL COLUMNS TO THE RIGHT OF fuel_tons3
+    select(1:which(names(.) == "fuel_tons3"))
+  
+  #unique(wfdb_rob_clean$fuel)
   
   # 2) Keep only Rural + Urban for base
   base_ru <- wfdb_rob_clean %>%
@@ -203,31 +247,19 @@ fix_rob <- function(infile, outfile) {
     ) %>%
     arrange(iso3, fuel, year, area)
   
+  # unique(wfdb_rob_fixed$area)
+  
   # 5) Write fixed table
   write_csv(wfdb_rob_fixed, outfile)
   
   invisible(wfdb_rob_fixed)
 }
 
-
-
-# Original BaU
-fix_wfdb(
-  infile  = "cons_fuels_years_original.csv",
-  outfile = "cons_fuels_years.csv"
-)
-
-# Original projected
-fix_wfdb(
-  infile  = "cons_fuels_years_proj_original.csv",
-  outfile = "cons_fuels_years_proj.csv"
-)
-
 # Fix Robs new datasets for demand? Warning
-fix_wfdb(
-  infile  = "cons_fuels_years_proj_original.csv",
-  outfile = "cons_fuels_years_proj.csv"
-)
+  fix_rob(
+    infile  = "MWI_BAU_fuel_cons_original.csv",
+    outfile = "MWI_BAU_fuel_cons.csv"
+  )
 
 if (demand_tuning == 1) {
   
