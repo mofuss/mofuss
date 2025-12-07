@@ -65,7 +65,7 @@ country_parameters %>%
 setwd(paste0(demanddir,"/demand_in"))
 
 #---------------------------------------------------------------------#
-# 0. Fix WHO & cons_fuels_years & cons_fuels_years_proj.csv  ----
+# 0. Fix WHO & cons_fuels_years & cons_fuels_years_proj.csv & Rob's new tables ----
 #---------------------------------------------------------------------#
 
 # WHO ----
@@ -177,7 +177,7 @@ fix_wfdb(
 )
 
 
-# WFDB Rob----
+# WFDB Rob ----
 fix_rob <- function(infile, outfile) {
   
   # browser()   # <-- execution will PAUSE here
