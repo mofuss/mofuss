@@ -20,7 +20,7 @@ pkgs <- c(
   "rprojroot","rstudioapi","telegram.bot","data.table","readr","readxl",
   "dplyr","fs","purrr","stringr","terra","gdata","ggplot2","raster","rlang",
   "sf","svDialogs","tibble","tictoc","tidyterra","tidyverse","tidyr",
-  "tmap","classInt","scales","forcats","openxlsx"
+  "tmap","classInt","scales","forcats","openxlsx", "readODS"
 )
 pkgs <- unique(pkgs)
 

@@ -133,7 +133,7 @@ if (webmofuss == 1) {
   # Copy input tables from github repo into MoFuSS working folder ----
   friction2copy <- list.files(
     path = paste0(githubdir, "/friction"),
-    pattern = "\\.csv$|\\.xlsx$",
+    pattern = "\\.csv$|\\.xlsx$|\\.ods$",
     full.names = TRUE)
   
   for (f in friction2copy) {
@@ -144,7 +144,7 @@ if (webmofuss == 1) {
   
   # Copy input tables from github repo into MoFuSS working folder ----
   growth2copy <- list.files(path = paste0(githubdir, "/global_growth"), 
-                            pattern = "\\.csv$|\\.xlsx$", 
+                            pattern = "\\.csv$|\\.xlsx$|\\.ods$", 
                             full.names = TRUE)
   
   # Read parameters table (recognizing the delimiter) ----
@@ -181,7 +181,7 @@ if (webmofuss == 1) {
   }
   
   admin2copyv2 <- list.files(path = paste0(githubdir, "/admin_regions"), 
-                             pattern = "\\.csv$|\\.xlsx$", 
+                             pattern = "\\.csv$|\\.xlsx$|\\.ods$", 
                              full.names = TRUE)
   for (t in admin2copyv2) {
     file.copy(from=t, 
@@ -474,7 +474,7 @@ if (webmofuss == 1) {
 
 # Copy admin csv ----
 admin2copyv2 <- list.files(path = paste0(githubdir, "/admin_regions"),
-                           pattern = "\\.csv$|\\.xlsx$",
+                           pattern = "\\.csv$|\\.xlsx$|\\.ods$",
                            full.names = TRUE)
 for (t in admin2copyv2) {
   file.copy(from=t,

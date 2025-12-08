@@ -253,7 +253,7 @@ if (!dir.exists(paste0(countrydir,"/LULCC/DownloadedDatasets/SourceData",country
 # Copy input tables from github repo into MoFuSS working folder ----
 friction2copy <- list.files(
   path = paste0(githubdir, "/friction"),
-  pattern = "\\.csv$|\\.xlsx$",
+  pattern = "\\.csv$|\\.xlsx$|\\.ods$",
   full.names = TRUE)
 
 for (f in friction2copy) {
@@ -267,7 +267,7 @@ for (f in friction2copy) {
 
 demandtables2copy <- list.files(
   path = paste0(githubdir, "/demand_tables"),
-  pattern = "\\.csv$|\\.xlsx$",
+  pattern = "\\.csv$|\\.xlsx$|\\.ods$",
   full.names = TRUE)
 
 dir.create(paste0(demanddir,"/demand_in"), recursive =TRUE)
@@ -295,7 +295,7 @@ for (aois in aoiexamples2copy) {
 }
 
 growth2copy <- list.files(path = paste0(githubdir, "/global_growth"), 
-                          pattern = "\\.csv$|\\.xlsx$", 
+                          pattern = "\\.csv$|\\.xlsx$|\\.ods$", 
                           full.names = TRUE)
 
 # Read parameters table (recognizing the delimiter) ----

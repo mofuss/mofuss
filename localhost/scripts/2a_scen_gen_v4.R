@@ -15,6 +15,7 @@ library(purrr)
 library(stringr)
 library(tibble)
 library(openxlsx)  # or writexl if you prefer
+library(readODS)
 
 # Detect OS
 os <- Sys.info()["sysname"]
@@ -268,7 +269,9 @@ if (demand_tuning == 1) {
   #---------------------------------------------------------------------#
   
   pop_file <- "A_LMIC_Estimates_2050_popmedian.xlsx"
+  # pop_file <- "A_LMIC_Estimates_2050_popmedian.ods"
   pop_raw <- read_excel(pop_file)
+  # pop_raw <- read_ods(pop_file)
   unique(pop_raw$fuel)
   unique(pop_raw$area)
   
@@ -313,8 +316,10 @@ if (demand_tuning == 1) {
   full_path
   
   file <- paste0(full_path,"/demand_parameters.xlsx")
+  # file <- paste0(full_path,"/demand_parameters.ods")
   
   anchor_shares_input <- read_excel(
+  # anchor_shares_input <- read_ods(
     file,
     sheet = "share",
     skip = 0

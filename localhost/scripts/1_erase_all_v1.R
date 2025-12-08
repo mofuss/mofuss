@@ -93,7 +93,8 @@ lulcc_patterns_to_remove <- c(
   "LULCC//*.Rout", "LULCC//*.csv", "LULCC//*.egoml", 
   "LULCC//*.bat", "LULCC//*.sh",
   file.path(lulcc_demand_path, "demand_in", "*.xlsx"),
-  file.path(lulcc_demand_path, "demand_in", "*.csv")
+  file.path(lulcc_demand_path, "demand_in", "*.csv"),
+  file.path(lulcc_demand_path, "demand_in", "*.ods")
 )
 
 # ------------------------------------------------------------
