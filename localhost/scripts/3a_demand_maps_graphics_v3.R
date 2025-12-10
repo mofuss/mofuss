@@ -3,6 +3,7 @@
 # Date: Nov 2025
 
 # 2dolist ----
+# if (grepl("demand\\.tif$", n) && grepl("(fuelwood|charcoal)", n)) return(paste0("Tonnes of wood eq per ",pixel_size_label," cell"))
 
 # Internal parameters ----
 
@@ -188,11 +189,13 @@ pixel_size_label
 .guess_legend <- function(path) {
   n <- tolower(basename(path))
   if (grepl("users\\.tif$", n)) return(paste0("People per ",pixel_size_label," cell"))
-  if (grepl("demand\\.tif$", n) && grepl("(Fuelwood|Charcoal)", n)) return(paste0("Tonnes of wood eq per ",pixel_size_label," cell"))
-  if (grepl("demand\\.tif$", n) && grepl("(Electricity)", n)) return(paste0("MWh per ",pixel_size_label," cell"))
+  if (grepl("demand\\.tif$", n) && grepl("(fuelwood)", n)) return(paste0("Tonnes of wood per ",pixel_size_label," cell"))
+  if (grepl("demand\\.tif$", n) && grepl("(charcoal)", n)) return(paste0("Tonnes of wood eq per ",pixel_size_label," cell"))
+  if (grepl("demand\\.tif$", n) && grepl("(electricity)", n)) return(paste0("kWh per ",pixel_size_label," cell")) # Check this out!!! w/Rob
   if (grepl("demand\\.tif$", n)) return(paste0("Tonnes of fuel per ",pixel_size_label," cell"))
   if (grepl("popadj", n)) return(paste0("People per ",pixel_size_label," cell"))
-  paste0("Value per ",pixel_size_label," cell")
+  if (grepl("rururb", n)) return(paste0("0to2 = Rural, ≥2 = Urban"))
+  paste0("DEBUG: Value per ",pixel_size_label," cell")
 }
 
 # Variable/type for output name from filename like: WorldPop_biomass_2050_users.tif

@@ -174,6 +174,7 @@ ymax_overall <- whodb_clean %>%
   dplyr::summarise(ymax = max(total, na.rm = TRUE)) %>%
   dplyr::pull(ymax)
 
+unique(whodb_clean$fuel)
 
 p_whodb <- ggplot(whodb_clean, aes(x = year, y = pop, fill = fuel)) +
   geom_area(alpha = 0.95, color = "grey30", linewidth = 0.2) +
@@ -189,11 +190,22 @@ p_whodb <- ggplot(whodb_clean, aes(x = year, y = pop, fill = fuel)) +
   ) +
   coord_cartesian(ylim = c(0, ymax_overall)) +   # common Y range
   facet_wrap(~ area, ncol = 3, scales = "fixed") +
+  
+  scale_fill_manual(values = c(
+    "Fuelwood"   = "#8B4513",  # brown → wood, biomass
+    "Charcoal"   = "#2B2B2B",  # near-black → carbon
+    "Coal"       = "#4B4B4B",  # dark grey → fossil solid
+    "Kerosene"   = "#E69F00",  # amber → liquid fuel
+    "Gas"        = "#56B4E9",  # light blue → gas flame
+    "Electricity"= "#F0E442",   # yellow → light/energy
+    "Biogas"     = "#A65628",  # new, not necessarily present
+    "Pellets"    = "#999999"   # new, not necessarily present
+  )) +
+  
   theme_bw(base_size = 13) +
   theme(panel.grid.minor = element_blank(),
         plot.title.position = "plot",
         legend.position = "bottom")
-
 
 ggsave(
   file.path(outdir, sprintf("whodb_pop_stack_faceted_%s_%s_%s.png", region2BprocessedCtry_iso, year_min_whodb, year_max)),
@@ -263,6 +275,18 @@ p_wfdb <- ggplot(wfdb_twofuels, aes(x = year, y = value_t, fill = fuel)) +
   ) +
   coord_cartesian(ylim = c(0, ymax_overall_wfdb)) +   # common Y range
   facet_wrap(~ area, ncol = 3, scales = "fixed") +
+  
+  scale_fill_manual(values = c(
+    "Fuelwood"   = "#8B4513",  # brown → wood, biomass
+    "Charcoal"   = "#2B2B2B",  # near-black → carbon
+    "Coal"       = "#4B4B4B",  # dark grey → fossil solid
+    "Kerosene"   = "#E69F00",  # amber → liquid fuel
+    "Gas"        = "#56B4E9",  # light blue → gas flame
+    "Electricity"= "#F0E442",   # yellow → light/energy
+    "Biogas"     = "#A65628",  # new, not necessarily present
+    "Pellets"    = "#999999"   # new, not necessarily present
+  )) +
+  
   theme_bw(base_size = 13) +
   theme(panel.grid.minor = element_blank(),
         plot.title.position = "plot",
