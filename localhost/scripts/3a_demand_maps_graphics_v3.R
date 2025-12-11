@@ -191,7 +191,7 @@ pixel_size_label
   if (grepl("users\\.tif$", n)) return(paste0("People per ",pixel_size_label," cell"))
   if (grepl("demand\\.tif$", n) && grepl("(fuelwood)", n)) return(paste0("Tonnes of wood per ",pixel_size_label," cell"))
   if (grepl("demand\\.tif$", n) && grepl("(charcoal)", n)) return(paste0("Tonnes of wood eq per ",pixel_size_label," cell"))
-  if (grepl("demand\\.tif$", n) && grepl("(electricity)", n)) return(paste0("kWh per ",pixel_size_label," cell")) # Check this out!!! w/Rob
+  if (grepl("demand\\.tif$", n) && grepl("(electricity)", n)) return(paste0("MWh per ",pixel_size_label," cell")) # Check this out!!! w/Rob
   if (grepl("demand\\.tif$", n)) return(paste0("Tonnes of fuel per ",pixel_size_label," cell"))
   if (grepl("popadj", n)) return(paste0("People per ",pixel_size_label," cell"))
   if (grepl("rururb", n)) return(paste0("0to2 = Rural, ≥2 = Urban"))
