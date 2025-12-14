@@ -570,7 +570,15 @@ if (demand_tuning == 1) {
   # Set directory to demand_in
   setwd(paste0(demanddir,"/demand_in"))
   
-  dem_file <- "cons_fuels_years_proj.csv"
+  # Define scenarios ----
+  if (scenario_ver == "BaU") {
+    dem_file <- "cons_fuels_years.csv"
+    
+  } else if (scenario_ver == "ICS") {
+    dem_file <- "cons_fuels_years_proj.csv"
+    
+  }
+
   # Detect the delimiter
   delimiter <- detect_delimiter(dem_file)
   # Read the CSV file with the detected delimiter
@@ -601,9 +609,23 @@ if (demand_tuning == 1) {
     select(names(dem_raw))
   
   # Write fixed full table
-  write_csv(
-    dem_fixed,
-    "cons_fuels_years_proj.csv"
-  )
+  if (scenario_ver == "BaU") {
+    write_csv(
+      dem_fixed,
+      "cons_fuels_years.csv"
+    )
+    
+  } else if (scenario_ver == "ICS") {
+    write_csv(
+      dem_fixed,
+      "cons_fuels_years_proj.csv"
+    )
+    
+  }
+  
+  
+  
+  
+
   
 }
