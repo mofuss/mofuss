@@ -12,7 +12,7 @@
 
 # MoFuSS
 # Version 5
-# Date: Sep 2025
+# Date: Dec 2025
 
 # 2dolist ----
 # FIX THE MASK ISSUE WITH LINUX, THAT WAS PATCHED FOR THE MOMENT!
@@ -23,12 +23,6 @@
 # Internal parameters ----
 optimizeD = 0
 temdirdefined = 1
-urb_shift_factor = 1 # Only works with byregion == Country (Check code lines 89-91 before adjusting this).
-# For Nepal use 10
-# For El Salvador use X
-# # Select MoFuSS platform:
-# webmofuss = 1 # "1" is  web-MoFuSS running in our Ubuntu server, "0" is local host (Windows or Linux)
-# source(paste0(scriptsmofuss,"00_webmofuss.R"))
 
 # Load libraries ----
 library(terra)
@@ -123,6 +117,11 @@ country_parameters %>%
 country_parameters %>%
   dplyr::filter(Var == "scenario_ver") %>%
   pull(ParCHR) -> scenario_ver
+
+country_parameters %>%
+  dplyr::filter(Var == "urb_shift_factor") %>%
+  pull(ParCHR) %>%
+  as.integer(.) -> urb_shift_factor
 
 country_parameters %>%
   dplyr::filter(Var == "byregion") %>%
