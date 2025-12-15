@@ -25,28 +25,32 @@ if (is_windows) {
 
 # ---- Superset of packages found in legacy headers (deduplicated) ----
 PKGS <- unique(c(
-  # Core / tidy
-  "tidyverse","dplyr","tidyr","readr","readxl","tibble","purrr","stringr",
-  "data.table","glue","fs","tools","knitr","rmarkdown",
-  
-  # Spatial / raster / mapping
-  "terra","raster","rasterVis","sf","sp","stars","fasterize",
-  "tmap","classInt","rmapshaper","mapview","osmdata",
-  
-  # Stats / utils / performance
-  "msm","fBasics","fields","spam","igraph","foreach","tictoc",
-  
-  # UI / dialogs
-  "svDialogs","tcltk","htmltools",
-  
-  # Images / IO
-  "png","jpeg","tiff",
-  
-  # Misc legacy helpers
-  "animation","caTools","bitops","gdata","inline"
-  
-  # "gitlabr" # enable only if you actually use it
-))
+  pkgs <- unique(c(
+    # tidy / data
+    "tidyverse","dplyr","readr","readxl","tibble","purrr","stringr","tidyr",
+    "data.table","plyr","glue","knitr","rmarkdown","tools","fs",
+    
+    # spatial / rasters / mapping
+    "terra","raster","rasterVis","sf","sp","stars","fasterize","tmap","classInt",
+    "rmapshaper","mapview","maptools",   # maptools is retired; see note below
+    
+    # stats / misc
+    "msm","fBasics","spam","fields","igraph","foreach","tictoc",
+    
+    # UI / dialogs
+    "svDialogs","tcltk","htmltools",
+    
+    # IO / images
+    "png","jpeg","tiff",
+    
+    # utilities you had
+    "animation","inline","caTools","bitops","gdata",
+    
+    # APIs
+    "osmdata", "telegram.bot", "rstudioapi",
+    
+    "openxlsx", "readODS"
+))))
 
 # These are retired/legacy and often break installs; only enable if you *must*.
 LEGACY_RETIRED <- c("rgdal","rgeos","maptools")
