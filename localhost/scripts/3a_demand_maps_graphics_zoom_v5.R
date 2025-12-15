@@ -5,7 +5,7 @@
 # 2dolist ----
 
 # Internal parameters ----
-
+DEBUG_OSM <- FALSE
 
 # Load libraries ----
 library(readr)
@@ -177,7 +177,7 @@ append_zoom_suffix <- function(out_name, zoom_id = c("zoom1","zoom2")) {
 }
 
 
-# Hillshade helper ----
+## Hillshade helper ----
 
 make_hillshade <- function(dem_path, r_template) {
   .check_files(dem_path)
@@ -195,7 +195,7 @@ make_hillshade <- function(dem_path, r_template) {
 }
 
 
-# KML zooms -> bbox polygons in raster CRS ----
+## KML zooms -> bbox polygons in raster CRS ----
 
 read_zoom_bboxes_from_kml <- function(kml1, kml2, r_ref) {
   .check_files(c(kml1, kml2))
@@ -231,7 +231,7 @@ read_zoom_bboxes_from_kml <- function(kml1, kml2, r_ref) {
 }
 
 
-# Plan builder ----
+## Plan builder ----
 
 build_atlas_plan <- function(demanddir, years = c(2010,2050), country_gid0_default = region2BprocessedCtry_iso) {
   stopifnot(length(years) == 2)
@@ -267,9 +267,49 @@ build_atlas_plan <- function(demanddir, years = c(2010,2050), country_gid0_defau
   plan
 }
 
+get_osm_zoom_layers <- function(bb_lonlat, cache_file = NULL, quiet = FALSE) {
+  stopifnot(all(c("xmin","ymin","xmax","ymax") %in% names(bb_lonlat)))
+  
+  if (!is.null(cache_file) && file.exists(cache_file)) {
+    if (!quiet) message("Loading OSM cache: ", cache_file)
+    return(readRDS(cache_file))
+  }
+  
+  q_roads <- osmdata::opq(bbox = bb_lonlat) |>
+    osmdata::add_osm_feature(key = "highway")
+  
+  roads_sf <- osmdata::osmdata_sf(q_roads)
+  
+  roads <- NULL
+  if (!is.null(roads_sf$osm_lines) && nrow(roads_sf$osm_lines)) roads <- roads_sf$osm_lines
+  if (is.null(roads) && !is.null(roads_sf$osm_multilines) && nrow(roads_sf$osm_multilines)) roads <- roads_sf$osm_multilines
+  
+  q_places <- osmdata::opq(bbox = bb_lonlat) |>
+    osmdata::add_osm_feature(key = "place", value = c("city","town","village","hamlet"))
+  
+  places_sf <- osmdata::osmdata_sf(q_places)
+  
+  places <- NULL
+  if (!is.null(places_sf$osm_points) && nrow(places_sf$osm_points)) places <- places_sf$osm_points
+  
+  out <- list(roads = roads, places = places)
+  
+  if (!is.null(cache_file) &&
+      ( (!is.null(out$roads) && nrow(out$roads)) || (!is.null(out$places) && nrow(out$places)) )) {
+    dir.create(dirname(cache_file), recursive = TRUE, showWarnings = FALSE)
+    saveRDS(out, cache_file)
+    if (!quiet) message("Saved OSM cache: ", cache_file)
+  }
+  
+  out
+}
+
+bbox_fingerprint <- function(bb) {
+  paste(round(c(bb["xmin"], bb["ymin"], bb["xmax"], bb["ymax"]), 5), collapse = "_")
+}
+
 
 # Main map function (full + zooms) ----
-
 two_map_vertical_gadm <- function(
     tif_bottom, tif_top,
     year_bottom, year_top,
@@ -522,8 +562,48 @@ two_map_vertical_gadm <- function(
         bb_ll <- sf::st_transform(bb, 4326)
         bb_lonlat <- sf::st_bbox(bb_ll)
         
-        cache_dir  <- file.path(out_dir, "_osm_cache")
-        cache_file <- file.path(cache_dir, paste0(country_gid0, "_", zoom_id, ".rds"))
+        if (isTRUE(DEBUG_OSM)) {
+          
+          message("\n--- OSM DEBUG ", zoom_id, " ---")
+          print(bb_lonlat)
+          message("bbox dx,dy (deg): ",
+                  round(bb_lonlat["xmax"] - bb_lonlat["xmin"], 4), ", ",
+                  round(bb_lonlat["ymax"] - bb_lonlat["ymin"], 4))
+          
+          options(osmdata_timeout = 180)  # be generous
+          
+          # Force verbose errors:
+          osm <- NULL
+          osm_err <- NULL
+          
+          osm <- tryCatch(
+            {
+              get_osm_zoom_layers(bb_lonlat, cache_file = NULL)
+            },
+            error = function(e) { osm_err <<- e; NULL }
+          )
+          
+          if (is.null(osm)) {
+            message("OSM fetch FAILED: ", conditionMessage(osm_err))
+          } else {
+            message("OSM fetch OK.")
+            message("roads:  ", if (is.null(osm$roads)) "NULL" else nrow(osm$roads))
+            message("places: ", if (is.null(osm$places)) "NULL" else nrow(osm$places))
+          }
+          message("--- END OSM DEBUG ---\n")
+        }
+        
+        cache_dir <- file.path(out_dir, "_osm_cache")
+        
+        cache_file <- file.path(
+          cache_dir,
+          paste0(
+            country_gid0, "_",
+            zoom_id, "_",
+            bbox_fingerprint(bb_lonlat),
+            ".rds"
+          )
+        )
         
         osm <- NULL
         try({
@@ -536,13 +616,36 @@ two_map_vertical_gadm <- function(
         
         if (!is.null(osm)) {
           # roads
+          # roads (filtered)
           if (!is.null(osm$roads) && nrow(osm$roads) > 0) {
-            # crop in lon/lat first to be safe, then transform
+            
             rd <- sf::st_crop(osm$roads, bb_lonlat)
+            
+            # keep only major roads
+            
+            # # Primary only (very clean):
+            #   keep_hw <- c("primary","primary_link")
+            
+            # National-ish network (good default):
+              keep_hw <- c("motorway","trunk","primary","secondary",
+                           "motorway_link","trunk_link","primary_link","secondary_link")
+            
+            # # Urban context (busy):
+            #   keep_hw <- c("primary","secondary","tertiary","residential","unclassified",
+            #                "primary_link","secondary_link","tertiary_link")
+            
+              if ("highway" %in% names(rd)) rd <- rd[rd$highway %in% keep_hw, , drop = FALSE]
+            
+            # optional: simplify geometry a bit (speeds plotting + reduces “hair”)
+            # increase dTolerance if you want more simplification (units = degrees here, still in lon/lat)
+            if (nrow(rd) > 0) rd <- sf::st_simplify(rd, dTolerance = 0.0002, preserveTopology = TRUE)
+            
             rd <- sf::st_transform(rd, terra::crs(r_bot, proj = TRUE))
             rd <- sf::st_crop(rd, bb_bbox)
+            
             osm_roads <- rd
           }
+          
           
           # places (clean + transform)
           if (!is.null(osm$places) && nrow(osm$places) > 0) {

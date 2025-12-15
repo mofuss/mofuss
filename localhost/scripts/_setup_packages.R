@@ -27,12 +27,12 @@ if (is_windows) {
 PKGS <- unique(c(
   pkgs <- unique(c(
     # tidy / data
-    "tidyverse","dplyr","readr","readxl","tibble","purrr","stringr","tidyr",
+    "tidyverse", "tidyterra", "dplyr","readr","readxl","tibble","purrr","stringr","tidyr",
     "data.table","plyr","glue","knitr","rmarkdown","tools","fs",
     
     # spatial / rasters / mapping
     "terra","raster","rasterVis","sf","sp","stars","fasterize","tmap","classInt",
-    "rmapshaper","mapview","maptools",   # maptools is retired; see note below
+    "rmapshaper","mapview",
     
     # stats / misc
     "msm","fBasics","spam","fields","igraph","foreach","tictoc",

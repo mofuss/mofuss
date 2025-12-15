@@ -118,10 +118,10 @@ country_parameters %>%
   dplyr::filter(Var == "scenario_ver") %>%
   pull(ParCHR) -> scenario_ver
 
-country_parameters %>%
+urb_shift_factor <- country_parameters %>%
   dplyr::filter(Var == "urb_shift_factor") %>%
-  pull(ParCHR) %>%
-  as.integer(.) -> urb_shift_factor
+  dplyr::pull(ParCHR) %>%
+  as.numeric()
 
 country_parameters %>%
   dplyr::filter(Var == "byregion") %>%
