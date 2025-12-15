@@ -5,9 +5,7 @@
 # 2dolist ----
 
 # Internal parameters ----
-zoom1_kml <- paste0(countrydir,"/LULCC/DownloadedDatasets/SourceDataEl Salvador/InVector_GCS/zoom1.kml")
-zoom2_kml <- paste0(countrydir,"/LULCC/DownloadedDatasets/SourceDataEl Salvador/InVector_GCS/zoom2.kml")
-dem_path  <- paste0(countrydir,"/LULCC/DownloadedDatasets/SourceDataEl Salvador/InRaster/DTEM_pcs.tif")
+
 
 # Load libraries ----
 library(readr)
@@ -20,6 +18,54 @@ library(tmap)
 library(classInt)
 library(osmdata)
 
+# Detect zoom and dem files
+# Base search path
+base_path <- file.path(countrydir, "LULCC", "DownloadedDatasets")
+
+# Find all zoom KMLs
+zoom_kmls <- list.files(
+  path = base_path,
+  pattern = "zoom.*\\.kml$",
+  recursive = TRUE,
+  full.names = TRUE,
+  ignore.case = TRUE
+)
+
+if (length(zoom_kmls) < 2) {
+  stop("Less than two zoom KML files found")
+}
+
+zoom1_path <- zoom_kmls[grepl("zoom[_-]?1", basename(zoom_kmls), ignore.case = TRUE)]
+zoom2_path <- zoom_kmls[grepl("zoom[_-]?2", basename(zoom_kmls), ignore.case = TRUE)]
+
+# Safety checks
+if (length(zoom1_path) != 1) stop("Could not uniquely identify zoom1.kml")
+if (length(zoom2_path) != 1) stop("Could not uniquely identify zoom2.kml")
+
+zoom1_path
+zoom2_path
+
+dem_candidates <- list.files(
+  path = base_path,
+  pattern = "DTEM_gcs.*\\.tif$",
+  recursive = TRUE,
+  full.names = TRUE,
+  ignore.case = TRUE
+)
+
+dem_candidates
+
+if (length(dem_candidates) == 0) {
+  stop("No DEM found")
+}
+
+if (length(dem_candidates) > 1) {
+  message("Multiple DEMs found, using the first one:")
+  print(dem_candidates)
+}
+
+dem_path <- dem_candidates[1]
+dem_path
 
 # Read parameters table ----
 detect_delimiter <- function(file_path) {
@@ -332,7 +378,7 @@ two_map_vertical_gadm <- function(
       z2pt <- sf::st_centroid(sf::st_geometry(bb2))
       z2sf <- sf::st_sf(lbl = "z2", geometry = z2pt, crs = sf::st_crs(bb2))
       tm_obj <- tm_obj +
-        tm_shape(bb2) + tm_borders(col = "orange", lwd = 2) +
+        tm_shape(bb2) + tm_borders(col = "red", lwd = 2) +
         tm_shape(z2sf) + tm_text("lbl", size = 1.1, col = "black")
     }
     
@@ -612,7 +658,7 @@ ATLAS_DEFAULTS <- list(
 
 run_atlas <- function(plan, defaults = ATLAS_DEFAULTS,
                       skip_first = TRUE, skip_if_exists = FALSE,
-                      zoom1_kml = NULL, zoom2_kml = NULL,
+                      zoom1_path = NULL, zoom2_path = NULL,
                       draw_bboxes_on = "both",
                       make_zooms = TRUE) {
   
@@ -620,9 +666,9 @@ run_atlas <- function(plan, defaults = ATLAS_DEFAULTS,
   
   # Load bboxes once (in raster CRS)
   bboxes_sf <- NULL
-  if (!is.null(zoom1_kml) && !is.null(zoom2_kml) && make_zooms) {
+  if (!is.null(zoom1_path) && !is.null(zoom2_path) && make_zooms) {
     r0 <- terra::rast(plan$tif_bottom[1])
-    bboxes_sf <- read_zoom_bboxes_from_kml(zoom1_kml, zoom2_kml, r_ref = r0)
+    bboxes_sf <- read_zoom_bboxes_from_kml(zoom1_path, zoom2_path, r_ref = r0)
   }
   
   results <- vector("list", nrow(plan))
@@ -703,8 +749,8 @@ atlas_results <- run_atlas(
   plan,
   skip_first = FALSE,
   skip_if_exists = FALSE,
-  zoom1_kml = zoom1_kml,
-  zoom2_kml = zoom2_kml,
+  zoom1_path = zoom1_path,
+  zoom2_path = zoom2_path,
   draw_bboxes_on = "both",
   make_zooms = TRUE
 )
