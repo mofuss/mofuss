@@ -13,6 +13,16 @@ year_max        <- 2050
 country_parameters <- read_delim(parameters_file_path, delim = delimiter)
 print(tibble::as_tibble(country_parameters), n=100)
 
+country_parameters %>%
+  dplyr::filter(Var == "demand_tuning") %>%
+  pull(ParCHR) %>%
+  as.integer(.) -> demand_tuning
+
+country_parameters %>%
+  dplyr::filter(Var == "efchratio") %>%
+  pull(ParCHR) %>%
+  as.integer(.) -> efchratio
+
 setwd(demanddir)
 
 # Reads WHO dataset
@@ -96,30 +106,6 @@ if (!dir.exists(full_path)) {
 stopifnot(dir.exists(full_path))
 
 setwd(countrydir)
-
-# efchratio
-base_path <- paste0(countrydir, "/LULCC/DownloadedDatasets")
-
-# Find the folder that starts with "SourceData"
-country_subfolder <- list.dirs(base_path, full.names = FALSE, recursive = FALSE) %>%
-  grep("^SourceData", ., value = TRUE)
-
-full_path <- file.path(base_path, country_subfolder)
-
-full_path
-
-file <- paste0(full_path,"/demand_parameters.xlsx")
-
-efchratio_tb <- read_excel(
-  file,
-  sheet = "efchratio",
-  skip = 0
-) |> 
-  dplyr::mutate(
-    efchratio = as.numeric(efchratio)
-  )
-efchratio <- efchratio_tb %>% dplyr::pull(efchratio)
-efchratio
 
 # ── LIBS ─────────────────────────────────────────────────────────────────────
 suppressPackageStartupMessages({
