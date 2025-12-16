@@ -3,7 +3,8 @@
 # Date: Mar 2024
 
 # 2dolist ----
-# zoom regions falling outside country borders breaks the map atlas
+# Zoom regions falling outside country borders breaks the map atlas
+# If zooms are not present by passzooms drawings
 
 # Internal parameters ----
 DEBUG_OSM <- FALSE
