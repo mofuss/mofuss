@@ -3,6 +3,7 @@
 # Date: Mar 2024
 
 # 2dolist ----
+# zoom regions falling outside country borders breaks the map atlas
 
 # Internal parameters ----
 DEBUG_OSM <- FALSE
