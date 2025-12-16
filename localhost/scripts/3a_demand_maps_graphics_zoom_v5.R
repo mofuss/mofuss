@@ -80,6 +80,11 @@ region2BprocessedCtry_iso <- country_parameters %>%
   dplyr::pull(ParCHR) %>%
   .[1]
 
+GEE_scale <- country_parameters %>%
+  dplyr::filter(Var == "GEE_scale") %>%
+  dplyr::pull(ParCHR) %>%
+  .[1]
+
 # Helper: pick GADM layers ----
 pick_gadm_layers <- function(gpkg_path) {
   lay <- sf::st_layers(gpkg_path)$name
@@ -142,13 +147,11 @@ append_zoom_suffix <- function(out_name, zoom_id = c("zoom1","zoom2")) {
   )
 }
 
-.guess_pixel_label <- function(any_tif) {
-  r <- terra::rast(any_tif)
-  res_xy <- terra::res(r)
+.guess_pixel_label <- function(GEE_scale) {
   dplyr::case_when(
-    all(res_xy >= 90 & res_xy <= 110) ~ "1 ha",
-    all(res_xy >= 900 & res_xy <= 1100) ~ "1 km²",
-    TRUE ~ paste0("Pixel size = ", round(res_xy[1]), " m × ", round(res_xy[2]), " m")
+    GEE_scale == 100  ~ "1 ha",
+    GEE_scale == 1000 ~ "1 km²",
+    TRUE             ~ paste0("Pixel size = ", GEE_scale, " m")
   )
 }
 
@@ -245,7 +248,7 @@ build_atlas_plan <- function(demanddir, years = c(2010,2050), country_gid0_defau
   
   demand_files <- fs::dir_ls(file.path(demanddir, "demand_out"), regexp="\\.tif$", type="file")
   if (!length(demand_files)) stop("No tif found in demand_out to infer pixel size label.")
-  pixel_size_label <- .guess_pixel_label(demand_files[1])
+  pixel_size_label <- .guess_pixel_label(GEE_scale = GEE_scale)
   
   plan <- pairs %>%
     dplyr::rowwise() %>%
