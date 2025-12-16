@@ -62,6 +62,12 @@ country_parameters %>%
   pull(ParCHR) %>%
   as.integer(.) -> demand_tuning
 
+country_parameters %>%
+  dplyr::filter(Var == "efchratio") %>%
+  pull(ParCHR) %>%
+  as.integer(.) -> efchratio
+
+
 # Set directory to demand_in
 setwd(paste0(demanddir,"/demand_in"))
 
@@ -549,22 +555,12 @@ if (demand_tuning == 1) {
     )
   fuel_intensity
   
-  efchratio_tb <- read_excel(
-    file,
-    sheet = "efchratio",
-    skip = 0
-  ) |> 
-    mutate(
-      efchratio = as.numeric(efchratio)
-    )
-  efchratio <- efchratio_tb %>% dplyr::pull(efchratio)
-  efchratio
-  
   fuel_intensity <- fuel_intensity %>%
     mutate(
       cons_pc = if_else(fuel == "Charcoal", cons_pc * efchratio, cons_pc)
     )
   
+  efchratio
   fuel_intensity
   
   # Set directory to demand_in
