@@ -75,20 +75,20 @@ who_raw <- read_excel("A_LMIC_Estimates_2050_popmedian_original.xlsx")
 # Start from the original
 who_clean <- who_raw %>%
   # 1. Rename Biomass -> Fuelwood
-  mutate(
+  dplyr::mutate(
     fuel = if_else(fuel == "Biomass", "Fuelwood", fuel)
   ) %>%
   
   # 2. Remove Total Polluting / Total Clean
-  filter(!fuel %in% c("Total Polluting", "Total Clean")) %>%
+  dplyr::filter(!fuel %in% c("Total Polluting", "Total Clean")) %>%
   
   # 3. Remove any existing Overall rows
-  filter(area %in% c("Rural", "Urban"))
+  dplyr::filter(area %in% c("Rural", "Urban"))
 
 # Create new Overall rows as Rural + Urban
 who_overall <- who_clean %>%
-  group_by(iso3, country, region, fuel, year) %>%
-  summarise(
+  dplyr::group_by(iso3, country, region, fuel, year) %>%
+  dplyr::summarise(
     area = "Overall",
     pop  = sum(pop, na.rm = TRUE),
     .groups = "drop"
@@ -97,10 +97,10 @@ who_overall <- who_clean %>%
 # Bind Rural + Urban + new Overall
 who_fixed <- bind_rows(who_clean, who_overall) %>%
   # Nice ordering of area
-  mutate(
+  dplyr::mutate(
     area = factor(area, levels = c("Rural", "Urban", "Overall"))
   ) %>%
-  arrange(iso3, fuel, year, area)
+  dplyr::arrange(iso3, fuel, year, area)
 
 openxlsx::write.xlsx(
   who_fixed,
@@ -128,14 +128,14 @@ fix_wfdb <- function(infile, outfile) {
   
   # 1) Rename Biomass -> Fuelwood and drop Total* fuels
   wfdb_clean <- wfdb_raw %>%
-    mutate(
+    dplyr::mutate(
       fuel = if_else(fuel == "Biomass", "Fuelwood", fuel)
     ) %>%
-    filter(!fuel %in% c("Total Polluting", "Total Clean"))
+    dplyr::filter(!fuel %in% c("Total Polluting", "Total Clean"))
   
   # 2) Keep only Rural + Urban for base
   base_ru <- wfdb_clean %>%
-    filter(area %in% c("Rural", "Urban"))
+    dplyr::filter(area %in% c("Rural", "Urban"))
   
   # 3) Create new Overall rows as Rural + Urban sum
   #    Group by all ID variables that make sense
@@ -145,19 +145,19 @@ fix_wfdb <- function(infile, outfile) {
   )
   
   wfdb_overall <- base_ru %>%
-    group_by(across(all_of(group_vars))) %>%
-    summarise(
+    dplyr::group_by(dplyr::across(dplyr::all_of(group_vars))) %>%
+    dplyr::summarise(
       area = "Overall",
-      across(where(is.numeric), ~ sum(.x, na.rm = TRUE)),
+      dplyr::across(dplyr::where(is.numeric), ~ sum(.x, na.rm = TRUE)),
       .groups = "drop"
     )
   
   # 4) Combine back: Rural + Urban + Overall
   wfdb_fixed <- bind_rows(base_ru, wfdb_overall) %>%
-    mutate(
+    dplyr::mutate(
       area = factor(area, levels = c("Rural", "Urban", "Overall"))
     ) %>%
-    arrange(iso3, fuel, year, area)
+    dplyr::arrange(iso3, fuel, year, area)
   
   # 5) Write fixed table
   write_csv(wfdb_fixed, outfile)
@@ -189,21 +189,21 @@ fix_rob <- function(infile, outfile) {
   
   # 1) Rename Biomass -> Fuelwood and drop Total* fuels
   wfdb_rob_clean <- wfdb_rob_raw %>%
-    mutate(
+    dplyr::mutate(
       fuel = if_else(fuel == "Biomass", "Fuelwood", fuel)
     ) %>%
-    filter(!fuel %in% c("Total Polluting", "Total Clean"))
+    dplyr::filter(!fuel %in% c("Total Polluting", "Total Clean"))
   
   # unique(wfdb_rob_raw$fuel)
   
   wfdb_rob_clean <- wfdb_rob_raw %>%
     # Remove anything starting with "total" (any capitalization)
-    filter(!str_detect(fuel, regex("^total", ignore_case = TRUE))) %>%
+    dplyr::filter(!str_detect(fuel, regex("^total", ignore_case = TRUE))) %>%
     
     # Remove rows where area == "Overall" (any capitalization)
-    filter(!str_detect(area, regex("^overall$", ignore_case = TRUE))) %>%
+    dplyr::filter(!str_detect(area, regex("^overall$", ignore_case = TRUE))) %>%
     
-    mutate(
+    dplyr::mutate(
       # 1. trim spaces and lowercase everything first
       fuel = tolower(trimws(fuel)),
       
@@ -218,13 +218,13 @@ fix_rob <- function(infile, outfile) {
     ) %>%
     
     # ✅ DROP ALL COLUMNS TO THE RIGHT OF fuel_tons3
-    select(1:which(names(.) == "fuel_tons3"))
+    dplyr::select(1:which(names(.) == "fuel_tons3"))
   
   #unique(wfdb_rob_clean$fuel)
   
   # 2) Keep only Rural + Urban for base
   base_ru <- wfdb_rob_clean %>%
-    filter(area %in% c("Rural", "Urban"))
+    dplyr::filter(area %in% c("Rural", "Urban"))
   
   # 3) Create new Overall rows as Rural + Urban sum
   #    Group by all ID variables that make sense
@@ -234,19 +234,19 @@ fix_rob <- function(infile, outfile) {
   )
   
   wfdb_rob_overall <- base_ru %>%
-    group_by(across(all_of(group_vars))) %>%
-    summarise(
+    dplyr::group_by(dplyr::across(dplyr::all_of(group_vars))) %>%
+    dplyr::summarise(
       area = "Overall",
-      across(where(is.numeric), ~ sum(.x, na.rm = TRUE)),
+      dplyr::across(dplyr::where(is.numeric), ~ sum(.x, na.rm = TRUE)),
       .groups = "drop"
     )
   
   # 4) Combine back: Rural + Urban + Overall
   wfdb_rob_fixed <- bind_rows(base_ru, wfdb_rob_overall) %>%
-    mutate(
+    dplyr::mutate(
       area = factor(area, levels = c("Rural", "Urban", "Overall"))
     ) %>%
-    arrange(iso3, fuel, year, area)
+    dplyr::arrange(iso3, fuel, year, area)
   
   # unique(wfdb_rob_fixed$area)
   
@@ -623,9 +623,5 @@ if (demand_tuning == 1) {
     
   }
   
-  
-  
-  
-
-  
 }
+  

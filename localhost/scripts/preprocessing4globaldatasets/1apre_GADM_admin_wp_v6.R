@@ -1,3 +1,18 @@
+
+githubdir="/home/yayo/mofuss"
+countrydir="/home/yayo/Documents/webmofuss"
+demanddir= "/home/yayo/Documents/webmofuss/demand"
+admindir="/home/yayo/Documents/admin_regions"
+#emissionsdir=/var/www/html/mofuss/tools/uploads/68e885fec1f77/emissions/
+rTempdir="/home/yayo/Documents/webmofuss/rTemp"
+parameters_file_path="/home/yayo/Documents/webmofuss/LULCC/DownloadedDatasets/SourceDataGlobal/parameters.csv"
+parameters_file="parameters.csv"
+webmofuss = 1
+
+
+
+
+
 # MoFuSS
 # Version 4
 # Date: Jan 2025

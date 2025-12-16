@@ -68,7 +68,7 @@ if (scenario_ver == "BaU") {
 unique(wfdb$fuel)
 
 wfdb <- wfdb %>%
-  mutate(
+  dplyr::mutate(
     # 1. trim spaces and lowercase everything first
     fuel = tolower(trimws(fuel)),
     
@@ -115,7 +115,7 @@ efchratio_tb <- read_excel(
   sheet = "efchratio",
   skip = 0
 ) |> 
-  mutate(
+  dplyr::mutate(
     efchratio = as.numeric(efchratio)
   )
 efchratio <- efchratio_tb %>% dplyr::pull(efchratio)
@@ -139,27 +139,27 @@ order_area <- function(x) {
 # 1) WHODB (keep area; people = pop*1000; drop total categories)
 # ─────────────────────────────────────────────────────────────────────────────
 whodb_clean <- whodb %>%
-  filter(iso3 == region2BprocessedCtry_iso,
+  dplyr::filter(iso3 == region2BprocessedCtry_iso,
          year >= year_min_whodb, year <= year_max,
          !fuel %in% c("Total Polluting", "Total Clean")) %>%
-  mutate(
+  dplyr::mutate(
     pop  = pop * 1000,
     area = order_area(area)
   ) %>%
-  arrange(year, area, fuel)
+  dplyr::arrange(year, area, fuel)
 
 # Long table: year, area, fuel, pop
 write_csv(
-  whodb_clean %>% select(year, area, fuel, pop),
+  whodb_clean %>% dplyr::select(year, area, fuel, pop),
   file.path(outdir, sprintf("whodb_pop_long_%s_%s_%s.csv", region2BprocessedCtry_iso, year_min_whodb, year_max))
 )
 
 # Wide table: one row per (year, area), columns = fuels [people]
 whodb_wide <- whodb_clean %>%
-  mutate(colname = paste0(fuel, " [people]")) %>%
-  select(year, area, colname, pop) %>%
+  dplyr::mutate(colname = paste0(fuel, " [people]")) %>%
+  dplyr::select(year, area, colname, pop) %>%
   pivot_wider(names_from = colname, values_from = pop) %>%
-  arrange(year, area)
+  dplyr::arrange(year, area)
 
 write_csv(
   whodb_wide,
@@ -218,33 +218,33 @@ ggsave(
 col_sym <- rlang::sym(demand_col)
 
 wfdb_twofuels <- wfdb %>%
-  filter(iso3 == region2BprocessedCtry_iso,
+  dplyr::filter(iso3 == region2BprocessedCtry_iso,
          year >= year_min_wfdb, year <= year_max,
          fuel %in% c("Fuelwood", "Charcoal")) %>%
-  mutate(
+  dplyr::mutate(
     area = order_area(area)
   ) %>%
   # NO extra summing across areas; just ensure stable ordering
-  group_by(year, area, fuel) %>%
-  summarise(value_woodeq_t = sum(!!col_sym, na.rm = TRUE), .groups = "drop") %>%
-  mutate(
+  dplyr::group_by(year, area, fuel) %>%
+  dplyr::summarise(value_woodeq_t = sum(!!col_sym, na.rm = TRUE), .groups = "drop") %>%
+  dplyr::mutate(
     value_t = if_else(fuel == "Charcoal", value_woodeq_t / efchratio, value_woodeq_t),
     units   = "tonnes"
   ) %>%
-  arrange(year, area, fuel)
+  dplyr::arrange(year, area, fuel)
 
 # Long table: year, area, fuel, tonnes
 write_csv(
-  wfdb_twofuels %>% select(year, area, fuel, value_t, units),
+  wfdb_twofuels %>% dplyr::select(year, area, fuel, value_t, units),
   file.path(outdir, sprintf("wfdb_fw_char_long_%s_%s_%s_%s_byarea.csv", region2BprocessedCtry_iso, demand_col, year_min_wfdb, year_max))
 )
 
 # Wide table: one row per (year, area), columns = Fuelwood [t], Charcoal [t]
 wfdb_twofuels_wide <- wfdb_twofuels %>%
-  mutate(colname = paste0(fuel, " [t]")) %>%
-  select(year, area, colname, value_t) %>%
+  dplyr::mutate(colname = paste0(fuel, " [t]")) %>%
+  dplyr::select(year, area, colname, value_t) %>%
   pivot_wider(names_from = colname, values_from = value_t) %>%
-  arrange(year, area)
+  dplyr::arrange(year, area)
 
 write_csv(
   wfdb_twofuels_wide,
