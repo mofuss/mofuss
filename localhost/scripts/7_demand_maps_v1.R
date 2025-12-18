@@ -51,27 +51,27 @@ if (RUN_DEMAND_MAPS) {
   zoom1_path
   zoom2_path
   
-  dem_candidates <- list.files(
-    path = base_path,
-    pattern = "DTEM_gcs.*\\.tif$",
-    recursive = TRUE,
-    full.names = TRUE,
-    ignore.case = TRUE
-  )
-  
-  dem_candidates
-  
-  if (length(dem_candidates) == 0) {
-    stop("No DEM found")
-  }
-  
-  if (length(dem_candidates) > 1) {
-    message("Multiple DEMs found, using the first one:")
-    print(dem_candidates)
-  }
-  
-  dem_path <- dem_candidates[1]
-  dem_path
+  # dem_candidates <- list.files(
+  #   path = base_path,
+  #   pattern = "DTEM_pcs.*\\.tif$",
+  #   recursive = TRUE,
+  #   full.names = TRUE,
+  #   ignore.case = TRUE
+  # )
+  # 
+  # dem_candidates
+  # 
+  # if (length(dem_candidates) == 0) {
+  #   stop("No DEM found")
+  # }
+  # 
+  # if (length(dem_candidates) > 1) {
+  #   message("Multiple DEMs found, using the first one:")
+  #   print(dem_candidates)
+  # }
+  # 
+  # dem_path <- dem_candidates[1]
+  dem_path <- paste0(countrydir,"/LULCC/DEM_c.tif")
   
   # Read parameters table ----
   detect_delimiter <- function(file_path) {
