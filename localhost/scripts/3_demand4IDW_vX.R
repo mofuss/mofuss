@@ -12,7 +12,7 @@
 
 # MoFuSS
 # Version 5
-# Date: Dec 2025
+# Date: Sep 2025
 
 # 2dolist ----
 # FIX THE MASK ISSUE WITH LINUX, THAT WAS PATCHED FOR THE MOMENT!
@@ -23,10 +23,13 @@
 # Internal parameters ----
 optimizeD = 0
 temdirdefined = 1
+urb_shift_factor = 1 # Only works with byregion == Country (Check code lines 89-91 before adjusting this).
+# For Nepal use 10.
+# # Select MoFuSS platform:
+# webmofuss = 1 # "1" is  web-MoFuSS running in our Ubuntu server, "0" is local host (Windows or Linux)
+# source(paste0(scriptsmofuss,"00_webmofuss.R"))
 
 # Load libraries ----
-library(conflicted)
-
 library(terra)
 # terraOptions(steps = 55)
 if (temdirdefined == 1) {
@@ -48,9 +51,7 @@ library(raster)
 library(readxl)
 library(rlang)
 library(sf)
-library(stringr)
 library(svDialogs)
-library(terra)
 library(tibble)
 library(tictoc)
 library(tidyterra)
@@ -120,11 +121,6 @@ country_parameters %>%
   dplyr::filter(Var == "scenario_ver") %>%
   pull(ParCHR) -> scenario_ver
 
-urb_shift_factor <- country_parameters %>%
-  dplyr::filter(Var == "urb_shift_factor") %>%
-  dplyr::pull(ParCHR) %>%
-  as.numeric()
-
 country_parameters %>%
   dplyr::filter(Var == "byregion") %>%
   pull(ParCHR) -> byregion
@@ -188,104 +184,45 @@ if (!dir.exists("to_idw")) {dir.create("to_idw")}
 if (subcountry != 1) {
   whodb <- read_excel("demand_in/A_LMIC_Estimates_2050_popmedian.xlsx")
   # undb <- read_excel("admin_regions/UN_Rural-Urban_Pop_projections_formatted.xlsx") # https://population.un.org/wpp/Download/Standard/Population/
-  whodb <- whodb %>%
-    # Remove anything starting with "total" (any capitalization)
-    dplyr::filter(!str_detect(fuel, regex("^total", ignore_case = TRUE))) %>%
-    
-    # Remove rows where area == "Overall" (any capitalization)
-    dplyr::filter(!str_detect(area, regex("^overall$", ignore_case = TRUE))) %>%
-    
-    mutate(
-      # 1. trim spaces and lowercase everything first
-      fuel = tolower(trimws(fuel)),
-      
-      # 2. replace "biomass" → "fuelwood"
-      fuel = if_else(fuel == "biomass", "fuelwood", fuel),
-      
-      # 3. replace "electric" → "electricity"
-      fuel = if_else(fuel == "electric", "electricity", fuel),
-      
-      # 4. Capitalize first letter after all replacements
-      fuel = str_to_title(fuel)
-    )
-terra::unique(whodb$fuel)
-terra::unique(whodb$area)
+  terra::unique(whodb$fuel)
+  # terra::unique(whodb$year)
+  # terra::unique(whodb$iso3)
 }
 
-getwd()
 poprast <- paste0("demand_in/",pop_map_name) 
 
 # Define scenarios ----
-detect_delimiter <- function(file) {
-  line1 <- readLines(file, n = 1)
-  if (stringr::str_detect(line1, ";")) return(";")
-  return(",")
-}
-
-read_wfdb <- function(file) {
-  delim <- detect_delimiter(file)
-  readr::read_delim(file, delim = delim, show_col_types = FALSE)
-}
-
-# Define scenarios ----
 if (scenario_ver == "BaU") {
-  wfdb <- read_wfdb("demand_in/cons_fuels_years.csv")
-  
+  wfdb <- read_csv("demand_in/cons_fuels_years.csv")
 } else if (scenario_ver == "ICS") {
-  wfdb <- read_wfdb("demand_in/cons_fuels_years_proj.csv")
-  
+  wfdb <- read_csv("demand_in/cons_fuels_years_proj.csv")
 } else if (scenario_ver == "BaU_vehicle_only") {
-  wfdb <- read_wfdb("demand_in/cons_fuels_years_charc_and_urb_fw_only.csv")
-  
+  wfdb <- read_csv("demand_in/cons_fuels_years_charc_and_urb_fw_only.csv")
 } else if (scenario_ver == "BaU_walking_only") {
-  wfdb <- read_wfdb("demand_in/cons_fuels_years_rural_fw_only.csv")
-  
+  wfdb <- read_csv("demand_in/cons_fuels_years_rural_fw_only.csv")
 } else if (scenario_ver == "BaU_lusaka_notlusaka") {
-  wfdb <- read_wfdb("demand_in/cons_fuels_years_BAU_Lusaka-NotLusaka.csv")
-  
+  wfdb <- read_csv("demand_in/cons_fuels_years_BAU_Lusaka-NotLusaka_original.csv")
 } else if (scenario_ver == "ICS1_lusaka_notlusaka") {
-  wfdb <- read_wfdb("demand_in/cons_fuels_years_Proj1_Lusaka-NotLusaka.csv")
-  
+  wfdb <- read_csv("demand_in/cons_fuels_years_Proj1_Lusaka-NotLusaka.csv")
 } else if (scenario_ver == "ICS2_lusaka_notlusaka") {
-  wfdb <- read_wfdb("demand_in/cons_fuels_years_Proj2_Lusaka-NotLusaka.csv")
-  
+  wfdb <- read_csv("demand_in/cons_fuels_years_Proj2_Lusaka-NotLusaka.csv")
 } else if (scenario_ver == "ICS3_lusaka_notlusaka") {
-  wfdb <- read_wfdb("demand_in/cons_fuels_years_Proj3_Lusaka-NotLusaka.csv")
-  
-} else if (scenario_ver == "MWI_BAU_fuel_cons") {
-  wfdb <- read_wfdb("demand_in/MWI_BAU_fuel_cons.csv")
+  wfdb <- read_csv("demand_in/cons_fuels_years_Proj3_Lusaka-NotLusaka.csv")
 }
 unique(wfdb$fuel)
 
-# Make all fuel types Title caps and add consecutive numbers to GID_0 _1 _2 etc
-wfdb <- wfdb %>%
-  mutate(
-    # 1. trim spaces and lowercase everything first
-    fuel = tolower(trimws(fuel)),
-    
-    # 2. replace "biomass" → "fuelwood"
-    fuel = if_else(fuel == "biomass", "fuelwood", fuel),
-    
-    # 3. replace "electric" → "electricity"
-    fuel = if_else(fuel == "electric", "electricity", fuel),
-    
-    # 4. capitalize first letter only ONCE, after all replacements
-    fuel = str_to_title(fuel),
-    
-    # 5. add consecutive numbers to GID_0 _1 _2 etc
-    iso3 = paste0(iso3, "_", dense_rank(country))
-  )
+# Make all fuel types small caps and add consecutive numbers to GID_0 _1 _2 etc
+if (subcountry == 1) {
+  wfdb <- wfdb %>%
+    mutate(
+      fuel = tolower(fuel),  # normalize everything to lowercase first
+      iso3 = paste0(iso3, "_", dense_rank(country))
+    )
+}
 
 unique(wfdb$fuel)
 head(wfdb)
 print(scenario_ver) # save as text to recover later down the river
-
-# Comment this eventually
-if (scenario_ver %in% c("BaU", "ICS")) {
-  if (!identical(unique(wfdb$fuel), unique(whodb$fuel))) {
-    stop("Fuel categories do not match for this subcountry.")
-  }
-}
 
 setwd(countrydir)
 write.table(scenario_ver, "LULCC/TempTables/scenario_ver.txt")
@@ -357,8 +294,8 @@ if (aoi_poly == 1) {
   
   
   ### Selection of all overlapping countries for demand calculations
-
-    mofuss_regions0_gpkg <- vect(st_read("demand_in/mofuss_regions0.gpkg"))
+  
+  mofuss_regions0_gpkg <- vect(st_read("demand_in/mofuss_regions0.gpkg"))
   # mofuss_regions0 <- as.data.frame(mofuss_regions0_gpkg)
   # Handle the case where aoi_poly is 1, regardless of byregion
   cat("aoi_poly is set to 1. This overrides other conditions.\n")
@@ -393,7 +330,7 @@ if (aoi_poly == 1) {
   }
   # Select all countries with some overlap (total_area > 0)
   overlap_with_overlap <- overlap_summary %>%
-    dplyr::filter(total_area > 0)
+    filter(total_area > 0)
   
   # Check if any regions with overlap exist
   if (nrow(overlap_with_overlap) == 0) {
@@ -407,7 +344,7 @@ if (aoi_poly == 1) {
   # Optionally, if you want to extract the names of the countries with overlap, use:
   overlap_with_overlap_details <- merge(overlap_with_overlap, mofuss_regions0_gpkg, by = "GID_0")
   countries_with_overlap <- overlap_with_overlap_details %>%
-    dplyr::select(GID_0, NAME_0, total_area)
+    select(GID_0, NAME_0, total_area)
   
   # Print the countries and their overlap areas
   cat("Countries with overlap areas:\n")
@@ -477,20 +414,20 @@ countries.list <- mofuss_regions0 %>%
 if (subcountry != 1) {
   
   totpopWHO <- whodb %>% 
-    dplyr::filter(year == yr) %>%
-    dplyr::filter(area %in% c("Urban", "Rural")) %>%
+    dplyr::filter(grepl('Total', fuel)) %>%
+    dplyr::filter(grepl(yr, year)) %>%
+    dplyr::filter(!grepl('Over', area)) %>%
     group_by(iso3) %>% 
-    summarise(
-      sum_pop = sum(pop) * 1000,
-      .groups = "drop"
-    )
-
+    summarise(sum_pop=sum(pop)*1000,
+              .groups = 'drop')
+  
   # Reads furb in 2018 from WHO dataset
   whodb_join <- whodb %>%
     dplyr::select(iso3, country) %>%
     terra::unique()
   
   furb_who <- whodb %>%
+    dplyr::filter(grepl('Total', fuel)) %>%
     dplyr::filter(grepl(yr, year)) %>%
     dplyr::filter(grepl('Urban', area)) %>%
     group_by(iso3) %>% 
@@ -503,34 +440,40 @@ if (subcountry != 1) {
     rename(GID_0 = iso3,
            NAME_0 = country)
   
-  # furb_who %>%
-  #   dplyr::filter(GID_0 == "ZMB")
+  furb_who %>%
+    dplyr::filter(GID_0 == "ZMB")
   
 } else if (subcountry == 1) {
   
   totpoprob <- wfdb %>%
+    # dplyr::filter(grepl('Total', fuel)) %>%
     dplyr::filter(grepl(yr, year)) %>%
-    dplyr::filter(area %in% c("Urban", "Rural")) %>%
+    # dplyr::filter(!grepl('Over', area)) %>%
     group_by(iso3) %>%
     summarise(sum_pop=sum(people)*1000, 
               .groups = 'drop')
   
-  furb_rob <- wfdb %>%
-    dplyr::filter(year == yr, area %in% c("Urban", "Rural")) %>%
-    dplyr::group_by(iso3, country) %>%   # <-- key fix: include country (split)
-    dplyr::summarise(
-      urb_pop = sum(people[area == "Urban"], na.rm = TRUE) * 1000,
-      rur_pop = sum(people[area == "Rural"], na.rm = TRUE) * 1000,
-      .groups = "drop"
-    ) %>%
-    dplyr::mutate(
-      furb = urb_pop / (urb_pop + rur_pop)
-    ) %>%
-    dplyr::select(GID_0 = iso3, NAME_0 = country, furb)
+  # Reads furb in 2018(?) from Rob dataset
+  robdb_join <- wfdb %>%
+    dplyr::select(iso3, country) %>%
+    terra::unique()
   
-  furb_rob
+  furb_rob <- wfdb %>% # algo pasa con algunas librerias rio abajo que rompen esta parte si ya estan cargadas
+    # dplyr::filter(grepl('Total', fuel)) %>%
+    dplyr::filter(grepl(yr, year)) %>%
+    dplyr::filter(grepl('Urban', area)) %>%
+    group_by(iso3) %>% 
+    summarise(urb_pop=sum(people)*1000,
+              .groups = 'drop') %>%
+    left_join(totpoprob, ., by="iso3") %>% 
+    mutate(furb = urb_pop/sum_pop) %>%
+    left_join(robdb_join, ., by = "iso3") %>%
+    dplyr::select(iso3, country, furb) %>%
+    rename(GID_0 = iso3,
+           NAME_0 = country)
   
-
+  furb_rob 
+  
 }
 
 pop0 <- rast(poprast) #in base year
@@ -547,7 +490,7 @@ if (aoi_poly == 1) {
   } else if(os == "Linux") {
     pop0_reg <- pop0_K
   }
-  plot(pop0_reg, main=paste0("Overlapping with your AoI")) #,mofuss_region2))
+  plot(pop0_reg, main=paste0("You selected ",mofuss_region))
   lines(adm0_reg)
   Sys.sleep(10)
   
@@ -556,7 +499,7 @@ if (aoi_poly == 1) {
   adm0_reg <- mofuss_regions0_gpkg
   pop0_K <- crop(pop0, ext(adm0_reg) + .01)
   if (os == "Windows") {
-    pop0_reg <- mTeask(pop0_K, adm0_reg) #THIS BREAKS IN UBUNTU
+    pop0_reg <- mask(pop0_K, adm0_reg) #THIS BREAKS IN UBUNTU
   } else if(os == "Linux") {
     pop0_reg <- pop0_K
   }
@@ -651,7 +594,7 @@ if (aoi_poly == 1) {
     
     # 3) Decide the unmatched label
     if (is.null(not_label)) {
-      not_rows <- y_lkp %>% dplyr::filter(grepl("^NOT", .key))  # "Not*" considering ignore_case
+      not_rows <- y_lkp %>% filter(grepl("^NOT", .key))  # "Not*" considering ignore_case
       if (nrow(not_rows) == 1) {
         not_label <- not_rows$NAME_0[[1]]
       } else if (nrow(not_rows) > 1) {
@@ -674,7 +617,7 @@ if (aoi_poly == 1) {
     
     # 4) Match vs. unmatched
     key_sv <- key(x$NAME_2)
-    matched_vals <- base::intersect(unique(key_sv), unique(y_lkp$.key))
+    matched_vals <- intersect(unique(key_sv), unique(y_lkp$.key))
     
     # Unmatched get the decided not_label
     x$match_name <- ifelse(key_sv %in% matched_vals, x$NAME_2, not_label)
@@ -684,10 +627,10 @@ if (aoi_poly == 1) {
     
     # 6) Join attributes from y (GID_0 required; furb optional)
     x_diss$.key <- key(x_diss$match_name)
-    bring_cols <- base::intersect(c("GID_0", "furb"), names(y_lkp))
+    bring_cols <- intersect(c("GID_0", "furb"), names(y_lkp))
     if (!"GID_0" %in% bring_cols) stop("y must contain column 'GID_0'.")
     
-    lkp_to_merge <- y_lkp %>% dplyr::select(.key, all_of(bring_cols))
+    lkp_to_merge <- y_lkp %>% select(.key, all_of(bring_cols))
     x_out <- terra::merge(x_diss, lkp_to_merge, by = ".key", all.x = TRUE)
     
     # 7) Fill missing GID_0 (e.g., if not_label wasn't in y)
@@ -758,7 +701,7 @@ for (i in adm0_reg$GID_0) { # Start of outer region (i) loop ----
     ctry_vector <- adm0_reg %>%
       dplyr::filter(GID_0 == i)
   }
-
+  
   pop0_K2 <- crop(pop0_reg, ext(ctry_vector) + .01)
   if (os == "Windows") {
     pop0_ctry_ras <- mask(pop0_K2, ctry_vector)
@@ -806,25 +749,27 @@ for (i in adm0_reg$GID_0) { # Start of outer region (i) loop ----
     if (subcountry != 1) {
       
       furb_who.anno <- whodb %>%
-        dplyr::filter(
+        filter(
           iso3 == i,
+          !grepl("Total", fuel),
           grepl(j, year)
         ) %>%
         group_by(iso3) %>%
         summarise(
-          urb_frac = sum(pop[area == "Urban"]) /
-            sum(pop[area %in% c("Urban", "Rural")]),
+          urb_frac = sum(pop[grepl("Urban", area)]) / sum(pop[grepl("Overall", area)]),
           .groups = "drop"
         ) %>%
-        pull(urb_frac)
+        dplyr::pull(urb_frac)
+      
       
       totpopWHO_annual <- whodb %>% 
-        dplyr::filter(area %in% c("Urban", "Rural")) %>%
-        group_by(iso3, year) %>% 
-        summarise(
-          sum_pop = sum(pop) * 1000,
-          .groups = 'drop'
-        )
+        # dplyr::filter(grepl(i, iso3)) %>% # searchs for the pattern, anywhere within the string
+        dplyr::filter(grepl('Total', fuel)) %>% #Porque usar grelp?
+        # dplyr::filter(grepl(yr, year)) %>%
+        dplyr::filter(!grepl('Over', area)) %>%
+        group_by(iso3,year) %>% 
+        summarise(sum_pop=sum(pop)*1000,
+                  .groups = 'drop')
       
       who_ctry_pop_annual <- totpopWHO_annual %>%
         dplyr::filter(iso3 == i) %>%
@@ -845,7 +790,7 @@ for (i in adm0_reg$GID_0) { # Start of outer region (i) loop ----
     } else if (subcountry == 1) {
       
       furb_rob.anno <- wfdb %>%
-        dplyr::filter(
+        filter(
           iso3 == i,
           grepl(j, year)
         ) %>%
@@ -857,6 +802,10 @@ for (i in adm0_reg$GID_0) { # Start of outer region (i) loop ----
         dplyr::pull(urb_frac)
       
       totpopROB_annual <- wfdb %>% 
+        # dplyr::filter(grepl(i, iso3)) %>% # searchs for the pattern, anywhere within the string
+        # dplyr::filter(grepl('Total', fuel)) %>% #Porque usar grelp?
+        # dplyr::filter(grepl(yr, year)) %>%
+        # dplyr::filter(!grepl('Over', area)) %>%
         group_by(iso3,year) %>% 
         summarise(sum_pop=sum(people)*1000,
                   .groups = 'drop')
@@ -909,7 +858,7 @@ for (i in adm0_reg$GID_0) { # Start of outer region (i) loop ----
       column_symbol <- sym(column_name)
       # Now, use `filter()` dynamically
       urbanpopulation.anno <- pop0_ctry_rasadj.anno %>%
-        dplyr::filter(!!column_symbol > vec.anno[ix.anno])
+        filter(!!column_symbol > vec.anno[ix.anno])
     } else if (pop_ver == "WorldPop") {
       # First, find the column name that ends with "WorldPop"
       column_name <- names(pop0_ctry_rasadj.anno)[grepl("WorldPop$", names(pop0_ctry_rasadj.anno))]
@@ -918,7 +867,7 @@ for (i in adm0_reg$GID_0) { # Start of outer region (i) loop ----
       column_symbol <- sym(column_name)
       # Now, use `filter()` dynamically
       urbanpopulation.anno <- pop0_ctry_rasadj.anno %>%
-        dplyr::filter(!!column_symbol > vec.anno[ix.anno])
+        filter(!!column_symbol > vec.anno[ix.anno])
     }
     
     # terra::writeRaster(urbanpopulation, paste0("population_temp/",pop_ver,"_",i,"_",j,"_urbpop.tif"), filetype = "GTiff", overwrite = TRUE)
@@ -937,7 +886,7 @@ for (i in adm0_reg$GID_0) { # Start of outer region (i) loop ----
       column_symbol <- sym(column_name)
       # Now, use `filter()` dynamically
       ruralpopulation.anno <- pop0_ctry_rasadj.anno %>%
-        dplyr::filter(!!column_symbol <= vec.anno[ix.anno])
+        filter(!!column_symbol <= vec.anno[ix.anno])
     } else if (pop_ver == "WorldPop") {
       # First, find the column name that ends with "WorldPop"
       column_name <- names(pop0_ctry_rasadj.anno)[grepl("WorldPop$", names(pop0_ctry_rasadj.anno))]
@@ -946,7 +895,7 @@ for (i in adm0_reg$GID_0) { # Start of outer region (i) loop ----
       column_symbol <- sym(column_name)
       # Now, use `filter()` dynamically
       ruralpopulation.anno <- pop0_ctry_rasadj.anno %>%
-        dplyr::filter(!!column_symbol <= vec.anno[ix.anno])
+        filter(!!column_symbol <= vec.anno[ix.anno])
     }
     
     # terra::writeRaster(ruralpopulation, paste0("population_temp/",pop_ver,"_",i,"_",j,"_rurpop.tif"), filetype = "GTiff", overwrite = TRUE)
@@ -1013,12 +962,9 @@ for (i in adm0_reg$GID_0) { # Start of outer region (i) loop ----
     write_percap   = FALSE,
     wfdb_fuels_for_demand = NULL 
     ) {
-      # allowed_whodb <- c("Kerosene","Gas","Electricity","Biomass","Charcoal","Coal")
-      allowed_whodb <- unique(wfdb$fuel)
-
-      # allowed_wfdb  <- c("fuelwood","charcoal","imp_fuelwood","imp_charcoal",
-      #                    "gas","kerosene","electric","pellets","ethanol","biogas","other")
-      allowed_wfdb <- unique(wfdb$fuel)
+      allowed_whodb <- c("Kerosene","Gas","Electricity","Biomass","Charcoal","Coal")
+      allowed_wfdb  <- c("fuelwood","charcoal","imp_fuelwood","imp_charcoal",
+                         "gas","kerosene","electric","pellets","ethanol","biogas","other")
       
       if (subcountry != 1) {
         if (!(fuel_name %in% allowed_whodb)) {
@@ -1026,30 +972,26 @@ for (i in adm0_reg$GID_0) { # Start of outer region (i) loop ----
                        paste(allowed_whodb, collapse = ", ")))
         }
       } else {
-        if (!(fuel_name %in% allowed_wfdb)) {
+        if (!(tolower(fuel_name) %in% tolower(allowed_wfdb))) {
           stop(sprintf("For subcountry == 1, fuel must be one of: %s",
                        paste(allowed_wfdb, collapse = ", ")))
         }
-        # if (!(tolower(fuel_name) %in% tolower(allowed_wfdb))) {
-        #   stop(sprintf("For subcountry == 1, fuel must be one of: %s",
-        #                paste(allowed_wfdb, collapse = ", ")))
-        # }
       }
       
       # POP source depends on subcountry
       if (subcountry != 1) {
         pop_tbl <- whodb %>%
-          dplyr::filter(grepl(i, .data$iso3)) %>%
-          dplyr::filter(.match_fuel(.data$fuel, fuel_name)) %>%   # exact & case-insensitive
-          dplyr::filter(grepl(j, .data$year)) %>%
-          dplyr::filter(grepl("Rur|Urb", .data$area))
+          filter(grepl(i, .data$iso3)) %>%
+          filter(.match_fuel(.data$fuel, fuel_name)) %>%   # exact & case-insensitive
+          filter(grepl(j, .data$year)) %>%
+          filter(grepl("Rur|Urb", .data$area))
         pop_col_name <- "pop"
       } else {
         pop_tbl <- wfdb %>%
-          dplyr::filter(grepl(i, .data$iso3)) %>%
-          dplyr::filter(.match_fuel(.data$fuel, fuel_name)) %>%
-          dplyr::filter(grepl(j, .data$year)) %>%
-          dplyr::filter(grepl("Rur|Urb", .data$area))
+          filter(grepl(i, .data$iso3)) %>%
+          filter(.match_fuel(.data$fuel, fuel_name)) %>%
+          filter(grepl(j, .data$year)) %>%
+          filter(grepl("Rur|Urb", .data$area))
         pop_col_name <- "people"
       }
       
@@ -1071,7 +1013,7 @@ for (i in adm0_reg$GID_0) { # Start of outer region (i) loop ----
       
       # ---- Urban users
       biourb_total_people <- pop_tbl %>%
-        dplyr::filter(grepl("Urb", .data$area)) %>%
+        filter(grepl("Urb", .data$area)) %>%
         pull(all_of(pop_col_name)) %>%
         sum(na.rm = TRUE) * 1000
       
@@ -1083,7 +1025,7 @@ for (i in adm0_reg$GID_0) { # Start of outer region (i) loop ----
       
       # ---- Urban demand
       biourb_d_tons <- demand_tbl %>%
-        dplyr::filter(grepl("Urb", .data$area)) %>%
+        filter(grepl("Urb", .data$area)) %>%
         pull(all_of(demand_col)) %>%
         sum(na.rm = TRUE)
       
@@ -1095,7 +1037,7 @@ for (i in adm0_reg$GID_0) { # Start of outer region (i) loop ----
       
       # ---- Rural users
       biorur_total_people <- pop_tbl %>%
-        dplyr::filter(grepl("Rur", .data$area)) %>%
+        filter(grepl("Rur", .data$area)) %>%
         pull(all_of(pop_col_name)) %>%
         sum(na.rm = TRUE) * 1000
       
@@ -1107,7 +1049,7 @@ for (i in adm0_reg$GID_0) { # Start of outer region (i) loop ----
       
       # ---- Rural demand
       biorur_d_tons <- demand_tbl %>%
-        dplyr::filter(grepl("Rur", .data$area)) %>%
+        filter(grepl("Rur", .data$area)) %>%
         pull(all_of(demand_col)) %>%
         sum(na.rm = TRUE)
       
@@ -1156,8 +1098,7 @@ for (i in adm0_reg$GID_0) { # Start of outer region (i) loop ----
     
     if (subcountry != 1) {
       
-      # fuels_who <- c("Kerosene","Gas","Electricity","Biomass","Charcoal","Coal")
-      fuels_who <- unique(wfdb$fuel)
+      fuels_who <- c("Kerosene","Gas","Electricity","Biomass","Charcoal","Coal")
       
       results <- lapply(fuels_who, function(fu)
         compute_fuel_maps(
@@ -1207,26 +1148,14 @@ for (i in adm0_reg$GID_0) { # Start of outer region (i) loop ----
           list(urb = res$urb_dem_rast, rur = res$rur_dem_rast)
         }
         
-        fuels_avail <- unique(wfdb$fuel)
+        fw <- get_dem_who("Biomass")
+        ch <- get_dem_who("Charcoal")
         
-        safe_get_dem_who <- function(fuel_name) {
-          if (fuel_name %in% fuels_avail) {
-            get_dem_who(fuel_name)
-          } else {
-            NULL
-          }
-        }
+        # wftons_w: rural Biomass
+        wf_w_sum <- app(c(fw$rur), fun = sum, na.rm = TRUE)
         
-        fw  <- safe_get_dem_who("Fuelwood")
-        ifw <- safe_get_dem_who("Imp_fuelwood")
-        ch  <- safe_get_dem_who("Charcoal")
-        ich <- safe_get_dem_who("Imp_charcoal")
-        
-        # ---- wftons_w: rural fuelwood + rural imp_fuelwood
-        wf_w_sum   <- app(c(fw$rur, ifw$rur), fun = sum, na.rm = TRUE)
-        
-        # ---- wftons_v: urban fw + urban ifw + urban ch + urban ich + rural ch + rural ich
-        wf_v_sum   <- app( c(fw$urb, ifw$urb, ch$urb, ich$urb, ch$rur, ich$rur), fun = sum, na.rm = TRUE)
+        # wftons_v: urban Biomass + urban Charcoal + rural Charcoal
+        wf_v_sum <- app(c(fw$urb, ch$urb, ch$rur), fun = sum, na.rm = TRUE)
         
         if (!dir.exists(out_dir)) dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
         terra::writeRaster(wf_w_sum, file.path(out_dir, paste0(pop_ver, "_", i, "_", j, "_wftons_w.tif")),
@@ -1252,9 +1181,8 @@ for (i in adm0_reg$GID_0) { # Start of outer region (i) loop ----
       
     } else if (subcountry == 1) {
       
-      # fuels_wfdb <- c("fuelwood","charcoal","imp_fuelwood","imp_charcoal",
-      #                 "gas","kerosene","electric","pellets","ethanol","biogas","other")
-      fuels_wfdb <- unique(wfdb$fuel)
+      fuels_wfdb <- c("fuelwood","charcoal","imp_fuelwood","imp_charcoal",
+                      "gas","kerosene","electric","pellets","ethanol","biogas","other")
       
       results <- lapply(fuels_wfdb, function(fu)
         compute_fuel_maps(
@@ -1302,26 +1230,18 @@ for (i in adm0_reg$GID_0) { # Start of outer region (i) loop ----
           list(urb = res$urb_dem_rast, rur = res$rur_dem_rast)
         }
         
-        fuels_avail <- unique(wfdb$fuel)
-        
-        safe_get_dem <- function(fuel_name) {
-          if (fuel_name %in% fuels_avail) {
-            get_dem(fuel_name)
-          } else {
-            NULL
-          }
-        }
-        
-        fw  <- safe_get_dem("Fuelwood")
-        ifw <- safe_get_dem("Imp_fuelwood")
-        ch  <- safe_get_dem("Charcoal")
-        ich <- safe_get_dem("Imp_charcoal")
+        fw  <- get_dem("fuelwood")
+        ifw <- get_dem("imp_fuelwood")
+        ch  <- get_dem("charcoal")
+        ich <- get_dem("imp_charcoal")
         
         # ---- wftons_w: rural fuelwood + rural imp_fuelwood
-        wf_w_sum   <- app(c(fw$rur, ifw$rur), fun = sum, na.rm = TRUE)
+        wf_w_stack <- c(fw$rur, ifw$rur)
+        wf_w_sum   <- app(wf_w_stack, fun = sum, na.rm = TRUE)
         
         # ---- wftons_v: urban fw + urban ifw + urban ch + urban ich + rural ch + rural ich
-        wf_v_sum   <- app(c(fw$urb, ifw$urb, ch$urb, ich$urb, ch$rur, ich$rur), fun = sum, na.rm = TRUE)
+        wf_v_stack <- c(fw$urb, ifw$urb, ch$urb, ich$urb, ch$rur, ich$rur)
+        wf_v_sum   <- app(wf_v_stack, fun = sum, na.rm = TRUE)
         
         if (!dir.exists(out_dir)) dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
         
@@ -1360,7 +1280,13 @@ for (i in adm0_reg$GID_0) { # Start of outer region (i) loop ----
 Sys.sleep(3)
 
 # Load country pop and demand rasters and merge into original region ----
-# Merge a list of rasters (paths) → single raster written to out_path
+suppressPackageStartupMessages({
+  library(terra)
+  library(stringr)
+})
+
+# # Merge a list of rasters (paths) → single raster written to out_path
+# ---- Replace your .merge_and_write with this (same name, minimal change) ----
 .merge_and_write <- function(paths, out_path, fun = c("sum","max"), datatype = "FLT4S") {
   fun <- match.arg(fun)
   if (!length(paths)) return(invisible(NULL))
@@ -1427,7 +1353,7 @@ Sys.sleep(3)
 }
 
 if (subcountry != 1) {
-
+  
   # ---- Main: merge all areas into one raster per fuel per year (subcountry != 1; WHO labels)
   merge_across_areas_who <- function(
     years,                 # vector of years (k)
@@ -1437,16 +1363,16 @@ if (subcountry != 1) {
     out_pop_dir   = "pop_out",
     out_dem_dir   = "demand_out",
     # WHO fuel names as they appear in whodb/wfdb; tags are lowercased in filenames
-    fuels_users   = unique(wfdb$fuel), #c("Kerosene","Gas","Electricity","Biomass","Charcoal","Coal"),
-    fuels_demand  = unique(wfdb$fuel), #c("Kerosene","Gas","Electricity","Biomass","Charcoal","Coal"),
+    fuels_users   = c("Kerosene","Gas","Electricity","Biomass","Charcoal","Coal"),
+    fuels_demand  = c("Kerosene","Gas","Electricity","Biomass","Charcoal","Coal"),
     include_wftons = TRUE,   # write merged wftons_w / wftons_v when present
     include_poprururb = TRUE # write merged pop and rururb when present
-
+    
   ) {
     # filename tags are lowercased by compute_fuel_maps()
     fuel_tags_users  <- tolower(fuels_users)
     fuel_tags_demand <- tolower(fuels_demand)
-
+    
     for (k in years) {
       # ---- USERS (by fuel)
       for (fu_tag in fuel_tags_users) {
@@ -1455,7 +1381,7 @@ if (subcountry != 1) {
         out_u <- file.path(out_pop_dir, sprintf("%s_%s_%s_users.tif", pop_ver, fu_tag, k))
         .merge_and_write(files_u, out_u)
       }
-
+      
       # ---- DEMAND (by fuel)
       for (fu_tag in fuel_tags_demand) {
         patt_d <- .build_pattern(pop_ver, k, fu_tag, "demand")
@@ -1463,7 +1389,7 @@ if (subcountry != 1) {
         out_d <- file.path(out_dem_dir, sprintf("%s_%s_%s_demand.tif", pop_ver, fu_tag, k))
         .merge_and_write(files_d, out_d)
       }
-
+      
       # ---- Special aggregates (optional)
       if (isTRUE(include_wftons)) {
         # wftons_w
@@ -1471,14 +1397,14 @@ if (subcountry != 1) {
         files_w <- list.files(in_dem_dir, pattern = patt_w, full.names = TRUE)
         out_w <- file.path(out_dem_dir, sprintf("%s_wftons_w_%s.tif", pop_ver, k))
         .merge_and_write(files_w, out_w)
-
+        
         # wftons_v
         patt_v <- .build_pattern_wf(pop_ver, k, "wftons_v")
         files_v <- list.files(in_dem_dir, pattern = patt_v, full.names = TRUE)
         out_v <- file.path(out_dem_dir, sprintf("%s_wftons_v_%s.tif", pop_ver, k))
         .merge_and_write(files_v, out_v)
       }
-
+      
       if (isTRUE(include_poprururb)) {
         # population adjusted
         patt_p <- .build_pattern_wf(pop_ver, k, "popadj")
@@ -1493,20 +1419,20 @@ if (subcountry != 1) {
         out_u <- file.path(out_pop_dir, sprintf("%s_rururbR_%s.tif", pop_ver, k))
         .merge_and_write(files_u, out_u, fun = "max", datatype = "INT1U")
       }
-
+      
     }
     invisible(TRUE)
   }
-
+  
   merge_across_areas_who(
     years = annos,
     pop_ver = pop_ver,
     include_wftons = TRUE,
     include_poprururb = TRUE
   )
-
+  
 } else if (subcountry == 1) {
-
+  
   # ---- Main: merge all areas into one raster per fuel per year (subcountry == 1)
   merge_across_areas_sub1 <- function(
     years,                 # vector of years (k)
@@ -1515,35 +1441,30 @@ if (subcountry != 1) {
     in_dem_dir    = "demand_temp",
     out_pop_dir   = "pop_out",
     out_dem_dir   = "demand_out",
-    fuels_users   = unique(wfdb$fuel), #("fuelwood","imp_fuelwood","charcoal","imp_charcoal",
-                      #"gas","kerosene","electric","pellets","ethanol","biogas","other"),
-    fuels_demand  = unique(wfdb$fuel), #c("fuelwood","imp_fuelwood","charcoal","imp_charcoal",
-                      #"gas","kerosene","electric","pellets","ethanol","biogas","other"),
+    fuels_users   = c("fuelwood","imp_fuelwood","charcoal","imp_charcoal",
+                      "gas","kerosene","electric","pellets","ethanol","biogas","other"),
+    fuels_demand  = c("fuelwood","imp_fuelwood","charcoal","imp_charcoal",
+                      "gas","kerosene","electric","pellets","ethanol","biogas","other"),
     include_wftons = TRUE,   # write merged wftons_w / wftons_v when present
     include_poprururb = TRUE # write merged pop and rururb when present
   ) {
-    
-    # filename tags are lowercased by compute_fuel_maps()
-    fuel_tags_users  <- tolower(fuels_users)
-    fuel_tags_demand <- tolower(fuels_demand)
-    
     for (k in years) {
       # ---- USERS (by fuel)
-      for (fu in fuel_tags_users) {
+      for (fu in fuels_users) {
         patt_u <- .build_pattern(pop_ver, k, fu, "users")
         files_u <- list.files(in_pop_dir, pattern = patt_u, full.names = TRUE)
         out_u <- file.path(out_pop_dir, sprintf("%s_%s_%s_users.tif", pop_ver, fu, k))
         .merge_and_write(files_u, out_u)
       }
-
+      
       # ---- DEMAND (by fuel)
-      for (fu in fuel_tags_demand) {
+      for (fu in fuels_demand) {
         patt_d <- .build_pattern(pop_ver, k, fu, "demand")
         files_d <- list.files(in_dem_dir, pattern = patt_d, full.names = TRUE)
         out_d <- file.path(out_dem_dir, sprintf("%s_%s_%s_demand.tif", pop_ver, fu, k))
         .merge_and_write(files_d, out_d)
       }
-
+      
       # ---- Special aggregates (optional)
       if (isTRUE(include_wftons)) {
         # wftons_w
@@ -1551,21 +1472,21 @@ if (subcountry != 1) {
         files_w <- list.files(in_dem_dir, pattern = patt_w, full.names = TRUE)
         out_w <- file.path(out_dem_dir, sprintf("%s_wftons_w_%s.tif", pop_ver, k))
         .merge_and_write(files_w, out_w)
-
+        
         # wftons_v
         patt_v <- .build_pattern_wf(pop_ver, k, "wftons_v")
         files_v <- list.files(in_dem_dir, pattern = patt_v, full.names = TRUE)
         out_v <- file.path(out_dem_dir, sprintf("%s_wftons_v_%s.tif", pop_ver, k))
         .merge_and_write(files_v, out_v)
       }
-
+      
       if (isTRUE(include_poprururb)) {
         # population adjusted
         patt_p <- .build_pattern_wf(pop_ver, k, "popadj")
         files_p <- list.files(in_pop_dir, pattern = patt_p, full.names = TRUE)
         out_p <- file.path(out_pop_dir, sprintf("%s_popadj_%s.tif", pop_ver, k))
         .merge_and_write(files_p, out_p)
-
+        
         # rural urban
         # rural urban (CATEGORICAL: 1 = rural, 2 = urban)
         patt_u <- .build_pattern_wf(pop_ver, k, "rururbR")
@@ -1573,11 +1494,11 @@ if (subcountry != 1) {
         out_u <- file.path(out_pop_dir, sprintf("%s_rururbR_%s.tif", pop_ver, k))
         .merge_and_write(files_u, out_u, fun = "max", datatype = "INT1U")
       }
-
+      
     }
     invisible(TRUE)
   }
-
+  
   # Example: merge all area-i tiles into national mosaics for these years
   merge_across_areas_sub1(
     years = annos,      # e.g., c(2010, 2015, 2018, 2022)
@@ -1586,7 +1507,7 @@ if (subcountry != 1) {
     include_wftons = TRUE,
     include_poprururb = TRUE
   )
-
+  
 }
 
 # Save in a format ingestible by MoFuSS (IDW C++ script) ----
@@ -1640,7 +1561,7 @@ id_dfw <- map(seq_len(nlyr(wf_w_st)), function(k) {
   tibble(x = dfw$x, y = dfw$y, ID = as.integer(row.names(dfw)))
 }) %>% bind_rows() %>%
   group_by(x, y) %>%
-  summarise(ID = dplyr::first(ID), .groups = "drop")   # take the first if duplicated
+  summarise(ID = first(ID), .groups = "drop")   # take the first if duplicated
 
 # --- 3) Align all values by (x, y) ---
 wf_w_dbx <- reduce(val_dfsw, full_join, by = c("x", "y"))
@@ -1672,7 +1593,7 @@ id_conflictsw <- map(seq_len(nlyr(wf_w_st)), function(k) {
 }) %>% bind_rows() %>%
   distinct(x, y, ID) %>%
   count(x, y) %>%
-  dplyr::filter(n > 1)
+  filter(n > 1)
 
 if (nrow(id_conflictsw) > 0) {
   warning("Found (x,y) points with multiple IDs across layers; using the first one.")
@@ -1769,7 +1690,7 @@ id_dfv <- map(seq_len(nlyr(wf_v_st)), function(k) {
   tibble(x = dfv$x, y = dfv$y, ID = as.integer(row.names(dfv)))
 }) %>% bind_rows() %>%
   group_by(x, y) %>%
-  summarise(ID = dplyr::first(ID), .groups = "drop")   # take the first if duplicated
+  summarise(ID = first(ID), .groups = "drop")   # take the first if duplicated
 
 # --- 3) Align all values by (x, y) ---
 wf_v_dbx <- reduce(val_dfsv, full_join, by = c("x", "y"))
@@ -1801,7 +1722,7 @@ id_conflictsv <- map(seq_len(nlyr(wf_v_st)), function(k) {
 }) %>% bind_rows() %>%
   distinct(x, y, ID) %>%
   count(x, y) %>%
-  dplyr::filter(n > 1)
+  filter(n > 1)
 
 if (nrow(id_conflictsv) > 0) {
   warning("Found (x,y) points with multiple IDs across layers; using the first one.")
@@ -1875,4 +1796,3 @@ file.copy(from=paste0(demanddir,"/to_idw/",substr(scenario_ver, 1, 3),"_fwch_v.c
           overwrite = TRUE)
 
 # End of script ----
-

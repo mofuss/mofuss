@@ -63,6 +63,8 @@ w4 = 200000 #1000000
 # source(paste0(scriptsmofuss,"00_webmofuss.R"))
 
 # Load libraries ----
+library(conflicted)
+
 library(terra)
 # terraOptions(steps = 55)
 if (temdirdefined == 1) {
@@ -272,7 +274,7 @@ if (aoi_poly == 1) {
   }
   # Select all countries with some overlap (total_area > 0)
   overlap_with_overlap <- overlap_summary %>%
-    filter(total_area > 0)
+    dplyr::filter (total_area > 0)
   
   # Check if any regions with overlap exist
   if (nrow(overlap_with_overlap) == 0) {
@@ -796,7 +798,7 @@ userarea_ras <- rasterize(
   userarea,
   userarea_ras,
   field = country_parameters %>%
-    filter(Var == "ext_analysis_ID") %>%
+    dplyr::filter (Var == "ext_analysis_ID") %>%
     pull(ParCHR)
 )
 
@@ -820,7 +822,7 @@ writeRaster(userarea_r, filename="LULCC/TempRaster/mask_c.tif",
 mask_r <- rasterize(
   mask, userarea_r,
   field = country_parameters %>%
-    filter(Var == "ext_analysis_ID") %>%
+    dplyr::filter (Var == "ext_analysis_ID") %>%
     pull(ParCHR)
 )
 
@@ -843,7 +845,7 @@ ecoregions_ras <- rasterize(
   ecoregions0,
   userarea_ras,
   field = country_parameters %>%
-    filter(Var == "ecoregions_ID") %>%
+    dplyr::filter (Var == "ecoregions_ID") %>%
     pull(ParCHR)
 )
 
@@ -866,7 +868,7 @@ if (aoi_poly != 1) {
   userarea_ras1 <- rasterize(
     userarea1, userarea_ras,
     field = country_parameters %>%
-      filter(Var == "ext_analysis_ID_1") %>%
+      dplyr::filter (Var == "ext_analysis_ID_1") %>%
       pull(ParCHR)
   )
   
@@ -885,7 +887,7 @@ if (aoi_poly != 1) {
   mask_r1 <- rasterize(
     mask1, userarea_r1,
     field = country_parameters %>%
-      filter(Var == "ext_analysis_ID_1") %>%
+      dplyr::filter (Var == "ext_analysis_ID_1") %>%
       pull(ParCHR)
   )
   
@@ -904,7 +906,7 @@ if (aoi_poly != 1) {
   userarea_ras2 <- rasterize(
     userarea2, userarea_ras,
     field = country_parameters %>%
-      filter(Var == "ext_analysis_ID_2") %>%
+      dplyr::filter (Var == "ext_analysis_ID_2") %>%
       pull(ParCHR)
   )
   
@@ -923,7 +925,7 @@ if (aoi_poly != 1) {
   mask_r2 <- rasterize(
     mask2, userarea_r2,
     field = country_parameters %>%
-      filter(Var == "ext_analysis_ID_2") %>%
+      dplyr::filter (Var == "ext_analysis_ID_2") %>%
       pull(ParCHR)
   )
   
@@ -1181,11 +1183,11 @@ if (identical(country_parameters %>%
   tic()
   # Read the vector file
   npa <- st_read(paste0("LULCC/SourceData/InVector/", country_parameters %>%
-                          filter(Var == "npa_name") %>%
+                          dplyr::filter (Var == "npa_name") %>%
                           pull(ParCHR)))
   # Rasterize using the specified field
   npa_r <- rasterize(npa, userarea_r, field = country_parameters %>%
-                       filter(Var == "npa_fieldname") %>%
+                       dplyr::filter (Var == "npa_fieldname") %>%
                        pull(ParCHR))
   # Multiply raster by userarea_r
   npa_c <- npa_r * userarea_r
@@ -1201,7 +1203,7 @@ if (identical(country_parameters %>%
   print("Processing protected areas from raster format")
   # Load raster using terra
   npa_raster <- rast(paste0("LULCC/SourceData/InRaster/", country_parameters %>%
-                              filter(Var == "npa_name_r") %>%
+                              dplyr::filter (Var == "npa_name_r") %>%
                               pull(ParCHR)))
   
   #Crop, resample, and mask
@@ -1223,11 +1225,11 @@ if (identical(country_parameters %>%
   tic()
   # Read the vector file
   npa <- st_read(paste0("LULCC/SourceData/InVector/", country_parameters %>%
-                          filter(Var == "npa_name") %>%
+                          dplyr::filter (Var == "npa_name") %>%
                           pull(ParCHR)))
   # Rasterize using the specified field
   npa_r <- rasterize(npa, userarea_r, field = country_parameters %>%
-                       filter(Var == "npa_fieldname") %>%
+                       dplyr::filter (Var == "npa_fieldname") %>%
                        pull(ParCHR))
   # Multiply raster by userarea_r
   npa_c <- npa_r * userarea_r
@@ -1241,11 +1243,11 @@ if (identical(country_parameters %>%
   tic()
   # Read the vector file
   npa <- st_read(paste0("LULCC/SourceData/InVector/", country_parameters %>%
-                          filter(Var == "npa_name") %>%
+                          dplyr::filter (Var == "npa_name") %>%
                           pull(ParCHR)))
   # Rasterize using the specified field
   npas_r <- rasterize(npa, userarea_r, field = country_parameters %>%
-                        filter(Var == "npa_fieldname") %>%
+                        dplyr::filter (Var == "npa_fieldname") %>%
                         pull(ParCHR))
   # Multiply raster by userarea_r
   npa_c <- npas_r * userarea_r
@@ -1260,17 +1262,17 @@ if (identical(country_parameters %>%
 # Rivers ----
 # Extract river raster parameter
 rivers_raster_param <- country_parameters %>%
-  filter(Var == "rivers_raster") %>%
+  dplyr::filter (Var == "rivers_raster") %>%
   pull(ParCHR)
 
 if (identical(rivers_raster_param, NA_character_)) {  # Variable exists but has no value
   tic()
   rivers <- st_read(paste0("LULCC/SourceData/InVector/", country_parameters %>%
-                             filter(Var == "rivers_name") %>%
+                             dplyr::filter (Var == "rivers_name") %>%
                              pull(ParCHR)))
   
   rivers_r <- rasterize(rivers, userarea_r, field = country_parameters %>%
-                          filter(Var == "rivers_fieldname") %>%
+                          dplyr::filter (Var == "rivers_fieldname") %>%
                           pull(ParCHR))
   
   rivers_c <- rivers_r * userarea_r
@@ -1284,7 +1286,7 @@ if (identical(rivers_raster_param, NA_character_)) {  # Variable exists but has 
   print("Processing rivers from raster format")
   
   rivers_raster <- rast(paste0("LULCC/SourceData/InRaster/", country_parameters %>%
-                                 filter(Var == "rivers_name_r") %>%
+                                 dplyr::filter (Var == "rivers_name_r") %>%
                                  pull(ParCHR)))
   
   rivers_c <- terra::mask(
@@ -1301,11 +1303,11 @@ if (identical(rivers_raster_param, NA_character_)) {  # Variable exists but has 
 } else if (length(rivers_raster_param) == 0) {  # Variable doesn't exist, assume vector format
   tic()
   rivers <- st_read(paste0("LULCC/SourceData/InVector/", country_parameters %>%
-                             filter(Var == "rivers_name") %>%
+                             dplyr::filter (Var == "rivers_name") %>%
                              pull(ParCHR)))
   
   rivers_r <- rasterize(rivers, userarea_r, field = country_parameters %>%
-                          filter(Var == "rivers_fieldname") %>%
+                          dplyr::filter (Var == "rivers_fieldname") %>%
                           pull(ParCHR))
   
   rivers_c <- rivers_r * userarea_r
@@ -1318,11 +1320,11 @@ if (identical(rivers_raster_param, NA_character_)) {  # Variable exists but has 
 } else {  
   tic()
   rivers <- st_read(paste0("LULCC/SourceData/InVector/", country_parameters %>%
-                             filter(Var == "rivers_name") %>%
+                             dplyr::filter (Var == "rivers_name") %>%
                              pull(ParCHR)))
   
   rivers_r <- rasterize(rivers, userarea_r, field = country_parameters %>%
-                          filter(Var == "rivers_fieldname") %>%
+                          dplyr::filter (Var == "rivers_fieldname") %>%
                           pull(ParCHR))
   
   rivers_c <- rivers_r * userarea_r
@@ -1337,17 +1339,17 @@ if (identical(rivers_raster_param, NA_character_)) {  # Variable exists but has 
 # Lakes ----
 # Extract lakes raster parameter
 lakes_raster_param <- country_parameters %>%
-  filter(Var == "lakes_raster") %>%
+  dplyr::filter (Var == "lakes_raster") %>%
   pull(ParCHR)
 
 if (identical(lakes_raster_param, NA_character_)) {  # Variable exists but has no value
   tic()
   lakes <- st_read(paste0("LULCC/SourceData/InVector/", country_parameters %>%
-                            filter(Var == "lakes_name") %>%
+                            dplyr::filter (Var == "lakes_name") %>%
                             pull(ParCHR)))
   
   lakes_r <- rasterize(lakes, userarea_r, field = country_parameters %>%
-                         filter(Var == "lakes_fieldname") %>%
+                         dplyr::filter (Var == "lakes_fieldname") %>%
                          pull(ParCHR))
   
   lakes_c <- lakes_r * userarea_r
@@ -1361,7 +1363,7 @@ if (identical(lakes_raster_param, NA_character_)) {  # Variable exists but has n
   print("Processing lakes from raster format")
   
   lakes_raster <- rast(paste0("LULCC/SourceData/InRaster/", country_parameters %>%
-                                filter(Var == "lakes_name_r") %>%
+                                dplyr::filter (Var == "lakes_name_r") %>%
                                 pull(ParCHR)))
   
   lakes_c <- terra::mask(
@@ -1378,11 +1380,11 @@ if (identical(lakes_raster_param, NA_character_)) {  # Variable exists but has n
 } else if (length(lakes_raster_param) == 0) {  # Variable doesn't exist, assume vector format
   tic()
   lakes <- st_read(paste0("LULCC/SourceData/InVector/", country_parameters %>%
-                            filter(Var == "lakes_name") %>%
+                            dplyr::filter (Var == "lakes_name") %>%
                             pull(ParCHR)))
   
   lakes_r <- rasterize(lakes, userarea_r, field = country_parameters %>%
-                         filter(Var == "lakes_fieldname") %>%
+                         dplyr::filter (Var == "lakes_fieldname") %>%
                          pull(ParCHR))
   
   lakes_c <- lakes_r * userarea_r
@@ -1395,11 +1397,11 @@ if (identical(lakes_raster_param, NA_character_)) {  # Variable exists but has n
 } else {  
   tic()
   lakes <- st_read(paste0("LULCC/SourceData/InVector/", country_parameters %>%
-                            filter(Var == "lakes_name") %>%
+                            dplyr::filter (Var == "lakes_name") %>%
                             pull(ParCHR)))
   
   lakes_r <- rasterize(lakes, userarea_r, field = country_parameters %>%
-                         filter(Var == "lakes_fieldname") %>%
+                         dplyr::filter (Var == "lakes_fieldname") %>%
                          pull(ParCHR))
   
   lakes_c <- lakes_r * userarea_r
@@ -1414,17 +1416,17 @@ if (identical(lakes_raster_param, NA_character_)) {  # Variable exists but has n
 # Roads ----
 # Extract roads raster parameter
 roads_raster_param <- country_parameters %>%
-  filter(Var == "roads_raster") %>%
+  dplyr::filter (Var == "roads_raster") %>%
   pull(ParCHR)
 
 if (identical(roads_raster_param, NA_character_)) {  # Variable exists but has no value
   tic()
   roads <- st_read(paste0("LULCC/SourceData/InVector/", country_parameters %>%
-                            filter(Var == "roads_name") %>%
+                            dplyr::filter (Var == "roads_name") %>%
                             pull(ParCHR)))
   
   roads_r <- rasterize(roads, userarea_r, field = country_parameters %>%
-                         filter(Var == "roads_fieldname") %>%
+                         dplyr::filter (Var == "roads_fieldname") %>%
                          pull(ParCHR))
   
   roads_c <- roads_r * userarea_r
@@ -1438,7 +1440,7 @@ if (identical(roads_raster_param, NA_character_)) {  # Variable exists but has n
   print("Processing roads from raster format")
   
   roads_raster <- rast(paste0("LULCC/SourceData/InRaster/", country_parameters %>%
-                                filter(Var == "roads_name_r") %>%
+                                dplyr::filter (Var == "roads_name_r") %>%
                                 pull(ParCHR)))
   
   roads_c <- terra::mask(
@@ -1455,11 +1457,11 @@ if (identical(roads_raster_param, NA_character_)) {  # Variable exists but has n
 } else if (length(roads_raster_param) == 0) {  # Variable doesn't exist, assume vector format
   tic()
   roads <- st_read(paste0("LULCC/SourceData/InVector/", country_parameters %>%
-                            filter(Var == "roads_name") %>%
+                            dplyr::filter (Var == "roads_name") %>%
                             pull(ParCHR)))
   
   roads_r <- rasterize(roads, userarea_r, field = country_parameters %>%
-                         filter(Var == "roads_fieldname") %>%
+                         dplyr::filter (Var == "roads_fieldname") %>%
                          pull(ParCHR))
   
   roads_c <- roads_r * userarea_r
@@ -1472,11 +1474,11 @@ if (identical(roads_raster_param, NA_character_)) {  # Variable exists but has n
 } else {  
   tic()
   roads <- st_read(paste0("LULCC/SourceData/InVector/", country_parameters %>%
-                            filter(Var == "roads_name") %>%
+                            dplyr::filter (Var == "roads_name") %>%
                             pull(ParCHR)))
   
   roads_r <- rasterize(roads, userarea_r, field = country_parameters %>%
-                         filter(Var == "roads_fieldname") %>%
+                         dplyr::filter (Var == "roads_fieldname") %>%
                          pull(ParCHR))
   
   roads_c <- roads_r * userarea_r
@@ -1490,17 +1492,17 @@ if (identical(roads_raster_param, NA_character_)) {  # Variable exists but has n
 # Borders ----
 # Extract borders raster parameter
 borders_raster_param <- country_parameters %>%
-  filter(Var == "borders_raster") %>%
+  dplyr::filter (Var == "borders_raster") %>%
   pull(ParCHR)
 
 if (identical(borders_raster_param, NA_character_)) {  # Variable exists but has no value
   tic()
   borders <- st_read(paste0("LULCC/SourceData/InVector/", country_parameters %>%
-                              filter(Var == "borders_name") %>%
+                              dplyr::filter (Var == "borders_name") %>%
                               pull(ParCHR)))
   
   borders_r <- rasterize(borders, userarea_r, field = country_parameters %>%
-                           filter(Var == "borders_fieldname") %>%
+                           dplyr::filter (Var == "borders_fieldname") %>%
                            pull(ParCHR))
   
   borders_c <- borders_r * userarea_r
@@ -1514,7 +1516,7 @@ if (identical(borders_raster_param, NA_character_)) {  # Variable exists but has
   print("Processing borders from raster format")
   
   borders_raster <- rast(paste0("LULCC/SourceData/InRaster/", country_parameters %>%
-                                  filter(Var == "borders_name_r") %>%
+                                  dplyr::filter (Var == "borders_name_r") %>%
                                   pull(ParCHR)))
   
   borders_c <- terra::mask(
@@ -1531,11 +1533,11 @@ if (identical(borders_raster_param, NA_character_)) {  # Variable exists but has
 } else if (length(borders_raster_param) == 0) {  # Variable doesn't exist, assume vector format
   tic()
   borders <- st_read(paste0("LULCC/SourceData/InVector/", country_parameters %>%
-                              filter(Var == "borders_name") %>%
+                              dplyr::filter (Var == "borders_name") %>%
                               pull(ParCHR)))
   
   borders_r <- rasterize(borders, userarea_r, field = country_parameters %>%
-                           filter(Var == "borders_fieldname") %>%
+                           dplyr::filter (Var == "borders_fieldname") %>%
                            pull(ParCHR))
   
   borders_c <- borders_r * userarea_r
@@ -1548,11 +1550,11 @@ if (identical(borders_raster_param, NA_character_)) {  # Variable exists but has
 } else {  
   tic()
   borders <- st_read(paste0("LULCC/SourceData/InVector/", country_parameters %>%
-                              filter(Var == "borders_name") %>%
+                              dplyr::filter (Var == "borders_name") %>%
                               pull(ParCHR)))
   
   borders_r <- rasterize(borders, userarea_r, field = country_parameters %>%
-                           filter(Var == "borders_fieldname") %>%
+                           dplyr::filter (Var == "borders_fieldname") %>%
                            pull(ParCHR))
   
   borders_c <- borders_r * userarea_r

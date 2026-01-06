@@ -28,6 +28,8 @@ attdecay = 1.15  # decay rate of attraction kernels
 # source(paste0(scriptsmofuss,"00_webmofuss.R"))
 
 # Load packages ----
+library(conflicted)
+
 library(dplyr)
 library(fasterize)
 # library(gitlabr)

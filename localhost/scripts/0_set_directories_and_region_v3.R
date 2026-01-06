@@ -25,6 +25,8 @@ start_from_scratch <- 0 # Set to 0 when the MoFuSS working directory already exi
 if (start_from_scratch == 1){webmofuss = 0}
 
 # Load libraries ----
+library(conflicted)
+
 library(dplyr)
 library(fs)
 library(purrr)

@@ -124,6 +124,7 @@ order_area <- function(x) {
 # ─────────────────────────────────────────────────────────────────────────────
 # 1) WHODB (keep area; people = pop*1000; drop total categories)
 # ─────────────────────────────────────────────────────────────────────────────
+if (subcountry != 1) {
 whodb_clean <- whodb %>%
   dplyr::filter(iso3 == region2BprocessedCtry_iso,
          year >= year_min_whodb, year <= year_max,
@@ -197,6 +198,85 @@ ggsave(
   file.path(outdir, sprintf("whodb_pop_stack_faceted_%s_%s_%s.png", region2BprocessedCtry_iso, year_min_whodb, year_max)),
   p_whodb, width = 14, height = 7, dpi = 300, bg = "white"
 )
+
+} else if (subcountry == 1) {
+
+  robdb_clean <- wfdb %>%
+    dplyr::filter(iso3 == region2BprocessedCtry_iso,
+                  year >= year_min_wfdb, year <= year_max) %>%
+    dplyr::mutate(
+      pop  = people * 1000,
+      area = order_area(area)
+    ) %>%
+    dplyr::arrange(year, area, fuel)
+  
+  # Long table: year, area, fuel, pop
+  write_csv(
+    robdb_clean %>% dplyr::select(year, area, fuel, pop),
+    file.path(outdir, sprintf("robdb_pop_long_%s_%s_%s.csv", region2BprocessedCtry_iso, year_min_whodb, year_max))
+  )
+  
+  # Wide table: one row per (year, area), columns = fuels [people]
+  robdb_wide <- robdb_clean %>%
+    dplyr::mutate(colname = paste0(fuel, " [people]")) %>%
+    dplyr::select(year, area, colname, pop) %>%
+    pivot_wider(names_from = colname, values_from = pop) %>%
+    dplyr::arrange(year, area)
+  
+  write_csv(
+    robdb_wide,
+    file.path(outdir, sprintf("robdb_pop_wide_%s_%s_%s.csv", region2BprocessedCtry_iso, year_min_whodb, year_max))
+  )
+  
+  # 1) Max stacked height in Overall (sum across fuels per year, then take the max)
+  ymax_overall <- whodb_clean %>%
+    dplyr::filter(area == "Overall") %>%
+    dplyr::group_by(year) %>%
+    dplyr::summarise(total = sum(pop, na.rm = TRUE), .groups = "drop") %>%
+    dplyr::summarise(ymax = max(total, na.rm = TRUE)) %>%
+    dplyr::pull(ymax)
+  
+  unique(whodb_clean$fuel)
+  
+  p_whodb <- ggplot(whodb_clean, aes(x = year, y = pop, fill = fuel)) +
+    geom_area(alpha = 0.95, color = "grey30", linewidth = 0.2) +
+    labs(
+      title = sprintf("Population using each fuel in %s", region2BprocessedCtry_iso),
+      subtitle = sprintf("%d–%d • Faceted by area (Y from max stacked in Overall)", year_min_whodb, year_max),
+      x = NULL, y = "People", fill = "Fuel"
+    ) +
+    scale_x_continuous(breaks = seq(year_min_whodb, year_max, by = 5)) +
+    scale_y_continuous(
+      labels = scales::label_number(scale_cut = scales::cut_si("")),
+      expand = expansion(mult = c(0, .05))
+    ) +
+    coord_cartesian(ylim = c(0, ymax_overall)) +   # common Y range
+    facet_wrap(~ area, ncol = 3, scales = "fixed") +
+    
+    scale_fill_manual(values = c(
+      "Fuelwood"   = "#8B4513",  # brown → wood, biomass
+      "Charcoal"   = "#2B2B2B",  # near-black → carbon
+      "Coal"       = "#4B4B4B",  # dark grey → fossil solid
+      "Kerosene"   = "#E69F00",  # amber → liquid fuel
+      "Gas"        = "#56B4E9",  # light blue → gas flame
+      "Electricity"= "#F0E442",   # yellow → light/energy
+      "Biogas"     = "#A65628",  # new, not necessarily present
+      "Pellets"    = "#999999"   # new, not necessarily present
+    )) +
+    
+    theme_bw(base_size = 13) +
+    theme(panel.grid.minor = element_blank(),
+          plot.title.position = "plot",
+          legend.position = "bottom")
+  
+  ggsave(
+    file.path(outdir, sprintf("whodb_pop_stack_faceted_%s_%s_%s.png", region2BprocessedCtry_iso, year_min_whodb, year_max)),
+    p_whodb, width = 14, height = 7, dpi = 300, bg = "white"
+  )
+
+
+
+}
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 2) WFDB (keep area; Fuelwood + Charcoal only; Charcoal ÷ efchratio)

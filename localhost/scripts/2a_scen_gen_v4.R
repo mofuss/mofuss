@@ -8,6 +8,8 @@
 years_target <- 1990:2050
 
 # Load libraries ----
+library(conflicted)
+
 library(readxl)
 library(dplyr)
 library(tidyr)
@@ -145,7 +147,7 @@ fix_wfdb <- function(infile, outfile) {
   
   # 3) Create new Overall rows as Rural + Urban sum
   #    Group by all ID variables that make sense
-  group_vars <- intersect(
+  group_vars <- dplyr::intersect(
     c("iso3", "country", "region", "fuel", "year"),
     names(base_ru)
   )
@@ -182,6 +184,34 @@ fix_wfdb(
   infile  = "cons_fuels_years_proj_original.csv",
   outfile = "cons_fuels_years_proj.csv"
 )
+
+# Original projected
+fix_wfdb(
+  infile  = "cons_fuels_years_BAU_Lusaka-NotLusaka_original.csv",
+  outfile = "cons_fuels_years_BAU_Lusaka-NotLusaka.csv"
+)
+
+# Original projected
+fix_wfdb(
+  infile  = "cons_fuels_years_Proj1_Lusaka-NotLusaka_original.csv",
+  outfile = "cons_fuels_years_Proj1_Lusaka-NotLusaka.csv"
+)
+
+# Original projected
+fix_wfdb(
+  infile  = "cons_fuels_years_Proj2_Lusaka-NotLusaka_original.csv",
+  outfile = "cons_fuels_years_Proj2_Lusaka-NotLusaka.csv"
+)
+
+# Original projected
+fix_wfdb(
+  infile  = "cons_fuels_years_Proj3_Lusaka-NotLusaka_original.csv",
+  outfile = "cons_fuels_years_Proj3_Lusaka-NotLusaka.csv"
+)
+
+
+
+
 
 
 # WFDB Rob ----
@@ -234,7 +264,7 @@ fix_rob <- function(infile, outfile) {
   
   # 3) Create new Overall rows as Rural + Urban sum
   #    Group by all ID variables that make sense
-  group_vars <- intersect(
+  group_vars <- dplyr::intersect(
     c("iso3", "country", "region", "fuel", "year"),
     names(base_ru)
   )

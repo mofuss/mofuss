@@ -21,7 +21,7 @@
 # Internal parameters ----
 temdirdefined <- 1
 fixdir <-  0
-string_pattern_yes <- "rob_" #String pattern to be searched when selecting folders for the rasters' geocomputation
+string_pattern_yes <- "zmb_bau_plant_1km_subc_n" #String pattern to be searched when selecting folders for the rasters' geocomputation
 string_pattern_no <- "idw_" #String pattern to be searched when selecting folders for the rasters' geocomputation
  
 # Load packages ----
@@ -71,7 +71,7 @@ if (fixdir == 1){
 
 # Loop through each adm0 directory----
 for (dir in adm0_dirs) {
-  dir = "E:/rob_first_project"
+  #   dir = "E:/rob_first_project"
   print(paste("Processing directory:", dir))
   setwd(dir)
   getwd()
