@@ -24,7 +24,7 @@ library(raster)
 library(sf)
 library(readr)
 library(tiff)
-library(gitlabr)
+# library(gitlabr)
 library(tidyverse)
 library(spam)
 library(sf)
@@ -44,7 +44,7 @@ args=(commandArgs(TRUE))
 if(length(args)==0){
 	print("No arguments supplied by DINAMICA.")
 	##Supply default values here (to be used when running the script through R directly)
-	MC = 30 # MonteCarlo runs Can be picked for parameters table
+	MC = 2 # MonteCarlo runs Can be picked for parameters table
 	IT = 2010 # Initial year
 	K_MC=1
 	TOF_MC=1
