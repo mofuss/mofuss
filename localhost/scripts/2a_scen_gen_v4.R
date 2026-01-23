@@ -209,10 +209,11 @@ fix_wfdb(
   outfile = "cons_fuels_years_Proj3_Lusaka-NotLusaka.csv"
 )
 
-
-
-
-
+# Original projected
+fix_wfdb(
+  infile  = "MWI_BAU_fuel_cons_chyields4unfccc_original.csv",
+  outfile = "MWI_BAU_fuel_cons_chyields4unfccc.csv"
+)
 
 # WFDB Rob ----
 fix_rob <- function(infile, outfile) {
