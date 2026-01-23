@@ -173,47 +173,26 @@ fix_wfdb <- function(infile, outfile) {
   invisible(wfdb_fixed)
 }
 
-# Original BaU
-fix_wfdb(
-  infile  = "cons_fuels_years_original.csv",
-  outfile = "cons_fuels_years.csv"
+# # list all *_original.csv files in the working directory
+orig_files <- list.files(
+  pattern = "_original\\.csv$",
+  full.names = FALSE
 )
 
-# Original projected
-fix_wfdb(
-  infile  = "cons_fuels_years_proj_original.csv",
-  outfile = "cons_fuels_years_proj.csv"
-)
+# loop over them
+for (f in orig_files) {
+  
+  outfile <- sub("_original\\.csv$", ".csv", f)
+  
+  message("Fixing: ", f, " -> ", outfile)
+  
+  fix_wfdb(
+    infile  = f,
+    outfile = outfile
+  )
+}
 
-# Original projected
-fix_wfdb(
-  infile  = "cons_fuels_years_BAU_Lusaka-NotLusaka_original.csv",
-  outfile = "cons_fuels_years_BAU_Lusaka-NotLusaka.csv"
-)
 
-# Original projected
-fix_wfdb(
-  infile  = "cons_fuels_years_Proj1_Lusaka-NotLusaka_original.csv",
-  outfile = "cons_fuels_years_Proj1_Lusaka-NotLusaka.csv"
-)
-
-# Original projected
-fix_wfdb(
-  infile  = "cons_fuels_years_Proj2_Lusaka-NotLusaka_original.csv",
-  outfile = "cons_fuels_years_Proj2_Lusaka-NotLusaka.csv"
-)
-
-# Original projected
-fix_wfdb(
-  infile  = "cons_fuels_years_Proj3_Lusaka-NotLusaka_original.csv",
-  outfile = "cons_fuels_years_Proj3_Lusaka-NotLusaka.csv"
-)
-
-# Original projected
-fix_wfdb(
-  infile  = "MWI_BAU_fuel_cons_chyields4unfccc_original.csv",
-  outfile = "MWI_BAU_fuel_cons_chyields4unfccc.csv"
-)
 
 # WFDB Rob ----
 fix_rob <- function(infile, outfile) {
