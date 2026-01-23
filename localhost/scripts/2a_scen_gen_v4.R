@@ -173,7 +173,6 @@ fix_wfdb <- function(infile, outfile) {
   invisible(wfdb_fixed)
 }
 
-
 # # list all *_original.csv files in the working directory
 orig_files <- list.files(
   pattern = "_original\\.csv$",
@@ -182,7 +181,6 @@ orig_files <- list.files(
 
 # loop over them
 for (f in orig_files) {
-f = "MWI_BAU_fuel_cons_original.csv"
   outfile <- sub("_original\\.csv$", ".csv", f)
 
   message("Fixing: ", f, " -> ", outfile)

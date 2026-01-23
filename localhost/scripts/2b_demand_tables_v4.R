@@ -74,6 +74,9 @@ if (scenario_ver == "BaU") {
   
 } else if (scenario_ver == "MWI_BAU_fuel_cons") {
   wfdb <- read_wfdb("demand_in/MWI_BAU_fuel_cons.csv")
+
+} else if (scenario_ver == "KHM_BAU_fuel_cons") {
+  wfdb <- read_wfdb("demand_in/KHM_BAU_fuel_cons.csv")
 }
 unique(wfdb$fuel)
 
