@@ -9,7 +9,6 @@ years_target <- 1990:2050
 
 # Load libraries ----
 library(conflicted)
-
 library(readxl)
 library(dplyr)
 library(tidyr)
@@ -130,26 +129,27 @@ detect_delimiter <- function(file_path) {
 }
 
 fix_wfdb <- function(infile, outfile) {
+  
   # Detect delimiter and read
   delim <- detect_delimiter(infile)
-  wfdb_raw <- read_delim(infile, delim = delim, show_col_types = FALSE)
+  wfdb_raw <- readr::read_delim(infile, delim = delim, show_col_types = FALSE)
   
   # 1) Rename Biomass -> Fuelwood and drop Total* fuels
   wfdb_clean <- wfdb_raw %>%
     dplyr::mutate(
-      fuel = if_else(fuel == "Biomass", "Fuelwood", fuel)
+      fuel = dplyr::if_else(fuel == "Biomass", "Fuelwood", fuel)
     ) %>%
-    dplyr::filter(!fuel %in% c("Total Polluting", "Total Clean"))
+    dplyr::filter(!fuel %in% c("Total Polluting", "Total Clean")) %>%
+    dplyr::select(1:min(9, ncol(.)))
   
   # 2) Keep only Rural + Urban for base
   base_ru <- wfdb_clean %>%
     dplyr::filter(area %in% c("Rural", "Urban"))
   
   # 3) Create new Overall rows as Rural + Urban sum
-  #    Group by all ID variables that make sense
   group_vars <- dplyr::intersect(
     c("iso3", "country", "region", "fuel", "year"),
-    names(base_ru)
+    names(base_ru)  # now already capped to 9
   )
   
   wfdb_overall <- base_ru %>%
@@ -161,17 +161,18 @@ fix_wfdb <- function(infile, outfile) {
     )
   
   # 4) Combine back: Rural + Urban + Overall
-  wfdb_fixed <- bind_rows(base_ru, wfdb_overall) %>%
+  wfdb_fixed <- dplyr::bind_rows(base_ru, wfdb_overall) %>%
     dplyr::mutate(
       area = factor(area, levels = c("Rural", "Urban", "Overall"))
     ) %>%
     dplyr::arrange(iso3, fuel, year, area)
   
   # 5) Write fixed table
-  write_csv(wfdb_fixed, outfile)
+  readr::write_csv(wfdb_fixed, outfile)
   
   invisible(wfdb_fixed)
 }
+
 
 # # list all *_original.csv files in the working directory
 orig_files <- list.files(
@@ -181,18 +182,16 @@ orig_files <- list.files(
 
 # loop over them
 for (f in orig_files) {
-  
+f = "MWI_BAU_fuel_cons_original.csv"
   outfile <- sub("_original\\.csv$", ".csv", f)
-  
+
   message("Fixing: ", f, " -> ", outfile)
-  
+
   fix_wfdb(
     infile  = f,
     outfile = outfile
   )
 }
-
-
 
 # WFDB Rob ----
 fix_rob <- function(infile, outfile) {
