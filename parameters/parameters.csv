@@ -16,7 +16,9 @@ pop_ver,WorldPop
 pop_map_name,wp_slv100m_gcs.tif
 pop_map_yr,2020
 demand_col,fuel_tons3
-demand_tuning,0
+demand_tuning,1
+urb_shift_factor,1.85
+efchratio,6
 SCENARIO,
 scenario_ver,BaU
 idw_debug,NO
