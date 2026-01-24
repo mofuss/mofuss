@@ -1,0 +1,833 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2" xmlns:gx="http://www.google.com/kml/ext/2.2" xmlns:kml="http://www.opengis.net/kml/2.2" xmlns:atom="http://www.w3.org/2005/Atom">
+<Document id="Intense_Wood_Extraction_Areas" xsi:schemaLocation="http://www.opengis.net/kml/2.2 http://schemas.opengis.net/kml/2.2.0/ogckml22.xsd http://www.google.com/kml/ext/2.2 http://code.google.com/apis/kml/schema/kml22gx.xsd">
+	<name>Intense Wood Extraction Areas</name>
+	<Snippet maxLines="0"></Snippet>
+	<Style id="PolyStyle00">
+		<LabelStyle>
+			<color>00000000</color>
+			<scale>0</scale>
+		</LabelStyle>
+		<LineStyle>
+			<color>ff6e6e6e</color>
+			<width>0.4</width>
+		</LineStyle>
+		<PolyStyle>
+			<color>ffc1e0f5</color>
+		</PolyStyle>
+	</Style>
+	<Folder id="FeatureLayer0">
+		<name>Intense Wood Extraction Areas</name>
+		<Snippet maxLines="0"></Snippet>
+		<Placemark id="ID_00000">
+			<name>Sample Polygon</name>
+			<Snippet maxLines="0"></Snippet>
+			<description><![CDATA[<html xmlns:fo="http://www.w3.org/1999/XSL/Format" xmlns:msxsl="urn:schemas-microsoft-com:xslt">
+
+<head>
+
+<META http-equiv="Content-Type" content="text/html">
+
+<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+
+</head>
+
+<body style="margin:0px 0px 0px 0px;overflow:auto;background:#FFFFFF;">
+
+<table style="font-family:Arial,Verdana,Times;font-size:12px;text-align:left;width:100%;border-collapse:collapse;padding:3px 3px 3px 3px">
+
+<tr style="text-align:center;font-weight:bold;background:#9CBCE2">
+
+<td>Sample Polygon</td>
+
+</tr>
+
+<tr>
+
+<td>
+
+<table style="font-family:Arial,Verdana,Times;font-size:12px;text-align:left;width:100%;border-spacing:0px; padding:3px 3px 3px 3px">
+
+<tr>
+
+<td>FID</td>
+
+<td>0</td>
+
+</tr>
+
+<tr bgcolor="#D4E4F3">
+
+<td>Name</td>
+
+<td>Sample Polygon</td>
+
+</tr>
+
+<tr>
+
+<td>District</td>
+
+<td>Sample Polygon</td>
+
+</tr>
+
+<tr bgcolor="#D4E4F3">
+
+<td>Major_Feat</td>
+
+<td>Provided sample Polygon</td>
+
+</tr>
+
+<tr>
+
+<td>Prom_Feat</td>
+
+<td></td>
+
+</tr>
+
+<tr bgcolor="#D4E4F3">
+
+<td>Priority_Area</td>
+
+<td></td>
+
+</tr>
+
+</table>
+
+</td>
+
+</tr>
+
+</table>
+
+</body>
+
+</html>]]></description>
+			<styleUrl>#PolyStyle00</styleUrl>
+			<gx:balloonVisibility>1</gx:balloonVisibility>
+			<MultiGeometry>
+				<Polygon>
+					<outerBoundaryIs>
+						<LinearRing>
+							<coordinates>
+								35.13120634362842,-15.75220204727321,0 35.13716563944707,-16.01916263326297,0 35.42984534224805,-16.02486280518453,0 35.41909067042249,-15.75751158770068,0 35.13120634362842,-15.75220204727321,0 
+							</coordinates>
+						</LinearRing>
+					</outerBoundaryIs>
+				</Polygon>
+			</MultiGeometry>
+		</Placemark>
+		<Placemark id="ID_00001">
+			<name>Lirangwe - Mdeka Area</name>
+			<Snippet maxLines="0"></Snippet>
+			<description><![CDATA[<html xmlns:fo="http://www.w3.org/1999/XSL/Format" xmlns:msxsl="urn:schemas-microsoft-com:xslt">
+
+<head>
+
+<META http-equiv="Content-Type" content="text/html">
+
+<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+
+</head>
+
+<body style="margin:0px 0px 0px 0px;overflow:auto;background:#FFFFFF;">
+
+<table style="font-family:Arial,Verdana,Times;font-size:12px;text-align:left;width:100%;border-collapse:collapse;padding:3px 3px 3px 3px">
+
+<tr style="text-align:center;font-weight:bold;background:#9CBCE2">
+
+<td>Lirangwe - Mdeka Area</td>
+
+</tr>
+
+<tr>
+
+<td>
+
+<table style="font-family:Arial,Verdana,Times;font-size:12px;text-align:left;width:100%;border-spacing:0px; padding:3px 3px 3px 3px">
+
+<tr>
+
+<td>FID</td>
+
+<td>1</td>
+
+</tr>
+
+<tr bgcolor="#D4E4F3">
+
+<td>Name</td>
+
+<td>Lirangwe - Mdeka Area</td>
+
+</tr>
+
+<tr>
+
+<td>District</td>
+
+<td>Blantyre, Neno, Zomba, Chiradzulu</td>
+
+</tr>
+
+<tr bgcolor="#D4E4F3">
+
+<td>Major_Feat</td>
+
+<td>Degraded forest/shyrubs and smallholder farming</td>
+
+</tr>
+
+<tr>
+
+<td>Prom_Feat</td>
+
+<td>Smallholder farming, Degraded bare hills</td>
+
+</tr>
+
+<tr bgcolor="#D4E4F3">
+
+<td>Priority_Area</td>
+
+<td>Two</td>
+
+</tr>
+
+</table>
+
+</td>
+
+</tr>
+
+</table>
+
+</body>
+
+</html>]]></description>
+			<styleUrl>#PolyStyle00</styleUrl>
+			<MultiGeometry>
+				<Polygon>
+					<outerBoundaryIs>
+						<LinearRing>
+							<coordinates>
+								34.89567375755897,-15.34267948559373,0 34.88368727036354,-15.61679342580078,0 35.16811834704887,-15.63517701608751,0 35.18615977253186,-15.36585204457574,0 34.89567375755897,-15.34267948559373,0 
+							</coordinates>
+						</LinearRing>
+					</outerBoundaryIs>
+				</Polygon>
+			</MultiGeometry>
+		</Placemark>
+		<Placemark id="ID_00002">
+			<name>Liwonde - Malosa</name>
+			<Snippet maxLines="0"></Snippet>
+			<description><![CDATA[<html xmlns:fo="http://www.w3.org/1999/XSL/Format" xmlns:msxsl="urn:schemas-microsoft-com:xslt">
+
+<head>
+
+<META http-equiv="Content-Type" content="text/html">
+
+<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+
+</head>
+
+<body style="margin:0px 0px 0px 0px;overflow:auto;background:#FFFFFF;">
+
+<table style="font-family:Arial,Verdana,Times;font-size:12px;text-align:left;width:100%;border-collapse:collapse;padding:3px 3px 3px 3px">
+
+<tr style="text-align:center;font-weight:bold;background:#9CBCE2">
+
+<td>Liwonde - Malosa</td>
+
+</tr>
+
+<tr>
+
+<td>
+
+<table style="font-family:Arial,Verdana,Times;font-size:12px;text-align:left;width:100%;border-spacing:0px; padding:3px 3px 3px 3px">
+
+<tr>
+
+<td>FID</td>
+
+<td>2</td>
+
+</tr>
+
+<tr bgcolor="#D4E4F3">
+
+<td>Name</td>
+
+<td>Liwonde - Malosa</td>
+
+</tr>
+
+<tr>
+
+<td>District</td>
+
+<td>Machinga, Zomba, Balaka</td>
+
+</tr>
+
+<tr bgcolor="#D4E4F3">
+
+<td>Major_Feat</td>
+
+<td>Degraded forest and smallholder farming</td>
+
+</tr>
+
+<tr>
+
+<td>Prom_Feat</td>
+
+<td>Smallholder farming, Degraded protected forest/bare hills</td>
+
+</tr>
+
+<tr bgcolor="#D4E4F3">
+
+<td>Priority_Area</td>
+
+<td>One</td>
+
+</tr>
+
+</table>
+
+</td>
+
+</tr>
+
+</table>
+
+</body>
+
+</html>]]></description>
+			<styleUrl>#PolyStyle00</styleUrl>
+			<MultiGeometry>
+				<Polygon>
+					<outerBoundaryIs>
+						<LinearRing>
+							<coordinates>
+								35.22384134264443,-15.32056530505247,0 35.51221535172069,-15.31061624692155,0 35.49450888829499,-15.04820711911231,0 35.21180395086829,-15.04923766656789,0 35.22384134264443,-15.32056530505247,0 
+							</coordinates>
+						</LinearRing>
+					</outerBoundaryIs>
+				</Polygon>
+			</MultiGeometry>
+		</Placemark>
+		<Placemark id="ID_00003">
+			<name>Linthipe Tete</name>
+			<Snippet maxLines="0"></Snippet>
+			<description><![CDATA[<html xmlns:fo="http://www.w3.org/1999/XSL/Format" xmlns:msxsl="urn:schemas-microsoft-com:xslt">
+
+<head>
+
+<META http-equiv="Content-Type" content="text/html">
+
+<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+
+</head>
+
+<body style="margin:0px 0px 0px 0px;overflow:auto;background:#FFFFFF;">
+
+<table style="font-family:Arial,Verdana,Times;font-size:12px;text-align:left;width:100%;border-collapse:collapse;padding:3px 3px 3px 3px">
+
+<tr style="text-align:center;font-weight:bold;background:#9CBCE2">
+
+<td>Linthipe Tete</td>
+
+</tr>
+
+<tr>
+
+<td>
+
+<table style="font-family:Arial,Verdana,Times;font-size:12px;text-align:left;width:100%;border-spacing:0px; padding:3px 3px 3px 3px">
+
+<tr>
+
+<td>FID</td>
+
+<td>3</td>
+
+</tr>
+
+<tr bgcolor="#D4E4F3">
+
+<td>Name</td>
+
+<td>Linthipe Tete</td>
+
+</tr>
+
+<tr>
+
+<td>District</td>
+
+<td>Dedza, Lilongwe</td>
+
+</tr>
+
+<tr bgcolor="#D4E4F3">
+
+<td>Major_Feat</td>
+
+<td>Smallholder farming with some bare hills</td>
+
+</tr>
+
+<tr>
+
+<td>Prom_Feat</td>
+
+<td>Smallholder farming and bare hills, protected degraded forests</td>
+
+</tr>
+
+<tr bgcolor="#D4E4F3">
+
+<td>Priority_Area</td>
+
+<td>One</td>
+
+</tr>
+
+</table>
+
+</td>
+
+</tr>
+
+</table>
+
+</body>
+
+</html>]]></description>
+			<styleUrl>#PolyStyle00</styleUrl>
+			<MultiGeometry>
+				<Polygon>
+					<outerBoundaryIs>
+						<LinearRing>
+							<coordinates>
+								34.03640637542403,-14.40225164770125,0 34.32287075163063,-14.398230313943,0 34.31754471102862,-14.14389177536912,0 34.03223072069748,-14.13366938275426,0 34.03640637542403,-14.40225164770125,0 
+							</coordinates>
+						</LinearRing>
+					</outerBoundaryIs>
+				</Polygon>
+			</MultiGeometry>
+		</Placemark>
+		<Placemark id="ID_00004">
+			<name>Madisi - Kanyundo</name>
+			<Snippet maxLines="0"></Snippet>
+			<description><![CDATA[<html xmlns:fo="http://www.w3.org/1999/XSL/Format" xmlns:msxsl="urn:schemas-microsoft-com:xslt">
+
+<head>
+
+<META http-equiv="Content-Type" content="text/html">
+
+<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+
+</head>
+
+<body style="margin:0px 0px 0px 0px;overflow:auto;background:#FFFFFF;">
+
+<table style="font-family:Arial,Verdana,Times;font-size:12px;text-align:left;width:100%;border-collapse:collapse;padding:3px 3px 3px 3px">
+
+<tr style="text-align:center;font-weight:bold;background:#9CBCE2">
+
+<td>Madisi - Kanyundo</td>
+
+</tr>
+
+<tr>
+
+<td>
+
+<table style="font-family:Arial,Verdana,Times;font-size:12px;text-align:left;width:100%;border-spacing:0px; padding:3px 3px 3px 3px">
+
+<tr>
+
+<td>FID</td>
+
+<td>4</td>
+
+</tr>
+
+<tr bgcolor="#D4E4F3">
+
+<td>Name</td>
+
+<td>Madisi - Kanyundo</td>
+
+</tr>
+
+<tr>
+
+<td>District</td>
+
+<td>Dowa, Ntchisi, Kasungu</td>
+
+</tr>
+
+<tr bgcolor="#D4E4F3">
+
+<td>Major_Feat</td>
+
+<td>Dominated by smallholder farming</td>
+
+</tr>
+
+<tr>
+
+<td>Prom_Feat</td>
+
+<td>Part of Lilongwe/Kasungu Plain, Smallholder farming with some estates</td>
+
+</tr>
+
+<tr bgcolor="#D4E4F3">
+
+<td>Priority_Area</td>
+
+<td>One</td>
+
+</tr>
+
+</table>
+
+</td>
+
+</tr>
+
+</table>
+
+</body>
+
+</html>]]></description>
+			<styleUrl>#PolyStyle00</styleUrl>
+			<MultiGeometry>
+				<Polygon>
+					<outerBoundaryIs>
+						<LinearRing>
+							<coordinates>
+								33.73078175444095,-13.44980428737876,0 33.73272025206271,-13.17735265593088,0 33.44802414442658,-13.16715334020589,0 33.44532446650425,-13.44041273831485,0 33.73078175444095,-13.44980428737876,0 
+							</coordinates>
+						</LinearRing>
+					</outerBoundaryIs>
+				</Polygon>
+			</MultiGeometry>
+		</Placemark>
+		<Placemark id="ID_00005">
+			<name>Chimphepo- Msiwa</name>
+			<Snippet maxLines="0"></Snippet>
+			<description><![CDATA[<html xmlns:fo="http://www.w3.org/1999/XSL/Format" xmlns:msxsl="urn:schemas-microsoft-com:xslt">
+
+<head>
+
+<META http-equiv="Content-Type" content="text/html">
+
+<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+
+</head>
+
+<body style="margin:0px 0px 0px 0px;overflow:auto;background:#FFFFFF;">
+
+<table style="font-family:Arial,Verdana,Times;font-size:12px;text-align:left;width:100%;border-collapse:collapse;padding:3px 3px 3px 3px">
+
+<tr style="text-align:center;font-weight:bold;background:#9CBCE2">
+
+<td>Chimphepo- Msiwa</td>
+
+</tr>
+
+<tr>
+
+<td>
+
+<table style="font-family:Arial,Verdana,Times;font-size:12px;text-align:left;width:100%;border-spacing:0px; padding:3px 3px 3px 3px">
+
+<tr>
+
+<td>FID</td>
+
+<td>5</td>
+
+</tr>
+
+<tr bgcolor="#D4E4F3">
+
+<td>Name</td>
+
+<td>Chimphepo- Msiwa</td>
+
+</tr>
+
+<tr>
+
+<td>District</td>
+
+<td>Kasungu, Ntchisi</td>
+
+</tr>
+
+<tr bgcolor="#D4E4F3">
+
+<td>Major_Feat</td>
+
+<td>Mostly cultivated with some estate farming</td>
+
+</tr>
+
+<tr>
+
+<td>Prom_Feat</td>
+
+<td>Smallholder farming with some estates, Bare hills</td>
+
+</tr>
+
+<tr bgcolor="#D4E4F3">
+
+<td>Priority_Area</td>
+
+<td>Two</td>
+
+</tr>
+
+</table>
+
+</td>
+
+</tr>
+
+</table>
+
+</body>
+
+</html>]]></description>
+			<styleUrl>#PolyStyle00</styleUrl>
+			<MultiGeometry>
+				<Polygon>
+					<outerBoundaryIs>
+						<LinearRing>
+							<coordinates>
+								33.60854366854254,-13.12964576900874,0 33.89572796846478,-13.13594677582254,0 33.89888949072367,-12.86403778966796,0 33.61016856950186,-12.85001417801059,0 33.60854366854254,-13.12964576900874,0 
+							</coordinates>
+						</LinearRing>
+					</outerBoundaryIs>
+				</Polygon>
+			</MultiGeometry>
+		</Placemark>
+		<Placemark id="ID_00006">
+			<name>Namitete</name>
+			<Snippet maxLines="0"></Snippet>
+			<description><![CDATA[<html xmlns:fo="http://www.w3.org/1999/XSL/Format" xmlns:msxsl="urn:schemas-microsoft-com:xslt">
+
+<head>
+
+<META http-equiv="Content-Type" content="text/html">
+
+<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+
+</head>
+
+<body style="margin:0px 0px 0px 0px;overflow:auto;background:#FFFFFF;">
+
+<table style="font-family:Arial,Verdana,Times;font-size:12px;text-align:left;width:100%;border-collapse:collapse;padding:3px 3px 3px 3px">
+
+<tr style="text-align:center;font-weight:bold;background:#9CBCE2">
+
+<td>Namitete</td>
+
+</tr>
+
+<tr>
+
+<td>
+
+<table style="font-family:Arial,Verdana,Times;font-size:12px;text-align:left;width:100%;border-spacing:0px; padding:3px 3px 3px 3px">
+
+<tr>
+
+<td>FID</td>
+
+<td>6</td>
+
+</tr>
+
+<tr bgcolor="#D4E4F3">
+
+<td>Name</td>
+
+<td>Namitete</td>
+
+</tr>
+
+<tr>
+
+<td>District</td>
+
+<td>Mchinji, Lilongwe</td>
+
+</tr>
+
+<tr bgcolor="#D4E4F3">
+
+<td>Major_Feat</td>
+
+<td>Smalholder cultivation with, some trees in cultiv*</td>
+
+</tr>
+
+<tr>
+
+<td>Prom_Feat</td>
+
+<td>Part of Lilonger/Kasungu plain, smallholder farming</td>
+
+</tr>
+
+<tr bgcolor="#D4E4F3">
+
+<td>Priority_Area</td>
+
+<td>Three</td>
+
+</tr>
+
+</table>
+
+</td>
+
+</tr>
+
+</table>
+
+</body>
+
+</html>]]></description>
+			<styleUrl>#PolyStyle00</styleUrl>
+			<MultiGeometry>
+				<Polygon>
+					<outerBoundaryIs>
+						<LinearRing>
+							<coordinates>
+								33.34852263957514,-13.7017830599798,0 33.05085252910616,-13.6967995716605,0 33.04817654640605,-14.00245213798952,0 33.35316078088772,-13.99946664073519,0 33.34852263957514,-13.7017830599798,0 
+							</coordinates>
+						</LinearRing>
+					</outerBoundaryIs>
+				</Polygon>
+			</MultiGeometry>
+		</Placemark>
+		<Placemark id="ID_00007">
+			<name>Mpemba - Chazunda</name>
+			<Snippet maxLines="0"></Snippet>
+			<description><![CDATA[<html xmlns:fo="http://www.w3.org/1999/XSL/Format" xmlns:msxsl="urn:schemas-microsoft-com:xslt">
+
+<head>
+
+<META http-equiv="Content-Type" content="text/html">
+
+<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+
+</head>
+
+<body style="margin:0px 0px 0px 0px;overflow:auto;background:#FFFFFF;">
+
+<table style="font-family:Arial,Verdana,Times;font-size:12px;text-align:left;width:100%;border-collapse:collapse;padding:3px 3px 3px 3px">
+
+<tr style="text-align:center;font-weight:bold;background:#9CBCE2">
+
+<td>Mpemba - Chazunda</td>
+
+</tr>
+
+<tr>
+
+<td>
+
+<table style="font-family:Arial,Verdana,Times;font-size:12px;text-align:left;width:100%;border-spacing:0px; padding:3px 3px 3px 3px">
+
+<tr>
+
+<td>FID</td>
+
+<td>7</td>
+
+</tr>
+
+<tr bgcolor="#D4E4F3">
+
+<td>Name</td>
+
+<td>Mpemba - Chazunda</td>
+
+</tr>
+
+<tr>
+
+<td>District</td>
+
+<td>Chikwawa, Thyolo, Blantyre</td>
+
+</tr>
+
+<tr bgcolor="#D4E4F3">
+
+<td>Major_Feat</td>
+
+<td>Shire Highlands, Some tress in steep slopes</td>
+
+</tr>
+
+<tr>
+
+<td>Prom_Feat</td>
+
+<td>Escarpments, farming in steep slopes, Bare/cultivated hills</td>
+
+</tr>
+
+<tr bgcolor="#D4E4F3">
+
+<td>Priority_Area</td>
+
+<td>Three</td>
+
+</tr>
+
+</table>
+
+</td>
+
+</tr>
+
+</table>
+
+</body>
+
+</html>]]></description>
+			<styleUrl>#PolyStyle00</styleUrl>
+			<MultiGeometry>
+				<Polygon>
+					<outerBoundaryIs>
+						<LinearRing>
+							<coordinates>
+								34.69105392091958,-15.88294368311994,0 34.72516579561937,-16.15043658656437,0 35.02157231334367,-16.13719665111856,0 34.99558679489214,-15.86022061687498,0 34.69105392091958,-15.88294368311994,0 
+							</coordinates>
+						</LinearRing>
+					</outerBoundaryIs>
+				</Polygon>
+			</MultiGeometry>
+		</Placemark>
+	</Folder>
+</Document>
+</kml>
