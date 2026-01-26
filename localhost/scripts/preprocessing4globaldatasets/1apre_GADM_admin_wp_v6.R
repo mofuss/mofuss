@@ -25,6 +25,9 @@ subregionsOCEANIA_v <- "subregionsOCEANIA.csv"
 subregionsNorAfri_v <- "subregionsNorAfri_v3.csv"
 
 # Load packages ----
+library(conflicted)
+conflicts_prefer(dplyr::filter)
+
 library(lwgeom)
 library(magrittr)
 library(sf)

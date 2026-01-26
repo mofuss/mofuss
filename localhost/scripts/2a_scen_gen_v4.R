@@ -9,6 +9,7 @@ years_target <- 1990:2050
 
 # Load libraries ----
 library(conflicted)
+
 library(readxl)
 library(dplyr)
 library(tidyr)
