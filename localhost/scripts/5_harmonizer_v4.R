@@ -47,9 +47,8 @@
 #
 # AGB maps ---- # ADD TWO MORE MAPS
 
-
-
 # Internal parameters ----
+plantations = 1 # REPLACE IN PARAMETERS TABLE CSV
 temdirdefined = 1
 # Attraction buffer zones (in linear meters)
 w0 = 0 
@@ -1079,7 +1078,7 @@ if (identical(LULCt3map, NA_character_)) {
 if (identical(LULCt1map, NA_character_)) {
   "No LULCt1 map available"
 } else if (LULCt1map == "YES") {
-  TOFvsFOR_matrix1 <- as.matrix(growth_parameters1[, c("Key*", "TOF")])
+  TOFvsFOR_matrix1 <- as.matrix(growth_parameters1[, c(grep("^Key", names(growth_parameters1), value = TRUE), "TOF")])
   LULCt1_r_m_reclass <- classify(LULCt1_r_m, TOFvsFOR_matrix1)
   writeRaster(LULCt1_r_m_reclass, filename = "LULCC/TempRaster/TOFvsFOR_mask1.tif",
               datatype = "INT2S", overwrite = TRUE)
@@ -1090,7 +1089,7 @@ if (identical(LULCt1map, NA_character_)) {
 if (identical(LULCt2map, NA_character_)) {
   "No LULCt2 map available"
 } else if (LULCt2map == "YES") {
-  TOFvsFOR_matrix2 <- as.matrix(growth_parameters2[, c("Key*", "TOF")])
+  TOFvsFOR_matrix2 <- as.matrix(growth_parameters2[, c(grep("^Key", names(growth_parameters2), value = TRUE), "TOF")])
   LULCt2_r_m_reclass <- classify(LULCt2_r_m, TOFvsFOR_matrix2)
   writeRaster(LULCt2_r_m_reclass, filename = "LULCC/TempRaster/TOFvsFOR_mask2.tif",
               datatype = "INT2S", overwrite = TRUE)
@@ -1101,7 +1100,7 @@ if (identical(LULCt2map, NA_character_)) {
 if (identical(LULCt3map, NA_character_)) {
   "No LULCt3 map available"
 } else if (LULCt3map == "YES") {
-  TOFvsFOR_matrix3 <- as.matrix(growth_parameters3[, c("Key*", "TOF")])
+  TOFvsFOR_matrix3 <- as.matrix(growth_parameters3[, c(grep("^Key", names(growth_parameters3), value = TRUE), "TOF")])
   LULCt3_r_m_reclass <- classify(LULCt3_r_m, TOFvsFOR_matrix3)
   writeRaster(LULCt3_r_m_reclass, filename = "LULCC/TempRaster/TOFvsFOR_mask3.tif",
               datatype = "INT2S", overwrite = TRUE)
@@ -1781,6 +1780,34 @@ if (os == "Windows") {
         system(glue('/opt/dinamicaego/DinamicaEGO-8.3.0-Ubuntu.AppImage "{i}"'))
       })
   }
+  
+}
+
+if (plantations == 1){
+  lulc_og <- rast(paste0(countrydir,"/LULCC/TempRaster/LULCt1_c.tif"))  # already cropped to Zambia, 1 km, World Mercator
+  npa_og <- rast(paste0(countrydir,"/LULCC/TempRaster/npa_c.tif"))
+  roads_og <- rast(paste0(countrydir,"/LULCC/TempRaster/roads_c.tif"))
+  
+  writeRaster(
+    lulc_og, paste0(countrydir,"/LULCC/TempRaster/LULCt1_c_original.tif"),
+    overwrite = TRUE,
+    datatype = "INT2U",
+    wopt = list(gdal = "COMPRESS=LZW")
+  )
+  
+  writeRaster(
+    npa_og, paste0(countrydir,"/LULCC/TempRaster/npa_c_original.tif"),
+    overwrite = TRUE,
+    datatype = "INT4U",
+    wopt = list(gdal = "COMPRESS=LZW")
+  )
+  
+  writeRaster(
+    roads_og, paste0(countrydir,"/LULCC/TempRaster/roads_c_original.tif"),
+    overwrite = TRUE,
+    datatype = "INT2U",
+    wopt = list(gdal = "COMPRESS=LZW")
+  )
   
 }
 

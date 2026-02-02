@@ -3,6 +3,13 @@
 # Date: Mar 2024
 
 # 2dolist ----
+# ### FIX THIS LATER!
+# getwd()
+# readr::write_csv(
+#   wfdb,
+#   paste0(demanddir,"/demand_in/cons_fuels_years_BAU_Lusaka-NotLusaka_4plant.csv")
+# )
+# #
 
 # Internal parameters ----
 year_min_whodb  <- 1990
@@ -109,6 +116,14 @@ wfdb <- wfdb %>%
 unique(wfdb$fuel)
 head(wfdb)
 print(scenario_ver) # save as text to recover later down the river
+
+# ### FIX THIS LATER!
+# getwd()
+# readr::write_csv(
+#   wfdb,
+#   paste0(demanddir,"/demand_in/cons_fuels_years_BAU_Lusaka-NotLusaka_4plant.csv")
+# )
+# #
 
 outdir <- "demand_atlas"
 full_path <- file.path(countrydir, outdir)
