@@ -159,7 +159,7 @@ for (k in seq_len(nrow(common_runs))) {
                   year_code = as.integer(str_match(basename(files_i), regex(ptn, ignore_case = TRUE))[,2]))
   
   if (nrow(yrs_b) == 0 || nrow(yrs_i) == 0) next
-  common_years <- intersect(yrs_b$year_code, yrs_i$year_code)
+  common_years <- base::intersect(yrs_b$year_code, yrs_i$year_code)
   if (!length(common_years)) next
   
   y <- max(common_years)  # latest common year
@@ -466,9 +466,9 @@ ics_demand_dir <- file.path(ics_dir, "LULCC/DownloadedDatasets/SourceDataGlobal/
 efdb_path <- file.path(bau_dir, "LULCC/DownloadedDatasets/SourceDataGlobal/demand/demand_in/efdb_all.csv")
 
 efdb <- read_csv(efdb_path, show_col_types = FALSE) %>%
-  mutate(fuel_std = str_to_title(trimws(fueltype))) %>%
-  filter(GID_0 == gid0) %>%
-  select(fuel_std, CO2, CH4, N2O)
+  dplyr::mutate(fuel_std = str_to_title(trimws(fueltype))) %>%
+  dplyr::filter(GID_0 == gid0) %>%
+  dplyr::select(fuel_std, CO2, CH4, N2O)
 
 # Map from group key -> EF table "fuel_std"
 ef_name_map <- c(
@@ -596,7 +596,7 @@ for (g in names(groups)) {
   get_years <- function(v) as.integer(str_match(basename(v), "_(\\d{4})_demand\\.tif$")[,2])
   years_bau <- sort(unique(get_years(bau_files)))
   years_ics <- sort(unique(get_years(ics_files)))
-  years     <- intersect(years_bau, years_ics)
+  years     <- base::intersect(years_bau, years_ics)
   
   if (!length(years)) {
     warning(sprintf("No common years for '%s'; skipping.", g))

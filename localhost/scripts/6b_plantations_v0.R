@@ -7,7 +7,8 @@
 
 # Internal parameters ----
 check_projection_24b <- 0
-plant_wd <- "/mnt/mofuss_ssd/plantations_fao/eucalyptus/"
+# plant_wd <- "/mnt/mofuss_ssd/plantations_fao/eucalyptus/"
+plant_wd <- "C:/Users/aghil/Documents/MoFuSS_FAO_localhost/plantations_fao/eucalyptus/"
 
 tiles <- c(
   "in/ZMB_productivity_continuous_V_AGB_MAI-noexcl-1.tif",
@@ -45,12 +46,13 @@ library(readr)
 ##
 source(paste0(githubdir,"/localhost/scripts/2a_scen_gen_v4.R"),
        echo = TRUE)
+
 setwd(plant_wd)
 
 # 1) Merge tiles into one (assumes tiles are adjacent or minimally overlapping) ----
 if (!file.exists(paste0(plant_wd,"temp/ZMB_productivity_merged_24b.tif"))) {
-  stop("Merging original tifs: ", paste0(plant_wd,"temp/ZMB_productivity_merged_24b.tif"))
-
+  cat("Merging original tifs: ", paste0(plant_wd,"temp/ZMB_productivity_merged_24b.tif"), "\n")
+  
   # Read as SpatRasterCollection so merge/mosaic is efficient
   rc <- sprc(tiles)
   
@@ -75,7 +77,7 @@ npa <- rast(paste0(countrydir,"/LULCC/TempRaster/npa_c_original.tif"))
 roads <- rast(paste0(countrydir,"/LULCC/TempRaster/roads_c_original.tif"))
 
 if (!file.exists(paste0(plant_wd,"temp/r_merged_1km_merc.tif"))) {
-  stop("Projecting merged file: ", paste0(plant_wd,"temp/ZMB_productivity_merged_24b.tif"))
+  cat("Projecting merged file: ", paste0(plant_wd,"temp/ZMB_productivity_merged_24b.tif"), "\n")
   
   r_merged_1km <- project(
     r_merged, lulc, method = "bilinear",
@@ -83,6 +85,7 @@ if (!file.exists(paste0(plant_wd,"temp/r_merged_1km_merc.tif"))) {
     overwrite = TRUE,
     wopt = list(gdal = "COMPRESS=LZW", datatype = "FLT4S")
   )
+  plot(r_merged_1km[[1]])
 } else {
   r_merged_1km <- rast(paste0(plant_wd,"temp/r_merged_1km_merc.tif"))
   plot(r_merged_1km[[1]])
@@ -138,7 +141,7 @@ pct_diff
 
 }
 
-## Build the eligible plantation mask from LULC classes ONLY first ----
+# Build the eligible plantation mask from LULC classes ONLY first ----
 gp <- read.csv(paste0(countrydir,"/LULCC/SourceData/InTables/growth_parameters1.csv"), stringsAsFactors = FALSE)
 tof <- read.csv(paste0(countrydir,"/LULCC/TempTables/TOFvsFOR_Categories1.csv"), stringsAsFactors = FALSE)
 tail(gp)
@@ -152,16 +155,16 @@ max_gp  <- max(gp$Key, na.rm = TRUE)
 max_tof <- max(tof$Key, na.rm = TRUE)
 
 if (max_tof == max_gp + 1) {
-  
+
   message("Removing extra TOF row with Key = ", max_tof)
-  
+
   tof <- tof[tof$Key != max_tof, ]
-  
+
 } else {
-  
+
   message("No TOF row removed. max(gp$Key) = ", max_gp,
           ", max(tof$Key) = ", max_tof)
-  
+
 }
 tail(gp)
 tail(tof)
@@ -384,24 +387,6 @@ writeRaster(
   wopt = list(gdal = "COMPRESS=LZW")
 )
 
-# Write output (use integer datatype) into mofuss working folder
-writeRaster(
-  lulc_new, paste0(countrydir,"/LULCC/TempRaster/LULCt1_c_plant.tif"), # Dinamica must read this!
-  overwrite = TRUE,
-  datatype = "INT2U",
-  wopt = list(gdal = "COMPRESS=LZW")
-)
-
-write_csv(
-  gp_fix,
-  paste0(countrydir, "/LULCC/TempTables/growth_parameters1.csv")
-)
-
-write_csv(
-  tof_fix,
-  paste0(countrydir, "/LULCC/TempTables/TOFvsFOR_Categories1.csv")
-)
-
 # Affect demand table just as if it were demand tunning 1 ----
 demand_4plant <- read.csv(
   paste0(countrydir, "/LULCC/DownloadedDatasets/SourceDataGlobal/demand/demand_in/cons_fuels_years_BAU_Lusaka-NotLusaka.csv"),
@@ -449,7 +434,6 @@ readr::write_csv(
   paste0(countrydir, "/LULCC/DownloadedDatasets/SourceDataGlobal/demand/demand_in/cons_fuels_years_BAU_Lusaka-NotLusaka.csv")
 )
 
-
 # Seek 25%
 check_lusaka_2010_2050 <- function(demand_4plant, demand_adj) {
   
@@ -476,15 +460,37 @@ check_lusaka_2010_2050 <- function(demand_4plant, demand_adj) {
   invisible(reduction)
 }
 
+# Check the % of reduction here before going forward
 check_lusaka_2010_2050(demand_4plant, demand_adj)
 
 source(paste0(githubdir,"/localhost/scripts/2b_demand_tables_v5.R"),
        echo = TRUE)
 
+source(paste0(githubdir,"/localhost/scripts/3_demand4IDW_v7.R"),
+       echo = TRUE)
+
+source(paste0(githubdir,"/localhost/scripts/5_harmonizer_v4.R"),
+       echo = TRUE)
+
+source(paste0(githubdir,"/localhost/scripts/6_scenarios.R"),
+       echo = TRUE)
+
+# Write output (use integer datatype) into mofuss working folder
+writeRaster(
+  lulc_new, paste0(countrydir,"/LULCC/TempRaster/LULCt1_c_plant.tif"), # Dinamica must read this!
+  overwrite = TRUE,
+  datatype = "INT2U",
+  wopt = list(gdal = "COMPRESS=LZW")
+)
+
+write_csv(
+  gp_fix,
+  paste0(countrydir, "/LULCC/TempTables/growth_parameters1.csv")
+)
+
+write_csv(
+  tof_fix,
+  paste0(countrydir, "/LULCC/TempTables/TOFvsFOR_Categories1.csv")
+)
+
 check_lusaka_2010_2050(demand_4plant, demand_adj)
-
-# source(paste0(githubdir,"/localhost/scripts/3_demand4IDW_v7.R"),
-#        echo = TRUE)
-
-
-
