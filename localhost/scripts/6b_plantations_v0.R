@@ -3,7 +3,6 @@
 # Date: Jan 2026
 
 # 2dolist ----
-# lulc_new, paste0(countrydir,"/LULCC/TempRaster/LULCt1_c_plant.tif"), # Dinamica must read this!
 
 # Internal parameters ----
 check_projection_24b <- 0
@@ -472,12 +471,19 @@ source(paste0(githubdir,"/localhost/scripts/3_demand4IDW_v7.R"),
 source(paste0(githubdir,"/localhost/scripts/5_harmonizer_v4.R"),
        echo = TRUE)
 
-source(paste0(githubdir,"/localhost/scripts/6_scenarios.R"),
+source(paste0(githubdir,"/localhost/scripts/6a_scenarios.R"),
        echo = TRUE)
 
 # Write output (use integer datatype) into mofuss working folder
 writeRaster(
   lulc_new, paste0(countrydir,"/LULCC/TempRaster/LULCt1_c_plant.tif"), # Dinamica must read this!
+  overwrite = TRUE,
+  datatype = "INT2U",
+  wopt = list(gdal = "COMPRESS=LZW")
+)
+
+writeRaster(
+  lulc_new, paste0(countrydir,"/LULCC/TempRaster/LULCt1_c.tif"), # Dinamica must read this!
   overwrite = TRUE,
   datatype = "INT2U",
   wopt = list(gdal = "COMPRESS=LZW")
