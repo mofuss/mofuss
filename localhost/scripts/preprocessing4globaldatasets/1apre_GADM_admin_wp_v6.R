@@ -214,7 +214,7 @@ if (newadminlevel == 3){
     filter(!(GID_0 %in% gadm_adm3_sel_Csub))
   
   # Identify the columns to keep (example, adjust as needed)
-  common_columns <- intersect(names(gadm_adm2_sel_Ssub), names(gadm_adm3_sel))
+  common_columns <- base::intersect(names(gadm_adm2_sel_Ssub), names(gadm_adm3_sel))
   unique_sf1_columns <- setdiff(names(gadm_adm2_sel_Ssub), common_columns)
   unique_sf2_columns <- setdiff(names(gadm_adm3_sel), common_columns)
   
@@ -254,7 +254,7 @@ if (newadminlevel == 3){
     filter(!(GID_0 %in% gadm_adm4_sel_Csub))
   
   # Identify the columns to keep (example, adjust as needed)
-  common_columns <- intersect(names(gadm_adm2_sel_Ssub), names(gadm_adm4_sel))
+  common_columns <- base::intersect(names(gadm_adm2_sel_Ssub), names(gadm_adm4_sel))
   unique_sf1_columns <- setdiff(names(gadm_adm2_sel_Ssub), common_columns)
   unique_sf2_columns <- setdiff(names(gadm_adm4_sel), common_columns)
   
@@ -294,7 +294,7 @@ if (newadminlevel == 3){
     filter(!(GID_0 %in% gadm_adm5_sel_Csub))
   
   # Identify the columns to keep (example, adjust as needed)
-  common_columns <- intersect(names(gadm_adm2_sel_Ssub), names(gadm_adm5_sel))
+  common_columns <- base::intersect(names(gadm_adm2_sel_Ssub), names(gadm_adm5_sel))
   unique_sf1_columns <- setdiff(names(gadm_adm2_sel_Ssub), common_columns)
   unique_sf2_columns <- setdiff(names(gadm_adm5_sel), common_columns)
   
@@ -322,7 +322,7 @@ if (newadminlevel == 3){
     filter(!(GID_0 %in% gadm_adm5_sel_Csub))
   
   # Identify the columns to keep (example, adjust as needed)
-  common_columns <- intersect(names(gadm_adm2_sel_Ssub), names(gadm_adm5_sel))
+  common_columns <- base::intersect(names(gadm_adm2_sel_Ssub), names(gadm_adm5_sel))
   unique_sf1_columns <- setdiff(names(gadm_adm2_sel_Ssub), common_columns)
   unique_sf2_columns <- setdiff(names(gadm_adm5_sel), common_columns)
   
