@@ -1,6 +1,6 @@
 <?xml version="1.0" standalone="yes" ?>
 <script>
-    <property key="dff.date" value="Thu Feb 19 12:00:16 2026" />
+    <property key="dff.date" value="Thu Feb 19 12:00:38 2026" />
     <property key="dff.version" value="2.4.1.20140602" />
     <property key="metadata.author" value="Designed and coded by Adrian Ghilardi (UNAM) and Rob Bailis (SEI)." />
     <property key="metadata.description" value='&quot;MoFuSS&quot; is a dynamic model that simulates the effects of fuelwood harvesting on vegetation, accounting for savings in non-renewable woody biomass from reduced consumption due to an external intervention, such as an improved cookstove (ICS) or fuel substitution project.' />
@@ -3144,7 +3144,7 @@
                     <inputport name="condition" peerid="v267" />
                     <functor name="LoadMap">
                         <property key="dff.functor.alias" value="loadMap1760" />
-                        <inputport name="filename">&quot;LULCC/TempRaster/agb_c1.tif&quot;</inputport>
+                        <inputport name="filename">&quot;LULCC/TempRaster/agb_c2.tif&quot;</inputport>
                         <inputport name="nullValue">.default</inputport>
                         <inputport name="loadAsSparse">.no</inputport>
                         <inputport name="suffixDigits">0</inputport>

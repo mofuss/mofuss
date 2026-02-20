@@ -84,10 +84,28 @@ if (RUN_DEMAND_MAPS) {
   country_parameters <- readr::read_delim(parameters_file_path, delim = delimiter, show_col_types = FALSE)
   
   region2BprocessedCtry_iso <- country_parameters %>%
-    dplyr::filter(Var == "region2BprocessedCtry_iso") %>%
+    dplyr::filter(Var == "region2BprocessedReg") %>%
     dplyr::pull(ParCHR) %>%
     .[1]
-
+  
+  # region2BprocessedCtry_iso <- country_parameters %>%
+  #   dplyr::filter(Var == "region2BprocessedCtry_iso") %>%
+  #   dplyr::pull(ParCHR) %>%
+  #   .[1]
+  # 
+  # region2BprocessedCont
+  # region2BprocessedReg
+  # region2BprocessedCtry
+  # region2BprocessedCtry_iso
+  
+  
+  
+  
+  
+  
+  
+  
+  
   GEE_scale <- country_parameters %>%
     dplyr::filter(Var == "GEE_scale") %>%
     dplyr::pull(ParCHR) %>%
@@ -375,8 +393,21 @@ if (RUN_DEMAND_MAPS) {
     adm0_all <- sf::st_read(gpkg_path, layer = layers$adm0, quiet = TRUE)
     adm1_all <- sf::st_read(gpkg_path, layer = layers$adm1, quiet = TRUE)
     
-    adm0_sf <- adm0_all[adm0_all$GID_0 == country_gid0, , drop = FALSE]
-    adm1_sf <- adm1_all[adm1_all$GID_0 == country_gid0, , drop = FALSE]
+    # adm0_sf <- adm0_all[adm0_all$GID_0 == country_gid0, , drop = FALSE]
+    # adm1_sf <- adm1_all[adm1_all$GID_0 == country_gid0, , drop = FALSE]
+    
+    adm0_sf <- adm0_all[adm0_all$mofuss_reg == country_gid0, , drop = FALSE]
+    adm1_sf <- adm1_all[adm1_all$mofuss_reg == country_gid0, , drop = FALSE]
+    
+    #mofuss_reg
+    
+    
+    
+    
+    
+    
+    
+    
     
     adm0_sf <- sf::st_transform(adm0_sf, terra::crs(r_bot, proj = TRUE))
     adm1_sf <- sf::st_transform(adm1_sf, terra::crs(r_bot, proj = TRUE))

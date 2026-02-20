@@ -18,7 +18,6 @@ run_ms = "Yes" # Run ms_simplify?
 newadminlevel = 3 #Use 3, 4, or 5 depending on the desired admin level. Any different value will bypass this and keep the original adm0, adm1 and adm2.
 subregionsSSA_v <- "subregionsSSA_v4.csv"
 # subregionsSSA_v <- "subregionsSSA_v5FAO.csv" # This basically re-cluster countries in new sub regions, such as Miombo Mopane to be run all toguether
-# subregionsSSA_v <- "subregionsSSA_v5FAO_zmb.csv" # This basically re-cluster countries in new sub regions, such as Miombo Mopane to be run all toguether
 subregionsLATAM_v <- "subregionsLATAM_v3.csv"
 subregionsASIA_v <- "subregionsASIA_v5.csv"
 subregionsOCEANIA_v <- "subregionsOCEANIA.csv"

@@ -1108,75 +1108,7 @@ if (identical(LULCt3map, NA_character_)) {
   "No LULCt3 map available"
 }
   
-# # AGB maps ----
-# 
-# country_parameters %>%
-#   dplyr::filter(Var == "AGB1map") %>%
-#   pull(ParCHR) -> AGB1map
-# country_parameters %>%
-#   dplyr::filter(Var == "AGB2map") %>%
-#   pull(ParCHR) -> AGB2map
-# country_parameters %>%
-#   dplyr::filter(Var == "AGB3map") %>%
-#   pull(ParCHR) -> AGB3map
-# 
-# if (identical(country_parameters %>%
-#               dplyr::filter(Var == "AGB1map") %>%
-#               pull(ParCHR), NA_character_)) {
-#   print("No AGB1 map available")
-# } else if (AGB1map == "YES"){
-#   if (resolution == 1000) {
-#     outagb <- rast(paste0("LULCC/SourceData/InRaster/",country_parameters %>%
-#                     dplyr::filter(Var == "AGB1map_name") %>%
-#                     pull(ParCHR))) %>%
-#       terra::crop(ext(userarea_r)) %>%
-#       terra::resample(userarea_r, "bilinear") %>%
-#       terra::mask(userarea_r) * ((resolution^2)/(100^2))
-#     #plot(outagb)
-#     writeRaster(outagb, filename="LULCC/TempRaster//agb_c1.tif", datatype="INT4S", overwrite=TRUE)
-#   } else if (resolution == 100) { # USES TERRA FOR CTREES MAPS
-#     outagbnull <- rast(paste0("LULCC/SourceData/InRaster/",country_parameters %>%
-#                     dplyr::filter(Var == "AGB1map_name") %>%
-#                     pull(ParCHR)))
-#     outagb <- ifel(outagbnull < 0, 0, outagbnull) %>%
-#       terra::crop(ext(rast(userarea_r))) %>%
-#       terra::resample(rast(userarea_r), "bilinear") %>%
-#       app(fun = as.integer)
-#     writeRaster(outagb, filename="LULCC/TempRaster//agb_c1.tif", datatype="INT4S", overwrite=TRUE)
-#   }
-# } else {
-#   "No AGB1 map available"
-# }
-# 
-# 
-# if (identical(country_parameters %>%
-#               dplyr::filter(Var == "AGB2map") %>%
-#               pull(ParCHR), NA_character_)) {
-#   print("No AGB2 map available")
-# } else if (AGB2map == "YES"){
-#   if (resolution == 1000) {
-#     outagb <- rast(paste0("LULCC/SourceData/InRaster/",country_parameters %>%
-#                             dplyr::filter(Var == "AGB2map_name") %>%
-#                             pull(ParCHR))) %>%
-#       terra::crop(ext(userarea_r)) %>%
-#       terra::resample(userarea_r, "bilinear") %>%
-#       terra::mask(userarea_r) * ((resolution^2)/(100^2))
-#     #plot(outagb)
-#     writeRaster(outagb, filename="LULCC/TempRaster//agb_c2.tif", datatype="INT4S", overwrite=TRUE)
-#   } else if (resolution == 100) { # USES TERRA FOR CTREES MAPS
-#     outagbnull <- rast(paste0("LULCC/SourceData/InRaster/",country_parameters %>%
-#                                 dplyr::filter(Var == "AGB2map_name") %>%
-#                                 pull(ParCHR)))
-#     outagb <- ifel(outagbnull < 0, 0, outagbnull) %>%
-#       terra::crop(ext(rast(userarea_r))) %>%
-#       terra::resample(rast(userarea_r), "bilinear") %>%
-#       app(fun = as.integer)
-#     writeRaster(outagb, filename="LULCC/TempRaster//agb_c2.tif", datatype="INT4S", overwrite=TRUE)
-#   }
-# } else {
-#   "No AGB2 map available"
-# }
-
+# AGB maps ----
 get_par_chr <- function(df, var) {
   x <- df %>% dplyr::filter(Var == var) %>% pull(ParCHR)
   if (length(x) == 0) return(NA_character_)
@@ -1219,6 +1151,64 @@ for (k in 1:3) {
   writeRaster(outagb, out_file, datatype = "INT4S", overwrite = TRUE)
   message(sprintf("Wrote: %s", out_file))
 }
+
+# Growth parameter maps (A/k/m) ----
+
+get_par_chr <- function(df, var) {
+  x <- df %>% dplyr::filter(Var == var) %>% pull(ParCHR)
+  if (length(x) == 0) return(NA_character_)
+  x[[1]]
+}
+
+growth_vars <- c("A_mofuss", "k_mofuss", "m_mofuss")
+
+for (v in growth_vars) {
+  
+  map_name <- get_par_chr(country_parameters, v)
+  
+  if (is.na(map_name) || !nzchar(map_name)) {
+    message(sprintf("%s map_name is NA/empty -> skipping", v))
+    next
+  }
+  
+  in_file  <- file.path("LULCC/SourceData/InRaster", map_name)
+  out_file <- file.path("LULCC/TempRaster", sprintf("%s_c.tif", sub("_mofuss$", "", v)))
+  
+  if (!file.exists(in_file)) {
+    message(sprintf("Missing input: %s -> skipping", in_file))
+    next
+  }
+  
+  if (resolution == 1000) {
+    
+    outmap <- rast(in_file) %>%
+      terra::crop(ext(userarea_r)) %>%
+      terra::resample(userarea_r, "bilinear") %>%
+      terra::mask(userarea_r)
+    
+    # keep the same scaling pattern you used for 1km AGB (pixel area adjustment)
+    outmap <- outmap * ((resolution^2) / (100^2))
+    
+  } else if (resolution == 100) {
+    
+    outnull <- rast(in_file)
+    
+    outmap <- ifel(outnull < 0, 0, outnull) |>
+      terra::crop(ext(rast(userarea_r))) |>
+      terra::resample(rast(userarea_r), "bilinear") |>
+      terra::app(fun = as.integer)
+    
+  } else {
+    stop("Unsupported resolution value. Expected 100 or 1000.")
+  }
+  
+  writeRaster(outmap, out_file, datatype = "INT4S", overwrite = TRUE)
+  message(sprintf("Wrote: %s", out_file))
+}
+
+
+
+
 
 # Protected Areas ----
 if (identical(country_parameters %>%
