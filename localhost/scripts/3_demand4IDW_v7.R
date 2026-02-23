@@ -19,10 +19,13 @@
 # ALLOW OTHER SCENARIOS: Start in line 183
 # VERY IMPORTANT TO DEFINE A SOLID WORKFLOW FOR REGIONALIZING COUNTRIES, e.g. Zambia
 # Remove any reference to HSRL 
+# Time period
+# 334 annos.list2 <- c(start_year:end_year) 
 
 # Internal parameters ----
 optimizeD = 0
 temdirdefined = 1
+start_year = 2000
 
 # Load libraries ----
 library(conflicted)
@@ -302,7 +305,7 @@ reg_ext <- read.table("LULCC/TempTables/region_ext.txt") %>% .$x
 setwd(demanddir)
 
 # Time period
-annos.list2 <- c(2010:end_year) 
+annos.list2 <- c(start_year:end_year) 
 # annos <- annos.list2[!annos.list2 %in% yr]
 annos <- annos.list2
 
@@ -744,7 +747,7 @@ unique(adm0_reg$GID_0)
 
 for (i in adm0_reg$GID_0) { # Start of outer region (i) loop ----
   # i = "ZMB_1"
-  # i = "SLV"
+  # i = "KEN"
   print(i)
   if (subcountry != 1) {
     ctry_furb <- furb_who %>%
@@ -804,7 +807,7 @@ for (i in adm0_reg$GID_0) { # Start of outer region (i) loop ----
   
   for (j in annos) { ## Start of inner years (j) loop ----
     # i="PNG"
-    # j=2050
+    # j=1990
     
     gc()
     terraOptions(memfrac=0.9)
@@ -1020,6 +1023,7 @@ for (i in adm0_reg$GID_0) { # Start of outer region (i) loop ----
     write_percap   = FALSE,
     wfdb_fuels_for_demand = NULL 
     ) {
+      # browser()
       # allowed_whodb <- c("Kerosene","Gas","Electricity","Biomass","Charcoal","Coal")
       allowed_whodb <- unique(wfdb$fuel)
 
@@ -1450,13 +1454,16 @@ if (subcountry != 1) {
     include_poprururb = TRUE # write merged pop and rururb when present
 
   ) {
+    #browser()
     # filename tags are lowercased by compute_fuel_maps()
     fuel_tags_users  <- tolower(fuels_users)
     fuel_tags_demand <- tolower(fuels_demand)
 
     for (k in years) {
+      #k = 1990
       # ---- USERS (by fuel)
       for (fu_tag in fuel_tags_users) {
+        #fu_tag = "charcoal"
         patt_u <- .build_pattern(pop_ver, k, fu_tag, "users")
         files_u <- list.files(in_pop_dir, pattern = patt_u, full.names = TRUE)
         out_u <- file.path(out_pop_dir, sprintf("%s_%s_%s_users.tif", pop_ver, fu_tag, k))
@@ -1465,6 +1472,7 @@ if (subcountry != 1) {
 
       # ---- DEMAND (by fuel)
       for (fu_tag in fuel_tags_demand) {
+        #fu_tag = "charcoal"
         patt_d <- .build_pattern(pop_ver, k, fu_tag, "demand")
         files_d <- list.files(in_dem_dir, pattern = patt_d, full.names = TRUE)
         out_d <- file.path(out_dem_dir, sprintf("%s_%s_%s_demand.tif", pop_ver, fu_tag, k))

@@ -12,8 +12,8 @@
 # #
 
 # Internal parameters ----
-year_min_whodb  <- 1990
-year_min_wfdb   <- 2010
+year_min_whodb  <- 2000
+year_min_wfdb   <- 2000
 year_max        <- 2050
 
 # Load libraries ----

@@ -216,13 +216,23 @@ lapply(file.names.DS, function(RO.DS) {
 })
 
 # Copy additional files ----
+# keep your manual list
 files2copy <- c(
-  "ffmpeg32/", "ffmpeg64/", "LaTeX/", "friction3.egoml", "IDW_Sc3.egoml",
-  "7_FW_dyn_lulcc_Sc16b_luc1.egoml", "7_FW_dyn_lulcc_Sc16b_luc2.egoml",
-  # "7_FW_dyn_lulcc_Sc16b_luc1_lucbet.egoml", "7_FW_dyn_lulcc_Sc16b_luc2.lucbet.egoml",
-  "debugging/0_debugv1.R", "debugging/0_debugv2.R", "rnorm_v3.R", "NRB_graphs_datasets2.R",
-  "maps_animations6.R", "finalogs.R", "bypassMC.R", "bypass_maps_animations.R"
+  "ffmpeg32/", "ffmpeg64/", "LaTeX/", 
+  "rnorm_v3.R", "NRB_graphs_datasets2.R", "maps_animations6.R", 
+  "finalogs.R", "bypassMC.R", "bypass_maps_animations.R"
 )
+
+# get any .egoml there (filenames only)
+egoml_files <- list.files(
+  path       = paste0(githubdir, "/localhost/scripts/"),
+  pattern    = "\\.egoml$",
+  full.names = FALSE
+)
+
+# merge + dedupe
+files2copy <- unique(c(files2copy, egoml_files))
+
 
 lapply(files2copy, function(f) {
   file.copy(from = paste0(githubdir, "/localhost/scripts/", f), to = paste0(countrydir), overwrite = TRUE, recursive = TRUE, copy.mode = TRUE)
