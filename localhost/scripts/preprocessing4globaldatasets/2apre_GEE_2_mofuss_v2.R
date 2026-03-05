@@ -222,18 +222,56 @@ if (AGB1map == "YES") {
   country_parameters %>%
     dplyr::filter(Var == "AGB1map_name") %>%
     pull(ParCHR) -> AGB1map_name
-pattern_daac_agb <- paste0("^", GEE_tyRoi, "_daac_agb_", GEE_scale, "m-[0-9]+-[0-9]+\\.tif$")
-tif_files_daac_agb <- list.files(geedir, pattern = pattern_daac_agb, full.names = TRUE)
-if (length(tif_files_daac_agb) == 0) stop("No matching tiles found.")
-if (length(tif_files_daac_agb) == 1) {
-  DAAC <- rast(tif_files_daac_agb)
-} else {
-  rlist_daac_agb <- lapply(tif_files_daac_agb, rast)
-  DAAC <- do.call(merge, rlist_daac_agb)
-}
-DAAC_agb <- DAAC / 0.47 # See notes above
-# DAAC <- setMinMax(DAAC, force=TRUE)
-terra::writeRaster(DAAC_agb, paste0("out_pcs/",AGB1map_name), filetype = "GTiff", overwrite = TRUE)
+  pattern_daac <- paste0("^", GEE_tyRoi, "_daac_agb_", "native-[0-9]+-[0-9]+\\.tif$")
+  tif_files_daac <- list.files(geedir, pattern = pattern_daac, full.names = TRUE)
+  if (length(tif_files_daac) == 0) stop("No matching tiles found.")
+
+  # 1) Virtual mosaic (fast, low RAM): build a VRT and open it
+vrt(tif_files_daac, filename = "temp/DAAC_native.vrt", overwrite = TRUE)
+DAAC_vrt <- rast("temp/DAAC_native.vrt")
+
+# 2) Crop early in source CRS (saves a LOT of time before projection)
+# We crop by the buffered ROI reprojected back to raster CRS (lon/lat)
+roi_buf_ll <- project(roi_buf_3395, crs(DAAC_vrt))
+DAAC_crop_ll <- crop(DAAC_vrt, roi_buf_ll, snap = "out") / 0.47 # still lon/lat, and see notes above
+
+# writeRaster(
+#   DAAC_crop_ll,
+#   filename = "out_gcs/DAAC_gcs.tif",
+#   overwrite = TRUE,
+#   wopt = list(
+#     gdal = c("COMPRESS=LZW", "TILED=YES", "BIGTIFF=YES"),
+#     datatype = "INT2S",
+#     NAflag = -32768
+#   )
+# )
+
+# 3) Project to EPSG:3395 at 1000 m
+# Use a template so you control resolution exactly.
+DAAC_3395_1km <- project(
+  DAAC_crop_ll,
+  template_3395,
+  method = "bilinear",
+  filename = paste0("out_pcs/",AGB1map_name),
+  overwrite = TRUE,
+  wopt = list(
+    gdal = c("COMPRESS=LZW", "TILED=YES", "BIGTIFF=YES"),
+    datatype = "INT2S",
+    NAflag = -32768
+  )
+)
+
+# writeRaster(
+#   mask(DAAC_3395_1km, roi_buf_3395),
+#   filename = "out_pcs/DAAC_pcs_masked.tif",
+#   overwrite = TRUE,
+#   wopt = list(
+#     gdal = c("COMPRESS=LZW", "TILED=YES", "BIGTIFF=YES"),
+#     datatype = "INT2S",
+#     NAflag = -32768
+#   )
+# )
+
 }
 
 ## ESA ----
@@ -251,19 +289,59 @@ if (AGB2map == "YES") {
   country_parameters %>%
     dplyr::filter(Var == "AGB2map_yr") %>%
     pull(ParCHR) -> AGB2map_yr
-  pattern_esa_agb <- paste0("^", GEE_tyRoi, "_esa_agb_", AGB2map_yr,"_",GEE_scale, "m-[0-9]+-[0-9]+\\.tif$")
-  tif_files_esa_agb <- list.files(geedir, pattern = pattern_esa_agb, full.names = TRUE)
-  if (length(tif_files_esa_agb) == 0) stop("No matching tiles found.")
-  if (length(tif_files_esa_agb) == 1) {
-    ESA <- rast(tif_files_esa_agb)
-  } else {
-    rlist_esa_agb <- lapply(tif_files_esa_agb, rast)
-    ESA <- do.call(merge, rlist_esa_agb)
-  }
-  # ESA <- setMinMax(ESA, force=TRUE)
-  terra::writeRaster(ESA, paste0("out_pcs/",AGB2map_name), filetype = "GTiff", overwrite = TRUE)
+  pattern_esa <- paste0("^", GEE_tyRoi, "_esa_agb_", AGB2map_yr,"_",GEE_scale, "m-[0-9]+-[0-9]+\\.tif$")
+  
+  tif_files_esa <- list.files(geedir, pattern = pattern_esa, full.names = TRUE)
+  if (length(tif_files_daac) == 0) stop("No matching tiles found.")
+  
+  # 1) Virtual mosaic (fast, low RAM): build a VRT and open it
+  vrt(tif_files_esa, filename = "temp/ESA_AGB_native.vrt", overwrite = TRUE)
+  ESA_AGB_vrt <- rast("temp/ESA_AGB_native.vrt")
+  
+  # 2) Crop early in source CRS (saves a LOT of time before projection)
+  # We crop by the buffered ROI reprojected back to raster CRS (lon/lat)
+  roi_buf_ll <- project(roi_buf_3395, crs(ESA_AGB_vrt))
+  ESA_AGB_crop_ll <- crop(ESA_AGB_vrt, roi_buf_ll, snap = "out") # still lon/lat, and see notes above
+  
+  # writeRaster(
+  #   ESA_AGB_crop_ll,
+  #   filename = "out_gcs/ESA_AGB_gcs.tif",
+  #   overwrite = TRUE,
+  #   wopt = list(
+  #     gdal = c("COMPRESS=LZW", "TILED=YES", "BIGTIFF=YES"),
+  #     datatype = "INT2S",
+  #     NAflag = -32768
+  #   )
+  # )
+  
+  # 3) Project to EPSG:3395 at 1000 m
+  # Use a template so you control resolution exactly.
+  ESA_AGB_3395_1km <- project(
+    ESA_AGB_crop_ll,
+    template_3395,
+    method = "bilinear",
+    filename = paste0("out_pcs/",AGB2map_name),
+    overwrite = TRUE,
+    wopt = list(
+      gdal = c("COMPRESS=LZW", "TILED=YES", "BIGTIFF=YES"),
+      datatype = "INT2S",
+      NAflag = -32768
+    )
+  )
+  
+  # writeRaster(
+  #   mask(ESA_AGB_3395_1km, roi_buf_3395),
+  #   filename = "out_pcs/ESA_AGB_pcs_masked.tif",
+  #   overwrite = TRUE,
+  #   wopt = list(
+  #     gdal = c("COMPRESS=LZW", "TILED=YES", "BIGTIFF=YES"),
+  #     datatype = "INT2S",
+  #     NAflag = -32768
+  #   )
+  # )
+  
 }
-
+  
 # ## WCMC ----
 # ### Original repo: https://developers.google.com/earth-engine/datasets/catalog/WCMC_biomass_carbon_density_v1_0
 # ### Notes: Tonnes of above and below ground biomass carbon per hectare
@@ -276,17 +354,8 @@ if (AGB2map == "YES") {
 #   country_parameters %>%
 #     dplyr::filter(Var == "AGB3map_name") %>%
 #     pull(ParCHR) -> AGB3map_name
-#   pattern_wcmc_agb <- paste0("^", GEE_tyRoi, "_wcmc_biomass_biomass_tonnes_per_ha_", GEE_scale, "m-[0-9]+-[0-9]+\\.tif$")
-#   tif_files_wcmc_agb <- list.files(geedir, pattern = pattern_wcmc_agb, full.names = TRUE)
-#   if (length(tif_files_wcmc_agb) == 0) stop("No matching tiles found.")
-#   if (length(tif_files_wcmc_agb) == 1) {
-#     WCMC <- rast(tif_files_wcmc_agb)
-#   } else {
-#     rlist_wcmc_agb <- lapply(tif_files_wcmc_agb, rast)
-#     WCMC <- do.call(merge, rlist_wcmc_agb)
-#   }
-#   # WCMC <- setMinMax(WCMC, force=TRUE)
-#   terra::writeRaster(WCMC, paste0("out_pcs/",AGB3map_name), filetype = "GTiff", overwrite = TRUE)
+#   pattern_wcmc <- paste0("^", GEE_tyRoi, "_wcmc_biomass_biomass_tonnes_per_ha_", GEE_scale, "m-[0-9]+-[0-9]+\\.tif$")
+
 # }
 
 # GFC ----
@@ -294,17 +363,108 @@ if (AGB2map == "YES") {
 pattern_treecover <- paste0("^", GEE_tyRoi, "_GFC_treecover2000_", GEE_scale, "m-[0-9]+-[0-9]+\\.tif$")
 tif_files_treecover <- list.files(geedir, pattern = pattern_treecover, full.names = TRUE)
 if (length(tif_files_treecover) == 0) stop("No matching tiles found.")
-if (length(tif_files_treecover) == 1) {
-  GFC_treecover2000 <- rast(tif_files_treecover)
-} else {
-  rlist_treecover<- lapply(tif_files_treecover, rast)
-  GFC_treecover2000 <- do.call(merge, rlist_treecover)
-}
-# GFC_treecover2000 <- setMinMax(GFC_treecover2000, force=TRUE)
-terra::writeRaster(GFC_treecover2000, "out_pcs/treecover2000_pcs.tif", filetype = "GTiff", overwrite = TRUE)
+
+# 1) Virtual mosaic (fast, low RAM): build a VRT and open it
+vrt(tif_files_treecover, filename = "temp/treecover_native.vrt", overwrite = TRUE)
+treecover_vrt <- rast("temp/treecover_native.vrt")
+
+# 2) Crop early in source CRS (saves a LOT of time before projection)
+# We crop by the buffered ROI reprojected back to raster CRS (lon/lat)
+roi_buf_ll <- project(roi_buf_3395, crs(treecover_vrt))
+treecover_crop_ll <- crop(treecover_vrt, roi_buf_ll, snap = "out") # still lon/lat, and see notes above
+
+# writeRaster(
+#   treecover_crop_ll,
+#   filename = "out_gcs/treecover_gcs.tif",
+#   overwrite = TRUE,
+#   wopt = list(
+#     gdal = c("COMPRESS=LZW", "TILED=YES", "BIGTIFF=YES"),
+#     datatype = "INT2S",
+#     NAflag = -32768
+#   )
+# )
+
+# 3) Project to EPSG:3395 at 1000 m
+# Use a template so you control resolution exactly.
+treecover_3395_1km <- project(
+  treecover_crop_ll,
+  template_3395,
+  method = "bilinear",
+  filename = "out_pcs/treecover_pcs.tif",
+  overwrite = TRUE,
+  wopt = list(
+    gdal = c("COMPRESS=LZW", "TILED=YES", "BIGTIFF=YES"),
+    datatype = "INT2S",
+    NAflag = -32768
+  )
+)
+
+# writeRaster(
+#   mask(treecover_3395_1km, roi_buf_3395),
+#   filename = "out_pcs/treecover_pcs_masked.tif",
+#   overwrite = TRUE,
+#   wopt = list(
+#     gdal = c("COMPRESS=LZW", "TILED=YES", "BIGTIFF=YES"),
+#     datatype = "INT2S",
+#     NAflag = -32768
+#   )
+# )
 
 ## GFC yearloss ----
-pattern_yearloss <- paste0("^", GEE_tyRoi, "_GFC_yearLoss_lossyear_", GEE_scale, "m-[0-9]+-[0-9]+\\.tif$")
+pattern_lossyear <- paste0("^", GEE_tyRoi, "_GFC_yearLoss_lossyear_", GEE_scale, "m-[0-9]+-[0-9]+\\.tif$")
+tif_files_lossyear <- list.files(geedir, pattern = pattern_lossyear, full.names = TRUE)
+if (length(tif_files_lossyear) == 0) stop("No matching tiles found.")
+
+# 1) Virtual mosaic (fast, low RAM): build a VRT and open it
+vrt(tif_files_lossyear, filename = "temp/lossyear_native.vrt", overwrite = TRUE)
+lossyear_vrt <- rast("temp/lossyear_native.vrt")
+
+# 2) Crop early in source CRS (saves a LOT of time before projection)
+# We crop by the buffered ROI reprojected back to raster CRS (lon/lat)
+roi_buf_ll <- project(roi_buf_3395, crs(lossyear_vrt))
+lossyear_crop_ll <- crop(lossyear_vrt, roi_buf_ll, snap = "out") # still lon/lat, and see notes above
+
+# writeRaster(
+#   lossyear_crop_ll,
+#   filename = "out_gcs/lossyear_gcs.tif",
+#   overwrite = TRUE,
+#   wopt = list(
+#     gdal = c("COMPRESS=LZW", "TILED=YES", "BIGTIFF=YES"),
+#     datatype = "INT2S",
+#     NAflag = -32768
+#   )
+# )
+
+# 3) Project to EPSG:3395 at 1000 m
+# Use a template so you control resolution exactly.
+lossyear_3395_1km <- project(
+  lossyear_crop_ll,
+  template_3395,
+  method = "bilinear",
+  filename = "out_pcs/lossyear_pcs.tif",
+  overwrite = TRUE,
+  wopt = list(
+    gdal = c("COMPRESS=LZW", "TILED=YES", "BIGTIFF=YES"),
+    datatype = "INT2S",
+    NAflag = -32768
+  )
+)
+
+# writeRaster(
+#   mask(lossyear_3395_1km, roi_buf_3395),
+#   filename = "out_pcs/lossyear_pcs_masked.tif",
+#   overwrite = TRUE,
+#   wopt = list(
+#     gdal = c("COMPRESS=LZW", "TILED=YES", "BIGTIFF=YES"),
+#     datatype = "INT2S",
+#     NAflag = -32768
+#   )
+# )
+
+
+
+
+
 tif_files_yearloss <- list.files(geedir, pattern = pattern_yearloss, full.names = TRUE)
 if (length(tif_files_yearloss) == 0) stop("No matching tiles found.")
 if (length(tif_files_yearloss) == 1) {
