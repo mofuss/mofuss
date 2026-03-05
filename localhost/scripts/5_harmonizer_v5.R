@@ -1186,8 +1186,10 @@ for (v in growth_vars) {
       terra::resample(userarea_r, "bilinear") %>%
       terra::mask(userarea_r)
     
-    # keep the same scaling pattern you used for 1km AGB (pixel area adjustment)
-    outmap <- outmap * ((resolution^2) / (100^2))
+    # ONLY scale A
+    if (v == "A_mofuss") {
+      outmap <- outmap * ((resolution^2) / (100^2))
+    }
     
   } else if (resolution == 100) {
     
@@ -1195,20 +1197,21 @@ for (v in growth_vars) {
     
     outmap <- ifel(outnull < 0, 0, outnull) |>
       terra::crop(ext(rast(userarea_r))) |>
-      terra::resample(rast(userarea_r), "bilinear") |>
-      terra::app(fun = as.integer)
+      terra::resample(rast(userarea_r), "bilinear")
     
   } else {
     stop("Unsupported resolution value. Expected 100 or 1000.")
   }
   
-  writeRaster(outmap, out_file, datatype = "INT4S", overwrite = TRUE)
+  outmap[is.nan(outmap)] <- NA
+  
+  writeRaster(
+    outmap,
+    out_file,
+    overwrite=TRUE, wopt=list(gdal = c("COMPRESS=LZW", "PREDICTOR=3")), NAflag=-9999, datatype="FLT4S")
+  
   message(sprintf("Wrote: %s", out_file))
 }
-
-
-
-
 
 # Protected Areas ----
 if (identical(country_parameters %>%

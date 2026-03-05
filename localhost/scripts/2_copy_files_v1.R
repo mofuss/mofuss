@@ -219,7 +219,7 @@ lapply(file.names.DS, function(RO.DS) {
 # keep your manual list
 files2copy <- c(
   "ffmpeg32/", "ffmpeg64/", "LaTeX/", 
-  "rnorm_v3.R", "NRB_graphs_datasets2.R", "maps_animations6.R", 
+  "rnorm_v3.R", "NRB_graphs_datasets2.R", "maps_animations6.R", "maps_animations7.R", 
   "finalogs.R", "bypassMC.R", "bypass_maps_animations.R"
 )
 

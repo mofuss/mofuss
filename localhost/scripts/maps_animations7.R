@@ -1800,11 +1800,11 @@ if (fNRB_partition_tables == 1) {
   }
   
   # # Only the following bins are possible from the 3_demand4IDW_v1 script
-  # STdyn = 10 # 2020
-  # STdyn = 20 # 2030
-  # STdyn = 25 # 2035
-  # STdyn = 30 # 2040
-  # STdyn = 40 # 2050
+  # STdyn = 20 # 2020
+  # STdyn = 30 # 2030
+  # STdyn = 35 # 2035
+  # STdyn = 40 # 2040
+  # STdyn = 50 # 2050
   
   foreach(admm = adminlevel, admname = admin_name) %do% {
     #admm <- adminlevel[[4]] # Only the first admin level
@@ -1825,18 +1825,18 @@ if (fNRB_partition_tables == 1) {
       stackG <- stack(paste0(paste0("debugging_",j,"/"),listG))
       nlayers(stackG) #for cross checking pattern
       
-      nlay_yr <- nlay+2009
+      nlay_yr <- nlay+1999
       nrb_name_per <- paste("nrb_sum_bin2010", nlay_yr, sep = "_")
-      calculated_nrb_per <- stackG[[1]] - stackGlH[[nlay-1]] # Bin is entire period, do not use in final tables 
+      calculated_nrb_per <- stackG[[11]] - stackGlH[[nlay-1]] # Bin will start in 2010 and end in the final year
       calculated_nrb_per[calculated_nrb_per <= 0] = NA 
       calculated_sum_nrb_per <- as.data.frame(zonal(calculated_nrb_per, admm, 'sum')) %>%
         as.data.table() %>%
         setnames(.,"sum", paste0("NRB_2010_", nlay_yr))
       assign(nrb_name_per, calculated_sum_nrb_per)
       
-      if (STdyn != 10){
+      if (STdyn != 20){
         nrb_name <- paste("nrb_sum_bin2020", nlay_yr, sep = "_")
-        calculated_nrb <- stackG[[11]] - stackGlH[[nlay-1]] # Bin will start in 2020 and end in the final year
+        calculated_nrb <- stackG[[21]] - stackGlH[[nlay-1]] # Bin will start in 2020 and end in the final year
         calculated_nrb[calculated_nrb <= 0] = NA 
         calculated_sum_nrb <- as.data.frame(zonal(calculated_nrb, admm, 'sum')) %>%
           as.data.table() %>%
@@ -1845,8 +1845,8 @@ if (fNRB_partition_tables == 1) {
         assign(nrb_name, calculated_sum_nrb)
       }
       
-      if (STdyn == 10){
-        nrb_bin2010_2020 <- stackG[[1]] - stackGlH[[nlay-1]] # Bin will be 2010-2020
+      if (STdyn == 20){
+        nrb_bin2010_2020 <- stackG[[11]] - stackGlH[[nlay-1]] # Bin will be 2010-2020
         nrb_bin2010_2020[nrb_bin2010_2020 <= 0] = NA 
         nrb_sum_bin2010_2020 <- as.data.frame(zonal(nrb_bin2010_2020, admm, 'sum')) %>%
           as.data.table() %>%
@@ -1854,15 +1854,15 @@ if (fNRB_partition_tables == 1) {
         #dplyr::select(!zone)
       }
       
-      if (STdyn == 20){
-        nrb_bin2010_2020 <- stackG[[1]] - stackGlH[[10]] # Bin will be 2010-2020
+      if (STdyn == 30){
+        nrb_bin2010_2020 <- stackG[[11]] - stackGlH[[20]] # Bin will be 2010-2020
         nrb_bin2010_2020[nrb_bin2010_2020 <= 0] = NA 
         nrb_sum_bin2010_2020 <- as.data.frame(zonal(nrb_bin2010_2020, admm, 'sum')) %>%
           as.data.table() %>%
           setnames(.,"sum", "NRB_2010_2020") %>%
           dplyr::select(!zone)
         
-        nrb_bin2020_2030 <- stackG[[11]] - stackGlH[[nlay-1]] # Bin will be 2020-2030
+        nrb_bin2020_2030 <- stackG[[21]] - stackGlH[[nlay-1]] # Bin will be 2020-2030
         nrb_bin2020_2030[nrb_bin2020_2030 <= 0] = NA 
         nrb_sum_bin2020_2030 <- as.data.frame(zonal(nrb_bin2020_2030, admm, 'sum')) %>%
           as.data.table() %>%
@@ -1870,15 +1870,15 @@ if (fNRB_partition_tables == 1) {
           dplyr::select(!zone)
       }
       
-      if (STdyn == 25){
-        nrb_bin2010_2020 <- stackG[[1]] - stackGlH[[10]] # Bin will be 2010-2020
+      if (STdyn == 35){
+        nrb_bin2010_2020 <- stackG[[11]] - stackGlH[[20]] # Bin will be 2010-2020
         nrb_bin2010_2020[nrb_bin2010_2020 <= 0] = NA 
         nrb_sum_bin2010_2020 <- as.data.frame(zonal(nrb_bin2010_2020, admm, 'sum')) %>%
           as.data.table() %>%
           setnames(.,"sum", "NRB_2010_2020") %>%
           dplyr::select(!zone)
         
-        nrb_bin2020_2035 <- stackG[[11]] - stackGlH[[nlay-1]] # Bin will be 2020-2035
+        nrb_bin2020_2035 <- stackG[[21]] - stackGlH[[nlay-1]] # Bin will be 2020-2035
         nrb_bin2020_2035[nrb_bin2020_2035 <= 0] = NA 
         nrb_sum_bin2020_2035 <- as.data.frame(zonal(nrb_bin2020_2035, admm, 'sum')) %>%
           as.data.table() %>%
@@ -1886,29 +1886,29 @@ if (fNRB_partition_tables == 1) {
           dplyr::select(!zone)
       }
       
-      if (STdyn == 30){ # STdyn = 30 # 2040
-        nrb_bin2010_2020 <- stackG[[1]] - stackGlH[[10]] # Bin will be 2010-2020
+      if (STdyn == 40){ 
+        nrb_bin2010_2020 <- stackG[[11]] - stackGlH[[20]] # Bin will be 2010-2020
         nrb_bin2010_2020[nrb_bin2010_2020 <= 0] = NA 
         nrb_sum_bin2010_2020 <- as.data.frame(zonal(nrb_bin2010_2020, admm, 'sum')) %>%
           as.data.table() %>%
           setnames(.,"sum", "NRB_2010_2020") %>%
           dplyr::select(!zone)
         
-        nrb_bin2020_2030 <- stackG[[11]] - stackGlH[[20]] # Bin will be 2020-2030
+        nrb_bin2020_2030 <- stackG[[21]] - stackGlH[[30]] # Bin will be 2020-2030
         nrb_bin2020_2030[nrb_bin2020_2030 <= 0] = NA 
         nrb_sum_bin2020_2030 <- as.data.frame(zonal(nrb_bin2020_2030, admm, 'sum')) %>%
           as.data.table() %>%
           setnames(.,"sum", "NRB_2020_2030") %>%
           dplyr::select(!zone)
         
-        nrb_bin2030_2040 <- stackG[[21]] - stackGlH[[nlay-1]] # Bin will be 2030-2040
+        nrb_bin2030_2040 <- stackG[[31]] - stackGlH[[nlay-1]] # Bin will be 2030-2040
         nrb_bin2030_2040[nrb_bin2030_2040 <= 0] = NA 
         nrb_sum_bin2030_2040 <- as.data.frame(zonal(nrb_bin2030_2040, admm, 'sum')) %>%
           as.data.table() %>%
           setnames(.,"sum", "NRB_2030_2040") %>%
           dplyr::select(!zone)
         
-        nrb_bin2020_2040 <- stackG[[11]] - stackGlH[[nlay-1]] # Bin will be 2020-2040
+        nrb_bin2020_2040 <- stackG[[21]] - stackGlH[[nlay-1]] # Bin will be 2020-2040
         nrb_bin2020_2040[nrb_bin2020_2040 <= 0] = NA 
         nrb_sum_bin2020_2040 <- as.data.frame(zonal(nrb_bin2020_2040, admm, 'sum')) %>%
           as.data.table() %>%
@@ -1916,36 +1916,36 @@ if (fNRB_partition_tables == 1) {
           dplyr::select(!zone)
       } 
       
-      if (STdyn == 40){ # STdyn = 40 # 2050
-        nrb_bin2010_2020 <- stackG[[1]] - stackGlH[[10]] # Bin will be 2010-2020
+      if (STdyn == 50){ # STdyn = 40 # 2050
+        nrb_bin2010_2020 <- stackG[[11]] - stackGlH[[20]] # Bin will be 2010-2020
         nrb_bin2010_2020[nrb_bin2010_2020 <= 0] = NA 
         nrb_sum_bin2010_2020 <- as.data.frame(zonal(nrb_bin2010_2020, admm, 'sum')) %>%
           as.data.table() %>%
           setnames(.,"sum", "NRB_2010_2020") %>%
           dplyr::select(!zone)
         
-        nrb_bin2020_2030 <- stackG[[11]] - stackGlH[[20]] # Bin will be 2020-2030
+        nrb_bin2020_2030 <- stackG[[21]] - stackGlH[[30]] # Bin will be 2020-2030
         nrb_bin2020_2030[nrb_bin2020_2030 <= 0] = NA 
         nrb_sum_bin2020_2030 <- as.data.frame(zonal(nrb_bin2020_2030, admm, 'sum')) %>%
           as.data.table() %>%
           setnames(.,"sum", "NRB_2020_2030") %>%
           dplyr::select(!zone)
         
-        nrb_bin2030_2040 <- stackG[[21]] - stackGlH[[30]] # Bin will be 2030-2040
+        nrb_bin2030_2040 <- stackG[[31]] - stackGlH[[40]] # Bin will be 2030-2040
         nrb_bin2030_2040[nrb_bin2030_2040 <= 0] = NA 
         nrb_sum_bin2030_2040 <- as.data.frame(zonal(nrb_bin2030_2040, admm, 'sum')) %>%
           as.data.table() %>%
           setnames(.,"sum", "NRB_2030_2040") %>%
           dplyr::select(!zone)
         
-        nrb_bin2040_2050 <- stackG[[31]] - stackGlH[[nlay-1]] # Bin will be 2040-2050
+        nrb_bin2040_2050 <- stackG[[41]] - stackGlH[[nlay-1]] # Bin will be 2040-2050
         nrb_bin2040_2050[nrb_bin2040_2050 <= 0] = NA 
         nrb_sum_bin2040_2050 <- as.data.frame(zonal(nrb_bin2040_2050, admm, 'sum')) %>%
           as.data.table() %>%
           setnames(.,"sum", "NRB_2040_2050") %>%
           dplyr::select(!zone)
         
-        nrb_bin2020_2050 <- stackG[[11]] - stackGlH[[nlay-1]] # Bin will be 2020-2050
+        nrb_bin2020_2050 <- stackG[[21]] - stackGlH[[nlay-1]] # Bin will be 2020-2050
         nrb_bin2020_2050[nrb_bin2020_2050 <= 0] = NA 
         nrb_sum_bin2020_2050 <- as.data.frame(zonal(nrb_bin2020_2050, admm, 'sum')) %>%
           as.data.table() %>%
@@ -2019,7 +2019,7 @@ if (fNRB_partition_tables == 1) {
       nrb_sum_fr <- nrb_sum_fr_unfil[!is.na(nrb_sum_fr_unfil[[1]]), ]
       nrb_sum_fr
       
-      if (STdyn == 10) {
+      if (STdyn == 20) {
         nrb_sum_fr <- nrb_sum_fr_unfil
       }
       
@@ -2027,19 +2027,20 @@ if (fNRB_partition_tables == 1) {
       
       listharvx_per <- list.files(paste0("debugging_",j), pattern = "^Harvest_tot.+[.]tif$",ignore.case=F)
       listharv_per <- listharvx_per[ !grepl("_tot_nrb", listharvx_per) ]
-      stackhar_per <- stack(paste0(paste0("debugging_",j,"/"),listharv_per))
+      #listharv_per <- listharv_per[!grepl("tot0[1-9]|tot10", listharv_per)] 
+      stackhar_per <- stack(paste0(paste0("debugging_",j,"/"),listharv_per[11:length(listharv_per)])) # Bin will start in 2010 and end in the final year
       nlayers(stackhar_per)
       
       harv_name_per <- paste("harv_sum_bin2010", nlay_yr, sep = "_")
       harvest_st_per <- stackApply(stackhar_per, indices=1, fun=sum)
       # harv_mean <- stackApply(stackhar_mc1, indices=1, fun=mean)
-      harv_sum_per <- as.data.frame(zonal(harvest_st_per, admm, 'sum')) %>% # Bin is entire period, do not use in final tables 
+      harv_sum_per <- as.data.frame(zonal(harvest_st_per, admm, 'sum')) %>% # Bin will start in 2010 and end in the final year
         as.data.table() %>%
         setnames(.,"sum", paste0("Harv_2010_",nlay_yr))
       assign(harv_name_per, harv_sum_per)
       
       harv_name <- paste("harv_sum_bin2020", nlay_yr, sep = "_")
-      listharv <- listharv_per[11:(nlay-1)]
+      listharv <- listharv_per[21:(nlay-1)]
       stackharv <- stack(paste0(paste0("debugging_",j,"/"),listharv))
       nlayers(stackharv)
       
@@ -2051,8 +2052,8 @@ if (fNRB_partition_tables == 1) {
         dplyr::select(!zone)
       assign(harv_name, harvest_sum_st)
       
-      if (STdyn == 10){
-        listharv_bin2010_2020 <- listharv_per[1:(nlay-1)]
+      if (STdyn == 20){
+        listharv_bin2010_2020 <- listharv_per[11:(nlay-1)]
         stackharv_bin2010_2020 <- stack(paste0(paste0("debugging_",j,"/"),listharv_bin2010_2020))
         nlayers(stackharv_bin2010_2020)
         
@@ -2064,8 +2065,8 @@ if (fNRB_partition_tables == 1) {
         #dplyr::select(!zone)
       }
       
-      if (STdyn == 20){
-        listharv_bin2010_2020 <- listharv_per[1:10]
+      if (STdyn == 30){
+        listharv_bin2010_2020 <- listharv_per[11:20]
         stackharv_bin2010_2020 <- stack(paste0(paste0("debugging_",j,"/"),listharv_bin2010_2020))
         nlayers(stackharv_bin2010_2020)
         
@@ -2076,7 +2077,7 @@ if (fNRB_partition_tables == 1) {
           setnames(.,"sum", "Harv_2010_2020") %>%
           dplyr::select(!zone)
         
-        listharv_bin2020_2030 <- listharv_per[11:(nlay-1)]
+        listharv_bin2020_2030 <- listharv_per[21:(nlay-1)]
         stackharv_bin2020_2030 <- stack(paste0(paste0("debugging_",j,"/"),listharv_bin2020_2030))
         nlayers(stackharv_bin2020_2030)
         
@@ -2088,8 +2089,8 @@ if (fNRB_partition_tables == 1) {
           dplyr::select(!zone)
       }
       
-      if (STdyn == 25){
-        listharv_bin2010_2020 <- listharv_per[1:10]
+      if (STdyn == 35){
+        listharv_bin2010_2020 <- listharv_per[11:20]
         stackharv_bin2010_2020 <- stack(paste0(paste0("debugging_",j,"/"),listharv_bin2010_2020))
         nlayers(stackharv_bin2010_2020)
         
@@ -2100,7 +2101,7 @@ if (fNRB_partition_tables == 1) {
           setnames(.,"sum", "Harv_2010_2020") %>%
           dplyr::select(!zone)
         
-        listharv_bin2020_2035 <- listharv_per[11:(nlay-1)]
+        listharv_bin2020_2035 <- listharv_per[21:(nlay-1)]
         stackharv_bin2020_2035 <- stack(paste0(paste0("debugging_",j,"/"),listharv_bin2020_2035))
         nlayers(stackharv_bin2020_2035)
         
@@ -2112,8 +2113,8 @@ if (fNRB_partition_tables == 1) {
           dplyr::select(!zone)
       }
       
-      if (STdyn == 30){
-        listharv_bin2010_2020 <- listharv_per[1:10]
+      if (STdyn == 40){
+        listharv_bin2010_2020 <- listharv_per[11:20]
         stackharv_bin2010_2020 <- stack(paste0(paste0("debugging_",j,"/"),listharv_bin2010_2020))
         nlayers(stackharv_bin2010_2020)
         
@@ -2124,7 +2125,7 @@ if (fNRB_partition_tables == 1) {
           setnames(.,"sum", "Harv_2010_2020") %>%
           dplyr::select(!zone)
         
-        listharv_bin2020_2030 <- listharv_per[11:20]
+        listharv_bin2020_2030 <- listharv_per[21:30]
         stackharv_bin2020_2030 <- stack(paste0(paste0("debugging_",j,"/"),listharv_bin2020_2030))
         nlayers(stackharv_bin2020_2030)
         
@@ -2135,7 +2136,7 @@ if (fNRB_partition_tables == 1) {
           setnames(.,"sum", "Harv_2020_2030") %>%
           dplyr::select(!zone)
         
-        listharv_bin2030_2040 <- listharv_per[21:(nlay-1)]
+        listharv_bin2030_2040 <- listharv_per[31:(nlay-1)]
         stackharv_bin2030_2040 <- stack(paste0(paste0("debugging_",j,"/"),listharv_bin2030_2040))
         nlayers(stackharv_bin2030_2040)
         
@@ -2146,7 +2147,7 @@ if (fNRB_partition_tables == 1) {
           setnames(.,"sum", "Harv_2030_2040") %>%
           dplyr::select(!zone)
         
-        listharv_bin2020_2040 <- listharv_per[11:(nlay-1)]
+        listharv_bin2020_2040 <- listharv_per[21:(nlay-1)]
         stackharv_bin2020_2040 <- stack(paste0(paste0("debugging_",j,"/"),listharv_bin2020_2040))
         nlayers(stackharv_bin2020_2040)
         
@@ -2158,8 +2159,8 @@ if (fNRB_partition_tables == 1) {
           dplyr::select(!zone)
       }
       
-      if (STdyn == 40){
-        listharv_bin2010_2020 <- listharv_per[1:10]
+      if (STdyn == 50){
+        listharv_bin2010_2020 <- listharv_per[11:20]
         stackharv_bin2010_2020 <- stack(paste0(paste0("debugging_",j,"/"),listharv_bin2010_2020))
         nlayers(stackharv_bin2010_2020)
         
@@ -2170,7 +2171,7 @@ if (fNRB_partition_tables == 1) {
           setnames(.,"sum", "Harv_2010_2020") %>%
           dplyr::select(!zone)
         
-        listharv_bin2020_2030 <- listharv_per[11:20]
+        listharv_bin2020_2030 <- listharv_per[21:30]
         stackharv_bin2020_2030 <- stack(paste0(paste0("debugging_",j,"/"),listharv_bin2020_2030))
         nlayers(stackharv_bin2020_2030)
         
@@ -2181,7 +2182,7 @@ if (fNRB_partition_tables == 1) {
           setnames(.,"sum", "Harv_2020_2030") %>%
           dplyr::select(!zone)
         
-        listharv_bin2030_2040 <- listharv_per[21:30]
+        listharv_bin2030_2040 <- listharv_per[31:40]
         stackharv_bin2030_2040 <- stack(paste0(paste0("debugging_",j,"/"),listharv_bin2030_2040))
         nlayers(stackharv_bin2030_2040)
         
@@ -2192,7 +2193,7 @@ if (fNRB_partition_tables == 1) {
           setnames(.,"sum", "Harv_2030_2040") %>%
           dplyr::select(!zone)
         
-        listharv_bin2040_2050 <- listharv_per[31:(nlay-1)]
+        listharv_bin2040_2050 <- listharv_per[41:(nlay-1)]
         stackharv_bin2040_2050 <- stack(paste0(paste0("debugging_",j,"/"),listharv_bin2040_2050))
         nlayers(stackharv_bin2040_2050)
         
@@ -2203,7 +2204,7 @@ if (fNRB_partition_tables == 1) {
           setnames(.,"sum", "Harv_2040_2050") %>%
           dplyr::select(!zone)
         
-        listharv_bin2020_2050 <- listharv_per[11:(nlay-1)]
+        listharv_bin2020_2050 <- listharv_per[21:(nlay-1)]
         stackharv_bin2020_2050 <- stack(paste0(paste0("debugging_",j,"/"),listharv_bin2020_2050))
         nlayers(stackharv_bin2020_2050)
         
@@ -2281,11 +2282,11 @@ if (fNRB_partition_tables == 1) {
       harv_sum_fr <- harv_sum_fr_unfil[!is.na(harv_sum_fr_unfil[[1]]), ]
       harv_sum_fr
       
-      if (STdyn == 10) {
+      if (STdyn == 20) {
         harv_sum_fr <- harv_sum_fr_unfil
       }
       
-      if (STdyn == 10){
+      if (STdyn == 20){
         NRBzon_fr <- merge(nrb_sum_fr, harv_sum_fr, by = "zone") %>%
           # dplyr::rename(NRB_2010_2020 = x,
           #               Harv_2010_2020 = y) %>%
@@ -2301,7 +2302,7 @@ if (fNRB_partition_tables == 1) {
             as.data.frame() %>%
             rename_with(.fn = ~ paste0(.x, "_1MC"))
         }  
-      } else if (STdyn == 20){
+      } else if (STdyn == 30){
         NRBzon_fr <- merge(nrb_sum_fr, harv_sum_fr, by = "zone") %>%
           dplyr::mutate(across(everything(), ~as.numeric(trimws(.x)))) %>%
           dplyr::mutate(fNRB_2010_2030 = NRB_2010_2030/Harv_2010_2030*100,
@@ -2318,7 +2319,7 @@ if (fNRB_partition_tables == 1) {
             rename_with(.fn = ~ paste0(.x, "_1MC"))
         }  
         
-      } else if (STdyn == 25){
+      } else if (STdyn == 35){
         NRBzon_fr <- merge(nrb_sum_fr, harv_sum_fr, by = "zone") %>%
           dplyr::mutate(across(everything(), ~as.numeric(trimws(.x)))) %>%
           dplyr::mutate(fNRB_2010_2035 = NRB_2010_2035/Harv_2010_2035*100,
@@ -2334,7 +2335,7 @@ if (fNRB_partition_tables == 1) {
             as.data.frame() %>%
             rename_with(.fn = ~ paste0(.x, "_1MC"))
         }  
-      } else if (STdyn == 30){
+      } else if (STdyn == 40){
         NRBzon_fr <- merge(nrb_sum_fr, harv_sum_fr, by = "zone") %>%
           dplyr::mutate(across(everything(), ~as.numeric(trimws(.x)))) %>%
           dplyr::mutate(fNRB_2010_2040 = NRB_2010_2040/Harv_2010_2040*100,
@@ -2352,7 +2353,7 @@ if (fNRB_partition_tables == 1) {
             as.data.frame() %>%
             rename_with(.fn = ~ paste0(.x, "_1MC"))
         }  
-      } else if (STdyn == 40){
+      } else if (STdyn == 50){
         NRBzon_fr <- merge(nrb_sum_fr, harv_sum_fr, by = "zone") %>%
           dplyr::mutate(across(everything(), ~as.numeric(trimws(.x)))) %>%
           dplyr::mutate(
@@ -2380,8 +2381,8 @@ if (fNRB_partition_tables == 1) {
     } # for (j in 1:MC) {
     
     # Integrate tables with all the above datasets ----
-    if (STdyn == 10){ # STdyn == 10 summary----
-      print(10)
+    if (STdyn == 20){ # STdyn == 10 summary----
+      print(20)
       
       NRBzon_frbind <- dplyr::bind_rows(NRBzon_frlist)
       summarycols <- c("NRB_2010_2020", "Harv_2010_2020", "fNRB_2010_2020")
@@ -2543,7 +2544,7 @@ if (fNRB_partition_tables == 1) {
       
       
       
-    } else if (STdyn == 20){ # STdyn == 20 summary----
+    } else if (STdyn == 30){ # STdyn == 30 summary----
       # print(20)
       
       NRBzon_frbind <- dplyr::bind_rows(NRBzon_frlist)
@@ -2729,8 +2730,8 @@ if (fNRB_partition_tables == 1) {
       }
       
       
-    } else if (STdyn == 25){ # STdyn == 25 summary----
-      print(25)
+    } else if (STdyn == 35){ # STdyn == 35 summary----
+      print(35)
       
       NRBzon_frbind <- dplyr::bind_rows(NRBzon_frlist)
       summarycols <- c("NRB_2010_2035", "NRB_2020_2035", "NRB_2010_2020", "NRB_2020_2035", 
@@ -2931,8 +2932,8 @@ if (fNRB_partition_tables == 1) {
       
       
       
-    } else if (STdyn == 30){ # STdyn == 30 summary----
-      print(30)
+    } else if (STdyn == 40){ # STdyn == 40 summary----
+      print(40)
       
       NRBzon_frbind <- dplyr::bind_rows(NRBzon_frlist)
       summarycols <- c("NRB_2010_2040", "NRB_2020_2040", "NRB_2010_2020", "NRB_2020_2030", "NRB_2030_2040",
@@ -3140,8 +3141,8 @@ if (fNRB_partition_tables == 1) {
       
       
       
-    } else if (STdyn == 40){ # STdyn == 40 summary----
-      print(40)
+    } else if (STdyn == 50){ # STdyn == 50 summary----
+      print(50)
       
       NRBzon_frbind <- dplyr::bind_rows(NRBzon_frlist)
       summarycols <- c("NRB_2010_2050", "NRB_2020_2050", "NRB_2010_2020", "NRB_2020_2030", "NRB_2030_2040", "NRB_2040_2050",
