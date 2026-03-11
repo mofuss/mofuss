@@ -5,7 +5,7 @@
 # 2dolist ----
 
 # Internal parameters ----
-years_target <- 2000:2050
+bypasstunning = 1
 
 # Load libraries ----
 library(conflicted)
@@ -59,16 +59,35 @@ country_parameters %>%
   dplyr::filter(Var == "demand_col") %>%
   pull(ParCHR) -> demand_col
 
-country_parameters %>%
-  dplyr::filter(Var == "demand_tuning") %>%
-  pull(ParCHR) %>%
-  as.integer(.) -> demand_tuning
+
+####
+if (bypasstunning == 1){ #borrar este helper eventualmente
+  country_parameters %>%
+    dplyr::filter(Var == "demand_tuning") %>%
+    pull(ParCHR) %>%
+    as.integer(.) -> demand_tuning
+} else {
+  demand_tuning = 0
+}
+####
+
 
 country_parameters %>%
   dplyr::filter(Var == "efchratio") %>%
   pull(ParCHR) %>%
   as.integer(.) -> efchratio
 
+country_parameters %>%
+  dplyr::filter(Var == "start_year") %>%
+  pull(ParCHR) %>%
+  as.integer(.) -> start_year
+
+country_parameters %>%
+  dplyr::filter(Var == "end_year") %>%
+  pull(ParCHR) %>%
+  as.integer(.) -> end_year
+
+years_target <- start_year:end_year
 
 # Set directory to demand_in
 setwd(paste0(demanddir,"/demand_in"))
@@ -270,7 +289,7 @@ fix_rob <- function(infile, outfile) {
   invisible(wfdb_rob_fixed)
 }
 
-# Fix Robs new datasets for demand? Warning
+# Fix Robs new datasets for demand? Warning!!!
   fix_rob(
     infile  = "MWI_BAU_fuel_cons_original.csv",
     outfile = "MWI_BAU_fuel_cons.csv"
@@ -292,16 +311,16 @@ if (demand_tuning == 1) {
   # We work only with 6 fuels; drop Total Clean / Total Polluting etc.
   fuels_keep <- unique(pop_raw$fuel) # c("Biomass", "Charcoal", "Coal", "Electricity", "Gas", "Kerosene")
   
-  # Keep SLV + fuels + rural/urban
-  pop_slv_ru <- pop_raw %>%
-    filter(
+  # Keep db + fuels + rural/urban
+  pop_ru <- pop_raw %>%
+    dplyr::filter(
       iso3 == region2BprocessedCtry_iso,
       fuel %in% fuels_keep,
       area %in% c("Rural", "Urban")
     )
   
   # Total population (all 6 fuels) per area & year
-  totals_area_year <- pop_slv_ru %>%
+  totals_area_year <- pop_ru %>%
     group_by(iso3, country, region, area, year) %>%
     summarise(
       total_pop_area = sum(pop),  # thousands of people
@@ -309,7 +328,7 @@ if (demand_tuning == 1) {
     )
   
   # Baseline share per fuel (rural/urban separately)
-  pop_slv_ru_shares <- pop_slv_ru %>%
+  pop_ru_shares <- pop_ru %>%
     left_join(totals_area_year,
               by = c("iso3", "country", "region", "area", "year")) %>%
     mutate(
@@ -356,7 +375,7 @@ if (demand_tuning == 1) {
   
   # Identify any problematic rows
   bad <- check_sums %>% 
-    filter(total_share > 0.99)
+    dplyr::filter(total_share > 0.99)
   
   # Stop if ANY violation is found
   if (nrow(bad) > 0) {
@@ -404,7 +423,7 @@ if (demand_tuning == 1) {
   #   “Other fuels” keep relative proportions, but are scaled so that
   # sum(other_new_shares) = 1 – (Fuelwood+Charcoal).
   
-  pop_slv_ru_adjusted <- pop_slv_ru_shares %>%
+  pop_ru_adjusted <- pop_ru_shares %>%
     # Attach target shares only for B & C, and only in target years
     left_join(target_shares,
               by = c("area", "fuel", "year")) %>%
@@ -449,7 +468,7 @@ if (demand_tuning == 1) {
   
   # This keeps:
   #   
-  #   pop (original population)
+  # pop (original population)
   # 
   # share_old (original fuel share per area/year)
   # 
@@ -458,26 +477,26 @@ if (demand_tuning == 1) {
   # pop_new (adjusted population, in thousands)
   
   # Inspection
-  pop_slv_ru_adjusted %>%
-    filter(year %in% c(1990, 2009, 2016, 2050),
+  pop_ru_adjusted %>%
+    dplyr::filter(year %in% c(1990, 2050),
            area == "Urban") %>%
-    select(year, fuel, pop, pop_new, share_old, share_new) %>%
+    dplyr::select(year, fuel, pop, pop_new, share_old, share_new) %>%
     arrange(year, fuel)
   
-  pop_slv_ru_adjusted %>%
-    filter(area == "Urban", year %in% c(2009, 2010, 2016, 2030)) %>%
+  pop_ru_adjusted %>%
+    dplyr::filter(area == "Urban", year %in% c(2009, 2010, 2016, 2030)) %>%
     group_by(area, year) %>%
     summarise(sum_new = sum(share_new), .groups = "drop")
   
-  pop_slv_ru_adjusted %>%
-    filter(area == "Urban", fuel == "Fuelwood", year >= 2009) %>%
-    select(year, total_pop_area, share_new, pop_new) %>%
+  pop_ru_adjusted %>%
+    dplyr::filter(area == "Urban", fuel == "Fuelwood", year >= 2009) %>%
+    dplyr::select(year, total_pop_area, share_new, pop_new) %>%
     arrange(year)
   
   #---------------------------------------------------------------------#
   # 5. Rebuild “overall” as rural + urban (optional but probably useful) ----
   #---------------------------------------------------------------------#  
-  pop_slv_overall_adjusted <- pop_slv_ru_adjusted %>%
+  pop_overall_adjusted <- pop_ru_adjusted %>%
     group_by(iso3, country, region, year, fuel) %>%
     summarise(
       area    = "Overall",
@@ -497,37 +516,37 @@ if (demand_tuning == 1) {
   #---------------------------------------------------------------------#
   # 6. Final combined table (rural + urban + overall) ----
   #---------------------------------------------------------------------#  
-  pop_slv_adjusted_final <- bind_rows(
-    pop_slv_ru_adjusted,       # rural & urban
-    pop_slv_overall_adjusted   # overall
+  pop_adjusted_final <- bind_rows(
+    pop_ru_adjusted,       # rural & urban
+    pop_overall_adjusted   # overall
   ) %>%
     arrange(area, year, fuel)
   
   # Write to Excel
   openxlsx::write.xlsx(
-    pop_slv_adjusted_final,
+    pop_adjusted_final,
     file = paste0("pop_",region2BprocessedCtry_iso,"_adjusted_final.xlsx"),
     overwrite = TRUE
   )
   
-  # SLV replacement rows: iso3, country, region, area, fuel, year, pop_new
-  slv_replacements <- bind_rows(
-    pop_slv_ru_adjusted %>% select(iso3, country, region, area, fuel, year, pop_new),
-    pop_slv_overall_adjusted %>% select(iso3, country, region, area, fuel, year, pop_new)
+  # Replacement rows: iso3, country, region, area, fuel, year, pop_new
+  replacements <- bind_rows(
+    pop_ru_adjusted %>% dplyr::select(iso3, country, region, area, fuel, year, pop_new),
+    pop_overall_adjusted %>% dplyr::select(iso3, country, region, area, fuel, year, pop_new)
   )
   
   # pop_raw is your original full table from read_excel("A_LMIC_Estimates_2050_popmedian.xlsx")
   pop_fixed <- pop_raw %>%
-    # join SLV replacement rows
+    # join replacement rows
     left_join(
-      slv_replacements %>% rename(pop_new_slv = pop_new),
+      replacements %>% rename(pop_new_n = pop_new),
       by = c("iso3", "country", "region", "area", "fuel", "year")
     ) %>%
-    # replace pop only where we have a new value (i.e., SLV + selected fuels/areas)
+    # replace pop only where we have a new value (i.e., db + selected fuels/areas)
     mutate(
-      pop = if_else(!is.na(pop_new_slv), pop_new_slv, pop)
+      pop = if_else(!is.na(pop_new_n), pop_new_n, pop)
     ) %>%
-    select(-pop_new_slv)  # ditch helper column; structure back to original
+    dplyr::select(-pop_new_n)  # ditch helper column; structure back to original
   
   # Write fixed full table
   openxlsx::write.xlsx(
@@ -536,8 +555,7 @@ if (demand_tuning == 1) {
     overwrite = TRUE
   )
   
-  
-  # fuel_intensity and efchratio
+    # fuel_intensity and efchratio
   base_path <- paste0(countrydir, "/LULCC/DownloadedDatasets")
   
   # Find the folder that starts with "SourceData"
@@ -596,7 +614,7 @@ if (demand_tuning == 1) {
     # attach population (in thousands) from pop_fixed
     left_join(
       pop_fixed %>%
-        select(iso3, area, fuel, year, pop),
+        dplyr::select(iso3, area, fuel, year, pop),
       by = c("iso3", "area", "fuel", "year")
     ) %>%
     # attach per-capita intensities
@@ -610,7 +628,7 @@ if (demand_tuning == 1) {
       )
     ) %>%
     # drop helper columns so structure matches dem_raw exactly
-    select(names(dem_raw))
+    dplyr::select(names(dem_raw))
   
   # Write fixed full table
   if (scenario_ver == "BaU") {
@@ -628,4 +646,5 @@ if (demand_tuning == 1) {
   }
   
 }
+  
   

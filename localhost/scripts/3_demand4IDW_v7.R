@@ -26,7 +26,6 @@
 # Internal parameters ----
 optimizeD = 0
 temdirdefined = 1
-start_year = 2000 # check why 2001 doesn't work
 
 # Load libraries ----
 library(conflicted)
@@ -167,6 +166,18 @@ country_parameters %>%
 country_parameters %>%
   dplyr::filter(Var == "aoi_poly_file") %>%
   pull(ParCHR) -> aoi_poly_file
+
+country_parameters %>%
+  dplyr::filter(Var == "start_year") %>%
+  pull(ParCHR) %>%
+  as.integer(.) -> start_year
+
+country_parameters %>%
+  dplyr::filter(Var == "end_year") %>%
+  pull(ParCHR) %>%
+  as.integer(.) -> end_year
+
+start_year = start_year # check why 2001 doesn't work
 
 setwd(demanddir)
 

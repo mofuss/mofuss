@@ -12,9 +12,7 @@
 # #
 
 # Internal parameters ----
-year_min_whodb  <- 2000
-year_min_wfdb   <- 2000
-year_max        <- 2050
+
 
 # Load libraries ----
 library(conflicted)
@@ -37,6 +35,20 @@ country_parameters %>%
   dplyr::filter(Var == "efchratio") %>%
   pull(ParCHR) %>%
   as.integer(.) -> efchratio
+
+country_parameters %>%
+  dplyr::filter(Var == "start_year") %>%
+  pull(ParCHR) %>%
+  as.integer(.) -> start_year
+
+country_parameters %>%
+  dplyr::filter(Var == "end_year") %>%
+  pull(ParCHR) %>%
+  as.integer(.) -> end_year
+
+year_min_whodb  <- start_year #1990? Check this eventually
+year_min_wfdb   <- start_year
+year_max        <- end_year
 
 setwd(demanddir)
 
@@ -127,6 +139,7 @@ print(scenario_ver) # save as text to recover later down the river
 
 outdir <- "demand_atlas"
 full_path <- file.path(countrydir, outdir)
+unlink(file.path(full_path, "*"), recursive = TRUE)
 
 if (!dir.exists(full_path)) {
   dir.create(full_path, recursive = TRUE)
