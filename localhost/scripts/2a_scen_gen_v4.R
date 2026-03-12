@@ -5,7 +5,7 @@
 # 2dolist ----
 
 # Internal parameters ----
-bypasstunning = 1
+bypasstunning = 1 #borrar este helper eventualmente
 
 # Load libraries ----
 library(conflicted)
