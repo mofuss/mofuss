@@ -180,15 +180,13 @@ if (lucinputdataset == "modis") {
     pull(ParCHR) -> LULCt1map_name
   country_parameters %>%
     dplyr::filter(Var == "LULCt1map_yr") %>%
-    pull(ParCHR) -> LULCt1map_yr_pre
-  clean_string1 <- gsub("c\\(|\\)", "", LULCt1map_yr_pre)
-  string_numbers1 <- strsplit(clean_string1, ",")[[1]]
-  LULCt1map_yr <- as.numeric(string_numbers1)
-  lucmodis_2010_merge_rcl <- rast(paste0(countrydir,"/LULCC/DownloadedDatasets/SourceData",country_name,"/InRaster/pre2010_v1_",LULCt1map_name))
+    pull(ParCHR) %>%
+    as.integer(.) -> LULCt1map_yr
+  lucmodis_2001_merge_rcl <- rast(paste0(countrydir,"/LULCC/DownloadedDatasets/SourceData",country_name,"/InRaster/pre",LULCt1map_yr,"_v1_",LULCt1map_name))
 
   rururb_gcs <- rast(paste0(demanddir,"/pop_out/WorldPop_rururbR_2020.tif"))
   rururb_pcs <- rururb_gcs %>% 
-    terra::project(lucmodis_2010_merge_rcl, method="near", gdal=TRUE)
+    terra::project(lucmodis_2001_merge_rcl, method="near", gdal=TRUE)
   # terra::writeRaster(rururb_pcs, paste0(lulccfiles,"/out_pcs/rururb_pcs.tif"), filetype = "GTiff", datatype="INT2S", overwrite = TRUE)
   
   # Reads growth parameters correctly
@@ -222,11 +220,11 @@ if (lucinputdataset == "modis") {
     #                  filetype = "GTiff", overwrite = TRUE)
   
   mask_urbanforced <- !is.na(rururb_pcs_rcl)
-  lucmodis_2010_final <- ifel(mask_urbanforced, rururb_pcs_rcl, lucmodis_2010_merge_rcl)
+  lucmodis_2001_final <- ifel(mask_urbanforced, rururb_pcs_rcl, lucmodis_2001_merge_rcl)
   
   # terra::writeRaster(lucmodis_2010_final, paste0(lulccfiles,"/out_pcs/rururb_rcl2.tif"),
   #                    filetype = "GTiff", overwrite = TRUE)
-  terra::writeRaster(lucmodis_2010_final, paste0(countrydir,"/LULCC/SourceData/InRaster/",LULCt1map_name), 
+  terra::writeRaster(lucmodis_2001_final, paste0(countrydir,"/LULCC/SourceData/InRaster/",LULCt1map_name), 
                      filetype = "GTiff", overwrite = TRUE)
   
   growth_parameters_v4 <- growth_parameters_v3_modis %>%
@@ -242,12 +240,10 @@ if (lucinputdataset == "modis") {
     dplyr::filter(Var == "LULCt2map_name") %>%
     pull(ParCHR) -> LULCt2map_name
   country_parameters %>%
-    dplyr::filter(Var == "LULCt2map_yr") %>%
-    pull(ParCHR) -> LULCt2map_yr_pre
-  clean_string2 <- gsub("c\\(|\\)", "", LULCt2map_yr_pre)
-  string_numbers2 <- strsplit(clean_string2, ",")[[1]]
-  LULCt2map_yr <- as.numeric(string_numbers2)
-  luccopernicus_2015_merge_rcl <- rast(paste0(countrydir,"/LULCC/DownloadedDatasets/SourceData",country_name,"/InRaster/pre2015_v1_",LULCt2map_name))
+      dplyr::filter(Var == "LULCt2map_yr") %>%
+      pull(ParCHR) %>%
+      as.integer(.) -> LULCt2map_yr
+  luccopernicus_2015_merge_rcl <- rast(paste0(countrydir,"/LULCC/DownloadedDatasets/SourceData",country_name,"/InRaster/pre",LULCt2map_yr,"_v1_",LULCt2map_name))
 
   rururb_gcs <- rast(paste0(demanddir,"/pop_out/WorldPop_rururbR_2020.tif"))
   rururb_pcs <- rururb_gcs %>% 
@@ -285,11 +281,11 @@ if (lucinputdataset == "modis") {
   #                    filetype = "GTiff", overwrite = TRUE)
   
   mask_urbanforced <- !is.na(rururb_pcs_rcl)
-  luccopernicus_2010_final <- ifel(mask_urbanforced, rururb_pcs_rcl, luccopernicus_2015_merge_rcl)
+  luccopernicus_2015_final <- ifel(mask_urbanforced, rururb_pcs_rcl, luccopernicus_2015_merge_rcl)
   
   # terra::writeRaster(luccopernicus_2010_final, paste0(lulccfiles,"/out_pcs/rururb_rcl2.tif"),
   #                    filetype = "GTiff", overwrite = TRUE)
-  terra::writeRaster(luccopernicus_2010_final, paste0(countrydir,"/LULCC/SourceData/InRaster/",LULCt2map_name), # Double check in harmonizer
+  terra::writeRaster(luccopernicus_2015_final, paste0(countrydir,"/LULCC/SourceData/InRaster/",LULCt2map_name), # Double check in harmonizer
                      filetype = "GTiff", overwrite = TRUE)
   
   growth_parameters_v4 <- growth_parameters_v3_copernicus %>%
