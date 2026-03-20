@@ -19,15 +19,15 @@ tiles <- c(
 out_merged   <- "temp/ZMB_productivity_merged_24b.tif"
 
 T1   <- 2027 # Plantations establishment
-Tend <- 2050 # end of simulations
-Tr = 9 # “We restrict rotations to ≥Tr years to reflect minimum stem size and establishment requirements for charcoal plantations.”
+Tend <- 2050 # End of simulations
+Tr = 9 # We restrict rotations to ≥Tr years to reflect minimum stem size and establishment requirements for charcoal plantations.
 efchratio <- 6 # This includes all losses from standing AGB to packed charcoal in the truck.
-rhov=0.52; BEFv=1.30
-max_dist_m <- 12000          # <-- set your threshold in meters
-road_classes_to_use <- c(2)  # <-- choose among 1:5, 2 main highways 
-min_pix <- 1000 # --- 3) Remove patches smaller than N pixels (e.g., 10) ---
-Kv = 2
-KSDv = 2
+rhov=0.52; BEFv=1.30 
+max_dist_m <- 12000          # Threshold distance in meters from selected roads
+road_classes_to_use <- c(2)  # Selected road by type, choose among 1:5, 2 main highways 
+min_pix <- 1000 # Remove patches smaller than N pixels (e.g., 10) 
+Kv = 2 # Amount of wood residues wood available from plantations as fuelwood for the workers and local population in case needed 
+KSDv = 2 # Standard deviation of Kv
 
 ####
 opt_rotation <- 12 # You need to adjust this after  lines 172 - 180, pick the year with highest production potential
