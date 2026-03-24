@@ -98,8 +98,10 @@ st_write(npa_p, paste0("out_pcs/",npa_name), delete_layer=TRUE)
 # terra::crs(npa_p)
 
 # Rasterize
-DTEM_gcs <- rast(paste0(countrydir,"/LULCC/DownloadedDatasets/SourceData",country_name,"/InRaster_GCS/DTEM_gcs.tif"))
-DTEM_pcs <- rast(paste0(countrydir,"/LULCC/DownloadedDatasets/SourceData",country_name,"/InRaster/DTEM_pcs.tif"))
+# DTEM_gcs <- rast(paste0(geedir,"/out_gcs/DTEM_gcs.tif"))
+# DTEM_pcs <- rast(paste0(geedir,"/out_pcs/DTEM_pcs.tif"))
+DTEM_gcs <- terra::rast(paste0(countrydir,"/LULCC/DownloadedDatasets/SourceData",country_name,"/InRaster_GCS/DTEM_gcs.tif"))
+DTEM_pcs <- terra::rast(paste0(countrydir,"/LULCC/DownloadedDatasets/SourceData",country_name,"/InRaster/DTEM_pcs.tif"))
 
 country_parameters %>%
   dplyr::filter(Var == "npa_fieldname") %>%

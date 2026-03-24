@@ -15,6 +15,7 @@
 # Date: Mar 2024
 
 # 2dolist
+# conflicts_prefer(dplyr::filter)
 # Check values less than 1 in K and KSD, or under MoFuSS harvestable threshold
 # References for IPCC values, to be reconsidered eventually
 # https://www.ipcc-nggip.iges.or.jp/public/2019rf/index.html
@@ -23,7 +24,7 @@
 # Internal parameters
 plot_curves = 0
 # Determine the number of chunks (adjust based on available memory)
-n_chunks <- 100
+n_chunks <- 10
 
 # Load packages ----
 library(readr)
@@ -256,31 +257,31 @@ for (lucinputdataset in lucavailablemaps) {
   
   if (lucinputdataset == "modis") {
     
-    lucmodis_2010_merge <- regionsr_p_scale + gezr_p_scale + lucmodis_2010
-    terra::writeRaster(lucmodis_2010_merge, "temp/lucmodis_2010_merge_pcs.tif",
+    lucmodis_2001_merge <- regionsr_p_scale + gezr_p_scale + lucmodis_2001
+    terra::writeRaster(lucmodis_2001_merge, "temp/lucmodis_2001_merge_pcs.tif",
                        filetype = "GTiff", overwrite = TRUE)
-    # lucmodis_2010_merge <- rast("temp/lucmodis_2010_merge_pcs.tif")
-    ncell(lucmodis_2010_merge)
-    lucmodis_2010_poly <- as.polygons(lucmodis_2010_merge)
-    as.data.frame(lucmodis_2010_poly)
-    psample <- lucmodis_2010_poly[1:10,]
+    # lucmodis_2001_merge <- rast("temp/lucmodis_2001_merge_pcs.tif")
+    ncell(lucmodis_2001_merge)
+    lucmodis_2001_poly <- as.polygons(lucmodis_2001_merge)
+    as.data.frame(lucmodis_2001_poly)
+    psample <- lucmodis_2001_poly[1:10,]
     as.data.frame(psample)
     head(psample)
     
     # Build dataset modis
-    luc_2010_dfv0 <- unique(lucmodis_2010_merge)
-    luc_2010_df <- luc_2010_dfv0 %>%
+    luc_2001_dfv0 <- unique(lucmodis_2001_merge)
+    luc_2001_df <- luc_2001_dfv0 %>%
       dplyr::mutate(chr_code = as.character(continent)) %>%
       separate(chr_code, into = c('reg_code', 'temp'), sep = 1) %>%
       separate(temp, into = c('gez_code', 'luc_code'), sep = 2) %>%
       dplyr::mutate_at(c('reg_code','gez_code','luc_code'), as.numeric)
-    head(luc_2010_df)
+    head(luc_2001_df)
     
     region_f <- data.frame(reg_code = sort(unique(regions_adm0_p_df$continent)),
                            reg_chr = c("SSA", "LATAM", "ASIA", "NorAfr", "OCEANIA")) %>%
       dplyr::mutate_at(c('reg_code'), as.numeric)
     
-    growth_para_v1 <- inner_join(luc_2010_df, region_f, by = "reg_code") %>%
+    growth_para_v1 <- inner_join(luc_2001_df, region_f, by = "reg_code") %>%
       dplyr::inner_join(gez_p_df, by = "gez_code") %>%
       dplyr::inner_join(lucmodis_cat, by = "luc_code", multiple = "all") %>%
       tidyr::unite("reg_gez_luc", c(reg_chr, gez_name, luc_cat), sep= "_", remove = FALSE) %>%
@@ -292,7 +293,7 @@ for (lucinputdataset in lucavailablemaps) {
     # Find duplicates
     dup <- growth_para_v1 %>% 
       group_by(IDorig) %>% 
-      filter(n()>1)
+      dplyr::filter(n()>1)
     as.data.frame(unique(growth_para_v1$reg_gez)) %>%
       dplyr::rename(reg_gez = "unique(growth_para_v1$reg_gez)") %>%
       write.csv("temp/gez_gcs.csv") # Warning, these categories are exported to match IPCC values - IS NOT AUTOMATED
@@ -308,7 +309,7 @@ for (lucinputdataset in lucavailablemaps) {
     luccopernicus_2015_merge <- regionsr_p_scale + gezr_p_scale + luccopernicus_2015_rcr
     terra::writeRaster(luccopernicus_2015_merge, "temp/luccop_2015_merge_pcs.tif",
                        filetype = "GTiff", overwrite = TRUE)
-    # lucmodis_2010_merge <- rast("temp/lucmodis_2010_merge_pcs.tif")
+    # lucmodis_2001_merge <- rast("temp/lucmodis_2001_merge_pcs.tif")
     ncell(luccopernicus_2015_merge)
     luccopernicus_2015_poly <- as.polygons(luccopernicus_2015_merge)
     as.data.frame(luccopernicus_2015_poly)
@@ -341,7 +342,7 @@ for (lucinputdataset in lucavailablemaps) {
     # Find duplicates
     dup <- growth_para_v1 %>% 
       group_by(IDorig) %>% 
-      filter(n()>1)
+      dplyr::filter(n()>1)
     as.data.frame(unique(growth_para_v1$reg_gez)) %>%
       dplyr::rename(reg_gez = "unique(growth_para_v1$reg_gez)") %>%
       write.csv("temp/gez_gcs.csv") # Warning, these categories are exported to match IPCC values - IS NOT AUTOMATED
@@ -350,7 +351,7 @@ for (lucinputdataset in lucavailablemaps) {
   
   # AGB stats ----
   if (lucinputdataset == "modis") {
-    luc_poly <- lucmodis_2010_poly
+    luc_poly <- lucmodis_2001_poly
   } else if (lucinputdataset == "copernicus") {
     luc_poly <- luccopernicus_2015_poly
   }
@@ -363,13 +364,13 @@ for (lucinputdataset in lucavailablemaps) {
     app(fun = as.integer)
   names(agb4stats) <- "agb"
   
-  country_parameters %>%
-    dplyr::filter(Var == "AGB1map_uncer_name") %>%
-    pull(ParCHR) -> AGB1map_uncer_name
-  agb4stats_uncernull <- rast(paste0(countrydir,"/LULCC/DownloadedDatasets/SourceData",country_name,"/InRaster/",AGB1map_uncer_name))
-  agb4stats_uncer <- ifel(agb4stats_uncernull < 0, NA, agb4stats_uncernull) %>%
-    app(fun = as.integer)
-  names(agb4stats_uncer) <- "agb_uncertainty" 
+  # country_parameters %>%
+  #   dplyr::filter(Var == "AGB1map_uncer_name") %>%
+  #   pull(ParCHR) -> AGB1map_uncer_name
+  # agb4stats_uncernull <- rast(paste0(countrydir,"/LULCC/DownloadedDatasets/SourceData",country_name,"/InRaster/",AGB1map_uncer_name))
+  # agb4stats_uncer <- ifel(agb4stats_uncernull < 0, NA, agb4stats_uncernull) %>%
+  #   app(fun = as.integer)
+  # names(agb4stats_uncer) <- "agb_uncertainty" 
   
   m <- c(-1, 0, NA)
   rclmat <- matrix(m, ncol=3, byrow=TRUE)
@@ -379,10 +380,10 @@ for (lucinputdataset in lucavailablemaps) {
                      filetype = "GTiff", overwrite = TRUE)
   # agb4stats_rcr <- rast("temp/agb_rc_pcs.tif") # From 1 to max Mg/ha, already reclassified
   
-  agb4stats_rcr_uncer <- classify(agb4stats_uncer, rclmat, include.lowest=TRUE)
-  terra::writeRaster(agb4stats_rcr_uncer, "temp/agb_rc_uncer_pcs.tif",
-                     filetype = "GTiff", overwrite = TRUE)
-  # agb4stats_rcr_uncer <- rast("temp/agb_rc_uncer_pcs.tif") # From 1 to max Mg/ha, already reclassified
+  # agb4stats_rcr_uncer <- classify(agb4stats_uncer, rclmat, include.lowest=TRUE)
+  # terra::writeRaster(agb4stats_rcr_uncer, "temp/agb_rc_uncer_pcs.tif",
+  #                    filetype = "GTiff", overwrite = TRUE)
+  # # agb4stats_rcr_uncer <- rast("temp/agb_rc_uncer_pcs.tif") # From 1 to max Mg/ha, already reclassified
   
   # Function to calculate the mean of a quantile by zone
   pct_mean <- function(x, p=pdecil, na.rm = TRUE) {
@@ -702,9 +703,9 @@ for (lucinputdataset in lucavailablemaps) {
       as.matrix() %>%
       unname()
     
-    lucmodis_2010_merge_rcl <- lucmodis_2010_merge %>%
+    lucmodis_2001_merge_rcl <- lucmodis_2001_merge %>%
       terra::classify(rcl_modis, include.lowest = FALSE, right = NA)
-    terra::writeRaster(lucmodis_2010_merge_rcl, paste0("out_pcs/pre2010_v1_",LULCt1map_name),
+    terra::writeRaster(lucmodis_2001_merge_rcl, paste0("out_pcs/pre2001_v1_",LULCt1map_name),
                        filetype = "GTiff", overwrite = TRUE) #Watch out as the year is still hardwired here
     
     growth_parameters_v3b <- growth_parameters_v2 %>%
@@ -809,9 +810,9 @@ if (plot_curves == 1) {
   
   # Filter out rows
   sampled_data <- growth_parameters_v1 %>%
-    filter(r != -Inf) %>%
-    filter(agb_n_Tdecil >= 30) %>% 
-    filter(TOF == 0) %>% 
+    dplyr::filter(r != -Inf) %>%
+    dplyr::filter(agb_n_Tdecil >= 30) %>% 
+    dplyr::filter(TOF == 0) %>% 
     group_by(reg_gez) %>%
     sample_n(1) %>%
     ungroup()
@@ -839,7 +840,7 @@ if (plot_curves == 1) {
   }
   
   # Time sequence
-  t <- 2010:2050
+  t <- 2001:2050
   
   # Data frame to store results
   results <- data.frame()
@@ -856,7 +857,7 @@ if (plot_curves == 1) {
     geom_line() +
     scale_color_manual(values = final_sample$color) +
     labs(title = paste0("Forest Growth over Time for ",ncurves," randomly selected con+gez+luc categories"), 
-         subtitle = "AGB at year 2010 is represened by the mean value of the category in 2010", 
+         subtitle = "AGB at year 2001 is represened by the mean value of the category in 2001", 
          caption = "con = Continent; gez = Ecological Zone; \ 
        luc = Modis land use/cover type 1 category",
          x = "Time (t)", y = "Aboveground Biomass (AGB)", color = "Scenario") +
@@ -875,7 +876,7 @@ if (plot_curves == 1) {
   }
   
   # Time sequence
-  t <- 2010:2050
+  t <- 2001:2050
   
   # Number of simulations per scenario
   num_simulations <- 10
