@@ -22,7 +22,7 @@
 
 # Internal parameters ----
 temdirdefined = 1
-rmax_over_K_ratio <- 0.04 #This fix automatic LUC with wrong.... REVISAR K!!!
+rmax_over_K_ratio <- 0.04 # This fix automatic LUC with wrong.... REVISAR K!!!
 charcoal_harv_threshold <- 1 # t/ha
 knockout_tofs <- 1
 # # Select MoFuSS platform:

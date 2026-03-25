@@ -15,6 +15,7 @@
 # Date: Mar 2024
 
 # 2dolist
+# REPLACE AGB FOR CTREES - YEAR 2000
 # conflicts_prefer(dplyr::filter)
 # Check values less than 1 in K and KSD, or under MoFuSS harvestable threshold
 # References for IPCC values, to be reconsidered eventually

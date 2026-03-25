@@ -62,12 +62,12 @@ country_parameters %>%
 
 ####
 if (bypasstunning == 1){ #borrar este helper eventualmente
+  demand_tuning = 0
+} else {
   country_parameters %>%
     dplyr::filter(Var == "demand_tuning") %>%
     pull(ParCHR) %>%
     as.integer(.) -> demand_tuning
-} else {
-  demand_tuning = 0
 }
 ####
 
