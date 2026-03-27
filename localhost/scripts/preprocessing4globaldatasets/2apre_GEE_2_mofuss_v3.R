@@ -354,6 +354,34 @@ if (AGB2map == "YES") {
 # }
 
 # GFC ----
+## Helper: keep only source tiles intersecting the ROI ----
+get_intersecting_tiles <- function(tif_files, roi_buf_3395) {
+  if (length(tif_files) == 0) stop("No matching tiles found.")
+  
+  # use first tile to get source CRS
+  r0 <- rast(tif_files[1])
+  roi_buf_ll <- project(roi_buf_3395, crs(r0))
+  roi_ext <- ext(roi_buf_ll)
+  
+  # extents of all candidate tiles
+  tile_exts <- lapply(tif_files, function(f) ext(rast(f)))
+  
+  # keep only intersecting tiles
+  keep <- vapply(tile_exts, function(ex) relate(ex, roi_ext, "intersects"), logical(1))
+  tif_files_roi <- tif_files[keep]
+  
+  if (length(tif_files_roi) == 0) stop("No tiles intersect the ROI.")
+  
+  return(list(
+    tif_files_roi = tif_files_roi,
+    roi_buf_ll = roi_buf_ll
+  ))
+}
+
+## Common 1 km template in World Mercator ----
+e <- ext(roi_buf_3395)
+template_3395 <- rast(ext = e, res = GEE_scale, crs = EPSG_pcs)
+
 ## GFC treecover 2000 ----
 pattern_treecover <- paste0("^", GEE_tyRoi, "_GFC_treecover2000_native-[0-9]+-[0-9]+\\.tif$")
 tif_files_treecover <- list.files(geedir, pattern = pattern_treecover, full.names = TRUE)
@@ -381,10 +409,6 @@ treecover_crop_ll <- crop(treecover_vrt, roi_buf_ll, snap = "out") # still lon/l
 
 # 3) Project to EPSG:3395 at 1000 m
 # Use a template so you control resolution exactly.
-# 3) Project to EPSG:3395 at 1000 m
-# Use a template so you control resolution exactly.
-e <- ext(roi_buf_3395)
-template_3395 <- rast(ext = e, res = GEE_scale, crs = EPSG_pcs)
 
 treecover_3395_1km <- project(
   treecover_crop_ll,
@@ -411,42 +435,132 @@ treecover_3395_1km <- project(
 # )
 
 ## GFC yearloss ----
+## GFC yearloss ----
 pattern_lossyear <- paste0("^", GEE_tyRoi, "_GFC_yearLoss_lossyear_native-[0-9]+-[0-9]+\\.tif$")
 tif_files_lossyear <- list.files(geedir, pattern = pattern_lossyear, full.names = TRUE)
-if (length(tif_files_lossyear) == 0) stop("No matching tiles found.")
 
-# 1) Build VRT
-vrt(tif_files_lossyear, filename = "temp/lossyear_native.vrt", overwrite = TRUE)
+sel_lossyear <- get_intersecting_tiles(tif_files_lossyear, roi_buf_3395)
+tif_files_lossyear_roi <- sel_lossyear$tif_files_roi
+roi_buf_ll <- sel_lossyear$roi_buf_ll
+
+cat("yearloss tiles intersecting ROI:", length(tif_files_lossyear_roi), "\n")
+
+# 1) VRT only for intersecting tiles
+vrt(tif_files_lossyear_roi, filename = "temp/lossyear_native.vrt", overwrite = TRUE)
 lossyear_vrt <- rast("temp/lossyear_native.vrt")
 
 # 2) Crop early in source CRS
-roi_buf_ll <- project(roi_buf_3395, crs(lossyear_vrt))
 lossyear_crop_ll <- crop(lossyear_vrt, roi_buf_ll, snap = "out")
 
-# writeRaster(
-#   lossyear_crop_ll,
-#   filename = "out_gcs/lossyear_gcs.tif",
-#   overwrite = TRUE,
-#   wopt = list(
-#     gdal = c("COMPRESS=LZW", "TILED=YES", "BIGTIFF=YES"),
-#     datatype = "INT2S",
-#     NAflag = -32768
-#   )
-# )
-
-# 3) 1 km template in World Mercator
-e <- ext(roi_buf_3395)
-template_3395 <- rast(ext = e, res = GEE_scale, crs = EPSG_pcs)
-
-# ---
-# STEP A: majority of pixels >= 1
-# ---
-# binary mask: 1 if loss year exists, 0 otherwise
+### STEP A: majority of 30m pixels with value >= 1 ----
+# binary mask: 1 if yearloss exists, 0 otherwise
 lossyear_any_ll <- ifel(!is.na(lossyear_crop_ll) & lossyear_crop_ll >= 1, 1, 0)
 
-# project using average proportion of contributing fine pixels
+writeRaster(
+  lossyear_any_ll,
+  filename = "temp/lossyear_any_ll.tif",
+  overwrite = TRUE,
+  wopt = list(
+    gdal = c("COMPRESS=LZW", "TILED=YES", "BIGTIFF=YES"),
+    datatype = "INT1U",
+    NAflag = 255
+  )
+)
+
+lossyear_any_ll <- rast("temp/lossyear_any_ll.tif")
+
+# proportion of positive 30m cells inside each 1 km cell
 lossyear_frac_1km <- project(
   lossyear_any_ll,
+  template_3395,
+  method = "mean",
+  filename = "temp/lossyear_frac_1km.tif",
+  overwrite = TRUE,
+  wopt = list(
+    gdal = c("COMPRESS=LZW", "TILED=YES", "BIGTIFF=YES"),
+    datatype = "FLT4S",
+    NAflag = -9999
+  )
+)
+
+# majority rule: positive only if > 50% of 30m cells have value >= 1
+lossyear_majority_1km <- ifel(lossyear_frac_1km > 0.5, 1, 0)
+
+### STEP B: mode of positive years (1:24) only ----
+lossyear_pos_ll <- ifel(lossyear_crop_ll >= 1, lossyear_crop_ll, NA)
+
+writeRaster(
+  lossyear_pos_ll,
+  filename = "temp/lossyear_pos_ll.tif",
+  overwrite = TRUE,
+  wopt = list(
+    gdal = c("COMPRESS=LZW", "TILED=YES", "BIGTIFF=YES"),
+    datatype = "INT1U",
+    NAflag = 255
+  )
+)
+
+lossyear_pos_ll <- rast("temp/lossyear_pos_ll.tif")
+
+lossyear_mode_1km <- project(
+  lossyear_pos_ll,
+  template_3395,
+  method = "mode",
+  filename = "temp/lossyear_mode_1km.tif",
+  overwrite = TRUE,
+  wopt = list(
+    gdal = c("COMPRESS=LZW", "TILED=YES", "BIGTIFF=YES"),
+    datatype = "INT1U",
+    NAflag = 255
+  )
+)
+
+### STEP C: final 1 km yearloss ----
+lossyear_3395_1km <- ifel(lossyear_majority_1km == 1, lossyear_mode_1km, 0)
+
+writeRaster(
+  lossyear_3395_1km,
+  filename = "out_pcs/lossyear_pcs.tif",
+  overwrite = TRUE,
+  wopt = list(
+    gdal = c("COMPRESS=LZW", "TILED=YES", "BIGTIFF=YES"),
+    datatype = "INT1U",
+    NAflag = 255
+  )
+)
+
+writeRaster(
+  mask(lossyear_3395_1km, roi_buf_3395),
+  filename = "out_pcs/lossyear_pcs_masked.tif",
+  overwrite = TRUE,
+  wopt = list(
+    gdal = c("COMPRESS=LZW", "TILED=YES", "BIGTIFF=YES"),
+    datatype = "INT1U",
+    NAflag = 255
+  )
+)
+
+## GFC loss ----
+## GFC loss ----
+pattern_loss <- paste0("^", GEE_tyRoi, "_GFC_loss_native-[0-9]+-[0-9]+\\.tif$")
+tif_files_loss <- list.files(geedir, pattern = pattern_loss, full.names = TRUE)
+
+sel_loss <- get_intersecting_tiles(tif_files_loss, roi_buf_3395)
+tif_files_loss_roi <- sel_loss$tif_files_roi
+roi_buf_ll <- sel_loss$roi_buf_ll
+
+cat("loss tiles intersecting ROI:", length(tif_files_loss_roi), "\n")
+
+# 1) VRT only for intersecting tiles
+vrt(tif_files_loss_roi, filename = "temp/loss_native.vrt", overwrite = TRUE)
+loss_vrt <- rast("temp/loss_native.vrt")
+
+# 2) Crop early in source CRS
+loss_crop_ll <- crop(loss_vrt, roi_buf_ll, snap = "out")
+
+# 3) If source is already 0/1, no pre-processing needed
+loss_frac_1km <- project(
+  loss_crop_ll,
   template_3395,
   method = "mean",
   filename = "temp/loss_frac_1km.tif",
@@ -458,90 +572,52 @@ lossyear_frac_1km <- project(
   )
 )
 
-# majority rule: more than 50% of contributing 30m pixels have loss
-lossyear_majority_1km <- ifel(lossyear_frac_1km > 0.5, 1, 0)
+# 4) Majority rule
+loss_3395_1km <- ifel(loss_frac_1km > 0.5, 1, 0)
 
-# ---
-# STEP B: modal year among positive pixels only
-# ---
-# turn zeros/non-loss into NA so they do not compete in the modal year
-lossyear_pos_ll <- ifel(lossyear_crop_ll >= 1, lossyear_crop_ll, NA)
-
-lossyear_mode_1km <- project(
-  lossyear_pos_ll,
-  template_3395,
-  method = "mode",
-  filename = "temp/lossyear_mode_1km.tif",
+writeRaster(
+  loss_3395_1km,
+  filename = "out_pcs/loss_pcs.tif",
   overwrite = TRUE,
   wopt = list(
     gdal = c("COMPRESS=LZW", "TILED=YES", "BIGTIFF=YES"),
-    datatype = "INT2S",
-    NAflag = -32768
+    datatype = "INT1U",
+    NAflag = 255
   )
-)
-
-# ---
-# STEP C: final raster
-# ---
-# if majority says no loss -> 0
-# if majority says loss -> modal year (1:24)
-lossyear_3395_1km <- ifel(
-  lossyear_majority_1km == 1,
-  lossyear_mode_1km,
-  0
 )
 
 writeRaster(
-  lossyear_3395_1km,
-  "out_pcs/lossyear_pcs.tif",
+  mask(loss_3395_1km, roi_buf_3395),
+  filename = "out_pcs/loss_pcs_masked.tif",
   overwrite = TRUE,
   wopt = list(
     gdal = c("COMPRESS=LZW", "TILED=YES", "BIGTIFF=YES"),
-    datatype = "INT2S",
-    NAflag = -32768
+    datatype = "INT1U",
+    NAflag = 255
   )
 )
-
 
 ## GFC gain ----
 pattern_gain <- paste0("^", GEE_tyRoi, "_GFC_gain_native-[0-9]+-[0-9]+\\.tif$")
 tif_files_gain <- list.files(geedir, pattern = pattern_gain, full.names = TRUE)
-if (length(tif_files_gain) == 0) stop("No matching tiles found.")
 
-# 1) Virtual mosaic (fast, low RAM): build a VRT and open it
-vrt(tif_files_gain, filename = "temp/gain_native.vrt", overwrite = TRUE)
+sel_gain <- get_intersecting_tiles(tif_files_gain, roi_buf_3395)
+tif_files_gain_roi <- sel_gain$tif_files_roi
+roi_buf_ll <- sel_gain$roi_buf_ll
+
+cat("gain tiles intersecting ROI:", length(tif_files_gain_roi), "\n")
+
+# 1) VRT only for intersecting tiles
+vrt(tif_files_gain_roi, filename = "temp/gain_native.vrt", overwrite = TRUE)
 gain_vrt <- rast("temp/gain_native.vrt")
 
-# 2) Crop early in source CRS (saves a LOT of time before projection)
-# We crop by the buffered ROI reprojected back to raster CRS (lon/lat)
-roi_buf_ll <- project(roi_buf_3395, crs(gain_vrt))
-gain_crop_ll <- crop(gain_vrt, roi_buf_ll, snap = "out") # still lon/lat, and see notes above
+# 2) Crop early in source CRS
+gain_crop_ll <- crop(gain_vrt, roi_buf_ll, snap = "out")
 
-# writeRaster(
-#   gain_crop_ll,
-#   filename = "out_gcs/gain_gcs.tif",
-#   overwrite = TRUE,
-#   wopt = list(
-#     gdal = c("COMPRESS=LZW", "TILED=YES", "BIGTIFF=YES"),
-#     datatype = "INT2S",
-#     NAflag = -32768
-#   )
-# )
-
-# 3) Project to EPSG:3395 at 1000 m
-# Use a template so you control resolution exactly.
-e <- ext(roi_buf_3395)
-template_3395 <- rast(ext = e, res = GEE_scale, crs = EPSG_pcs)
-
-# ---
-# STEP A: majority of pixels >= 1
-# ---
-# binary mask: 1 if loss year exists, 0 otherwise
-gain_bin_ll <- ifel(!is.na(gain_crop_ll) & gain_crop_ll >= 1, 1, 0)
-
-# reproject as fraction of contributing fine pixels with gain
+# 3) If source is already 0/1, no pre-processing needed
+# project as fraction of positive 30m pixels inside each 1 km pixel
 gain_frac_1km <- project(
-  gain_bin_ll,
+  gain_crop_ll,
   template_3395,
   method = "mean",
   filename = "temp/gain_frac_1km.tif",
@@ -553,7 +629,7 @@ gain_frac_1km <- project(
   )
 )
 
-# majority rule: more than 50% of contributing 30m pixels have loss
+# 4) Majority rule
 gain_3395_1km <- ifel(gain_frac_1km > 0.5, 1, 0)
 
 writeRaster(
@@ -562,98 +638,21 @@ writeRaster(
   overwrite = TRUE,
   wopt = list(
     gdal = c("COMPRESS=LZW", "TILED=YES", "BIGTIFF=YES"),
-    datatype = "INT2S",
-    NAflag = -32768
+    datatype = "INT1U",
+    NAflag = 255
   )
 )
-
-# # optional masked version
-# writeRaster(
-#   mask(gain_3395_1km, roi_buf_3395),
-#   filename = "out_pcs/gain_pcs_masked.tif",
-#   overwrite = TRUE,
-#   wopt = list(
-#     gdal = c("COMPRESS=LZW", "TILED=YES", "BIGTIFF=YES"),
-#     datatype = "INT2S",
-#     NAflag = -32768
-#   )
-# )
-
-## GFC loss ----
-pattern_loss <- paste0("^", GEE_tyRoi, "_GFC_loss_native-[0-9]+-[0-9]+\\.tif$")
-tif_files_loss <- list.files(geedir, pattern = pattern_loss, full.names = TRUE)
-if (length(tif_files_loss) == 0) stop("No matching tiles found.")
-
-# 1) Virtual mosaic (fast, low RAM): build a VRT and open it
-vrt(tif_files_loss, filename = "temp/loss_native.vrt", overwrite = TRUE)
-loss_vrt <- rast("temp/loss_native.vrt")
-
-# 2) Crop early in source CRS (saves a LOT of time before projection)
-# We crop by the buffered ROI reprojected back to raster CRS (lon/lat)
-roi_buf_ll <- project(roi_buf_3395, crs(loss_vrt))
-loss_crop_ll <- crop(loss_vrt, roi_buf_ll, snap = "out") # still lon/lat, and see notes above
-
-# writeRaster(
-#   loss_crop_ll,
-#   filename = "out_gcs/loss_gcs.tif",
-#   overwrite = TRUE,
-#   wopt = list(
-#     gdal = c("COMPRESS=LZW", "TILED=YES", "BIGTIFF=YES"),
-#     datatype = "INT2S",
-#     NAflag = -32768
-#   )
-# )
-
-# 3) Project to EPSG:3395 at 1000 m
-# Use a template so you control resolution exactly.
-e <- ext(roi_buf_3395)
-template_3395 <- rast(ext = e, res = GEE_scale, crs = EPSG_pcs)
-
-# ---
-# STEP A: majority of pixels >= 1
-# ---
-# binary mask: 1 if loss year exists, 0 otherwise
-loss_bin_ll <- ifel(!is.na(loss_crop_ll) & loss_crop_ll >= 1, 1, 0)
-
-# reproject as fraction of contributing fine pixels with gain
-loss_frac_1km <- project(
-  loss_bin_ll,
-  template_3395,
-  method = "mean",
-  filename = "temp/loss_frac_1km.tif",
-  overwrite = TRUE,
-  wopt = list(
-    gdal = c("COMPRESS=LZW", "TILED=YES", "BIGTIFF=YES"),
-    datatype = "FLT4S",
-    NAflag = -9999
-  )
-)
-
-# majority rule: more than 50% of contributing 30m pixels have loss
-loss_3395_1km <- ifel(loss_frac_1km > 0.5, 1, 0)
 
 writeRaster(
-  loss_3395_1km,
-  filename = "out_pcs/loss_pcs.tif",
+  mask(gain_3395_1km, roi_buf_3395),
+  filename = "out_pcs/gain_pcs_masked.tif",
   overwrite = TRUE,
   wopt = list(
     gdal = c("COMPRESS=LZW", "TILED=YES", "BIGTIFF=YES"),
-    datatype = "INT2S",
-    NAflag = -32768
+    datatype = "INT1U",
+    NAflag = 255
   )
 )
-
-# # optional masked version
-# writeRaster(
-#   mask(loss_3395_1km, roi_buf_3395),
-#   filename = "out_pcs/loss_pcs_masked.tif",
-#   overwrite = TRUE,
-#   wopt = list(
-#     gdal = c("COMPRESS=LZW", "TILED=YES", "BIGTIFF=YES"),
-#     datatype = "INT2S",
-#     NAflag = -32768
-#   )
-# )
 
 ## GFC datamask ----
 pattern_datamask <- paste0("^", GEE_tyRoi, "_GFC_datamask_native-[0-9]+-[0-9]+\\.tif$")
