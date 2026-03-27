@@ -15,6 +15,7 @@
 # Date: Mar 2024
 
 # 2dolist ----
+# FIX GFC new layers when reproyecting loss and gain. Keepp or move out 
 # Fix for linux cluster
 # Land Use Land Cover Module
 # Improve add_subadmin YES/NO, check it works as mask == analysis for any of the four scales: Global, Continental, Regional, Country.
@@ -1129,7 +1130,7 @@ for (k in 1:3) {
   }
   
   in_file  <- file.path("LULCC/SourceData/InRaster", map_name)
-  out_file <- sprintf("LULCC/TempRaster/agb_c%d.tif", k)
+  out_file <- sprintf("LULCC/TempRaster/agb%d_c.tif", k)
   
   if (resolution == 1000) {
     
