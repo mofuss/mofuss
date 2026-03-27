@@ -435,7 +435,6 @@ treecover_3395_1km <- project(
 # )
 
 ## GFC yearloss ----
-## GFC yearloss ----
 pattern_lossyear <- paste0("^", GEE_tyRoi, "_GFC_yearLoss_lossyear_native-[0-9]+-[0-9]+\\.tif$")
 tif_files_lossyear <- list.files(geedir, pattern = pattern_lossyear, full.names = TRUE)
 
@@ -540,7 +539,6 @@ writeRaster(
   )
 )
 
-## GFC loss ----
 ## GFC loss ----
 pattern_loss <- paste0("^", GEE_tyRoi, "_GFC_loss_native-[0-9]+-[0-9]+\\.tif$")
 tif_files_loss <- list.files(geedir, pattern = pattern_loss, full.names = TRUE)
@@ -667,23 +665,19 @@ datamask_vrt <- rast("temp/datamask_native.vrt")
 # We crop by the buffered ROI reprojected back to raster CRS (lon/lat)
 roi_buf_ll <- project(roi_buf_3395, crs(datamask_vrt))
 datamask_crop_ll <- crop(datamask_vrt, roi_buf_ll, snap = "out") # still lon/lat, and see notes above
-
+# 
 # writeRaster(
 #   datamask_crop_ll,
 #   filename = "out_gcs/datamask_gcs.tif",
 #   overwrite = TRUE,
 #   wopt = list(
 #     gdal = c("COMPRESS=LZW", "TILED=YES", "BIGTIFF=YES"),
-#     datatype = "INT2S",
-#     NAflag = -32768
+#     datatype = "INT1U",
+#     NAflag = 255
 #   )
 # )
 
 # 3) Project to EPSG:3395 at 1000 m
-# Use a template so you control resolution exactly.
-e <- ext(roi_buf_3395)
-template_3395 <- rast(ext = e, res = GEE_scale, crs = EPSG_pcs)
-
 datamask_3395_1km <- project(
   datamask_crop_ll,
   template_3395,
@@ -692,21 +686,21 @@ datamask_3395_1km <- project(
   overwrite = TRUE,
   wopt = list(
     gdal = c("COMPRESS=LZW", "TILED=YES", "BIGTIFF=YES"),
-    datatype = "INT2S",
-    NAflag = -32768
+    datatype = "INT1U",
+    NAflag = 255
   )
 )
 
-# writeRaster(
-#   mask(datamask_3395_1km, roi_buf_3395),
-#   filename = "out_pcs/datamask_pcs_masked.tif",
-#   overwrite = TRUE,
-#   wopt = list(
-#     gdal = c("COMPRESS=LZW", "TILED=YES", "BIGTIFF=YES"),
-#     datatype = "INT2S",
-#     NAflag = -32768
-#   )
-# )
+writeRaster(
+  mask(datamask_3395_1km, roi_buf_3395),
+  filename = "out_pcs/datamask_pcs_masked.tif",
+  overwrite = TRUE,
+  wopt = list(
+    gdal = c("COMPRESS=LZW", "TILED=YES", "BIGTIFF=YES"),
+    datatype = "INT1U",
+    NAflag = 255
+  )
+)
 
 # Land Use / Cover  ----
 ## MODIS LC Type 1 ----
