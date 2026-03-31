@@ -290,16 +290,6 @@ terra::writeRaster(GlobalWorldPop,
                    filetype = "GTiff", overwrite = TRUE)
 toc()
 popvrt_global_wp <- rast("population_in/WORLDPOP/outputmaps/wp_global1000m_gcs.tif")
-
-# 1) source cell area in m2
-a_src <- cellSize(popvrt_global_wp, unit = "m")
-
-# 2) convert counts -> density (people per m2)
-dens_src <- popvrt_global_wp / a_src
-
-
-
-
 popvrt_global__wp_p <- popvrt_global_wp %>% terra::project(paste0(proj_authority,":",epsg_pcs),
                                                     method = "bilinear", 
                                                     gdal = FALSE,

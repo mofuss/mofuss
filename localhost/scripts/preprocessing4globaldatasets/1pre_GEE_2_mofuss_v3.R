@@ -141,6 +141,17 @@ roi <- aggregate(mofuss_regions0_simp)     # dissolve ALL features into one
 roi_3395 <- project(roi, EPSG_pcs)
 roi_buf_3395 <- buffer(roi_3395, width = buf_m)
 
+## Common 1 km template in World Mercator ----
+e <- ext(roi_buf_3395)
+template_3395 <- rast(ext = e, res = GEE_scale, crs = EPSG_pcs)
+# give it dummy values so terra can write it
+template_3395 <- init(template_3395, NA)
+writeRaster(
+  template_3395,
+  "temp/template_3395_1km.tif",
+  overwrite = TRUE
+)
+
 # DTEM ----
 pattern_dtem <- paste0("^", GEE_tyRoi, "_SRTM_elevation_", "native-[0-9]+-[0-9]+\\.tif$")
 tif_files_dtem <- list.files(geedir, pattern = pattern_dtem, full.names = TRUE)
@@ -166,9 +177,6 @@ writeRaster(
 )
 
 # 3) Project to EPSG:3395 at 1000 m
-# Use a template so you control resolution exactly.
-e <- ext(roi_buf_3395)
-template_3395 <- rast(ext = e, res = GEE_scale, crs = EPSG_pcs)
 template_ll <- project(template_3395, EPSG_gcs) # ~1 km lon/lat grid
 area_ll_m2  <- cellSize(template_ll, unit="m")  # m² per cell (true-ish)
 area_3395_m2 <- project(area_ll_m2, template_3395, method="bilinear")
@@ -235,11 +243,6 @@ if (AGB1map == "YES") {
   # )
   
   # 3) Project to EPSG:3395 at 1000 m
-  # Use a template so you control resolution exactly.
-  # Use a template so you control resolution exactly.
-  e <- ext(roi_buf_3395)
-  template_3395 <- rast(ext = e, res = GEE_scale, crs = EPSG_pcs)
-  
   DAAC_3395_1km <- project(
     DAAC_crop_ll,
     template_3395,
@@ -307,10 +310,6 @@ if (AGB2map == "YES") {
   # )
   
   # 3) Project to EPSG:3395 at 1000 m
-  # Use a template so you control resolution exactly.
-  e <- ext(roi_buf_3395)
-  template_3395 <- rast(ext = e, res = GEE_scale, crs = EPSG_pcs)
-  
   ESA_AGB_3395_1km <- project(
     ESA_AGB_crop_ll,
     template_3395,
@@ -378,10 +377,6 @@ get_intersecting_tiles <- function(tif_files, roi_buf_3395) {
   ))
 }
 
-## Common 1 km template in World Mercator ----
-e <- ext(roi_buf_3395)
-template_3395 <- rast(ext = e, res = GEE_scale, crs = EPSG_pcs)
-
 ## GFC treecover 2000 ----
 pattern_treecover <- paste0("^", GEE_tyRoi, "_GFC_treecover2000_native-[0-9]+-[0-9]+\\.tif$")
 tif_files_treecover <- list.files(geedir, pattern = pattern_treecover, full.names = TRUE)
@@ -409,7 +404,6 @@ treecover_crop_ll <- crop(treecover_vrt, roi_buf_ll, snap = "out") # still lon/l
 
 # 3) Project to EPSG:3395 at 1000 m
 # Use a template so you control resolution exactly.
-
 treecover_3395_1km <- project(
   treecover_crop_ll,
   template_3395,
@@ -739,10 +733,6 @@ if (LULCt1map == "YES") {
   # )
   
   # 3) Project to EPSG:3395 at 1000 m
-  # Use a template so you control resolution exactly.
-  e <- ext(roi_buf_3395)
-  template_3395 <- rast(ext = e, res = GEE_scale, crs = EPSG_pcs)
-  
   modis_3395_1km <- project(
     modis_crop_native,
     template_3395,
@@ -805,10 +795,6 @@ if (LULCt2map == "YES") {
   # )
   
   # 3) Project to EPSG:3395 at 1000 m
-  # Use a template so you control resolution exactly.
-  e <- ext(roi_buf_3395)
-  template_3395 <- rast(ext = e, res = GEE_scale, crs = EPSG_pcs)
-  
   copernicus_3395_1km <- project(
     copernicus_crop_native,
     template_3395,
