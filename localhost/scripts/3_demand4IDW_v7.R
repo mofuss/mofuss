@@ -758,7 +758,7 @@ unique(adm0_reg$GID_0)
 
 for (i in adm0_reg$GID_0) { # Start of outer region (i) loop ----
   # i = "ZMB_1"
-  # i = "KEN"
+  # i = "ZMB"
   print(i)
   if (subcountry != 1) {
     ctry_furb <- furb_who %>%
@@ -818,7 +818,7 @@ for (i in adm0_reg$GID_0) { # Start of outer region (i) loop ----
   
   for (j in annos) { ## Start of inner years (j) loop ----
     # i="PNG"
-    # j=1990
+    # j=2000
     
     gc()
     terraOptions(memfrac=0.9)
@@ -908,7 +908,7 @@ for (i in adm0_reg$GID_0) { # Start of outer region (i) loop ----
     } else if (pop_ver == "WorldPop") {
       vec.anno <- as_tibble(pop0_ctry_rasadj.anno, na.rm = TRUE) %>% 
         arrange(desc(.)) %>%
-        dplyr::select(matches("WorldPop$")) %>%  # Select columns ending with "WorldPop"
+        dplyr::select(matches("pop_2020$")) %>%  # Select columns ending with "WorldPop"
         pull(1)
     }
     
@@ -933,7 +933,7 @@ for (i in adm0_reg$GID_0) { # Start of outer region (i) loop ----
         dplyr::filter(!!column_symbol > vec.anno[ix.anno])
     } else if (pop_ver == "WorldPop") {
       # First, find the column name that ends with "WorldPop"
-      column_name <- names(pop0_ctry_rasadj.anno)[grepl("WorldPop$", names(pop0_ctry_rasadj.anno))]
+      column_name <- names(pop0_ctry_rasadj.anno)[grepl("pop_2020$", names(pop0_ctry_rasadj.anno))]
       column_name <- column_name[1]
       # Convert the column name to a symbol
       column_symbol <- sym(column_name)
@@ -961,7 +961,7 @@ for (i in adm0_reg$GID_0) { # Start of outer region (i) loop ----
         dplyr::filter(!!column_symbol <= vec.anno[ix.anno])
     } else if (pop_ver == "WorldPop") {
       # First, find the column name that ends with "WorldPop"
-      column_name <- names(pop0_ctry_rasadj.anno)[grepl("WorldPop$", names(pop0_ctry_rasadj.anno))]
+      column_name <- names(pop0_ctry_rasadj.anno)[grepl("pop_2020$", names(pop0_ctry_rasadj.anno))]
       column_name <- column_name[1]
       # Convert the column name to a symbol
       column_symbol <- sym(column_name)

@@ -149,7 +149,14 @@ wp_100m <- merge(
 # Re-read WorldPop 100m and templates
 wp_100m2 <- rast("out_gcs/wp_global100m_gcs.tif")
 template_3395_1km <- rast(paste0(geedir,"/temp/template_3395_1km.tif"))
-template_4326_1km <- rast(paste0(geedir,"/out_gcs/DTEM_gcs.tif"))
+# ext_4326_1km <- rast(paste0(geedir,"/temp/template_3395_1km.tif")) load DTEM_gcs for GCS extent!!!
+
+# make a real 1 km-ish GCS template (30 arc-seconds)
+template_4326_1km <- rast(
+  ext = ext(wp_100m2),
+  resolution = 0.008333333,
+  crs = "EPSG:4326"
+)
 
 # a) source cell area in m2
 a_src <- cellSize(
@@ -225,14 +232,6 @@ writeRaster(
   wopt = list(gdal = c("COMPRESS=LZW", "TILED=YES", "BIGTIFF=YES"))
 )
 
-## Copy 2 MoFuSS ----
-copy2mofussfiles_wp <- c("out_gcs/wp_global1000m_gcs.tif",
-                         "out_pcs/wp_global1000m_pcs.tif")
-for (f in copy2mofussfiles_wp) {
-  file.copy(from=f, 
-            to=paste0(demanddir,"/demand_in/"),  
-            overwrite = TRUE, recursive = TRUE, copy.mode = TRUE)
-}
 
 # Comparison of methods: new 1km and old1km to 100m lat/long ----
 ## Automatic ----
@@ -316,3 +315,13 @@ cat("\nSummary pct_old:\n")
 print(summary(results$pct_old))
 
 sink()
+
+# Copy 2 MoFuSS ----
+copy2mofussfiles_wp <- c("out_gcs/wp_global1000m_gcs.tif",
+                         "out_pcs/wp_global1000m_pcs.tif")
+for (f in copy2mofussfiles_wp) {
+  file.copy(from=f, 
+            to=paste0(demanddir,"/demand_in/"),  
+            overwrite = TRUE, recursive = TRUE, copy.mode = TRUE)
+}
+
