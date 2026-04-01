@@ -551,7 +551,6 @@ if (subcountry != 1) {
     dplyr::select(GID_0 = iso3, NAME_0 = country, furb)
   
   furb_rob
-  
 
 }
 

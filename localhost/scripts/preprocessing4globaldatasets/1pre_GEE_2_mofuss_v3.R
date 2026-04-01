@@ -151,6 +151,11 @@ writeRaster(
   "temp/template_3395_1km.tif",
   overwrite = TRUE
 )
+template_ll <- project(template_3395, EPSG_gcs) # ~1 km lon/lat grid
+area_ll_m2  <- cellSize(template_ll, unit="m")  # m² per cell (true-ish)
+area_3395_m2 <- project(area_ll_m2, template_3395, method="bilinear")
+writeRaster(area_3395_m2, "temp/pixel_area_trueEarth_3395_1km_m2.tif",
+            overwrite=TRUE, wopt=list(gdal=c("COMPRESS=LZW","TILED=YES","BIGTIFF=YES")))
 
 # DTEM ----
 pattern_dtem <- paste0("^", GEE_tyRoi, "_SRTM_elevation_", "native-[0-9]+-[0-9]+\\.tif$")
@@ -177,12 +182,6 @@ writeRaster(
 )
 
 # 3) Project to EPSG:3395 at 1000 m
-template_ll <- project(template_3395, EPSG_gcs) # ~1 km lon/lat grid
-area_ll_m2  <- cellSize(template_ll, unit="m")  # m² per cell (true-ish)
-area_3395_m2 <- project(area_ll_m2, template_3395, method="bilinear")
-writeRaster(area_3395_m2, "temp/pixel_area_trueEarth_3395_1km_m2.tif",
-            overwrite=TRUE, wopt=list(gdal=c("COMPRESS=LZW","TILED=YES","BIGTIFF=YES")))
-
 DTEM_3395_1km <- project(
   DTEM_crop_ll,
   template_3395,

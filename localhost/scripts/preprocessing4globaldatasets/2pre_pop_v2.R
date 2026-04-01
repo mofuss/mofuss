@@ -146,11 +146,12 @@ wp_100m <- merge(
   wopt = list(gdal = c("COMPRESS=LZW", "TILED=YES", "BIGTIFF=YES"))
 )
 
-# Re-read WorlPop 100m and World Mercator template 
+# Re-read WorldPop 100m and templates
 wp_100m2 <- rast("out_gcs/wp_global100m_gcs.tif")
-template_3395   <- rast(paste0(geedir,"/temp/template_3395_1km.tif"))
+template_3395_1km <- rast(paste0(geedir,"/temp/template_3395_1km.tif"))
+template_4326_1km <- rast(paste0(geedir,"/out_gcs/DTEM_gcs.tif"))
 
-# 1) source cell area in m2
+# a) source cell area in m2
 a_src <- cellSize(
   wp_100m2,
   unit = "m",
@@ -158,26 +159,65 @@ a_src <- cellSize(
   overwrite = TRUE
 )
 
-# 2) counts -> density
+# b) counts -> density
 dens_src <- wp_100m2 / a_src
 
-# 3) project density to aligned 3395 template
+# 2) project density to GCS 1 km grid
+dens_gcs_1km <- project(
+  dens_src,
+  template_4326_1km,
+  method = "bilinear",
+  filename = "temp/dens_gcs_1km.tif",
+  overwrite = TRUE
+)
+
+# 3) target cell area in m2 (GCS)
+a_tgt_gcs <- cellSize(
+  template_4326_1km,
+  unit = "m",
+  mask = FALSE,
+  filename = "temp/a_tgt_gcs_1km.tif",
+  overwrite = TRUE
+)
+
+# 4) density -> counts
+pop_gcs_1km <- dens_gcs_1km * a_tgt_gcs
+names(pop_gcs_1km) <- "pop_2020"
+
+# optional cleanup
+# pop_gcs_1km <- clamp(pop_gcs_1km, lower = 0)
+pop_gcs_1km <- round(pop_gcs_1km)
+
+# 5) save
+writeRaster(
+  pop_gcs_1km,
+  "out_gcs/wp_global1000m_gcs.tif",
+  overwrite = TRUE,
+  datatype = "INT4U",
+  wopt = list(gdal = c("COMPRESS=LZW", "TILED=YES", "BIGTIFF=YES"))
+)
+
+# 6) project density to aligned 3395 template
 dens_3395 <- project(
   dens_src,
-  template_3395,
+  template_3395_1km,
   method = "bilinear",
   filename = "temp/dens_3395.tif",
   overwrite = TRUE
 )
 
-# 4) target cell area in m2
-a_tgt   <- rast(paste0(geedir,"/temp/pixel_area_trueEarth_3395_1km_m2.tif"))
+# 7) target cell area in m2
+a_tgt <- rast(paste0(geedir,"/temp/pixel_area_trueEarth_3395_1km_m2.tif"))
 
-# 5) density -> counts per target cell
+# 8) density -> counts per target cell
 pop_3395 <- dens_3395 * a_tgt
 names(pop_3395) <- "pop_2020"
 
-# 6) save
+# optional cleanup
+# pop_3395 <- clamp(pop_3395, lower = 0)
+pop_3395 <- round(pop_3395)
+
+# 9) save
 writeRaster(
   pop_3395,
   "out_pcs/wp_global1000m_pcs.tif",
@@ -186,96 +226,63 @@ writeRaster(
 )
 
 ## Copy 2 MoFuSS ----
-copy2mofussfiles_wp <- c("out_pcs/wp_global1000m_pcs.tif")
+copy2mofussfiles_wp <- c("out_gcs/wp_global1000m_gcs.tif",
+                         "out_pcs/wp_global1000m_pcs.tif")
 for (f in copy2mofussfiles_wp) {
   file.copy(from=f, 
             to=paste0(demanddir,"/demand_in/"),  
             overwrite = TRUE, recursive = TRUE, copy.mode = TRUE)
 }
 
-
 # Comparison of methods: new 1km and old1km to 100m lat/long ----
-## Manual ----
-# Helper to check that the 1km projected raster has good population estimates for 2020
-wp_1km2 <- rast("out_pcs/wp_global1000m_pcs.tif")
-mofuss_regions_p <- vect(paste0(admindir,"/regions_adm0_p/mofuss_regions0_p.gpkg"))
-pol1km <- mofuss_regions_p[mofuss_regions_p$GID_0 == "ZMB", ]
-pol1km <- mofuss_regions_p[mofuss_regions_p$NAME_0 == "Bangladesh", ]
-plot(pol1km)
-# crop + mask merged global raster
-r_crop1km <- crop(wp_1km2, pol1km)
-r_mask1km <- mask(r_crop1km, pol1km)
-# sum from merged raster
-sum_global1km <- global(r_mask1km, "sum", na.rm = TRUE)[1,1]
-
-# # Helper to check that the 100m raster has good population estimates for 2020
-wp_100m2 <- rast("out_gcs/wp_global100m_gcs.tif")
-mofuss_regions <- vect(paste0(admindir,"/regions_adm0/mofuss_regions0.gpkg"))
-unique(mofuss_regions$GID_0)
-pol100m <- mofuss_regions[mofuss_regions$GID_0 == "ZMB", ]
-pol100m <- mofuss_regions[mofuss_regions$NAME_0 == "Bangladesh", ]
-plot(pol100m)
-# crop + mask merged global raster
-r_crop100m <- crop(wp_100m2, pol100m)
-r_mask100m <- mask(r_crop100m, pol100m)
-# sum from merged raster
-sum_global100m <- global(r_mask100m, "sum", na.rm = TRUE)[1,1]
-sum_global100m
-sum_global1km
-
-# Helper to check that the OLD 1km projected raster has good population estimates for 2020
-wp1kmold <- rast("G:/Mi unidad/webpages/2026_MoFuSSGlobal_Datasets/1km_datasets/LULCC/DownloadedDatasets/SourceDataGlobal/demand/demand_in/wp_global1000m_pcs.tif")
-mofuss_regions1kmold <- vect("G:/Mi unidad/webpages/2026_MoFuSSGlobal_Datasets/1km_datasets/LULCC/DownloadedDatasets/SourceDataGlobal/demand/demand_in/mofuss_regions0_p.gpkg")
-pol1kmold <- mofuss_regions1kmold[mofuss_regions1kmold$GID_0 == "ZMB", ]
-pol1kmold <- mofuss_regions1kmold[mofuss_regions1kmold$NAME_0 == "Bangladesh", ]
-# crop + mask merged global raster
-r_crop1kmold <- crop(wp1kmold, pol1kmold)
-r_mask1kmold <- mask(r_crop1kmold, pol1kmold)
-# sum from merged raster
-sum_global_old <- global(r_mask1kmold, "sum", na.rm = TRUE)[1,1]
-sum_global_old
-
 ## Automatic ----
 # --- load rasters ---
-wp_100m2  <- rast("out_gcs/wp_global100m_gcs.tif")
-wp_1km2   <- rast("out_pcs/wp_global1000m_pcs.tif")
-wp1kmold  <- rast("G:/Mi unidad/webpages/2026_MoFuSSGlobal_Datasets/1km_datasets/LULCC/DownloadedDatasets/SourceDataGlobal/demand/demand_in/wp_global1000m_pcs.tif")
+wp_100m2 <- rast("out_gcs/wp_global100m_gcs.tif")
+wp_4326_1km2 <- rast("out_gcs/wp_global1000m_gcs.tif")
+wp_3395_1km2 <- rast("out_pcs/wp_global1000m_pcs.tif")
+wp_3395_1km2_old <- rast("G:/Mi unidad/webpages/2026_MoFuSSGlobal_Datasets/1km_datasets/LULCC/DownloadedDatasets/SourceDataGlobal/demand/demand_in/wp_global1000m_pcs.tif")
 
 # --- load polygons ---
-mofuss_regions     <- vect(paste0(admindir,"/regions_adm0/mofuss_regions0.gpkg"))
-mofuss_regions_p   <- vect(paste0(admindir,"/regions_adm0_p/mofuss_regions0_p.gpkg"))
-mofuss_regions_old <- vect("G:/Mi unidad/webpages/2026_MoFuSSGlobal_Datasets/1km_datasets/LULCC/DownloadedDatasets/SourceDataGlobal/demand/demand_in/mofuss_regions0_p.gpkg")
+mofuss_regions_4326 <- vect(paste0(admindir, "/regions_adm0/mofuss_regions0.gpkg"))
+mofuss_regions_3395 <- vect(paste0(admindir, "/regions_adm0_p/mofuss_regions0_p.gpkg"))
 
 # --- list of countries ---
-countries <- unique(mofuss_regions$GID_0)
+countries <- unique(mofuss_regions_4326$GID_0)   # Select batch as needed
 
 # --- function ---
 get_country_sums <- function(iso) {
   
   # polygons
-  pol100m <- mofuss_regions[mofuss_regions$GID_0 == iso, ]
-  pol1km  <- mofuss_regions_p[mofuss_regions_p$GID_0 == iso, ]
-  polold  <- mofuss_regions_old[mofuss_regions_old$GID_0 == iso, ]
+  pol100m <- mofuss_regions_4326[mofuss_regions_4326$GID_0 == iso, ]
+  pol4326 <- mofuss_regions_4326[mofuss_regions_4326$GID_0 == iso, ]
+  pol3395 <- mofuss_regions_3395[mofuss_regions_3395$GID_0 == iso, ]
   
-  # --- 100m ---
+  # --- 100m GCS (reference) ---
   r100 <- mask(crop(wp_100m2, pol100m), pol100m)
   sum100 <- global(r100, "sum", na.rm = TRUE)[1,1]
   
-  # --- new 1km ---
-  r1km <- mask(crop(wp_1km2, pol1km), pol1km)
-  sum1km <- global(r1km, "sum", na.rm = TRUE)[1,1]
+  # --- new 1km GCS ---
+  r4326 <- mask(crop(wp_4326_1km2, pol4326), pol4326)
+  sum4326 <- global(r4326, "sum", na.rm = TRUE)[1,1]
   
-  # --- old 1km ---
-  r_old <- mask(crop(wp1kmold, polold), polold)
+  # --- new 1km PCS ---
+  r3395 <- mask(crop(wp_3395_1km2, pol3395), pol3395)
+  sum3395 <- global(r3395, "sum", na.rm = TRUE)[1,1]
+  
+  # --- old 1km PCS ---
+  r_old <- mask(crop(wp_3395_1km2_old, pol3395), pol3395)
   sumold <- global(r_old, "sum", na.rm = TRUE)[1,1]
   
   data.frame(
     iso3 = iso,
     sum_100m = sum100,
-    sum_1km_new = sum1km,
-    sum_1km_old = sumold,
-    diff_new = sum1km - sum100,
-    pct_new = 100 * (sum1km - sum100) / sum100,
+    sum_1km_gcs = sum4326,
+    sum_1km_pcs = sum3395,
+    sum_1km_pcs_old = sumold,
+    diff_gcs = sum4326 - sum100,
+    pct_gcs = 100 * (sum4326 - sum100) / sum100,
+    diff_pcs = sum3395 - sum100,
+    pct_pcs = 100 * (sum3395 - sum100) / sum100,
     diff_old = sumold - sum100,
     pct_old = 100 * (sumold - sum100) / sum100
   )
@@ -285,11 +292,27 @@ get_country_sums <- function(iso) {
 results <- do.call(rbind, lapply(countries, get_country_sums))
 
 # --- clean output ---
-results$pct_new <- round(results$pct_new, 3)
+results$pct_gcs <- round(results$pct_gcs, 3)
+results$pct_pcs <- round(results$pct_pcs, 3)
 results$pct_old <- round(results$pct_old, 3)
 
 print(results)
+write.csv(results, "temp/results_table.csv", row.names = FALSE)
 
 # --- summary stats ---
-summary(results$pct_new)
+summary(results$pct_gcs)
+summary(results$pct_pcs)
 summary(results$pct_old)
+
+sink("temp/results_summary.txt")
+
+cat("Summary pct_gcs:\n")
+print(summary(results$pct_gcs))
+
+cat("\nSummary pct_pcs:\n")
+print(summary(results$pct_pcs))
+
+cat("\nSummary pct_old:\n")
+print(summary(results$pct_old))
+
+sink()
