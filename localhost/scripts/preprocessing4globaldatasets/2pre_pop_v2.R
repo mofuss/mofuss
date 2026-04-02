@@ -129,7 +129,7 @@ unlink(paste0(terraTempdir, "/*"), recursive = TRUE)
 setwd(wpdir)
 
 # WORLDPOP 1km ----
-## Global ----
+## Merge and rescale to 1km ----
 wp_files <- list.files(
   pattern = "2020_UNadj_constrained.*\\.tif$",
   full.names = TRUE
@@ -138,107 +138,108 @@ wp_files <- list.files(
 # 1) make a raster collection from country rasters
 wp_sprc <- sprc(wp_files)
 
-# 2) merge into one real global 100 m raster on disk
-wp_100m <- merge(
-  wp_sprc,
-  filename = file.path("out_gcs/wp_global100m_gcs.tif"),
+# 2) merge into one 100 m raster (in memory first)
+wp_100m <- merge(wp_sprc)
+
+# set layer name
+names(wp_100m) <- "pop_2020"
+
+# now write to disk
+writeRaster(
+  wp_100m,
+  "out_gcs/wp_global100m_gcs.tif",
   overwrite = TRUE,
   wopt = list(gdal = c("COMPRESS=LZW", "TILED=YES", "BIGTIFF=YES"))
 )
 
-# Re-read WorldPop 100m and templates
+# Re-read WorldPop 100m
 wp_100m2 <- rast("out_gcs/wp_global100m_gcs.tif")
-template_3395_1km <- rast(paste0(geedir,"/temp/template_3395_1km.tif"))
-# ext_4326_1km <- rast(paste0(geedir,"/temp/template_3395_1km.tif")) load DTEM_gcs for GCS extent!!!
 
-# make a real 1 km-ish GCS template (30 arc-seconds)
-template_4326_1km <- rast(
-  ext = ext(wp_100m2),
-  resolution = 0.008333333,
-  crs = "EPSG:4326"
-)
-
-# a) source cell area in m2
-a_src <- cellSize(
+# 3) Aggregate 10x10 cells using SUM
+wp_1km_gcs <- aggregate(
   wp_100m2,
-  unit = "m",
-  filename = "temp/a_src.tif",
-  overwrite = TRUE
+  fact = 10,
+  fun = sum,
+  na.rm = TRUE
 )
 
-# b) counts -> density
-dens_src <- wp_100m2 / a_src
+# Set layer name BEFORE writing
+names(wp_1km_gcs) <- "pop_2020"
 
-# 2) project density to GCS 1 km grid
-dens_gcs_1km <- project(
-  dens_src,
-  template_4326_1km,
-  method = "bilinear",
-  filename = "temp/dens_gcs_1km.tif",
-  overwrite = TRUE
-)
-
-# 3) target cell area in m2 (GCS)
-a_tgt_gcs <- cellSize(
-  template_4326_1km,
-  unit = "m",
-  mask = FALSE,
-  filename = "temp/a_tgt_gcs_1km.tif",
-  overwrite = TRUE
-)
-
-# 4) density -> counts
-pop_gcs_1km <- dens_gcs_1km * a_tgt_gcs
-names(pop_gcs_1km) <- "pop_2020"
-
-# optional cleanup
-# pop_gcs_1km <- clamp(pop_gcs_1km, lower = 0)
-pop_gcs_1km <- round(pop_gcs_1km)
-
-# 5) save
+# Now write to disk as float for debugging
 writeRaster(
-  pop_gcs_1km,
+  wp_1km_gcs,
+  "out_gcs/wp_global1000m_gcs_flt.tif",
+  overwrite = TRUE,
+  wopt = list(
+    datatype = "FLT4S",
+    NAflag = -9999,
+    gdal = c("COMPRESS=LZW", "TILED=YES", "BIGTIFF=YES")
+  )
+)
+
+wp_1km_gcs_int <- round(wp_1km_gcs)
+names(wp_1km_gcs_int) <- "pop_2020"
+
+# Now write to disk as rounded integer
+writeRaster(
+  wp_1km_gcs_int,
   "out_gcs/wp_global1000m_gcs.tif",
   overwrite = TRUE,
-  datatype = "INT4U",
-  wopt = list(gdal = c("COMPRESS=LZW", "TILED=YES", "BIGTIFF=YES"))
+  wopt = list(
+    datatype = "INT4S",
+    NAflag = -9999,
+    gdal = c("COMPRESS=LZW", "TILED=YES", "BIGTIFF=YES")
+  )
 )
 
-# 6) project density to aligned 3395 template
-dens_3395 <- project(
-  dens_src,
-  template_3395_1km,
-  method = "bilinear",
-  filename = "temp/dens_3395.tif",
-  overwrite = TRUE
-)
+## Project into World Mercator ----
+# --- 1. Source raster (counts, GCS) ---
+wp_gcs <- rast("out_gcs/wp_global1000m_gcs_flt.tif")
 
-# 7) target cell area in m2
-a_tgt <- rast(paste0(geedir,"/temp/pixel_area_trueEarth_3395_1km_m2.tif"))
+# --- 2. Target grid (Mercator, empty template) ---
+template_3395 <- rast(paste0(geedir, "/temp/template_3395_1km.tif"))
 
-# 8) density -> counts per target cell
-pop_3395 <- dens_3395 * a_tgt
-names(pop_3395) <- "pop_2020"
+# --- 3. The correct method: use method="sum" with a coverage-fraction kernel ---
+# terra's project() with method="sum" does area-weighted aggregation, 
+# which is mass-conserving by construction.
 
-# optional cleanup
-# pop_3395 <- clamp(pop_3395, lower = 0)
-pop_3395 <- round(pop_3395)
+wp_1km_pcs <- project(
+  wp_gcs,
+  template_3395,
+  method = "sum"
+) |>
+  clamp(lower = 0) |>
+  writeRaster(
+    "out_pcs/wp_global1000m_pcs_flt.tif",
+    overwrite = TRUE,
+    wopt = list(
+      datatype = "FLT4S",
+      NAflag   = -9999,
+      gdal     = c("COMPRESS=LZW", "TILED=YES", "BIGTIFF=YES")
+    )
+  )
 
-# 9) save
+wp_1km_pcs_int <- round(wp_1km_pcs)
+names(wp_1km_pcs_int) <- "pop_2020"
+
 writeRaster(
-  pop_3395,
+  wp_1km_pcs_int,
   "out_pcs/wp_global1000m_pcs.tif",
   overwrite = TRUE,
-  wopt = list(gdal = c("COMPRESS=LZW", "TILED=YES", "BIGTIFF=YES"))
+  wopt = list(
+    datatype = "INT4S",
+    NAflag = -9999,
+    gdal = c("COMPRESS=LZW", "TILED=YES", "BIGTIFF=YES")
+  )
 )
-
 
 # Comparison of methods: new 1km and old1km to 100m lat/long ----
 ## Automatic ----
 # --- load rasters ---
 wp_100m2 <- rast("out_gcs/wp_global100m_gcs.tif")
-wp_4326_1km2 <- rast("out_gcs/wp_global1000m_gcs.tif")
-wp_3395_1km2 <- rast("out_pcs/wp_global1000m_pcs.tif")
+wp_4326_1km2 <- rast("out_gcs/wp_global1000m_gcs_flt.tif")
+wp_3395_1km2 <- rast("out_pcs/wp_global1000m_pcs_flt.tif")
 wp_3395_1km2_old <- rast("G:/Mi unidad/webpages/2026_MoFuSSGlobal_Datasets/1km_datasets/LULCC/DownloadedDatasets/SourceDataGlobal/demand/demand_in/wp_global1000m_pcs.tif")
 
 # --- load polygons ---
@@ -247,6 +248,8 @@ mofuss_regions_3395 <- vect(paste0(admindir, "/regions_adm0_p/mofuss_regions0_p.
 
 # --- list of countries ---
 countries <- unique(mofuss_regions_4326$GID_0)   # Select batch as needed
+# countries <- c("IND", "MEX", "BRA", "ZMB", "ZWE", "KEN", "MWI", "GHA", "TZA")
+# countries <- c("KEN", "MWI", "GHA", "COL", "TZA")
 
 # --- function ---
 get_country_sums <- function(iso) {
