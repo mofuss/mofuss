@@ -77,9 +77,15 @@ read_wfdb <- function(file) {
 # Define scenarios ----
 if (scenario_ver == "BaU") {
   wfdb <- read_wfdb("demand_in/cons_fuels_years.csv")
-  
+
+} else if (scenario_ver == "BaU_v2") {
+  wfdb <- read_wfdb("demand_in/cons_fuels_years_bau_mofuss.csv")  
+
 } else if (scenario_ver == "ICS") {
   wfdb <- read_wfdb("demand_in/cons_fuels_years_proj.csv")
+  
+} else if (scenario_ver == "ICS_v2") {
+  wfdb <- read_wfdb("demand_in/cons_fuels_years_proj_mofuss.csv")
   
 } else if (scenario_ver == "BaU_vehicle_only") {
   wfdb <- read_wfdb("demand_in/cons_fuels_years_charc_and_urb_fw_only.csv")
@@ -111,20 +117,22 @@ if (scenario_ver == "BaU") {
 
 unique(wfdb$fuel)
 
-wfdb <- wfdb %>%
-  dplyr::mutate(
-    # 1. trim spaces and lowercase everything first
-    fuel = tolower(trimws(fuel)),
-    
-    # 2. replace "biomass" → "fuelwood"
-    fuel = if_else(fuel == "biomass", "fuelwood", fuel),
-    
-    # 3. replace "electric" → "electricity"
-    fuel = if_else(fuel == "electric", "electricity", fuel),
-    
-    # 4. capitalize first letter only ONCE, after all replacements
-    fuel = str_to_title(fuel)
-  )
+# wfdb <- wfdb %>%
+#   dplyr::mutate(
+#     # 1. trim spaces and lowercase everything first
+#     fuel = tolower(trimws(fuel)),
+#     
+#     # 2. replace "biomass" → "fuelwood"
+#     fuel = if_else(fuel == "biomass", "fuelwood", fuel),
+#     
+#     # 3. replace "electric" → "electricity"
+#     fuel = if_else(fuel == "electric", "electricity", fuel),
+#     
+#     # 4. capitalize first letter only ONCE, after all replacements
+#     fuel = str_to_title(fuel)
+#     
+#     # 5. add overall class
+#   )
 unique(wfdb$fuel)
 head(wfdb)
 print(scenario_ver) # save as text to recover later down the river
@@ -152,7 +160,7 @@ setwd(countrydir)
 
 # helper: consistent area ordering if present
 order_area <- function(x) {
-  lv <- c("Rural","Urban","Overall")
+  lv <- c("rural","urban","overall")
   x <- factor(x, levels = lv[lv %in% unique(x)])
   if (any(is.na(x))) x <- factor(as.character(x)) # fallback if different labels exist
   x
@@ -165,7 +173,7 @@ order_area <- function(x) {
 # ─────────────────────────────────────────────────────────────────────────────
 
 # --- helper: safe ymax from a chosen area level ---
-.ymax_from_area <- function(df, area_level = "Overall", value_col = pop) {
+.ymax_from_area <- function(df, area_level = "overall", value_col = pop) {
   value_col <- rlang::enquo(value_col)
   df %>%
     dplyr::filter(area == area_level) %>%
@@ -178,41 +186,61 @@ order_area <- function(x) {
 # --- helper: fuel colors (your existing palette) ---
 fuel_palette <- c(
   # Impact / implied fuels → lighter tints
-  "Imp_fuelwood" = "#C9A27D",  # light brown (tint of Fuelwood)
-  "Imp_charcoal" = "#7A7A7A",  # mid grey (tint of Charcoal)
+  "imp_fuelwood" = "#C9A27D",  # light brown (tint of Fuelwood)
+  "imp_charcoal" = "#7A7A7A",  # mid grey (tint of Charcoal)
   
   # Real fuels → strong anchors
-  "Fuelwood"     = "#8B4513",  # brown → wood
-  "Charcoal"     = "#2B2B2B",  # near-black → carbon
+  "fuelwood"     = "#8B4513",  # brown → wood
+  "charcoal"     = "#2B2B2B",  # near-black → carbon
   
-  "Coal"         = "#4B4B4B",
-  "Kerosene"     = "#E69F00",
-  "Gas"          = "#56B4E9",
-  "Electricity"  = "#F0E442",
-  "Biogas"       = "#A65628",
-  "Pellets"      = "#999999",
-  "Ethanol"      = "#CC79A7"
+  "coal"         = "#4B4B4B",
+  "kerosene"     = "#E69F00",
+  "gas"          = "#56B4E9",
+  "electric"     = "#F0E442",
+  "biogas"       = "#A65628",
+  "pellets"      = "#999999",
+  "ethanol"      = "#CC79A7"
 )
 
 # --- 1A) Build ONE clean population table, with optional split column ---
 if (subcountry != 1) {
   
-  popdb_clean <- whodb %>%
+  # popdb_clean <- whodb %>%
+  #   dplyr::filter(
+  #     iso3 == region2BprocessedCtry_iso,
+  #     year >= year_min_whodb, year <= year_max,
+  #     !fuel %in% c("Total Polluting", "Total Clean")
+  #   ) %>%
+  #   dplyr::mutate(
+  #     pop  = pop * 1000,
+  #     area = order_area(area),
+  #     split = NA_character_   # keep column for consistent downstream code
+  #   ) %>%
+  #   dplyr::select(iso3, region, split, area, fuel, year, pop) %>%
+  #   dplyr::arrange(year, area, fuel)
+  # 
+  # pop_prefix <- "whodb"
+  # year_min_pop <- year_min_whodb
+  
+  # Version 2
+ 
+  popdb_clean <- wfdb %>%
     dplyr::filter(
       iso3 == region2BprocessedCtry_iso,
-      year >= year_min_whodb, year <= year_max,
-      !fuel %in% c("Total Polluting", "Total Clean")
+      year >= year_min_whodb, year <= year_max
     ) %>%
     dplyr::mutate(
-      pop  = pop * 1000,
+      pop  = people * 1000,
       area = order_area(area),
       split = NA_character_   # keep column for consistent downstream code
     ) %>%
     dplyr::select(iso3, region, split, area, fuel, year, pop) %>%
     dplyr::arrange(year, area, fuel)
   
-  pop_prefix <- "whodb"
+  pop_prefix <- "wfdb_v2"
   year_min_pop <- year_min_whodb
+  
+  
   
 } else {
   
@@ -265,9 +293,9 @@ write_csv(
 plot_pop_stack <- function(df, title_suffix = NULL, out_png) {
   
   # use Overall if present; otherwise fallback to max over all areas
-  has_overall <- any(df$area == "Overall")
+  has_overall <- any(df$area == "overall")
   if (has_overall) {
-    ymax <- .ymax_from_area(df, "Overall", pop)
+    ymax <- .ymax_from_area(df, "overall", pop)
   } else {
     ymax <- df %>%
       dplyr::group_by(year) %>%
@@ -334,7 +362,7 @@ if (all(is.na(popdb_clean$split))) {
   # Compute Y max as the maximum of Overall totals
   # across Lusaka / NotLusaka (but NOT larger combinations)
   ymax_all <- popdb_clean %>%
-    dplyr::filter(area == "Overall") %>%          # key line
+    dplyr::filter(area == "overall") %>%          # key line
     dplyr::group_by(split, year) %>%
     dplyr::summarise(total = sum(pop, na.rm = TRUE), .groups = "drop") %>%
     dplyr::group_by(split) %>%
@@ -382,7 +410,7 @@ wfdb_base <- wfdb %>%
   dplyr::filter(
     iso3 == region2BprocessedCtry_iso,
     year >= year_min_wfdb, year <= year_max,
-    fuel %in% c("Fuelwood", "Charcoal")
+    fuel %in% c("fuelwood", "charcoal")
   ) %>%
   dplyr::mutate(
     area = order_area(area),
@@ -397,7 +425,7 @@ wfdb_twofuels <- if (subcountry == 1) {
     dplyr::group_by(split, year, area, fuel) %>%
     dplyr::summarise(value_woodeq_t = sum(!!col_sym, na.rm = TRUE), .groups = "drop") %>%
     dplyr::mutate(
-      value_t = dplyr::if_else(fuel == "Charcoal", value_woodeq_t / efchratio, value_woodeq_t),
+      value_t = dplyr::if_else(fuel == "charcoal", value_woodeq_t / efchratio, value_woodeq_t),
       units   = "tonnes"
     ) %>%
     dplyr::arrange(split, year, area, fuel)
@@ -408,7 +436,7 @@ wfdb_twofuels <- if (subcountry == 1) {
     dplyr::group_by(year, area, fuel) %>%
     dplyr::summarise(value_woodeq_t = sum(!!col_sym, na.rm = TRUE), .groups = "drop") %>%
     dplyr::mutate(
-      value_t = dplyr::if_else(fuel == "Charcoal", value_woodeq_t / efchratio, value_woodeq_t),
+      value_t = dplyr::if_else(fuel == "charcoal", value_woodeq_t / efchratio, value_woodeq_t),
       units   = "tonnes"
     ) %>%
     dplyr::arrange(year, area, fuel)
@@ -452,7 +480,7 @@ write_csv(
 if (subcountry == 1) {
   
   ymax_all_wfdb <- wfdb_twofuels %>%
-    dplyr::filter(area == "Overall") %>%
+    dplyr::filter(area == "overall") %>%
     dplyr::group_by(split, year) %>%
     dplyr::summarise(total = sum(value_t, na.rm = TRUE), .groups = "drop") %>%
     dplyr::group_by(split) %>%
@@ -467,7 +495,7 @@ if (subcountry == 1) {
     df_sp <- wfdb_twofuels %>% dplyr::filter(split == sp)
     
     ymax_sp <- df_sp %>%
-      dplyr::filter(area == "Overall") %>%
+      dplyr::filter(area == "overall") %>%
       dplyr::group_by(year) %>%
       dplyr::summarise(total = sum(value_t, na.rm = TRUE), .groups = "drop") %>%
       dplyr::summarise(ymax = max(total, na.rm = TRUE), .groups = "drop") %>%
@@ -489,7 +517,7 @@ if (subcountry == 1) {
       ) +
       coord_cartesian(ylim = c(0, ymax_sp)) +  # <- KEY CHANGE (per-split ymax)
       facet_wrap(~ area, ncol = 3, scales = "fixed") +
-      scale_fill_manual(values = c("Fuelwood" = "#8B4513", "Charcoal" = "#2B2B2B")) +
+      scale_fill_manual(values = c("fuelwood" = "#8B4513", "charcoal" = "#2B2B2B")) +
       theme_bw(base_size = 13) +
       theme(panel.grid.minor = element_blank(),
             plot.title.position = "plot",
@@ -520,7 +548,7 @@ if (subcountry == 1) {
     ) +
     coord_cartesian(ylim = c(0, ymax_all_wfdb)) +
     facet_grid(split ~ area, scales = "fixed") +
-    scale_fill_manual(values = c("Fuelwood" = "#8B4513", "Charcoal" = "#2B2B2B")) +
+    scale_fill_manual(values = c("fuelwood" = "#8B4513", "charcoal" = "#2B2B2B")) +
     theme_bw(base_size = 12) +
     theme(panel.grid.minor = element_blank(),
           plot.title.position = "plot",
@@ -536,7 +564,7 @@ if (subcountry == 1) {
   
   # Original behavior (no split)
   ymax_overall_wfdb <- wfdb_twofuels %>%
-    dplyr::filter(area == "Overall") %>%
+    dplyr::filter(area == "overall") %>%
     dplyr::group_by(year) %>%
     dplyr::summarise(total = sum(value_t, na.rm = TRUE), .groups = "drop") %>%
     dplyr::summarise(ymax = max(total, na.rm = TRUE), .groups = "drop") %>%
@@ -557,7 +585,7 @@ if (subcountry == 1) {
     ) +
     coord_cartesian(ylim = c(0, ymax_overall_wfdb)) +
     facet_wrap(~ area, ncol = 3, scales = "fixed") +
-    scale_fill_manual(values = c("Fuelwood" = "#8B4513", "Charcoal" = "#2B2B2B")) +
+    scale_fill_manual(values = c("fuelwood" = "#8B4513", "charcoal" = "#2B2B2B")) +
     theme_bw(base_size = 13) +
     theme(panel.grid.minor = element_blank(),
           plot.title.position = "plot",
