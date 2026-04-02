@@ -27,6 +27,22 @@ country_parameters <- read_delim(parameters_file_path, delim = delimiter)
 print(tibble::as_tibble(country_parameters), n=100)
 
 country_parameters %>%
+  dplyr::filter(Var == "region2BprocessedCtry_iso") %>%
+  pull(ParCHR) -> region2BprocessedCtry_iso
+
+country_parameters %>%
+  dplyr::filter(Var == "subcountry") %>%
+  pull(ParCHR) -> subcountry
+
+country_parameters %>%
+  dplyr::filter(Var == "scenario_ver") %>%
+  pull(ParCHR) -> scenario_ver
+
+country_parameters %>%
+  dplyr::filter(Var == "demand_col") %>%
+  pull(ParCHR) -> demand_col
+
+country_parameters %>%
   dplyr::filter(Var == "demand_tuning") %>%
   pull(ParCHR) %>%
   as.integer(.) -> demand_tuning
@@ -52,15 +68,15 @@ year_max        <- end_year
 
 setwd(demanddir)
 
-# Reads WHO dataset
-if (subcountry != 1) {
-  whodb <- read_excel("demand_in/A_LMIC_Estimates_2050_popmedian.xlsx")
-  # undb <- read_excel("admin_regions/UN_Rural-Urban_Pop_projections_formatted.xlsx") # https://population.un.org/wpp/Download/Standard/Population/
-  terra::unique(whodb$fuel)
-  # terra::unique(whodb$year)
-  # terra::unique(whodb$iso3)
-}
-getwd()
+# # Reads WHO dataset
+# if (subcountry != 1) {
+#   whodb <- read_excel("demand_in/A_LMIC_Estimates_2050_popmedian.xlsx")
+#   # undb <- read_excel("admin_regions/UN_Rural-Urban_Pop_projections_formatted.xlsx") # https://population.un.org/wpp/Download/Standard/Population/
+#   terra::unique(whodb$fuel)
+#   # terra::unique(whodb$year)
+#   # terra::unique(whodb$iso3)
+# }
+# getwd()
 
 # Define scenarios ----
 detect_delimiter <- function(file) {
@@ -79,13 +95,13 @@ if (scenario_ver == "BaU") {
   wfdb <- read_wfdb("demand_in/cons_fuels_years.csv")
 
 } else if (scenario_ver == "BaU_v2") {
-  wfdb <- read_wfdb("demand_in/cons_fuels_years_bau_mofuss.csv")  
+  wfdb <- read_wfdb("demand_in/demand_bau_v2.csv")  
 
 } else if (scenario_ver == "ICS") {
   wfdb <- read_wfdb("demand_in/cons_fuels_years_proj.csv")
   
 } else if (scenario_ver == "ICS_v2") {
-  wfdb <- read_wfdb("demand_in/cons_fuels_years_proj_mofuss.csv")
+  wfdb <- read_wfdb("demand_in/demand_ics_v2.csv")
   
 } else if (scenario_ver == "BaU_vehicle_only") {
   wfdb <- read_wfdb("demand_in/cons_fuels_years_charc_and_urb_fw_only.csv")

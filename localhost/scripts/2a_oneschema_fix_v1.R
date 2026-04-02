@@ -57,7 +57,7 @@ build_mofuss_demand <- function(dem, popWHO) {
         TRUE ~ NA_character_
       )
     ) %>%
-    filter(
+    dplyr::filter(
       area %in% c("urban", "rural"),
       year >= 2000,
       year <= 2050,
@@ -68,7 +68,7 @@ build_mofuss_demand <- function(dem, popWHO) {
   # optional check
   dup_who <- who_std %>%
     count(iso3, area, year, fuel) %>%
-    filter(n > 1)
+    dplyr::filter(n > 1)
   
   # 2) WHO backbone expanded to all MoFuSS fuels
   who_keys <- who_std %>%
@@ -107,7 +107,7 @@ build_mofuss_demand <- function(dem, popWHO) {
         TRUE ~ fuel0
       )
     ) %>%
-    filter(
+    dplyr::filter(
       area %in% c("urban", "rural"),
       year >= 2000,
       year <= 2050
@@ -121,7 +121,7 @@ build_mofuss_demand <- function(dem, popWHO) {
   # optional check
   dup_dem <- dem_std %>%
     count(iso3, area, year, fuel) %>%
-    filter(n > 1)
+    dplyr::filter(n > 1)
   
   # 4) Final table without overall
   mofuss <- who_full %>%
@@ -177,7 +177,7 @@ build_mofuss_demand <- function(dem, popWHO) {
   # final duplicate check
   dup_final <- mofuss_or %>%
     count(iso3, area, year, fuel) %>%
-    filter(n > 1)
+    dplyr::filter(n > 1)
   
   list(
     data = mofuss_or,
@@ -188,11 +188,11 @@ build_mofuss_demand <- function(dem, popWHO) {
 }
 
 bau_dem <- read_csv(
-  paste0(countrydir, "/LULCC/DownloadedDatasets/SourceDataGlobal/demand/demand_in/cons_fuels_years_v2_original.csv")
+  paste0(countrydir, "/LULCC/DownloadedDatasets/SourceDataGlobal/demand/demand_in/demand_bau_v2_original.csv")
 )
 
 ics_dem <- read_csv(
-  paste0(countrydir, "/LULCC/DownloadedDatasets/SourceDataGlobal/demand/demand_in/cons_fuels_years_proj_v2_original.csv")
+  paste0(countrydir, "/LULCC/DownloadedDatasets/SourceDataGlobal/demand/demand_in/demand_ics_v2_original.csv")
 )
 
 popWHO <- read_excel(
@@ -226,10 +226,10 @@ sum(is.na(ics_mofuss_or$fuel_tons))
 
 write_csv(
   bau_mofuss_or,
-  paste0(countrydir, "/LULCC/DownloadedDatasets/SourceDataGlobal/demand/demand_in/cons_fuels_years_bau_mofuss.csv")
+  paste0(countrydir, "/LULCC/DownloadedDatasets/SourceDataGlobal/demand/demand_in/demand_bau_v2.csv")
 )
 
 write_csv(
   ics_mofuss_or,
-  paste0(countrydir, "/LULCC/DownloadedDatasets/SourceDataGlobal/demand/demand_in/cons_fuels_years_ics_mofuss.csv")
+  paste0(countrydir, "/LULCC/DownloadedDatasets/SourceDataGlobal/demand/demand_in/demand_ics_v2.csv")
 )
