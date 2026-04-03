@@ -46,7 +46,7 @@ args=(commandArgs(TRUE))
 # Then cycle through each element of the list and evaluate the expressions.
 if(length(args)==0){
   print("No arguments supplied by DINAMICA.")
-  ##Supply default values here (to be used when running the script through R directly)
+  ## Supply default values here (to be used when running the script through R directly)
   MC=30 # MonteCarlo runs
   IT=2010 # Initial year
   K_MC=1
@@ -74,6 +74,7 @@ if(length(args)==0){
   BaUvsICS="BaU"
   LUCmap_v = 1 
   AGBmap_v = 1
+  CTrees = 1
   
 }else{
   for(i in 1:length(args)){
@@ -199,8 +200,8 @@ country_parameters %>%
 STdyn <- end_year - IT
 
 if (LUCmap_v == 1) {
-
-    if (file.exists("LULCC/TempTables/growth_parameters1.csv") == TRUE) {
+  
+  if (file.exists("LULCC/TempTables/growth_parameters1.csv") == TRUE) {
     # Check the first line of the file to determine the delimiter
     first_linegp1 <- readLines("LULCC/TempTables/growth_parameters1.csv", n = 1)
     # Determine the delimiter based on the first line
@@ -455,13 +456,14 @@ if (max_FOR!=0) {
     
     # rmax values ----
     
-    tiff(filename=paste(OutDir,"//Histogram_rmax",j,".tif",sep=""),width=290,height=height_figure_FOR,units="mm",res=res1000,bg="white",
-         compression=c("lzw"),type=c("windows"),pointsize=12,family="",restoreConsole=TRUE)
-    n<-layout(matrix(1:histograms_per_figure_FOR, (histograms_per_figure_FOR/5),5, byrow=TRUE))
-    par(oma=c(0,0,5,0))  # top has 5 lines of space
-    # Set margins to accommodate larger subtitles
-    par(mar = c(5, 4, 6, 2))  # bottom, left, top, right
-    
+    if (CTrees == 0) {
+      tiff(filename=paste(OutDir,"//Histogram_rmax",j,".tif",sep=""),width=290,height=height_figure_FOR,units="mm",res=res1000,bg="white",
+           compression=c("lzw"),type=c("windows"),pointsize=12,family="",restoreConsole=TRUE)
+      n<-layout(matrix(1:histograms_per_figure_FOR, (histograms_per_figure_FOR/5),5, byrow=TRUE))
+      par(oma=c(0,0,5,0))  # top has 5 lines of space
+      # Set margins to accommodate larger subtitles
+      par(mar = c(5, 4, 6, 2))  # bottom, left, top, right
+    }
     
     for(i in min5_FOR:max5_FOR) {
       if (data_FOR[i,3]==0) {
@@ -487,20 +489,24 @@ if (max_FOR!=0) {
       }
     }
     
-    Main_Title<-paste("Parameters set by user (Forests and Woodlands):
+    if (CTrees == 0) {
+      Main_Title<-paste("Parameters set by user (Forests and Woodlands):
 			StartUp year =",IT,"    Sim. length =",ST-1,"yr     MC =",MC,"runs    rmax w/MC?",rmax_MC_yesno,"   Carrying capacity (K) w/MC?",K_MC_yesno,"  Trees Outside Forests (TOF) w/MC?",TOF_MC_yesno," \n Initial Stock =",Ini_st.factor.percentage,"     Initial Stock w/MC =",Ini_st_MC_yesno,"     \n Iteration length =",IL,"weeks (",IL*0.25,"months )     Tree cover map provided?",COVER_MAP_yesno,"     AGB map provided?",AGBmap_yesno,"     Accounting for fuelwood from deforestation?",DEF_FW_yesno) 
-    title(main=Main_Title,line=NA,outer=TRUE,adj=0.5,
-          cex.main = 1,   font.main= 1, col.main= "blue")
-    dev.off()
+      title(main=Main_Title,line=NA,outer=TRUE,adj=0.5,
+            cex.main = 1,   font.main= 1, col.main= "blue")
+      dev.off()
+    }
     
     #K values ----
     
-    tiff(filename=paste(OutDir,"//Histogram_K",j,".tif",sep=""),width=290,height=height_figure_FOR,units="mm",res=res1000,bg="white",
-         compression=c("lzw"),type=c("windows"),pointsize=12,family="",restoreConsole=TRUE)
-    n<-layout(matrix(1:histograms_per_figure_FOR, (histograms_per_figure_FOR/5),5, byrow=TRUE))
-    par(oma=c(0,0,5,0))  # top has 5 lines of space
-    # Set margins to accommodate larger subtitles
-    par(mar = c(5, 4, 6, 2))  # bottom, left, top, right
+    if (CTrees == 0) {
+      tiff(filename=paste(OutDir,"//Histogram_K",j,".tif",sep=""),width=290,height=height_figure_FOR,units="mm",res=res1000,bg="white",
+           compression=c("lzw"),type=c("windows"),pointsize=12,family="",restoreConsole=TRUE)
+      n<-layout(matrix(1:histograms_per_figure_FOR, (histograms_per_figure_FOR/5),5, byrow=TRUE))
+      par(oma=c(0,0,5,0))  # top has 5 lines of space
+      # Set margins to accommodate larger subtitles
+      par(mar = c(5, 4, 6, 2))  # bottom, left, top, right
+    }
     
     for(i in min5_FOR:max5_FOR) {
       if (data_FOR[i,3]==0) {
@@ -525,20 +531,24 @@ if (max_FOR!=0) {
       }
     }
     
-    Main_Title<-paste("Parameters set by user (Forests and Woodlands):
+    if (CTrees == 0) {
+      Main_Title<-paste("Parameters set by user (Forests and Woodlands):
 			StartUp year =",IT,"    Sim. length =",ST-1,"yr     MC =",MC,"runs    rmax w/MC?",rmax_MC_yesno,"   Carrying capacity (K) w/MC?",K_MC_yesno,"  Trees Outside Forests (TOF) w/MC?",TOF_MC_yesno," \n Initial Stock =",Ini_st.factor.percentage,"     Initial Stock w/MC =",Ini_st_MC_yesno,"     \n Iteration length =",IL,"weeks (",IL*0.25,"months )     Tree cover map provided?",COVER_MAP_yesno,"     AGB map provided?",AGBmap_yesno,"     Accounting for fuelwood from deforestation?",DEF_FW_yesno) 
-    title(main=Main_Title,line=NA,outer=TRUE,adj=0.5,
-          cex.main = 1,   font.main= 1, col.main= "blue")
-    dev.off()
+      title(main=Main_Title,line=NA,outer=TRUE,adj=0.5,
+            cex.main = 1,   font.main= 1, col.main= "blue")
+      dev.off()
+    }
     
     # Initial Stock values----
     
-    tiff(filename=paste(OutDir,"//Histogram_ini_stock",j,".tif",sep=""),width=290,height=height_figure_FOR,units="mm",
-         res=res1000,bg="white",compression=c("lzw"),type=c("windows"),pointsize=12,family="",restoreConsole=TRUE)
-    n<-layout(matrix(1:histograms_per_figure_FOR, (histograms_per_figure_FOR/5),5, byrow=TRUE))
-    par(oma=c(0,0,5,0))  # top has 5 lines of space
-    # Set margins to accommodate larger subtitles
-    par(mar = c(5, 4, 6, 2))  # bottom, left, top, right
+    if (CTrees == 0) {
+      tiff(filename=paste(OutDir,"//Histogram_ini_stock",j,".tif",sep=""),width=290,height=height_figure_FOR,units="mm",
+           res=res1000,bg="white",compression=c("lzw"),type=c("windows"),pointsize=12,family="",restoreConsole=TRUE)
+      n<-layout(matrix(1:histograms_per_figure_FOR, (histograms_per_figure_FOR/5),5, byrow=TRUE))
+      par(oma=c(0,0,5,0))  # top has 5 lines of space
+      # Set margins to accommodate larger subtitles
+      par(mar = c(5, 4, 6, 2))  # bottom, left, top, right
+    }
     
     for(i in min5_FOR:max5_FOR) {
       if (data_FOR[i,3]==0) {
@@ -563,11 +573,13 @@ if (max_FOR!=0) {
       }
     }
     
-    Main_Title<-paste("Parameters set by user (Forests and Woodlands):
+    if (CTrees == 0) {
+      Main_Title<-paste("Parameters set by user (Forests and Woodlands):
 			StartUp year =",IT,"    Sim. length =",ST-1,"yr     MC =",MC,"runs    rmax w/MC?",rmax_MC_yesno,"   Carrying capacity (K) w/MC?",K_MC_yesno,"  Trees Outside Forests (TOF) w/MC?",TOF_MC_yesno," \n Initial Stock =",Ini_st.factor.percentage,"     Initial Stock w/MC =",Ini_st_MC_yesno,"     \n Iteration length =",IL,"weeks (",IL*0.25,"months )     Tree cover map provided?",COVER_MAP_yesno,"     AGB map provided?",AGBmap_yesno,"     Accounting for fuelwood from deforestation?",DEF_FW_yesno) 
-    title(main=Main_Title,line=NA,outer=TRUE,adj=0.5,
-          cex.main = 1,   font.main= 1, col.main= "blue")
-    dev.off()
+      title(main=Main_Title,line=NA,outer=TRUE,adj=0.5,
+            cex.main = 1,   font.main= 1, col.main= "blue")
+      dev.off()
+    }
     
   } # j hasta ceiling(max_FOR/5)
   

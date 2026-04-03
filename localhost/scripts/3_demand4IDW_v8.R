@@ -11,17 +11,13 @@
 # limitations under the License.
 
 # MoFuSS
-# Version 5
-# Date: Dec 2025
+# Version 8
+# Date: Apr 2026
 
 # 2dolist ----
 # FIX THE MASK ISSUE WITH LINUX, THAT WAS PATCHED FOR THE MOMENT!
-# ALLOW OTHER SCENARIOS: Start in line 183
 # VERY IMPORTANT TO DEFINE A SOLID WORKFLOW FOR REGIONALIZING COUNTRIES, e.g. Zambia
-# Remove any reference to HSRL 
-# Time period
-# 334 annos.list2 <- c(start_year:end_year) 
-# start_year = 2000 # check why 2001 doesn't work
+# start_year = 2000 ok # check why 2001 doesn't work
 
 # Internal parameters ----
 optimizeD = 0
@@ -199,34 +195,6 @@ if (!dir.exists("demand_temp")) {dir.create("demand_temp")}
 if (!dir.exists("demand_out")) {dir.create("demand_out")} 
 if (!dir.exists("to_idw")) {dir.create("to_idw")} 
 
-# Reads WHO dataset
-# if (subcountry != 1) {
-#   whodb <- read_excel("demand_in/A_LMIC_Estimates_2050_popmedian.xlsx")
-#   # undb <- read_excel("admin_regions/UN_Rural-Urban_Pop_projections_formatted.xlsx") # https://population.un.org/wpp/Download/Standard/Population/
-#   whodb <- whodb %>%
-#     # Remove anything starting with "total" (any capitalization)
-#     dplyr::filter(!str_detect(fuel, regex("^total", ignore_case = TRUE))) %>%
-#     
-#     # Remove rows where area == "Overall" (any capitalization)
-#     dplyr::filter(!str_detect(area, regex("^overall$", ignore_case = TRUE))) %>%
-#     
-#     mutate(
-#       # 1. trim spaces and lowercase everything first
-#       fuel = tolower(trimws(fuel)),
-#       
-#       # 2. replace "biomass" → "fuelwood"
-#       fuel = if_else(fuel == "biomass", "fuelwood", fuel),
-#       
-#       # 3. replace "electric" → "electricity"
-#       fuel = if_else(fuel == "electric", "electricity", fuel),
-#       
-#       # 4. Capitalize first letter after all replacements
-#       fuel = str_to_title(fuel)
-#     )
-# terra::unique(whodb$fuel)
-# terra::unique(whodb$area)
-# }
-
 getwd()
 poprast <- paste0("demand_in/",pop_map_name) 
 
@@ -255,32 +223,32 @@ if (scenario_ver == "BaU") {
 } else if (scenario_ver == "ICS_v2") {
   wfdb <- read_wfdb("demand_in/demand_ics_v2.csv")
   
-} else if (scenario_ver == "BaU_vehicle_only") {
-  wfdb <- read_wfdb("demand_in/cons_fuels_years_charc_and_urb_fw_only.csv")
-  
-} else if (scenario_ver == "BaU_walking_only") {
-  wfdb <- read_wfdb("demand_in/cons_fuels_years_rural_fw_only.csv")
-  
-} else if (scenario_ver == "BaU_lusaka_notlusaka") {
-  wfdb <- read_wfdb("demand_in/cons_fuels_years_BAU_Lusaka-NotLusaka.csv")
-  
-} else if (scenario_ver == "ICS1_lusaka_notlusaka") {
-  wfdb <- read_wfdb("demand_in/cons_fuels_years_Proj1_Lusaka-NotLusaka.csv")
-  
-} else if (scenario_ver == "ICS2_lusaka_notlusaka") {
-  wfdb <- read_wfdb("demand_in/cons_fuels_years_Proj2_Lusaka-NotLusaka.csv")
-  
-} else if (scenario_ver == "ICS3_lusaka_notlusaka") {
-  wfdb <- read_wfdb("demand_in/cons_fuels_years_Proj3_Lusaka-NotLusaka.csv")
-  
-} else if (scenario_ver == "MWI_BAU_fuel_cons") {
-  wfdb <- read_wfdb("demand_in/MWI_BAU_fuel_cons.csv")
-  
-} else if (scenario_ver == "MWI_BAU_chyield") {
-  wfdb <- read_wfdb("demand_in/MWI_BAU_fuel_cons_chyields4unfccc.csv")
-  
-} else if (scenario_ver == "KHM_BAU_fuel_cons") {
-  wfdb <- read_wfdb("demand_in/KHM_BAU_fuel_cons.csv")
+# } else if (scenario_ver == "BaU_vehicle_only") {
+#   wfdb <- read_wfdb("demand_in/cons_fuels_years_charc_and_urb_fw_only.csv")
+#   
+# } else if (scenario_ver == "BaU_walking_only") {
+#   wfdb <- read_wfdb("demand_in/cons_fuels_years_rural_fw_only.csv")
+#   
+# } else if (scenario_ver == "BaU_lusaka_notlusaka") {
+#   wfdb <- read_wfdb("demand_in/cons_fuels_years_BAU_Lusaka-NotLusaka.csv")
+#   
+# } else if (scenario_ver == "ICS1_lusaka_notlusaka") {
+#   wfdb <- read_wfdb("demand_in/cons_fuels_years_Proj1_Lusaka-NotLusaka.csv")
+#   
+# } else if (scenario_ver == "ICS2_lusaka_notlusaka") {
+#   wfdb <- read_wfdb("demand_in/cons_fuels_years_Proj2_Lusaka-NotLusaka.csv")
+#   
+# } else if (scenario_ver == "ICS3_lusaka_notlusaka") {
+#   wfdb <- read_wfdb("demand_in/cons_fuels_years_Proj3_Lusaka-NotLusaka.csv")
+#   
+# } else if (scenario_ver == "MWI_BAU_fuel_cons") {
+#   wfdb <- read_wfdb("demand_in/MWI_BAU_fuel_cons.csv")
+#   
+# } else if (scenario_ver == "MWI_BAU_chyield") {
+#   wfdb <- read_wfdb("demand_in/MWI_BAU_fuel_cons_chyields4unfccc.csv")
+#   
+# } else if (scenario_ver == "KHM_BAU_fuel_cons") {
+#   wfdb <- read_wfdb("demand_in/KHM_BAU_fuel_cons.csv")
 }
 
 unique(wfdb$fuel)
@@ -290,35 +258,9 @@ wfdb <- wfdb %>%
   dplyr::filter(!str_detect(area, regex("^overall$", ignore_case = TRUE)))
 unique(wfdb$area)
 
-# # Make all fuel types Title caps and add consecutive numbers to GID_0 _1 _2 etc
-# wfdb <- wfdb %>%
-#   mutate(
-#     # 1. trim spaces and lowercase everything first
-#     fuel = tolower(trimws(fuel)),
-#     
-#     # 2. replace "biomass" → "fuelwood"
-#     fuel = if_else(fuel == "biomass", "fuelwood", fuel),
-#     
-#     # 3. replace "electric" → "electricity"
-#     fuel = if_else(fuel == "electric", "electricity", fuel),
-#     
-#     # 4. capitalize first letter only ONCE, after all replacements
-#     fuel = str_to_title(fuel),
-#     
-#     # 5. add consecutive numbers to GID_0 _1 _2 etc
-#     iso3 = paste0(iso3, "_", dense_rank(country))
-#   )
-
 unique(wfdb$fuel)
 head(wfdb)
 print(scenario_ver) # save as text to recover later down the river
-
-# # Comment this eventually
-# if (scenario_ver %in% c("BaU", "ICS")) {
-#   if (!identical(unique(wfdb$fuel), unique(whodb$fuel))) {
-#     stop("Fuel categories do not match for this subcountry.")
-#   }
-# }
 
 setwd(countrydir)
 write.table(scenario_ver, "LULCC/TempTables/scenario_ver.txt")
@@ -912,17 +854,10 @@ for (i in adm0_reg$GID_0) { # Start of outer region (i) loop ----
     } 
     
     # Saca el umbral de corte urbano/rural para el año base de 2018 O 2020
-    if (pop_ver == "HSRL") {
-      vec.anno <- as_tibble(pop0_ctry_rasadj.anno, na.rm = TRUE) %>% 
-        arrange(desc(.)) %>%
-        dplyr::select(matches("HSRL$")) %>%  # Select columns ending with "HSRL"
-        pull(1)
-    } else if (pop_ver == "WorldPop") {
       vec.anno <- as_tibble(pop0_ctry_rasadj.anno, na.rm = TRUE) %>% 
         arrange(desc(.)) %>%
         dplyr::select(matches("pop_2020$")) %>%  # Select columns ending with "WorldPop"
         pull(1)
-    }
     
     #### Manual tuning of urban/rural ratio
     # Some countries are ill-defined towards rural/urban population, such as the case of Nepal,
@@ -934,16 +869,6 @@ for (i in adm0_reg$GID_0) { # Start of outer region (i) loop ----
     vec.anno[ix.anno] #Valor de corte
     
     # filtra por el umbral
-    if (pop_ver == "HSRL") {
-      # First, find the column name that ends with "HSRL"
-      column_name <- names(pop0_ctry_rasadj.anno)[grepl("HSRL$", names(pop0_ctry_rasadj.anno))]
-      column_name <- column_name[1]
-      # Convert the column name to a symbol
-      column_symbol <- sym(column_name)
-      # Now, use `filter()` dynamically
-      urbanpopulation.anno <- pop0_ctry_rasadj.anno %>%
-        dplyr::filter(!!column_symbol > vec.anno[ix.anno])
-    } else if (pop_ver == "WorldPop") {
       # First, find the column name that ends with "WorldPop"
       column_name <- names(pop0_ctry_rasadj.anno)[grepl("pop_2020$", names(pop0_ctry_rasadj.anno))]
       column_name <- column_name[1]
@@ -952,7 +877,6 @@ for (i in adm0_reg$GID_0) { # Start of outer region (i) loop ----
       # Now, use `filter()` dynamically
       urbanpopulation.anno <- pop0_ctry_rasadj.anno %>%
         dplyr::filter(!!column_symbol > vec.anno[ix.anno])
-    }
     
     # terra::writeRaster(urbanpopulation, paste0("population_temp/",pop_ver,"_",i,"_",j,"_urbpop.tif"), filetype = "GTiff", overwrite = TRUE)
     m_urb <- c(-Inf, 0, NA,
@@ -962,16 +886,6 @@ for (i in adm0_reg$GID_0) { # Start of outer region (i) loop ----
       classify(rcl_urb, include.lowest=TRUE)
     # terra::writeRaster(urbanpopulation, paste0("population_temp/",pop_ver,"_",i,"_",j,"_urbpopR.tif"), filetype = "GTiff", overwrite = TRUE)
     
-    if (pop_ver == "HSRL") {
-      # First, find the column name that ends with "HSRL"
-      column_name <- names(pop0_ctry_rasadj.anno)[grepl("HSRL$", names(pop0_ctry_rasadj.anno))]
-      column_name <- column_name[1]
-      # Convert the column name to a symbol
-      column_symbol <- sym(column_name)
-      # Now, use `filter()` dynamically
-      ruralpopulation.anno <- pop0_ctry_rasadj.anno %>%
-        dplyr::filter(!!column_symbol <= vec.anno[ix.anno])
-    } else if (pop_ver == "WorldPop") {
       # First, find the column name that ends with "WorldPop"
       column_name <- names(pop0_ctry_rasadj.anno)[grepl("pop_2020$", names(pop0_ctry_rasadj.anno))]
       column_name <- column_name[1]
@@ -980,7 +894,6 @@ for (i in adm0_reg$GID_0) { # Start of outer region (i) loop ----
       # Now, use `filter()` dynamically
       ruralpopulation.anno <- pop0_ctry_rasadj.anno %>%
         dplyr::filter(!!column_symbol <= vec.anno[ix.anno])
-    }
     
     # terra::writeRaster(ruralpopulation, paste0("population_temp/",pop_ver,"_",i,"_",j,"_rurpop.tif"), filetype = "GTiff", overwrite = TRUE)
     m_rur <- c(-Inf, 0, NA,
@@ -991,17 +904,10 @@ for (i in adm0_reg$GID_0) { # Start of outer region (i) loop ----
     # terra::writeRaster(ruralpopulation, paste0("population_temp/",pop_ver,"_",i,"_",j,"_rurpopR.tif"), filetype = "GTiff", overwrite = TRUE)
     
     rururbpopulationR.anno <- merge(urbanpopulationR.anno, ruralpopulationR.anno)
-    if (pop_ver == "HSRL") {
       rururbpopulationR_plot.anno <- rururbpopulationR.anno %>%
         mutate(!!column_name := recode(!!column_symbol,
                                        `1` = "rural",
                                        `2` = "urban"))
-    } else if (pop_ver == "WorldPop") {
-      rururbpopulationR_plot.anno <- rururbpopulationR.anno %>%
-        mutate(!!column_name := recode(!!column_symbol,
-                                       `1` = "rural",
-                                       `2` = "urban"))
-    }
     
     plot(rururbpopulationR_plot.anno, main=paste0(i," : ",j))
     lines(ctry_vector, lwd=2)

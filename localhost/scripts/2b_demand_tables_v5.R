@@ -93,45 +93,43 @@ read_wfdb <- function(file) {
 # Define scenarios ----
 if (scenario_ver == "BaU") {
   wfdb <- read_wfdb("demand_in/cons_fuels_years.csv")
-
+  
 } else if (scenario_ver == "BaU_v2") {
   wfdb <- read_wfdb("demand_in/demand_bau_v2.csv")  
-
+  
 } else if (scenario_ver == "ICS") {
   wfdb <- read_wfdb("demand_in/cons_fuels_years_proj.csv")
   
 } else if (scenario_ver == "ICS_v2") {
   wfdb <- read_wfdb("demand_in/demand_ics_v2.csv")
   
-} else if (scenario_ver == "BaU_vehicle_only") {
-  wfdb <- read_wfdb("demand_in/cons_fuels_years_charc_and_urb_fw_only.csv")
-  
-} else if (scenario_ver == "BaU_walking_only") {
-  wfdb <- read_wfdb("demand_in/cons_fuels_years_rural_fw_only.csv")
-  
-} else if (scenario_ver == "BaU_lusaka_notlusaka") {
-  wfdb <- read_wfdb("demand_in/cons_fuels_years_BAU_Lusaka-NotLusaka.csv")
-  
-} else if (scenario_ver == "ICS1_lusaka_notlusaka") {
-  wfdb <- read_wfdb("demand_in/cons_fuels_years_Proj1_Lusaka-NotLusaka.csv")
-  
-} else if (scenario_ver == "ICS2_lusaka_notlusaka") {
-  wfdb <- read_wfdb("demand_in/cons_fuels_years_Proj2_Lusaka-NotLusaka.csv")
-  
-} else if (scenario_ver == "ICS3_lusaka_notlusaka") {
-  wfdb <- read_wfdb("demand_in/cons_fuels_years_Proj3_Lusaka-NotLusaka.csv")
-  
-} else if (scenario_ver == "MWI_BAU_fuel_cons") {
-  wfdb <- read_wfdb("demand_in/MWI_BAU_fuel_cons.csv")
-  
-} else if (scenario_ver == "MWI_BAU_chyield") {
-  wfdb <- read_wfdb("demand_in/MWI_BAU_fuel_cons_chyields4unfccc.csv")
-  
-} else if (scenario_ver == "KHM_BAU_fuel_cons") {
-  wfdb <- read_wfdb("demand_in/KHM_BAU_fuel_cons.csv")
+  # } else if (scenario_ver == "BaU_vehicle_only") {
+  #   wfdb <- read_wfdb("demand_in/cons_fuels_years_charc_and_urb_fw_only.csv")
+  #   
+  # } else if (scenario_ver == "BaU_walking_only") {
+  #   wfdb <- read_wfdb("demand_in/cons_fuels_years_rural_fw_only.csv")
+  #   
+  # } else if (scenario_ver == "BaU_lusaka_notlusaka") {
+  #   wfdb <- read_wfdb("demand_in/cons_fuels_years_BAU_Lusaka-NotLusaka.csv")
+  #   
+  # } else if (scenario_ver == "ICS1_lusaka_notlusaka") {
+  #   wfdb <- read_wfdb("demand_in/cons_fuels_years_Proj1_Lusaka-NotLusaka.csv")
+  #   
+  # } else if (scenario_ver == "ICS2_lusaka_notlusaka") {
+  #   wfdb <- read_wfdb("demand_in/cons_fuels_years_Proj2_Lusaka-NotLusaka.csv")
+  #   
+  # } else if (scenario_ver == "ICS3_lusaka_notlusaka") {
+  #   wfdb <- read_wfdb("demand_in/cons_fuels_years_Proj3_Lusaka-NotLusaka.csv")
+  #   
+  # } else if (scenario_ver == "MWI_BAU_fuel_cons") {
+  #   wfdb <- read_wfdb("demand_in/MWI_BAU_fuel_cons.csv")
+  #   
+  # } else if (scenario_ver == "MWI_BAU_chyield") {
+  #   wfdb <- read_wfdb("demand_in/MWI_BAU_fuel_cons_chyields4unfccc.csv")
+  #   
+  # } else if (scenario_ver == "KHM_BAU_fuel_cons") {
+  #   wfdb <- read_wfdb("demand_in/KHM_BAU_fuel_cons.csv")
 }
-
-unique(wfdb$fuel)
 
 # wfdb <- wfdb %>%
 #   dplyr::mutate(
