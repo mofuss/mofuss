@@ -61,6 +61,16 @@ country_parameters %>%
   pull(ParCHR) %>%
   as.integer(.) -> end_year
 
+country_parameters %>%
+  dplyr::filter(Var == "end_year") %>%
+  pull(ParCHR) %>%
+  as.integer(.) -> end_year
+
+country_parameters %>%
+  dplyr::filter(Var == "efchratio") %>%
+  pull(ParCHR) %>%
+  as.integer(.) -> efchratio
+
 target_fuels <- c(
   "fuelwood", "charcoal", "imp_fuelwood", "imp_charcoal",
   "gas", "kerosene", "electric", "pellets",
@@ -165,12 +175,11 @@ build_mofuss_demand <- function(dem, popWHO) {
       relationship = "one-to-one"
     ) %>%
     mutate(
-      pc_fuel   = NA_real_,
       fuel_tons = ifelse(is.na(fuel_tons), 0, fuel_tons)
     ) %>%
     dplyr::select(
       iso3, country, area, fuel, year,
-      people, pc_fuel, fuel_tons
+      people, fuel_tons
     ) %>%
     arrange(iso3, year, area, fuel)
   
@@ -181,31 +190,59 @@ build_mofuss_demand <- function(dem, popWHO) {
       area      = "overall",
       people    = sum(people, na.rm = TRUE),
       fuel_tons = sum(fuel_tons, na.rm = TRUE),
-      pc_fuel   = NA_real_,
       .groups = "drop"
     ) %>%
-    dplyr::select(iso3, country, area, fuel, year, people, pc_fuel, fuel_tons)
+    dplyr::select(iso3, country, area, fuel, year, people, fuel_tons)
   
   mofuss_o <- bind_rows(mofuss, overall_rows) %>%
     arrange(iso3, year, area, fuel)
   
-  # 6) Add region
+  # 6) Add region and fuel_cons_calc
+  dem_params_reg <- dem_params %>%
+    dplyr::filter(!is.na(region)) %>%
+    dplyr::select(fuel, region, pc_fuel)
+  
+  dem_params_all <- dem_params %>%
+    dplyr::filter(is.na(region)) %>%
+    dplyr::select(fuel, pc_fuel_default = pc_fuel)
+  
   mofuss_or <- mofuss_o %>%
     mutate(
-      region = countrycode(iso3, "iso3c", "continent"),
       region = case_when(
-        region == "Africa"   ~ "ssa",
-        region == "Americas" ~ "latam",
-        region == "Asia"     ~ "asia",
-        region == "Oceania"  ~ "oceania",
-        region == "Europe"   ~ "europe",
-        TRUE ~ NA_character_
+        iso3 %in% c("AGO","BDI","BEN","BFA","BWA","CAF","CIV","CMR","COD","COG","COM","CPV",
+                    "DJI","ERI","ETH","GAB","GHA","GIN","GMB","GNB","GNQ","KEN","LBR","LSO",
+                    "MDG","MLI","MOZ","MRT","MUS","MWI","NAM","NER","NGA","RWA","SDN","SEN",
+                    "SLE","SOM","SSD","STP","SWZ","SYC","TCD","TGO","TZA","UGA","ZAF","ZMB","ZWE") ~ "ssa",
+        iso3 %in% c("ARG","BOL","BRA","CHL","COL","CRI","CUB","DOM","ECU","SLV","GTM","HND",
+                    "HTI","JAM","MEX","NIC","PAN","PER","PRY","URY","VEN","BLZ","GUY","SUR") ~ "latam",
+        iso3 %in% c("CHN","MNG","PRK","KOR","JPN","TWN") ~ "east_asia",
+        iso3 %in% c("AFG","BGD","BTN","IND","LKA","MDV","NPL","PAK") ~ "south_asia",
+        TRUE ~ "other"
       )
     ) %>%
+    left_join(
+      dem_params_reg,
+      by = c("fuel", "region"),
+      relationship = "many-to-one"
+    ) %>%
+    left_join(
+      dem_params_all,
+      by = "fuel",
+      relationship = "many-to-one"
+    ) %>%
+    mutate(
+      pc_fuel = dplyr::coalesce(pc_fuel, pc_fuel_default),
+      fuel_tons_calc = case_when(
+        is.na(pc_fuel) ~ NA_real_,
+        fuel == "charcoal" ~ people * 1000 * pc_fuel * efchratio,
+        TRUE ~ people * 1000 * pc_fuel
+      )
+    ) %>%
+    dplyr::select(-pc_fuel_default) %>%
     relocate(region, .after = country) %>%
     dplyr::select(
       iso3, country, region, area, fuel, year,
-      people, pc_fuel, fuel_tons
+      people, pc_fuel, fuel_tons, fuel_tons_calc
     )
   
   # final duplicate check
@@ -233,38 +270,75 @@ popWHO <- read_excel(
   paste0(countrydir, "/LULCC/DownloadedDatasets/SourceDataGlobal/demand/demand_in/A_LMIC_Estimates_2050_popmedian_original.xlsx")
 )
 
+# Demand parameters
+dem_params <- read_excel(
+  paste0(countrydir, "/LULCC/DownloadedDatasets//SourceDataGlobal/demand_parameters.xlsx"),
+  sheet = "demand_parameters",
+  skip = 0
+) |> 
+  mutate(
+    fuel = as.character(fuel),
+    region = as.character(region),
+    pc_fuel = as.numeric(pc_fuel),
+    pc_fuel_units = as.character(pc_fuel_units)
+  ) 
+dem_params
+
 bau_res <- build_mofuss_demand(bau_dem, popWHO)
 ics_res <- build_mofuss_demand(ics_dem, popWHO)
 
 bau_mofuss_or <- bau_res$data
 ics_mofuss_or <- ics_res$data
+bau_mofuss_or
+bau_mofuss_or %>%
+  dplyr::filter(iso3 %in% c("KEN", "MWI", "ZMB"))
 
-bau_res$dup_who
-bau_res$dup_dem
-bau_res$dup_final
+test <- bau_mofuss_or %>%
+  dplyr::filter(
+    iso3 == "KEN",
+    area == "urban",
+    fuel == "charcoal",
+    year == 2020
+  )
+test
+people_val <- test %>% pull(people)
 
-ics_res$dup_who
-ics_res$dup_dem
-ics_res$dup_final
+# Test: people * charcaol yield * pc_cpns
+people_val*1000*0.16*6
 
-unique(bau_mofuss_or$region)
-unique(ics_mofuss_or$region)
 
-sum(is.na(bau_mofuss_or$people))
-sum(is.na(bau_mofuss_or$pc_fuel))
-sum(is.na(bau_mofuss_or$fuel_tons))
+# Ref value: 5546396
+5546396 / (3081*1000)
 
-sum(is.na(ics_mofuss_or$people))
-sum(is.na(ics_mofuss_or$pc_fuel))
-sum(is.na(ics_mofuss_or$fuel_tons))
 
-write_csv(
-  bau_mofuss_or,
-  paste0(countrydir, "/LULCC/DownloadedDatasets/SourceDataGlobal/demand/demand_in/demand_bau_v2.csv")
-)
+# ics_mofuss_or
 
-write_csv(
-  ics_mofuss_or,
-  paste0(countrydir, "/LULCC/DownloadedDatasets/SourceDataGlobal/demand/demand_in/demand_ics_v2.csv")
-)
+# bau_res$dup_who
+# bau_res$dup_dem
+# bau_res$dup_final
+# 
+# ics_res$dup_who
+# ics_res$dup_dem
+# ics_res$dup_final
+# 
+# unique(bau_mofuss_or$region)
+# unique(ics_mofuss_or$region)
+# 
+# sum(is.na(bau_mofuss_or$people))
+# sum(is.na(bau_mofuss_or$pc_fuel))
+# sum(is.na(bau_mofuss_or$fuel_tons))
+# 
+# sum(is.na(ics_mofuss_or$people))
+# sum(is.na(ics_mofuss_or$pc_fuel))
+# sum(is.na(ics_mofuss_or$fuel_tons))
+
+# write_csv(
+#   bau_mofuss_or,
+#   paste0(countrydir, "/LULCC/DownloadedDatasets/SourceDataGlobal/demand/demand_in/demand_bau_v2.csv")
+# )
+# 
+# write_csv(
+#   ics_mofuss_or,
+#   paste0(countrydir, "/LULCC/DownloadedDatasets/SourceDataGlobal/demand/demand_in/demand_ics_v2.csv")
+# )
 

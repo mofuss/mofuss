@@ -3,13 +3,7 @@
 # Date: Mar 2024
 
 # 2dolist ----
-# ### FIX THIS LATER!
-# getwd()
-# readr::write_csv(
-#   wfdb,
-#   paste0(demanddir,"/demand_in/cons_fuels_years_BAU_Lusaka-NotLusaka_4plant.csv")
-# )
-# #
+# Fix split version of the tables
 
 # Internal parameters ----
 
@@ -62,21 +56,7 @@ country_parameters %>%
   pull(ParCHR) %>%
   as.integer(.) -> end_year
 
-year_min_whodb  <- start_year #1990? Check this eventually
-year_min_wfdb   <- start_year
-year_max        <- end_year
-
 setwd(demanddir)
-
-# # Reads WHO dataset
-# if (subcountry != 1) {
-#   whodb <- read_excel("demand_in/A_LMIC_Estimates_2050_popmedian.xlsx")
-#   # undb <- read_excel("admin_regions/UN_Rural-Urban_Pop_projections_formatted.xlsx") # https://population.un.org/wpp/Download/Standard/Population/
-#   terra::unique(whodb$fuel)
-#   # terra::unique(whodb$year)
-#   # terra::unique(whodb$iso3)
-# }
-# getwd()
 
 # Define scenarios ----
 detect_delimiter <- function(file) {
@@ -131,33 +111,9 @@ if (scenario_ver == "BaU") {
   #   wfdb <- read_wfdb("demand_in/KHM_BAU_fuel_cons.csv")
 }
 
-# wfdb <- wfdb %>%
-#   dplyr::mutate(
-#     # 1. trim spaces and lowercase everything first
-#     fuel = tolower(trimws(fuel)),
-#     
-#     # 2. replace "biomass" → "fuelwood"
-#     fuel = if_else(fuel == "biomass", "fuelwood", fuel),
-#     
-#     # 3. replace "electric" → "electricity"
-#     fuel = if_else(fuel == "electric", "electricity", fuel),
-#     
-#     # 4. capitalize first letter only ONCE, after all replacements
-#     fuel = str_to_title(fuel)
-#     
-#     # 5. add overall class
-#   )
 unique(wfdb$fuel)
 head(wfdb)
 print(scenario_ver) # save as text to recover later down the river
-
-# ### FIX THIS LATER!
-# getwd()
-# readr::write_csv(
-#   wfdb,
-#   paste0(demanddir,"/demand_in/cons_fuels_years_BAU_Lusaka-NotLusaka_4plant.csv")
-# )
-# #
 
 outdir <- "demand_atlas"
 full_path <- file.path(countrydir, outdir)
@@ -181,7 +137,7 @@ order_area <- function(x) {
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 1) POPULATION BY FUEL (WHODB when subcountry != 1; WFDB when subcountry == 1)
+# 1) POPULATION BY FUEL
 #    - If subcountry == 1, create split = country (e.g., Lusaka / NotLusaka)
 #    - Otherwise, no split
 # ─────────────────────────────────────────────────────────────────────────────
@@ -219,25 +175,6 @@ fuel_palette <- c(
 # --- 1A) Build ONE clean population table, with optional split column ---
 if (subcountry != 1) {
   
-  # popdb_clean <- whodb %>%
-  #   dplyr::filter(
-  #     iso3 == region2BprocessedCtry_iso,
-  #     year >= year_min_whodb, year <= year_max,
-  #     !fuel %in% c("Total Polluting", "Total Clean")
-  #   ) %>%
-  #   dplyr::mutate(
-  #     pop  = pop * 1000,
-  #     area = order_area(area),
-  #     split = NA_character_   # keep column for consistent downstream code
-  #   ) %>%
-  #   dplyr::select(iso3, region, split, area, fuel, year, pop) %>%
-  #   dplyr::arrange(year, area, fuel)
-  # 
-  # pop_prefix <- "whodb"
-  # year_min_pop <- year_min_whodb
-  
-  # Version 2
- 
   popdb_clean <- wfdb %>%
     dplyr::filter(
       iso3 == region2BprocessedCtry_iso,
@@ -253,8 +190,6 @@ if (subcountry != 1) {
   
   pop_prefix <- "wfdb_v2"
   year_min_pop <- year_min_whodb
-  
-  
   
 } else {
   
