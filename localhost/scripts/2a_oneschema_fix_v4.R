@@ -269,7 +269,7 @@ share_table_default <- bau_no_overall %>%
     share_default = if_else(total_people_area_year > 0, people / total_people_area_year, 0)
   ) %>%
   ungroup() %>%
-  select(iso3, country, region, area, year, fuel, people, share_default)
+  dplyr::select(iso3, country, region, area, year, fuel, people, share_default)
 
 # Optional export for user reference
 write_csv(
@@ -427,14 +427,14 @@ bau_share_table <- bau_no_overall %>%
     share_bau = if_else(total_people > 0, people / total_people, 0)
   ) %>%
   ungroup() %>%
-  select(iso3, country, region, area, fuel, year, total_people, share_bau)
+  dplyr::select(iso3, country, region, area, fuel, year, total_people, share_bau)
 
 ## 9) APPLY ICS ONLY WHERE AVAILABLE----
 #    OTHERWISE KEEP BAU SHARES
 share_table_final <- bau_share_table %>%
   left_join(
     share_table_ics_out %>%
-      select(iso3, area, year, fuel, share_ics),
+      dplyr::select(iso3, area, year, fuel, share_ics),
     by = c("iso3", "area", "year", "fuel")
   ) %>%
   mutate(
@@ -450,10 +450,10 @@ share_check <- share_table_final %>%
 
 ## 10) REBUILD NON-overall TABLE----
 ics_no_overall <- bau_no_overall %>%
-  select(-people, -fuel_tons_calc) %>%
+  dplyr::select(-people, -fuel_tons_calc) %>%
   left_join(
     share_table_final %>%
-      select(iso3, area, year, fuel, total_people, share_final),
+      dplyr::select(iso3, area, year, fuel, total_people, share_final),
     by = c("iso3", "area", "year", "fuel")
   ) %>%
   mutate(
@@ -470,7 +470,7 @@ ics_no_overall <- ics_no_overall %>%
       TRUE ~ people * 1000 * pc_fuel
     )
   ) %>%
-  select(
+  dplyr::select(
     iso3, country, region, area, fuel, year,
     people, pc_fuel, fuel_tons_calc
   )
@@ -494,12 +494,12 @@ ics_targets <- share_table_ics_out %>%
 bau_check <- bau_no_overall %>%
   anti_join(ics_targets, by = c("iso3", "area")) %>%
   arrange(iso3, area, year, fuel) %>%
-  select(iso3, area, year, fuel, people_bau = people, fuel_tons_calc_bau = fuel_tons_calc)
+  dplyr::select(iso3, area, year, fuel, people_bau = people, fuel_tons_calc_bau = fuel_tons_calc)
 
 ics_check <- ics_no_overall %>%
   anti_join(ics_targets, by = c("iso3", "area")) %>%
   arrange(iso3, area, year, fuel) %>%
-  select(iso3, area, year, fuel, people_ics = people, fuel_tons_calc_ics = fuel_tons_calc)
+  dplyr::select(iso3, area, year, fuel, people_ics = people, fuel_tons_calc_ics = fuel_tons_calc)
 
 diff_check <- bau_check %>%
   left_join(ics_check, by = c("iso3", "area", "year", "fuel")) %>%
@@ -531,14 +531,14 @@ bau_overall <- bau_no_overall %>%
       NA_real_
     )
   ) %>%
-  select(
+  dplyr::select(
     iso3, country, region, area, fuel, year,
     people, pc_fuel, fuel_tons_calc
   )
 
 bau_mofuss_or_rebuilt <- bind_rows(
   bau_no_overall %>%
-    select(iso3, country, region, area, fuel, year, people, pc_fuel, fuel_tons_calc),
+    dplyr::select(iso3, country, region, area, fuel, year, people, pc_fuel, fuel_tons_calc),
   bau_overall
 ) %>%
   arrange(iso3, year, area, fuel)
@@ -559,14 +559,14 @@ ics_overall <- ics_no_overall %>%
       NA_real_
     )
   ) %>%
-  select(
+  dplyr::select(
     iso3, country, region, area, fuel, year,
     people, pc_fuel, fuel_tons_calc
   )
 
 ics_mofuss_or <- bind_rows(
   ics_no_overall %>%
-    select(iso3, country, region, area, fuel, year, people, pc_fuel, fuel_tons_calc),
+    dplyr::select(iso3, country, region, area, fuel, year, people, pc_fuel, fuel_tons_calc),
   ics_overall
 ) %>%
   arrange(iso3, year, area, fuel)
