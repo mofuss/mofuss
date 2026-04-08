@@ -1794,5 +1794,9 @@ file.copy(from=paste0(demanddir,"/to_idw/",substr(scenario_ver, 1, 3),"_fwch_v.c
           to=paste0(countrydir,"/In/DemandScenarios"),
           overwrite = TRUE)
 
+
+# Cubify results for easy handling ----
+
+
 # End of script ----
 

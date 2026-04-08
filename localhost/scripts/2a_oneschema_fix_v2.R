@@ -74,7 +74,7 @@ country_parameters %>%
 target_fuels <- c(
   "fuelwood", "charcoal", "imp_fuelwood", "imp_charcoal",
   "gas", "kerosene", "electric", "pellets",
-  "ethanol", "biogas", "coal", "other"
+  "ethanol", "biogas", "coal" #, "other"
 )
 
 build_mofuss_demand <- function(dem, popWHO) {
@@ -289,9 +289,10 @@ ics_res <- build_mofuss_demand(ics_dem, popWHO)
 
 bau_mofuss_or <- bau_res$data
 ics_mofuss_or <- ics_res$data
-bau_mofuss_or
+
 bau_mofuss_or %>%
-  dplyr::filter(iso3 %in% c("KEN", "MWI", "ZMB"))
+  dplyr::filter(iso3 %in% c("KEN", "MWI", "ZMB")) %>%
+  head(.,11)
 
 test <- bau_mofuss_or %>%
   dplyr::filter(

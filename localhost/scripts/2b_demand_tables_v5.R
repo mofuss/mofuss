@@ -178,7 +178,7 @@ if (subcountry != 1) {
   popdb_clean <- wfdb %>%
     dplyr::filter(
       iso3 == region2BprocessedCtry_iso,
-      year >= year_min_whodb, year <= year_max
+      year >= start_year, year <= end_year
     ) %>%
     dplyr::mutate(
       pop  = people * 1000,
@@ -189,7 +189,6 @@ if (subcountry != 1) {
     dplyr::arrange(year, area, fuel)
   
   pop_prefix <- "wfdb_v2"
-  year_min_pop <- year_min_whodb
   
 } else {
   
@@ -197,7 +196,7 @@ if (subcountry != 1) {
   popdb_clean <- wfdb %>%
     dplyr::filter(
       iso3 == region2BprocessedCtry_iso,
-      year >= year_min_wfdb, year <= year_max
+      year >= start_year, year <= end_year
     ) %>%
     dplyr::mutate(
       pop   = people * 1000,
@@ -208,7 +207,6 @@ if (subcountry != 1) {
     dplyr::arrange(split, year, area, fuel)
   
   pop_prefix <- "robdb"
-  year_min_pop <- year_min_wfdb
 }
 
 popdb_clean %>% count(split, area, fuel, year) %>% dplyr::filter(n > 1)
@@ -217,7 +215,7 @@ popdb_clean %>% count(split, area, fuel, year) %>% dplyr::filter(n > 1)
 write_csv(
   popdb_clean %>% dplyr::select(year, area, fuel, pop, split),
   file.path(outdir, sprintf("%s_pop_long_%s_%s_%s.csv",
-                            pop_prefix, region2BprocessedCtry_iso, year_min_pop, year_max))
+                            pop_prefix, region2BprocessedCtry_iso, start_year, end_year))
 )
 
 # --- 1C) Write WIDE table (key depends on split existence) ---
@@ -235,7 +233,7 @@ popdb_wide <- popdb_clean %>%
 write_csv(
   popdb_wide,
   file.path(outdir, sprintf("%s_pop_wide_%s_%s_%s.csv",
-                            pop_prefix, region2BprocessedCtry_iso, year_min_pop, year_max))
+                            pop_prefix, region2BprocessedCtry_iso, start_year, end_year))
 )
 
 # --- 1D) Plotting function (reusable for each split) ---
@@ -259,10 +257,10 @@ plot_pop_stack <- function(df, title_suffix = NULL, out_png) {
       title = paste0("Population using each fuel in ", region2BprocessedCtry_iso,
                      if (!is.null(title_suffix)) paste0(" — ", title_suffix) else ""),
       subtitle = sprintf("%d–%d • Faceted by area (common Y from %s)",
-                         year_min_pop, year_max, if (has_overall) "Overall" else "max across areas"),
+                         start_year, end_year, if (has_overall) "Overall" else "max across areas"),
       x = NULL, y = "People", fill = "Fuel"
     ) +
-    scale_x_continuous(breaks = seq(year_min_pop, year_max, by = 5)) +
+    scale_x_continuous(breaks = seq(start_year, end_year, by = 5)) +
     scale_y_continuous(
       labels = scales::label_number(scale_cut = scales::cut_si("")),
       expand = expansion(mult = c(0, .05))
@@ -287,7 +285,7 @@ if (all(is.na(popdb_clean$split))) {
     df = popdb_clean,
     title_suffix = NULL,
     out_png = file.path(outdir, sprintf("%s_pop_stack_faceted_%s_%s_%s.png",
-                                        pop_prefix, region2BprocessedCtry_iso, year_min_pop, year_max))
+                                        pop_prefix, region2BprocessedCtry_iso, start_year, end_year))
   )
   
 } else {
@@ -302,7 +300,7 @@ if (all(is.na(popdb_clean$split))) {
       df = df_sp,
       title_suffix = sp,
       out_png = file.path(outdir, sprintf("%s_pop_stack_faceted_%s_%s_%s_%s.png",
-                                          pop_prefix, region2BprocessedCtry_iso, sp, year_min_pop, year_max))
+                                          pop_prefix, region2BprocessedCtry_iso, sp, start_year, end_year))
     )
   }
   
@@ -324,10 +322,10 @@ if (all(is.na(popdb_clean$split))) {
     labs(
       title = sprintf("Population using each fuel in %s — by subcountry split", region2BprocessedCtry_iso),
       subtitle = sprintf("%d–%d • Rows = split • Columns = area (common Y across all splits)",
-                         year_min_pop, year_max),
+                         start_year, end_year),
       x = NULL, y = "People", fill = "Fuel"
     ) +
-    scale_x_continuous(breaks = seq(year_min_pop, year_max, by = 5)) +
+    scale_x_continuous(breaks = seq(start_year, end_year, by = 5)) +
     scale_y_continuous(
       labels = scales::label_number(scale_cut = scales::cut_si("")),
       expand = expansion(mult = c(0, .05))
@@ -342,7 +340,7 @@ if (all(is.na(popdb_clean$split))) {
   
   ggsave(
     file.path(outdir, sprintf("%s_pop_stack_splitgrid_%s_%s_%s.png",
-                              pop_prefix, region2BprocessedCtry_iso, year_min_pop, year_max)),
+                              pop_prefix, region2BprocessedCtry_iso, start_year, end_year)),
     p_combined, width = 14, height = 9, dpi = 300, bg = "white"
   )
 }
@@ -358,14 +356,39 @@ col_sym <- rlang::sym(demand_col)
 wfdb_base <- wfdb %>%
   dplyr::filter(
     iso3 == region2BprocessedCtry_iso,
-    year >= year_min_wfdb, year <= year_max,
-    fuel %in% c("fuelwood", "charcoal")
+    year >= start_year, year <= end_year,
+    fuel %in% c("fuelwood", "charcoal", "imp_fuelwood", "imp_charcoal")
   ) %>%
   dplyr::mutate(
+    # Collapse imported fuels into main categories
+    fuel = dplyr::case_when(
+      fuel %in% c("fuelwood", "imp_fuelwood") ~ "fuelwood",
+      fuel %in% c("charcoal", "imp_charcoal") ~ "charcoal",
+      TRUE ~ fuel
+    ),
     area = order_area(area),
     split = if (subcountry == 1) as.character(country) else NA_character_
   )
 
+wfdb_check <- wfdb %>%
+  dplyr::mutate(
+    fuel_clean = tolower(trimws(as.character(fuel)))
+  ) %>%
+  dplyr::filter(
+    iso3 == region2BprocessedCtry_iso,
+    year >= start_year, year <= end_year,
+    fuel_clean %in% c("fuelwood", "imp_fuelwood", "charcoal", "imp_charcoal")
+  ) %>%
+  dplyr::group_by(fuel_clean) %>%
+  dplyr::summarise(total = sum(!!col_sym, na.rm = TRUE), .groups = "drop")
+
+print(wfdb_check)
+
+wfdb_check2 <- wfdb_base %>%
+  dplyr::group_by(fuel) %>%
+  dplyr::summarise(total = sum(!!col_sym, na.rm = TRUE), .groups = "drop")
+
+print(wfdb_check2)
 
 # Summarise with or without split
 wfdb_twofuels <- if (subcountry == 1) {
@@ -396,7 +419,7 @@ write_csv(
   wfdb_twofuels %>%
     dplyr::select(dplyr::any_of("split"), year, area, fuel, value_t, units),
   file.path(outdir, sprintf("wfdb_fw_char_long_%s_%s_%s_%s_byarea%s.csv",
-                            region2BprocessedCtry_iso, demand_col, year_min_wfdb, year_max,
+                            region2BprocessedCtry_iso, demand_col, start_year, end_year,
                             ifelse(subcountry == 1, "_bysplit", "")))
 )
 
@@ -418,7 +441,7 @@ wfdb_twofuels_wide <- wfdb_twofuels %>%
 write_csv(
   wfdb_twofuels_wide,
   file.path(outdir, sprintf("wfdb_fw_char_wide_%s_%s_%s_%s_byarea%s.csv",
-                            region2BprocessedCtry_iso, demand_col, year_min_wfdb, year_max,
+                            region2BprocessedCtry_iso, demand_col, start_year, end_year,
                             ifelse(subcountry == 1, "_bysplit", "")))
 )
 
@@ -456,10 +479,10 @@ if (subcountry == 1) {
         title = sprintf("Fuelwood & Charcoal demand in %s — %s (tonnes, charcoal ÷ %s)",
                         region2BprocessedCtry_iso, sp, efchratio),
         subtitle = sprintf("%d–%d • Faceted by area (Y from max stacked in Overall) • source col: %s",
-                           year_min_wfdb, year_max, demand_col),
+                           start_year, end_year, demand_col),
         x = NULL, y = "Tonnes", fill = "Fuel"
       ) +
-      scale_x_continuous(breaks = seq(year_min_wfdb, year_max, by = 5)) +
+      scale_x_continuous(breaks = seq(start_year, end_year, by = 5)) +
       scale_y_continuous(
         labels = scales::label_number(scale_cut = scales::cut_si("")),
         expand = expansion(mult = c(0, .05))
@@ -474,7 +497,7 @@ if (subcountry == 1) {
     
     ggsave(
       file.path(outdir, sprintf("wfdb_fw_char_stack_faceted_%s_%s_%s_%s_%s.png",
-                                region2BprocessedCtry_iso, sp, demand_col, year_min_wfdb, year_max)),
+                                region2BprocessedCtry_iso, sp, demand_col, start_year, end_year)),
       p_sp, width = 14, height = 7, dpi = 300, bg = "white"
     )
   }
@@ -487,10 +510,10 @@ if (subcountry == 1) {
       title = sprintf("Fuelwood & Charcoal demand in %s — by subcountry split (tonnes, charcoal ÷ %s)",
                       region2BprocessedCtry_iso, efchratio),
       subtitle = sprintf("%d–%d • Rows = split • Columns = area (common Y based on max(Overall) across splits) • source col: %s",
-                         year_min_wfdb, year_max, demand_col),
+                         start_year, end_year, demand_col),
       x = NULL, y = "Tonnes", fill = "Fuel"
     ) +
-    scale_x_continuous(breaks = seq(year_min_wfdb, year_max, by = 5)) +
+    scale_x_continuous(breaks = seq(start_year, end_year, by = 5)) +
     scale_y_continuous(
       labels = scales::label_number(scale_cut = scales::cut_si("")),
       expand = expansion(mult = c(0, .05))
@@ -505,7 +528,7 @@ if (subcountry == 1) {
   
   ggsave(
     file.path(outdir, sprintf("wfdb_fw_char_stack_splitgrid_%s_%s_%s_%s.png",
-                              region2BprocessedCtry_iso, demand_col, year_min_wfdb, year_max)),
+                              region2BprocessedCtry_iso, demand_col, start_year, end_year)),
     p_grid, width = 14, height = 9, dpi = 300, bg = "white"
   )
   
@@ -524,10 +547,10 @@ if (subcountry == 1) {
     labs(
       title = sprintf("Fuelwood & Charcoal demand in %s (tonnes, charcoal ÷ %s)", region2BprocessedCtry_iso, efchratio),
       subtitle = sprintf("%d–%d • Faceted by area (Y from max stacked in Overall) • source col: %s",
-                         year_min_wfdb, year_max, demand_col),
+                         start_year, end_year, demand_col),
       x = NULL, y = "Tonnes", fill = "Fuel"
     ) +
-    scale_x_continuous(breaks = seq(year_min_wfdb, year_max, by = 5)) +
+    scale_x_continuous(breaks = seq(start_year, end_year, by = 5)) +
     scale_y_continuous(
       labels = scales::label_number(scale_cut = scales::cut_si("")),
       expand = expansion(mult = c(0, .05))
@@ -542,7 +565,7 @@ if (subcountry == 1) {
   
   ggsave(
     file.path(outdir, sprintf("wfdb_fw_char_stack_faceted_%s_%s_%s_%s.png",
-                              region2BprocessedCtry_iso, demand_col, year_min_wfdb, year_max)),
+                              region2BprocessedCtry_iso, demand_col, start_year, end_year)),
     p_wfdb, width = 14, height = 7, dpi = 300, bg = "white"
   )
 }
