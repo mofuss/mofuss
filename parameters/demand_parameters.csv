@@ -1,0 +1,28 @@
+fuel,region,pc_fuel,pc_fuel_units
+biogas,,0.12,tons/person-year
+charcoal,ssa,0.160,tons/person-year
+charcoal,east_asia,0.180,tons/person-year
+charcoal,south_asia,0.130,tons/person-year
+charcoal,latam,0.160,tons/person-year
+charcoal,other,0.160,tons/person-year
+coal,,0.246,tons/person-year
+electric,,0.043,MWh/person-year
+ethanol,,0.075,tons/person-year
+fuelwood,ssa,0.400,oven-dry tons/person-year
+fuelwood,east_asia,0.350,oven-dry tons/person-year
+fuelwood,south_asia,0.400,oven-dry tons/person-year
+fuelwood,latam,1.100,oven-dry tons/person-year
+fuelwood,other,0.620,oven-dry tons/person-year
+gas,,0.048,tons/person-year
+imp_charcoal,ssa,0.080,tons/person-year
+imp_charcoal,east_asia,0.090,tons/person-year
+imp_charcoal,south_asia,0.065,tons/person-year
+imp_charcoal,latam,0.080,tons/person-year
+imp_charcoal,other,0.080,tons/person-year
+imp_fuelwood,ssa,0.200,oven-dry tons/person-year
+imp_fuelwood,east_asia,0.175,oven-dry tons/person-year
+imp_fuelwood,south_asia,0.200,oven-dry tons/person-year
+imp_fuelwood,latam,0.550,oven-dry tons/person-year
+imp_fuelwood,other,0.310,oven-dry tons/person-year
+kerosene,,0.050,tons/person-year
+pellets,,0.12,tons/person-year

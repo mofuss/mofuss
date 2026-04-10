@@ -30,9 +30,7 @@ os <- Sys.info()["sysname"]
 # Set working directory
 setwd(countrydir)
 
-# ------------------------------------------------------------
-# Define base paths
-# ------------------------------------------------------------
+# Define base paths----
 base_path <- file.path("LULCC", "DownloadedDatasets", paste0("SourceData", country_name))
 
 # Use /demand100m/ if it exists, otherwise /demand/
@@ -42,9 +40,7 @@ demand_base <- if (dir.exists(file.path(base_path, "demand100m"))) {
   file.path(base_path, "demand")
 }
 
-# ------------------------------------------------------------
-# Define directories to remove
-# ------------------------------------------------------------
+# Define directories to remove ----
 directories_to_remove <- c(
   "Debugging", "debug*", "norm*", 
   "HTML_animation_OutBaU", "HTML_animation_OutICS", 
@@ -73,9 +69,7 @@ existing_dirs <- expanded_dirs[file.exists(expanded_dirs)]
 cat("Deleting the following directories:\n")
 cat(paste(existing_dirs, collapse = "\n"), "\n")
 
-# ------------------------------------------------------------
-# Define file patterns to remove
-# ------------------------------------------------------------
+## Define file patterns to remove ----
 file_patterns_to_remove <- c(
   "*.Rout", "*.txt", "*.log", "*.aux", "*.lof",
   "*.lot", "*.out", "*.toc", "*.R", "*.egoml"
@@ -97,9 +91,7 @@ lulcc_patterns_to_remove <- c(
   file.path(lulcc_demand_path, "demand_in", "*.ods")
 )
 
-# ------------------------------------------------------------
-# Remove directories and files
-# ------------------------------------------------------------
+# Remove directories and files ----
 lapply(existing_dirs, unlink, recursive = TRUE, force = TRUE)
 
 lapply(file_patterns_to_remove, unlink, force = TRUE)
@@ -107,8 +99,5 @@ lapply(latex_patterns_to_remove, unlink, force = TRUE)
 lapply(lulcc_patterns_to_remove, unlink, force = TRUE)
 
 cat("✅ Cleanup completed successfully.\n")
-
-# End of script ----
-
 
 # End of script ----

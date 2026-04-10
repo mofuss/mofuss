@@ -391,7 +391,7 @@ if (webmofuss == 1) {
   # Search for the parameters.csv file recursively
   parameters_file_path <- list.files(
     path = base_path,
-    pattern = "parameters\\.csv$",
+    pattern = "^parameters\\.csv$",
     recursive = TRUE,
     full.names = TRUE
   )

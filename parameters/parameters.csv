@@ -15,12 +15,12 @@ POPULATION MAP,
 pop_ver,WorldPop
 pop_map_name,wp_global1000m_gcs.tif
 pop_map_yr,2020
-demand_col,fuel_tons3
-demand_tuning,1
+demand_col,fuel_tons_calc
+demand_tuning,0
 urb_shift_factor,1
 efchratio,6
 SCENARIO,
-scenario_ver,BaU
+scenario_ver,BaU_v2
 idw_debug,NO
 friction,R
 SIMULATION LENGTH,
@@ -30,12 +30,12 @@ REGION TO BE PROCESSED,
 byregion,Country
 region2BprocessedCont,SSA
 region2BprocessedReg,SSA_adm0_kenya
-region2BprocessedCtry,Zambia
-region2BprocessedCtry_iso,ZMB
+region2BprocessedCtry,Kenya
+region2BprocessedCtry_iso,KEN
 subcountry,0
 AREA OF INTEREST,
 aoi_poly,0
-aoi_poly_file,ken_mountkenya.kml
+aoi_poly_file,demv8_test_erase.kml
 ecoregions_ID,ECO_ID
 ecoregions_NAME,ECO_NAME
 ext_analysis_ID,ID
