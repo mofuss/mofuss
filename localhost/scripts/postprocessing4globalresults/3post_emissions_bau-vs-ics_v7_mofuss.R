@@ -28,20 +28,23 @@
 # fixdir = 1 # WARNING: Check when 0 how paths are determined, mostly for the emissions folder
 
 # Internal parameters ----
-fixdir = 1 # WARNING: Check when fixdir = 0 how paths are determined, mostly for the emissions folder
-bau_dir <- "C:/Users/aghil/Documents/MoFuSS_FAO_localhost/zmb_bau_1km_subc"
-ics_dir <- "C:/Users/aghil/Documents/MoFuSS_FAO_localhost/zmb_ics3_1km_subc"
-output_dir2 <- "C:/Users/aghil/Documents/MoFuSS_FAO_localhost/emissions"
-rTempdir <- "C:/Users/aghil/Documents/MoFuSS_FAO_localhost/rTemp"
-gid0       <- "ZMB"
-efchratio  <- 6
-impchfw <- 1 #turns on and off imp_charcoal and imp_fuelwood
-first_yr <- 11 # 11=2020
-last_yr <- 41 # 26=2035 41=2050
+fixdir = 0 # WARNING: Check when fixdir = 0 how paths are determined, mostly for the emissions folder
+# bau_dir <- "C:/Users/aghil/Documents/MoFuSS_FAO_localhost/ken_bau_1km_nv2_ng"
+# bau_dir <- "D:/ken_fafe/nv2/ken_bau_1km_nv2_g"
+# ics_dir <- "C:/Users/aghil/Documents/MoFuSS_FAO_localhost/ken_ics_1km_nv2_ng"
+# ics_dir <- "D:/ken_fafe/nv2/ken_ics_1km_nv2_g"
+# output_dir2 <- "C:/Users/aghil/Documents/MoFuSS_FAO_localhost/emissions"
+# output_dir2 <- "D:/ken_fafe/nv2/emissions"
+# rTempdir <- "C:/Users/aghil/Documents/MoFuSS_FAO_localhost/rTemp"
+gid0       <- "KEN" # Bring from table!
+efchratio  <- 6 # Bring from table!
+impchfw <- 1 # turns on and off imp_charcoal and imp_fuelwood
+first_yr <- 11 # 11=2010 # 21=2020
+last_yr <- 51 # 36=2035 51=2050
 co2_factor <- 0.47 * (44/12) # Factor: biomass → C (0.47), then C → CO2 (44/12) # 1 for debugging
-min_runs_for_mean_se <- 3 # We'll compute mean/SE whenever we have at least n runs
-
-output_dir <- paste0(output_dir2,"_",stringr::str_extract(ics_dir, "ics\\d+"))
+min_runs_for_mean_se <- 30 # We'll compute mean/SE whenever we have at least n runs
+  # output_dir <- paste0(output_dir2,"_",stringr::str_extract(ics_dir, "ics\\d+"))
+# output_dir <- paste0(output_dir2, "_", gid0)
 
 # Load packages ----
 required <- c("terra", "fs", "stringr", "dplyr", "readr")
@@ -443,8 +446,6 @@ message("[End-Use] Done. Rasters in:\n  - ", enduse_dir_bau, "\n  - ", enduse_di
 
 
 # ========================= 0) Config =========================
-# gid0       <- "ZMB"
-# efchratio  <- 6
 
 out_dir    <- file.path(output_dir, "enduse")
 dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
@@ -508,7 +509,7 @@ if (impchfw == 1) {
 # ========================= 3) Template ======================
 # Pick a template grid from first demand file found (BAU first, then ICS)
 # normalize to 4-digit years if needed
-to_year <- function(xx) 2009 + xx
+to_year <- function(xx) 1999 + xx
 fy <- to_year(first_yr)
 ly <- to_year(last_yr)
 
@@ -681,9 +682,6 @@ for (g in names(groups)) {
     cat("Applied charcoal ratio 1/", efchratio, "\n", sep = "")
   }
   
-  delta <- bau_emis - ics_emis   # single layer
-  
-  
   # 4.7) Delta = BAU − ICS (single layer)
   delta <- bau_emis - ics_emis
   
@@ -806,6 +804,7 @@ enduse_files <- list.files(
   full.names = TRUE,
   ignore.case = TRUE
 )
+enduse_files <- enduse_files[!grepl("_disc\\.tif$", enduse_files, ignore.case = TRUE)]
 if (!length(enduse_files)) {
   stop(sprintf("No rasters found in '%s' starting with 'delta_co2'.", enduse_dir))
 }
@@ -826,7 +825,12 @@ delta_co2_harvest_raw <- rast(harvest_src)
 # Project to exactly match delta_co2_enduse grid (CRS, res, extent, alignment)
 # Passing the template raster 'y' makes the result snap to its grid.
 # Bilinear is typical for continuous data like CO2 deltas.
-delta_co2_harvest <- project(delta_co2_harvest_raw, delta_co2_enduse, method = "bilinear")
+# Warning: but it distorts the sums! 
+# Fix: use method = "sum" instead of "bilinear" 
+# in the project() call, which conserves the total mass when resampling.
+
+if (packageVersion("terra") < "1.7.55") stop("terra >= 1.7.55 required for method='sum' in project()")
+delta_co2_harvest <- project(delta_co2_harvest_raw, delta_co2_enduse, method = "sum")
 
 # Save the projected/snap-aligned harvest copy
 delta_co2_harvest_path <- file.path(summary_dir, "delta_co2_harvest.tif")
