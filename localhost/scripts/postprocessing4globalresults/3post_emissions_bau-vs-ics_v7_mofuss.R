@@ -43,7 +43,7 @@ first_yr <- 11 # 11=2010 # 21=2020
 last_yr <- 51 # 36=2035 51=2050
 co2_factor <- 0.47 * (44/12) # Factor: biomass → C (0.47), then C → CO2 (44/12) # 1 for debugging
 min_runs_for_mean_se <- 30 # We'll compute mean/SE whenever we have at least n runs
-  # output_dir <- paste0(output_dir2,"_",stringr::str_extract(ics_dir, "ics\\d+"))
+# output_dir <- paste0(output_dir2,"_",stringr::str_extract(ics_dir, "ics\\d+"))
 # output_dir <- paste0(output_dir2, "_", gid0)
 
 # Load packages ----
