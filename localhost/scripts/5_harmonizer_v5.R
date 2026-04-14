@@ -942,13 +942,13 @@ if (aoi_poly != 1) {
 }
 
 
-# process DEM with TERRA ----
+# DEM ----
 country_parameters %>%
   dplyr::filter(Var == "DTEM_name") %>%
   pull(ParCHR) -> DTEM_name
 dtem <- rast(paste0("LULCC/SourceData/InRaster/",DTEM_name))
 DEM_r_m <- dtem %>%
-  terra::crop(ext(userarea_r)) %>%
+  terra::crop(terra::ext(userarea_r)) %>%
   terra::resample(userarea_r, method = "bilinear") %>%
   terra::mask(userarea_r)
 names(DEM_r_m) <- "layer_0"
@@ -959,7 +959,7 @@ country_parameters %>%
   dplyr::filter(Var == "treecover_name") %>%
   pull(ParCHR) -> treecover_name
 tc2000_r_m <- rast(paste0("LULCC/SourceData/InRaster/",treecover_name)) %>%
-  terra::crop(ext(userarea_r)) %>%
+  terra::crop(terra::ext(userarea_r)) %>%
   terra::resample(userarea_r, method = "bilinear") %>%
   terra::mask(userarea_r)
 names(tc2000_r_m) <- "layer_0"
@@ -969,8 +969,8 @@ country_parameters %>% # Something weird here, it takes too long
   dplyr::filter(Var == "gain_name") %>%
   pull(ParCHR) -> gain_name
 gain_r_m <- rast(paste0("LULCC/SourceData/InRaster/",gain_name)) %>%
-  terra::crop(ext(userarea_r)) %>%
-  terra::resample(userarea_r, method = "bilinear") %>%
+  terra::crop(terra::ext(userarea_r)) %>%
+  terra::resample(userarea_r, method = "near") %>%
   terra::mask(userarea_r)
 names(gain_r_m) <- "layer_0"
 writeRaster(gain_r_m, filename="LULCC/TempRaster/gain_c.tif", datatype="INT2S", overwrite=TRUE)
@@ -979,8 +979,8 @@ country_parameters %>%
   dplyr::filter(Var == "lossyear_name") %>%
   pull(ParCHR) -> lossyear_name
 lossyear_r_m <- rast(paste0("LULCC/SourceData/InRaster/",lossyear_name)) %>%
-  terra::crop(ext(userarea_r)) %>%
-  terra::resample(userarea_r, method = "bilinear") %>%
+  terra::crop(terra::ext(userarea_r)) %>%
+  terra::resample(userarea_r, method = "near") %>%
   terra::mask(userarea_r)
 names(lossyear_r_m) <- "layer_0"
 writeRaster(lossyear_r_m, filename="LULCC/TempRaster/lossyear_c.tif", datatype="INT2S", overwrite=TRUE)
@@ -1132,12 +1132,9 @@ for (k in 1:3) {
   in_file  <- file.path("LULCC/SourceData/InRaster", map_name)
   out_file <- sprintf("LULCC/TempRaster/agb%d_c.tif", k)
   
-  # Read target raster only once
-  target_r <- terra::rast(userarea_r)
-  
   # Actual cell area in hectares for the target grid
   # This is important because World Mercator is not equal-area
-  area_ha <- terra::cellSize(target_r, unit = "ha")
+  area_ha <- terra::cellSize(userarea_r, unit = "ha")
   
   # Read input biomass density raster
   in_r <- terra::rast(in_file)
@@ -1147,9 +1144,9 @@ for (k in 1:3) {
   
   # Resample biomass density to the target grid, then mask
   agb_density <- in_r |>
-    terra::crop(ext(target_r)) |>
-    terra::resample(target_r, method = "bilinear") |>
-    terra::mask(target_r)
+    terra::crop(ext(userarea_r)) |>
+    terra::resample(userarea_r, method = "bilinear") |>
+    terra::mask(userarea_r)
   
   # Convert density to biomass per pixel
   outagb <- agb_density * area_ha
@@ -1197,11 +1194,8 @@ for (v in growth_vars) {
     next
   }
   
-  # Target raster
-  target_r <- terra::rast(userarea_r)
-  
   # Actual cell area in hectares of target grid
-  area_ha <- terra::cellSize(target_r, unit = "ha")
+  area_ha <- terra::cellSize(userarea_r, unit = "ha")
   
   # Input raster
   in_r <- terra::rast(in_file)
@@ -1214,9 +1208,9 @@ for (v in growth_vars) {
   
   # Resample to target grid
   outmap <- in_r |>
-    terra::crop(terra::ext(target_r)) |>
-    terra::resample(target_r, method = "bilinear") |>
-    terra::mask(target_r)
+    terra::crop(terra::ext(userarea_r)) |>
+    terra::resample(userarea_r, method = "bilinear") |>
+    terra::mask(userarea_r)
   
   # ONLY scale A from Mg/ha to Mg/pixel
   if (v == "A_mofuss") {
