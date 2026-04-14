@@ -6,6 +6,12 @@
 # Watch out for 3rd party biomass and bulk download using wget - add instructions adrian
 # Erase temps see below
 # Add years for temporal series
+## CHECK FOR AREA CORRECTION FOR AGB
+# template_ll <- project(template_3395, EPSG_gcs) # ~1 km lon/lat grid
+# area_ll_m2  <- cellSize(template_ll, unit="m")  # m² per cell (true-ish)
+# area_3395_m2 <- project(area_ll_m2, template_3395, method="bilinear")
+# writeRaster(area_3395_m2, "temp/pixel_area_trueEarth_3395_1km_m2.tif",
+#             overwrite=TRUE, wopt=list(gdal=c("COMPRESS=LZW","TILED=YES","BIGTIFF=YES")))
 
 # Internal parameters
 # Google Colab link: https://colab.research.google.com/drive/1Ef9XMfen2DFhAhZ87B3gxjyf9QQfLOPH

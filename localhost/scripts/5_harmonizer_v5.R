@@ -1132,24 +1132,38 @@ for (k in 1:3) {
   in_file  <- file.path("LULCC/SourceData/InRaster", map_name)
   out_file <- sprintf("LULCC/TempRaster/agb%d_c.tif", k)
   
-  if (resolution == 1000) {
-    
-    outagb <- rast(in_file) %>%
-      terra::crop(ext(userarea_r)) %>%
-      terra::resample(userarea_r, "bilinear") %>%
-      mask(userarea_r) * ((resolution^2) / (100^2))
-
-  } else if (resolution == 100) {
-    
-    outagbnull <- rast(in_file)
-    
-    outagb <- ifel(outagbnull < 0, 0, outagbnull) |>
-      crop(ext(rast(userarea_r))) |>
-      resample(rast(userarea_r), "bilinear") |>
-      app(fun = as.integer)
-  }
+  # Read target raster only once
+  target_r <- terra::rast(userarea_r)
   
-  writeRaster(outagb, out_file, datatype = "INT4S", overwrite = TRUE)
+  # Actual cell area in hectares for the target grid
+  # This is important because World Mercator is not equal-area
+  area_ha <- terra::cellSize(target_r, unit = "ha")
+  
+  # Read input biomass density raster
+  in_r <- terra::rast(in_file)
+  
+  # Negative values to zero before resampling
+  in_r <- ifel(in_r < 0, 0, in_r)
+  
+  # Resample biomass density to the target grid, then mask
+  agb_density <- in_r |>
+    terra::crop(ext(target_r)) |>
+    terra::resample(target_r, method = "bilinear") |>
+    terra::mask(target_r)
+  
+  # Convert density to biomass per pixel
+  outagb <- agb_density * area_ha
+  
+  # Optional: if you want integer output
+  outagb <- round(outagb)
+  
+  writeRaster(
+    outagb,
+    out_file,
+    datatype = "INT4S",
+    overwrite = TRUE
+  )
+  
   message(sprintf("Wrote: %s", out_file))
 }
 
@@ -1173,43 +1187,53 @@ for (v in growth_vars) {
   }
   
   in_file  <- file.path("LULCC/SourceData/InRaster", map_name)
-  out_file <- file.path("LULCC/TempRaster", sprintf("%s_c.tif", sub("_mofuss$", "", v)))
+  out_file <- file.path(
+    "LULCC/TempRaster",
+    sprintf("%s_c.tif", sub("_mofuss$", "", v))
+  )
   
   if (!file.exists(in_file)) {
     message(sprintf("Missing input: %s -> skipping", in_file))
     next
   }
   
-  if (resolution == 1000) {
-    
-    outmap <- rast(in_file) %>%
-      terra::crop(ext(userarea_r)) %>%
-      terra::resample(userarea_r, "bilinear") %>%
-      terra::mask(userarea_r)
-    
-    # ONLY scale A
-    if (v == "A_mofuss") {
-      outmap <- outmap * ((resolution^2) / (100^2))
-    }
-    
-  } else if (resolution == 100) {
-    
-    outnull <- rast(in_file)
-    
-    outmap <- ifel(outnull < 0, 0, outnull) |>
-      terra::crop(ext(rast(userarea_r))) |>
-      terra::resample(rast(userarea_r), "bilinear")
-    
-  } else {
-    stop("Unsupported resolution value. Expected 100 or 1000.")
+  # Target raster
+  target_r <- terra::rast(userarea_r)
+  
+  # Actual cell area in hectares of target grid
+  area_ha <- terra::cellSize(target_r, unit = "ha")
+  
+  # Input raster
+  in_r <- terra::rast(in_file)
+  
+  # For A, negative values should not exist, so force them to zero
+  # For k and m, do not touch values unless you are fully sure negatives are invalid
+  if (v == "A_mofuss") {
+    in_r <- terra::ifel(in_r < 0, 0, in_r)
   }
   
+  # Resample to target grid
+  outmap <- in_r |>
+    terra::crop(terra::ext(target_r)) |>
+    terra::resample(target_r, method = "bilinear") |>
+    terra::mask(target_r)
+  
+  # ONLY scale A from Mg/ha to Mg/pixel
+  if (v == "A_mofuss") {
+    outmap <- outmap * area_ha
+  }
+  
+  # Clean NaN values
   outmap[is.nan(outmap)] <- NA
   
-  writeRaster(
+  terra::writeRaster(
     outmap,
     out_file,
-    overwrite=TRUE, wopt=list(gdal = c("COMPRESS=LZW", "PREDICTOR=3")), NAflag=-9999, datatype="FLT4S")
+    overwrite = TRUE,
+    wopt = list(gdal = c("COMPRESS=LZW", "PREDICTOR=3")),
+    NAflag = -9999,
+    datatype = "FLT4S"
+  )
   
   message(sprintf("Wrote: %s", out_file))
 }
