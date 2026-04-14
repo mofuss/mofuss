@@ -201,7 +201,7 @@ read_flexible <- function(path) {
 }
 
 dem_params <- read_flexible(
-  paste0(countrydir, "/LULCC/DownloadedDatasets/SourceDataGlobal/demand_parameters.csv")
+  paste0(countrydir, "/LULCC/DownloadedDatasets/SourceDataGlobal/demand/demand_in/demand_parameters.csv")
 )
 
 bau_res <- build_mofuss_demand(popWHO)
@@ -217,9 +217,9 @@ bau_mofuss_or %>%
 unique(bau_mofuss_or$area)
 
 # Interpolation ----
-# ## 1) REMOVE "overall" ----
-# bau_no_overall <- bau_mofuss_or %>%
-#   dplyr::filter(area != "overall")
+## 1) REMOVE "overall" ----
+bau_no_overall <- bau_mofuss_or %>%
+  dplyr::filter(area != "overall")
 
 ## 2) DEFAULT SHARE TABLE (REFERENCE ONLY)----
 share_table_default <- bau_no_overall %>%
