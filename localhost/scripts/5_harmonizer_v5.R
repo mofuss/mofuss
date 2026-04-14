@@ -954,7 +954,7 @@ DEM_r_m <- dtem %>%
 names(DEM_r_m) <- "layer_0"
 writeRaster(DEM_r_m, filename="LULCC/TempRaster/DEM_c.tif", datatype="INT2S", overwrite=TRUE)
 
-# tree cover, forest loss and forest gain ####
+# Tree cover, forest loss and forest gain ####
 country_parameters %>%
   dplyr::filter(Var == "treecover_name") %>%
   pull(ParCHR) -> treecover_name
@@ -991,13 +991,13 @@ lossyear_r_m %>%
   {.} %in% 1:20 %>%
   writeRaster(filename="LULCC/TempRaster/lossyear01_20_c.tif", datatype="INT2S", overwrite=TRUE)
 
-lossyear_r_m %>% 
+lossyear_r_m %>%
   {.} %in% 1:10 %>%
   writeRaster(filename="LULCC/TempRaster/lossyear01_10_c.tif", datatype="INT2S", overwrite=TRUE)
 
 # Annual losses using apply or map ####
 #tic()
-seq(1:20) %>% 
+seq(1:20) %>%
   walk(function(i){
     lossyear_r_m[lossyear_r_m == i] <- 1
     lossyear_r_m[lossyear_r_m != i] <- 0
@@ -1720,18 +1720,18 @@ file.copy(from = "LULCC/TempRaster/locs_c_v.tif",
 toc()
 
 # Land Use Land Cover Module ####
-if (os == "Windows") {  
-  
+if (os == "Windows") {
+
   if (LULCt1map == "YES"){
     dir.create("LULCC/lucdynamics_luc1")
     dir.create("LULCC/lucdynamics_luc1/out_lulcc")
     lulcc.egoml <- list.files(
-      paste0(githubdir, "/localhost/scripts/LULCC/LULCt1_c"), 
-      pattern = "(win241\\.egoml|\\.bat)$", 
+      paste0(githubdir, "/localhost/scripts/LULCC/LULCt1_c"),
+      pattern = "(win241\\.egoml|\\.bat)$",
       full.names = TRUE
     )
-    file.copy(from=lulcc.egoml, 
-              to=paste0(countrydir, "/LULCC/lucdynamics_luc1"), 
+    file.copy(from=lulcc.egoml,
+              to=paste0(countrydir, "/LULCC/lucdynamics_luc1"),
               overwrite = TRUE)
     system(paste0(countrydir, "/LULCC/lucdynamics_luc1/LULCC_blackbox_scripts2.bat"))
   }
@@ -1740,71 +1740,47 @@ if (os == "Windows") {
     dir.create("LULCC/lucdynamics_luc2")
     dir.create("LULCC/lucdynamics_luc2/out_lulcc")
     lulcc.egoml <- list.files(
-      paste0(githubdir, "/localhost/scripts/LULCC/LULCt2_c"), 
-      pattern = "(win241\\.egoml|\\.bat)$", 
+      paste0(githubdir, "/localhost/scripts/LULCC/LULCt2_c"),
+      pattern = "(win241\\.egoml|\\.bat)$",
       full.names = TRUE
     )
-    file.copy(from=lulcc.egoml, 
-              to=paste0(countrydir, "/LULCC/lucdynamics_luc2"), 
+    file.copy(from=lulcc.egoml,
+              to=paste0(countrydir, "/LULCC/lucdynamics_luc2"),
               overwrite = TRUE)
     system(paste0(countrydir, "/LULCC/lucdynamics_luc2/LULCC_blackbox_scripts2.bat"))
   }
-  
+
   if (LULCt3map == "YES"){
     dir.create("LULCC/lucdynamics_luc3")
     dir.create("LULCC/lucdynamics_luc3/out_lulcc")
     lulcc.egoml <- list.files(
-      paste0(githubdir, "/localhost/scripts/LULCC/LULCt3_c"), 
-      pattern = "(win241\\.egoml|\\.bat)$", 
+      paste0(githubdir, "/localhost/scripts/LULCC/LULCt3_c"),
+      pattern = "(win241\\.egoml|\\.bat)$",
       full.names = TRUE
     )
-    file.copy(from=lulcc.egoml, 
-              to=paste0(countrydir, "/LULCC/lucdynamics_luc3"), 
+    file.copy(from=lulcc.egoml,
+              to=paste0(countrydir, "/LULCC/lucdynamics_luc3"),
               overwrite = TRUE)
     system(paste0(countrydir, "/LULCC/lucdynamics_luc3/LULCC_blackbox_scripts2.bat"))
   }
 
-} else if (os == "Linux") {  
-  
+} else if (os == "Linux") {
+
   print("This is linux dinamica luc module")
   if (LULCt1map == "YES"){
     dir.create("LULCC/lucdynamics_luc1")
     dir.create("LULCC/lucdynamics_luc1/out_lulcc")
     lulcc.egoml <- list.files(
-      paste0(githubdir, "/localhost/scripts/LULCC/LULCt1_c"), 
-      pattern = "linux\\.egoml$", 
+      paste0(githubdir, "/localhost/scripts/LULCC/LULCt1_c"),
+      pattern = "linux\\.egoml$",
       full.names = TRUE
     )
     file.copy(from=lulcc.egoml,
               to=paste0(countrydir, "/LULCC/lucdynamics_luc1"),
               overwrite = TRUE)
     lulcc.egoml.local <- list.files(
-      paste0(countrydir, "/LULCC/lucdynamics_luc1"), 
-      pattern = "linux\\.egoml$",  
-      full.names = TRUE
-    )
-    
-    lulcc.egoml.local %>%
-      walk(function(i) {
-        system(glue('/opt/dinamicaego/DinamicaEGO-8.3.0-Ubuntu.AppImage "{i}"'))
-      })
-    
-  }
-  
-  if (LULCt2map == "YES"){
-    dir.create("LULCC/lucdynamics_luc2")
-    dir.create("LULCC/lucdynamics_luc2/out_lulcc")
-    lulcc.egoml <- list.files(
-      paste0(githubdir, "/localhost/scripts/LULCC/LULCt2_c"), 
-      pattern = "linux\\.egoml$", 
-      full.names = TRUE
-    )
-    file.copy(from=lulcc.egoml,
-              to=paste0(countrydir, "/LULCC/lucdynamics_luc2"),
-              overwrite = TRUE)
-    lulcc.egoml.local <- list.files(
-      paste0(countrydir, "/LULCC/lucdynamics_luc2"), 
-      pattern = "linux\\.egoml$",  
+      paste0(countrydir, "/LULCC/lucdynamics_luc1"),
+      pattern = "linux\\.egoml$",
       full.names = TRUE
     )
 
@@ -1812,32 +1788,56 @@ if (os == "Windows") {
       walk(function(i) {
         system(glue('/opt/dinamicaego/DinamicaEGO-8.3.0-Ubuntu.AppImage "{i}"'))
       })
-    
+
   }
-  
+
+  if (LULCt2map == "YES"){
+    dir.create("LULCC/lucdynamics_luc2")
+    dir.create("LULCC/lucdynamics_luc2/out_lulcc")
+    lulcc.egoml <- list.files(
+      paste0(githubdir, "/localhost/scripts/LULCC/LULCt2_c"),
+      pattern = "linux\\.egoml$",
+      full.names = TRUE
+    )
+    file.copy(from=lulcc.egoml,
+              to=paste0(countrydir, "/LULCC/lucdynamics_luc2"),
+              overwrite = TRUE)
+    lulcc.egoml.local <- list.files(
+      paste0(countrydir, "/LULCC/lucdynamics_luc2"),
+      pattern = "linux\\.egoml$",
+      full.names = TRUE
+    )
+
+    lulcc.egoml.local %>%
+      walk(function(i) {
+        system(glue('/opt/dinamicaego/DinamicaEGO-8.3.0-Ubuntu.AppImage "{i}"'))
+      })
+
+  }
+
   if (LULCt3map == "YES"){
     dir.create("LULCC/lucdynamics_luc3")
     dir.create("LULCC/lucdynamics_luc3/out_lulcc")
     lulcc.egoml <- list.files(
-      paste0(githubdir, "/localhost/scripts/LULCC/LULCt3_c"), 
-      pattern = "linux\\.egoml$", 
+      paste0(githubdir, "/localhost/scripts/LULCC/LULCt3_c"),
+      pattern = "linux\\.egoml$",
       full.names = TRUE
     )
     file.copy(from=lulcc.egoml,
               to=paste0(countrydir, "/LULCC/lucdynamics_luc3"),
               overwrite = TRUE)
     lulcc.egoml.local <- list.files(
-      paste0(countrydir, "/LULCC/lucdynamics_luc3"), 
-      pattern = "linux\\.egoml$",  
+      paste0(countrydir, "/LULCC/lucdynamics_luc3"),
+      pattern = "linux\\.egoml$",
       full.names = TRUE
     )
-    
+
     lulcc.egoml.local %>%
       walk(function(i) {
         system(glue('/opt/dinamicaego/DinamicaEGO-8.3.0-Ubuntu.AppImage "{i}"'))
       })
   }
-  
+
 }
 
 if (plantations == 1){
