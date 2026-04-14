@@ -11,16 +11,12 @@
 # limitations under the License.
 
 # MoFuSS
-# Version 4
-# Date: Jan 2025
+# Version 5
+# Date: Apr 2026
 
 # 2dolist ----
-# Select webmofuss == 1 automatically
 
 # Internal parameters ----
-# # Select MoFuSS platform:
-# webmofuss = 1 # "1" is  web-MoFuSS running in our Ubuntu server, "0" is localhost (Windows or Linux)
-# source(paste0(scriptsmofuss,"00_webmofuss.R"))
 
 # Load libraries ----
 

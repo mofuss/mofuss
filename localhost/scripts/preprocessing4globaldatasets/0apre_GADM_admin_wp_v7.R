@@ -5,13 +5,6 @@
 # with complete info in both the WHO and HRSL population maps. For Nepal use 3
 
 # 2dolist ----
-# Select webmofuss == 1 automatically
-# # Select MoFuSS platform:
-# webmofuss = 1 # "1" is  web-MoFuSS running in our Ubuntu server, "0" is localcal host (Windows or Linux)
-# source(paste0(scriptsmofuss,"00_webmofuss.R"))
-# Add the possibility to alternate among admin maps in the csv table, mostly for sub national scenarios
-# But this need to be global and be homogenized into the mofuss code, not country by country
-# Avoid any work that will be use only for particular projects
 
 # Internal parameters ----
 run_ms = "Yes" # Run ms_simplify?

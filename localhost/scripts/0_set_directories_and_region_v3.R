@@ -11,12 +11,10 @@
 # limitations under the License.
 
 # MoFuSS
-# Version 4
-# Date: Jan 2025
+# Version 5
+# Date: Apr 2026
 
 # 2dolist ----
-# Create the string with the current date, checkk line 300
-# Line 604 # demanddir <- file.path(countrydir,"/LULCC/DownloadedDatasets/SourceDataGlobal/demand") #Why was this here, under what situation demanddir is NOT created??
 
 # Internal parameters ----
 start_from_scratch <- 0 # Set to 0 when the MoFuSS working directory already exists and has data in it
@@ -491,10 +489,6 @@ rTempdir <- file.path(countrydir, "rTemp")
 if (!dir.exists(rTempdir)) {
   dir.create(rTempdir, recursive = TRUE)
 }
-
-# Define Demand directory ----
-# demanddir <- file.path(countrydir,"/LULCC/DownloadedDatasets/SourceDataGlobal/demand") #Why was this here, under what situation demanddir is NOT created??
-demanddir
 
 # Check if directory exists, otherwise create it
 if (!dir.exists(demanddir)) {

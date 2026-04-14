@@ -31,9 +31,6 @@
 
 
 # Internal parameters ----
-# # Select MoFuSS platform:
-# webmofuss <- 1 # "1" is web-MoFuSS running in our Ubuntu server, "0" is localhost (Windows or Linux)
-# source(paste0(scriptsmofuss,"00_webmofuss.R"))
 
 # Load libraries ----
 library(conflicted)
