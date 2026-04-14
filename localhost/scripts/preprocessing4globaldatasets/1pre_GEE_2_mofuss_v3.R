@@ -459,6 +459,7 @@ writeRaster(
   )
 )
 
+Sys.sleep(30)
 lossyear_any_ll <- rast("temp/lossyear_any_ll.tif")
 
 # proportion of positive 30m cells inside each 1 km cell
@@ -474,6 +475,9 @@ lossyear_frac_1km <- project(
     NAflag = -9999
   )
 )
+
+Sys.sleep(30)
+lossyear_frac_1km <- rast("temp/lossyear_frac_1km.tif")
 
 # majority rule: positive only if > 50% of 30m cells have value >= 1
 lossyear_majority_1km <- ifel(lossyear_frac_1km > 0.5, 1, 0)
@@ -492,6 +496,7 @@ writeRaster(
   )
 )
 
+Sys.sleep(30)
 lossyear_pos_ll <- rast("temp/lossyear_pos_ll.tif")
 
 lossyear_mode_1km <- project(
