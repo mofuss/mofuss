@@ -790,8 +790,8 @@ if (aoi_poly == 1) {
 # Convert vector to SpatRaster with specified resolution
 userarea_ras <- rast(userarea, resolution = resolution)
 
-# Ensure the correct CRS is assigned
-crs(userarea_ras) <- paste0("+",proj_pcs)
+# # Ensure the correct CRS is assigned
+# crs(userarea_ras) <- paste0("+",proj_pcs)
 
 # Rasterize the userarea using the specified field
 userarea_ras <- rasterize(
@@ -805,14 +805,14 @@ userarea_ras <- rasterize(
 # Crop and mask the raster
 userarea_r_m <- mask(crop(userarea_ras, mask), mask)
 
-# Ensure the CRS is maintained
-crs(userarea_r_m) <- paste0("+",proj_pcs)
+# # Ensure the CRS is maintained
+# crs(userarea_r_m) <- paste0("+",proj_pcs)
 
 # Convert raster values to 1
 userarea_r <- (userarea_r_m * 0) + 1
 
-# Ensure final raster has the correct CRS
-crs(userarea_r) <- paste0("+",proj_pcs)
+# # Ensure final raster has the correct CRS
+# crs(userarea_r) <- paste0("+",proj_pcs)
 
 # Save the raster
 writeRaster(userarea_r, filename="LULCC/TempRaster/mask_c.tif", 
@@ -826,14 +826,14 @@ mask_r <- rasterize(
     pull(ParCHR)
 )
 
-# Assign correct CRS
-crs(mask_r) <- paste0("+",proj_pcs)
+# # Assign correct CRS
+# crs(mask_r) <- paste0("+",proj_pcs)
 
 # Crop and mask the raster
 mask_r_m <- mask(crop(mask_r, userarea_r), userarea_r)
 
-# Ensure CRS is maintained
-crs(mask_r_m) <- paste0("+",proj_pcs)
+# # Ensure CRS is maintained
+# crs(mask_r_m) <- paste0("+",proj_pcs)
 
 # Write raster to file
 writeRaster(mask_r_m, filename = "LULCC/TempRaster/admin_c.tif",
@@ -849,14 +849,14 @@ ecoregions_ras <- rasterize(
     pull(ParCHR)
 )
 
-# Assign correct CRS
-crs(ecoregions_ras) <- paste0("+",proj_pcs)
+# # Assign correct CRS
+# crs(ecoregions_ras) <- paste0("+",proj_pcs)
 
 # Crop and mask the raster
 ecoregions_ras_m <- terra::mask(crop(ecoregions_ras, userarea_r), userarea_r)
 
-# Ensure CRS is maintained
-crs(ecoregions_ras_m) <- paste0("+",proj_pcs)
+# # Ensure CRS is maintained
+# crs(ecoregions_ras_m) <- paste0("+",proj_pcs)
 
 # Write raster to file
 writeRaster(ecoregions_ras_m, filename = "LULCC/TempRaster/ecoregions_c.tif",
@@ -872,15 +872,9 @@ if (aoi_poly != 1) {
       pull(ParCHR)
   )
   
-  # Assign correct CRS
-  crs(userarea_ras1) <- paste0("+",proj_pcs)
-  
   userarea_r_m1 <- mask(crop(userarea_ras1, mask), mask)
   userarea_r1 <- (userarea_r_m1 * 0) + 1
-  
-  # Ensure CRS is maintained
-  crs(userarea_r1) <- paste0("+",proj_pcs)
-  
+
   writeRaster(userarea_r1, filename = "LULCC/TempRaster/mask_c1.tif", 
               datatype = "INT2S", overwrite = TRUE)
   
@@ -890,15 +884,9 @@ if (aoi_poly != 1) {
       dplyr::filter (Var == "ext_analysis_ID_1") %>%
       pull(ParCHR)
   )
-  
-  # Assign correct CRS
-  crs(mask_r1) <- paste0("+",proj_pcs)
-  
+
   mask_r_m1 <- mask(crop(mask_r1, userarea_r1), userarea_r1)
-  
-  # Ensure CRS is maintained
-  crs(mask_r_m1) <- paste0("+",proj_pcs)
-  
+
   writeRaster(mask_r_m1, filename = "LULCC/TempRaster/admin_c1.tif", 
               datatype = "INT2S", overwrite = TRUE)
   
@@ -909,16 +897,10 @@ if (aoi_poly != 1) {
       dplyr::filter (Var == "ext_analysis_ID_2") %>%
       pull(ParCHR)
   )
-  
-  # Assign correct CRS
-  crs(userarea_ras2) <- paste0("+",proj_pcs)
-  
+
   userarea_r_m2 <- mask(crop(userarea_ras2, mask), mask)
   userarea_r2 <- (userarea_r_m2 * 0) + 1
-  
-  # Ensure CRS is maintained
-  crs(userarea_r2) <- paste0("+",proj_pcs)
-  
+
   writeRaster(userarea_r2, filename = "LULCC/TempRaster/mask_c2.tif", 
               datatype = "INT2S", overwrite = TRUE)
   
@@ -928,19 +910,12 @@ if (aoi_poly != 1) {
       dplyr::filter (Var == "ext_analysis_ID_2") %>%
       pull(ParCHR)
   )
-  
-  # Assign correct CRS
-  crs(mask_r2) <- paste0("+",proj_pcs)
-  
+
   mask_r_m2 <- mask(crop(mask_r2, userarea_r2), userarea_r2)
-  
-  # Ensure CRS is maintained
-  crs(mask_r_m2) <- paste0("+",proj_pcs)
-  
+
   writeRaster(mask_r_m2, filename = "LULCC/TempRaster/admin_c2.tif", 
               datatype = "INT2S", overwrite = TRUE)
 }
-
 
 # DEM ----
 country_parameters %>%
