@@ -11,8 +11,8 @@
 # limitations under the License.
 
 # MoFuSS
-# Version 3
-# Date: Mar 2024
+# Version 4
+# Date: Apr 2026
 
 # 2dolist ----
 # URGENTLY fix this very old and outdated chunck to make it 
@@ -49,15 +49,30 @@ setwd(countrydir)
 # Clean temps ----
 directories_to_remove <- c(
   "Debugging", "DebuggingBaU", "DebuggingICS", "HTML_animation_OutBaU", "HTML_animation_OutICS", 
-  "Logs", "OutBaU", "OutICS", "Summary_Report", "Temp", "TempBaU", "TempICS", "In",
-  "LULCC/InVector", "LULCC/Out_lulcc", "LULCC/TempRaster", "LULCC/TempTables",
-  "LULCC/TempVector", "LULCC/TempVector_GCS" #, "LULCC/SourceData" # Check impact on local host
+  "Logs", "OutBaU", "OutICS", "Summary_Report", "Temp", "TempBaU", "TempICS", "rTemp", "In",
+  "ffmpeg32", "ffmpeg64", "LaTeX", 
+  "LULCC/InVector", 
+  "LULCC/Out_lulcc", 
+  "LULCC/TempRaster", 
+  "LULCC/TempTables",
+  "LULCC/TempVector", 
+  "LULCC/TempVector_GCS",
+  "LULCC/Wizard_imgs",
+  "LULCC/lucdynamics_luc1",
+  "LULCC/lucdynamics_luc2",
+  "LULCC/lucdynamics_luc3",
+  "LULCC/DownloadedDatasets/SourceDataGlobal/demand/demand_out",
+  "LULCC/DownloadedDatasets/SourceDataGlobal/demand/demand_temp",
+  "LULCC/DownloadedDatasets/SourceDataGlobal/demand/pop_maps_byregion",
+  "LULCC/DownloadedDatasets/SourceDataGlobal/demand/pop_out",
+  "LULCC/DownloadedDatasets/SourceDataGlobal/demand/pop_temp",
+  "LULCC/DownloadedDatasets/SourceDataGlobal/demand/to_idw"
 )
 
 file_patterns_to_remove <- c(
-  "*.Rout", "*.txt", "*.log", "*.aux", "*.lof", "*.lot", "*.out", "*.toc",
+  "*.Rout", "*.txt", "*.log", "*.aux", "*.lof", "*.lot", "*.out", "*.toc", "*.egoml", "*.R",
   "LaTeX//*.pdf", "LaTeX//*.mp4", "LaTeX//*.csv", "LaTeX//SimLength.txt", "LaTeX//MCruns.txt",
-  "LULCC//*.Rout", "LULCC//*.csv", "LULCC//*.egoml"
+  "LULCC//*.Rout", "LULCC//*.csv", "LULCC//*.egoml", "LULCC//*.bat", "LULCC//*.sh"
 )
 
 # Remove directories
