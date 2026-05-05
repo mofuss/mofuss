@@ -202,7 +202,7 @@ read_flexible <- function(path) {
 
 dem_params <- read_flexible(
   paste0(countrydir, "/LULCC/DownloadedDatasets/SourceDataGlobal/demand/demand_in/demand_parameters.csv")
-)
+) #If demand_parameters_user.csv exists....
 
 bau_res <- build_mofuss_demand(popWHO)
 
@@ -580,7 +580,7 @@ if (scenario_ver %in% c("ICS1_v2", "ICS2_v2", "ICS3_v2")) {
 write_csv(
   bau_mofuss_or_rebuilt,
   paste0(countrydir, "/LULCC/DownloadedDatasets/SourceDataGlobal/demand/demand_in/demand_bau_v2.csv")
-)
+) # if demand_bau_v2_user.csv exists... 
 
 if (scenario_ver == "BaU_v2") {
   
