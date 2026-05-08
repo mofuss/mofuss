@@ -76,7 +76,7 @@ country_parameters %>%
 # Biomass-improvement pathway
 # Clean cooking expands mostly through improved fuelwood and improved charcoal, especially where full fuel switching is slower.
 anchors_user1 <- tibble(
-  iso3 = rep("ZMB", 66),
+  iso3 = rep("KEN", 66),
   area = rep(c("rural", "urban"), each = 33),
   year = rep(rep(c(2000, 2025, 2050), each = 11), 2),
   fuel = rep(c(
@@ -109,7 +109,7 @@ anchors_user1 <- tibble(
 # Modern-energy pathway
 # Transition is driven mainly by gas and electricity, with traditional and improved biomass both shrinking strongly by 2050.
 anchors_user2 <- tibble(
-  iso3 = rep("ZMB", 66),
+  iso3 = rep("KEN", 66),
   area = rep(c("rural", "urban"), each = 33),
   year = rep(rep(c(2000, 2025, 2050), each = 11), 2),
   fuel = rep(c(
@@ -142,7 +142,7 @@ anchors_user2 <- tibble(
 # Mixed pathway
 # A more realistic compromise: improved biomass remains important, while gas and electricity also grow a lot.
 anchors_user3 <- tibble(
-  iso3 = rep("ZMB", 66),
+  iso3 = rep("KEN", 66),
   area = rep(c("rural", "urban"), each = 33),
   year = rep(rep(c(2000, 2025, 2050), each = 11), 2),
   fuel = rep(c(
