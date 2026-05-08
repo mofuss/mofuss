@@ -239,26 +239,21 @@ write_csv(
 
 ## 3) USER ANCHOR TABLE ----
 # User must provide ALL fuels for each anchor year
-if (scenario_ver == "BaU_v2") {
+if (scenario_ver %in% c("BaU1_v2", "BaU2_v2", "BaU3_v2")) {
   
-  cat("\033[32mBaU scenario selected: no anchor points will be read.\033[0m\n")
+  cat("\033[32mA BaU scenario was selected: no anchor points will be written.\033[0m\n")
   
-} else if (scenario_ver == "ICS1_v2") {
+} else if (scenario_ver %in% c("ICS1_v2", "ICS2_v2", "ICS3_v2")) {
   
-  anchors_user <- read_flexible(
-    paste0(countrydir, "/LULCC/DownloadedDatasets/SourceDataGlobal/anchor_points1.csv")
-  )
-  
-} else if (scenario_ver == "ICS2_v2") {
+  anchor_num <- gsub("ICS([123])_v2", "\\1", scenario_ver)
   
   anchors_user <- read_flexible(
-    paste0(countrydir, "/LULCC/DownloadedDatasets/SourceDataGlobal/anchor_points2.csv")
-  )
-  
-} else if (scenario_ver == "ICS3_v2") {
-  
-  anchors_user <- read_flexible(
-    paste0(countrydir, "/LULCC/DownloadedDatasets/SourceDataGlobal/anchor_points3.csv")
+    paste0(
+      countrydir,
+      "/LULCC/DownloadedDatasets/SourceDataGlobal/anchor_points",
+      anchor_num,
+      ".csv"
+    )
   )
   
 } else {
@@ -577,34 +572,35 @@ if (scenario_ver %in% c("ICS1_v2", "ICS2_v2", "ICS3_v2")) {
     count(area)
 }
 
-write_csv(
-  bau_mofuss_or_rebuilt,
-  paste0(countrydir, "/LULCC/DownloadedDatasets/SourceDataGlobal/demand/demand_in/demand_bau_v2.csv")
-) # if demand_bau_v2_user.csv exists... 
+# write_csv(
+#   bau_mofuss_or_rebuilt,
+#   paste0(countrydir, "/LULCC/DownloadedDatasets/SourceDataGlobal/demand/demand_in/demand_bau_v2.csv")
+# ) # if demand_bau_v2_user.csv exists... 
 
-if (scenario_ver == "BaU_v2") {
+if (scenario_ver %in% c("BaU1_v2", "BaU2_v2", "BaU3_v2")) {
   
   cat("\033[32mBaU scenario selected: no demand table for ICS scenarios will be written.\033[0m\n")
   
-} else if (scenario_ver == "ICS1_v2") {
-  
   write_csv(
-    ics_mofuss_or,
-    paste0(countrydir, "/LULCC/DownloadedDatasets/SourceDataGlobal/demand/demand_in/demand_ics1_v2.csv")
+    bau_mofuss_or_rebuilt,
+    paste0(
+      countrydir,
+      "/LULCC/DownloadedDatasets/SourceDataGlobal/demand/demand_in/demand_",
+      tolower(scenario_ver),
+      ".csv"
+    )
   )
   
-} else if (scenario_ver == "ICS2_v2") {
+} else if (scenario_ver %in% c("ICS1_v2", "ICS2_v2", "ICS3_v2")) {
   
   write_csv(
     ics_mofuss_or,
-    paste0(countrydir, "/LULCC/DownloadedDatasets/SourceDataGlobal/demand/demand_in/demand_ics2_v2.csv")
-  )
-  
-} else if (scenario_ver == "ICS3_v2") {
-  
-  write_csv(
-    ics_mofuss_or,
-    paste0(countrydir, "/LULCC/DownloadedDatasets/SourceDataGlobal/demand/demand_in/demand_ics3_v2.csv")
+    paste0(
+      countrydir,
+      "/LULCC/DownloadedDatasets/SourceDataGlobal/demand/demand_in/demand_",
+      tolower(scenario_ver),
+      ".csv"
+    )
   )
   
 } else {

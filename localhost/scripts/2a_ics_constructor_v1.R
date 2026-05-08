@@ -221,7 +221,7 @@ anchors_user_fixed3 <- anchors_user3 %>%
   dplyr::select(-total, -diff)
 
 
-if (scenario_ver == "BaU_v2") {
+if (scenario_ver %in% c("BaU1_v2", "BaU2_v2", "BaU3_v2")) {
   
   cat("\033[32mBaU scenario selected: no anchor points will be written.\033[0m\n")
   

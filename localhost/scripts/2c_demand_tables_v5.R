@@ -79,20 +79,21 @@ if (aoi_poly == 0){
   }
   
   # Define scenarios ----
-  if (scenario_ver == "BaU_v2") {
-    wfdb <- read_wfdb("demand_in/demand_bau_v2.csv")
+  if (scenario_ver %in% c("BaU1_v2", "BaU2_v2", "BaU3_v2",
+                          "ICS1_v2", "ICS2_v2", "ICS3_v2")) {
     
-  } else if (scenario_ver == "ICS1_v2") {
-    wfdb <- read_wfdb("demand_in/demand_ics1_v2.csv")
-    
-  } else if (scenario_ver == "ICS2_v2") {
-    wfdb <- read_wfdb("demand_in/demand_ics2_v2.csv")
-    
-  } else if (scenario_ver == "ICS3_v2") {
-    wfdb <- read_wfdb("demand_in/demand_ics3_v2.csv")
+    wfdb <- read_wfdb(
+      paste0(
+        "demand_in/demand_",
+        tolower(scenario_ver),
+        ".csv"
+      )
+    )
     
   } else {
+    
     stop(paste0("Invalid scenario_ver: ", scenario_ver))
+    
   }
   
   unique(wfdb$fuel)
