@@ -557,6 +557,6 @@ if (aoi_poly == 0){
   
 } else if (aoi_poly == 1){
   
-  # Creat polygons graphs?
+  # Create polygons graphs?
   
 }
