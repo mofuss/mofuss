@@ -11,8 +11,10 @@
 # limitations under the License.
 
 # MoFuSS
-# Version 3
-# Date: Mar 2024
+# Version 5 -- runs ALL three ICS scenarios in one shot when scenario_ver is
+# any of ICS1_v2 / ICS2_v2 / ICS3_v2 (writes demand_ics1_v2.csv,
+# demand_ics2_v2.csv, demand_ics3_v2.csv). BaU behaviour unchanged.
+# Date: May 2026
 
 # 2dolist ----
 
@@ -237,15 +239,31 @@ write_csv(
   paste0(countrydir, "/LULCC/DownloadedDatasets/SourceDataGlobal/demand/demand_in/demand_default_shares_reference.csv")
 )
 
-## 3) USER ANCHOR TABLE ----
-# User must provide ALL fuels for each anchor year
-if (scenario_ver %in% c("BaU1_v2", "BaU2_v2", "BaU3_v2")) {
+# ---------------------------------------------------------------------------
+# Multi-ICS pipeline ----
+# ---------------------------------------------------------------------------
+# When scenario_ver is any of ICS1_v2 / ICS2_v2 / ICS3_v2, run the full ICS
+# pipeline for all three anchor files (anchor_points1.csv, anchor_points2.csv,
+# anchor_points3.csv) and produce demand_ics1_v2.csv, demand_ics2_v2.csv,
+# demand_ics3_v2.csv. The BaU branch is unchanged.
+
+ics_scenarios <- c("ICS1_v2", "ICS2_v2", "ICS3_v2")
+bau_scenarios <- c("BaU1_v2", "BaU2_v2", "BaU3_v2")
+
+if (!scenario_ver %in% c(ics_scenarios, bau_scenarios)) {
+  stop(sprintf("Invalid scenario_ver: %s", scenario_ver))
+}
+
+if (scenario_ver %in% bau_scenarios) {
+  cat("\033[32mA BaU scenario was selected: no anchor points will be read.\033[0m\n")
+}
+
+# Function: take an anchor scenario number (1/2/3) and return the
+# ics_no_overall tibble that the trailing rebuild needs.
+run_ics_pipeline <- function(anchor_num) {
   
-  cat("\033[32mA BaU scenario was selected: no anchor points will be written.\033[0m\n")
-  
-} else if (scenario_ver %in% c("ICS1_v2", "ICS2_v2", "ICS3_v2")) {
-  
-  anchor_num <- gsub("ICS([123])_v2", "\\1", scenario_ver)
+  cat(sprintf("\n\033[36m=== Running ICS pipeline for anchor_points%d.csv ===\033[0m\n",
+              anchor_num))
   
   anchors_user <- read_flexible(
     paste0(
@@ -255,14 +273,6 @@ if (scenario_ver %in% c("BaU1_v2", "BaU2_v2", "BaU3_v2")) {
       ".csv"
     )
   )
-  
-} else {
-  
-  stop(sprintf("Invalid scenario_ver: %s", scenario_ver))
-  
-}
-
-if (scenario_ver %in% c("ICS1_v2", "ICS2_v2", "ICS3_v2")) {
   
   ## 4) STANDARDIZE USER VALUES TO 0-1 ----
   #    If entered as percentages (0-100), convert to 0-1
@@ -390,10 +400,15 @@ if (scenario_ver %in% c("ICS1_v2", "ICS2_v2", "ICS3_v2")) {
   share_table_ics_out <- share_table_ics %>%
     arrange(iso3, area, year, fuel)
   
-  # Optional save
+  # Save per-scenario shares (suffixed so the three runs don't overwrite each other)
   write_csv(
     share_table_ics_out,
-    paste0(countrydir, "/LULCC/DownloadedDatasets/SourceDataGlobal/demand/demand_in/demand_ics_shares.csv")
+    paste0(
+      countrydir,
+      "/LULCC/DownloadedDatasets/SourceDataGlobal/demand/demand_in/demand_ics",
+      anchor_num,
+      "_shares.csv"
+    )
   )
   
   ## 8) BUILD BAU SHARES + TOTAL PEOPLE FOR ALL COUNTRIES----
@@ -451,46 +466,133 @@ if (scenario_ver %in% c("ICS1_v2", "ICS2_v2", "ICS3_v2")) {
       iso3, country, region, area, fuel, year,
       people, pc_fuel, fuel_tons_calc
     )
-
-  ## 12) OPTIONAL CHECKS----
   
-  # Check one non-anchor country, should match BAU up to floating precision
-  # Example:
+  ## 12) BAU vs ICS COMPARISON ----
+  # Compare the ICS demand to BaU across ALL countries (the previous version
+  # used an anti-join against the anchor table, which is now empty because
+  # anchor_points covers every country).
+  #
+  # The diff is reported on two fields:
+  #   - people:         how the scenario reallocates population across fuels
+  #                     (per (iso3, area, year, fuel)). Note: summed across
+  #                     fuels per (iso3, area, year) this should be ~0
+  #                     because total population per area/year is unchanged.
+  #   - fuel_tons_calc: the downstream demand quantity. The totals across
+  #                     fuels DO change because each fuel has its own pc_fuel
+  #                     factor -- this is the real demand signal.
+  
+  cat(sprintf("BAU vs ICS%d snapshot for KEN urban %d:\n",
+              anchor_num, end_year))
   bau_no_overall %>%
     dplyr::filter(iso3 == "KEN", area == "urban", year == end_year) %>%
-    arrange(fuel)
+    arrange(fuel) %>%
+    print()
   
   ics_no_overall %>%
     dplyr::filter(iso3 == "KEN", area == "urban", year == end_year) %>%
-    arrange(fuel)
+    arrange(fuel) %>%
+    print()
   
-  # Compare BAU vs ICS for non-anchor countries
-  ics_targets <- share_table_ics_out %>%
-    distinct(iso3, area)
+  bau_for_diff <- bau_no_overall %>%
+    dplyr::select(iso3, country, region, area, year, fuel,
+                  people_bau = people,
+                  fuel_tons_calc_bau = fuel_tons_calc)
   
-  bau_check <- bau_no_overall %>%
-    anti_join(ics_targets, by = c("iso3", "area")) %>%
-    arrange(iso3, area, year, fuel) %>%
-    dplyr::select(iso3, area, year, fuel, people_bau = people, fuel_tons_calc_bau = fuel_tons_calc)
+  ics_for_diff <- ics_no_overall %>%
+    dplyr::select(iso3, area, year, fuel,
+                  people_ics = people,
+                  fuel_tons_calc_ics = fuel_tons_calc)
   
-  ics_check <- ics_no_overall %>%
-    anti_join(ics_targets, by = c("iso3", "area")) %>%
-    arrange(iso3, area, year, fuel) %>%
-    dplyr::select(iso3, area, year, fuel, people_ics = people, fuel_tons_calc_ics = fuel_tons_calc)
-  
-  diff_check <- bau_check %>%
-    left_join(ics_check, by = c("iso3", "area", "year", "fuel")) %>%
+  diff_table <- bau_for_diff %>%
+    left_join(ics_for_diff, by = c("iso3", "area", "year", "fuel")) %>%
     mutate(
-      diff_people = people_ics - people_bau,
-      diff_fuel_tons_calc = fuel_tons_calc_ics - fuel_tons_calc_bau
-    )
+      diff_people        = people_ics - people_bau,
+      diff_fuel_tons     = fuel_tons_calc_ics - fuel_tons_calc_bau,
+      pct_diff_people    = if_else(
+        is.finite(people_bau) & people_bau != 0,
+        100 * diff_people / people_bau,
+        NA_real_
+      ),
+      pct_diff_fuel_tons = if_else(
+        is.finite(fuel_tons_calc_bau) & fuel_tons_calc_bau != 0,
+        100 * diff_fuel_tons / fuel_tons_calc_bau,
+        NA_real_
+      )
+    ) %>%
+    arrange(iso3, area, year, fuel)
   
-  diff_check %>%
+  # Persist the full per-row diff so the user can inspect any country/year
+  diff_path <- paste0(
+    countrydir,
+    "/LULCC/DownloadedDatasets/SourceDataGlobal/demand/demand_in/demand_bau_vs_ics",
+    anchor_num,
+    "_diff.csv"
+  )
+  write_csv(diff_table, diff_path)
+  cat(sprintf("\033[32mWrote BaU-vs-ICS%d diff: %s\033[0m\n",
+              anchor_num, diff_path))
+  
+  # Compact summary printed to console
+  #   - max absolute diff (safe; uses [-Inf, Inf] guard so an all-NA group
+  #     reports NA instead of -Inf)
+  safe_max_abs <- function(x) {
+    x <- x[is.finite(x)]
+    if (length(x) == 0) NA_real_ else max(abs(x))
+  }
+  
+  diff_summary <- diff_table %>%
     summarise(
-      max_abs_diff_people = max(abs(diff_people), na.rm = TRUE),
-      max_abs_diff_fuel_tons_calc = max(abs(diff_fuel_tons_calc), na.rm = TRUE)
+      max_abs_diff_people    = safe_max_abs(diff_people),
+      max_abs_diff_fuel_tons = safe_max_abs(diff_fuel_tons),
+      max_abs_pct_people     = safe_max_abs(pct_diff_people),
+      max_abs_pct_fuel_tons  = safe_max_abs(pct_diff_fuel_tons)
     )
+  cat(sprintf("\nICS%d vs BaU -- overall diff summary (all countries, all years, all fuels):\n",
+              anchor_num))
+  print(diff_summary)
   
+  # End-year totals per country/area: how much does ICS shift total demand?
+  end_year_totals <- diff_table %>%
+    dplyr::filter(year == end_year) %>%
+    group_by(iso3, area) %>%
+    summarise(
+      bau_fuel_tons = sum(fuel_tons_calc_bau, na.rm = TRUE),
+      ics_fuel_tons = sum(fuel_tons_calc_ics, na.rm = TRUE),
+      diff_tons     = ics_fuel_tons - bau_fuel_tons,
+      pct_diff      = if_else(
+        bau_fuel_tons != 0,
+        100 * diff_tons / bau_fuel_tons,
+        NA_real_
+      ),
+      .groups = "drop"
+    ) %>%
+    arrange(desc(abs(pct_diff)))
+  
+  cat(sprintf("\nICS%d vs BaU -- top 10 (iso3, area) by |%% diff| in total %d fuel_tons:\n",
+              anchor_num, end_year))
+  print(head(end_year_totals, 10))
+  
+  # Sanity check: per-fuel `people` reallocation should sum to ~0 across
+  # fuels within each (iso3, area, year).
+  reallocation_check <- diff_table %>%
+    group_by(iso3, area, year) %>%
+    summarise(people_diff_sum = sum(diff_people, na.rm = TRUE), .groups = "drop") %>%
+    summarise(max_abs_reallocation_sum = safe_max_abs(people_diff_sum))
+  cat(sprintf("ICS%d people-reallocation sanity (max |row-sum of diff_people| per area/year, should be ~0):\n",
+              anchor_num))
+  print(reallocation_check)
+  
+  ics_no_overall
+}
+
+# Run the ICS pipeline for all three scenarios when an ICS scenario was selected
+ics_outputs <- list()  # named list: "ICS1_v2" -> ics_no_overall tibble, ...
+
+if (scenario_ver %in% ics_scenarios) {
+  for (n in 1:3) {
+    key <- sprintf("ICS%d_v2", n)
+    ics_outputs[[key]] <- run_ics_pipeline(n)
+  }
 }
 
 # Rebuilding ----
@@ -522,9 +624,8 @@ bau_mofuss_or_rebuilt <- bind_rows(
 ) %>%
   arrange(iso3, year, area, fuel)
 
-if (scenario_ver %in% c("ICS1_v2", "ICS2_v2", "ICS3_v2")) {
-  
-  # 2) REBUILD overall FOR ICS
+# Helper: rebuild the "overall" rows and bind with non-overall for one ICS scenario
+rebuild_ics_with_overall <- function(ics_no_overall) {
   ics_overall <- ics_no_overall %>%
     group_by(iso3, country, region, fuel, year) %>%
     summarise(
@@ -545,39 +646,60 @@ if (scenario_ver %in% c("ICS1_v2", "ICS2_v2", "ICS3_v2")) {
       people, pc_fuel, fuel_tons_calc
     )
   
-  ics_mofuss_or <- bind_rows(
+  bind_rows(
     ics_no_overall %>%
-      dplyr::select(iso3, country, region, area, fuel, year, people, pc_fuel, fuel_tons_calc),
+      dplyr::select(iso3, country, region, area, fuel, year,
+                    people, pc_fuel, fuel_tons_calc),
     ics_overall
   ) %>%
     arrange(iso3, year, area, fuel)
-  
+}
+
+# Build the full ICS tables (with overall) for each scenario
+ics_full_outputs <- list()
+if (scenario_ver %in% ics_scenarios) {
+  for (key in names(ics_outputs)) {
+    ics_full_outputs[[key]] <- rebuild_ics_with_overall(ics_outputs[[key]])
+  }
 }
 
 bau_mofuss_or_rebuilt %>%
   dplyr::filter(area == "overall", iso3 == "KEN", year == 2030) %>%
-  arrange(fuel)
+  arrange(fuel) %>%
+  print()
 
-if (scenario_ver %in% c("ICS1_v2", "ICS2_v2", "ICS3_v2")) {
-  
-  ics_mofuss_or %>%
-    dplyr::filter(area == "overall", iso3 == "KEN", year == 2030) %>%
-    arrange(fuel)
+if (scenario_ver %in% ics_scenarios) {
+  for (key in names(ics_full_outputs)) {
+    cat(sprintf("\n%s -- KEN overall 2030:\n", key))
+    ics_full_outputs[[key]] %>%
+      dplyr::filter(area == "overall", iso3 == "KEN", year == 2030) %>%
+      arrange(fuel) %>%
+      print()
+  }
 }
 
 bau_mofuss_or_rebuilt %>%
-  count(area)
-if (scenario_ver %in% c("ICS1_v2", "ICS2_v2", "ICS3_v2")) {
-  ics_mofuss_or %>%
-    count(area)
+  count(area) %>%
+  print()
+if (scenario_ver %in% ics_scenarios) {
+  for (key in names(ics_full_outputs)) {
+    cat(sprintf("\n%s area counts:\n", key))
+    ics_full_outputs[[key]] %>%
+      count(area) %>%
+      print()
+  }
 }
 
 # write_csv(
 #   bau_mofuss_or_rebuilt,
 #   paste0(countrydir, "/LULCC/DownloadedDatasets/SourceDataGlobal/demand/demand_in/demand_bau_v2.csv")
-# ) # if demand_bau_v2_user.csv exists... 
+# ) # if demand_bau_v2_user.csv exists...
 
-if (scenario_ver %in% c("BaU1_v2", "BaU2_v2", "BaU3_v2")) {
+# ---------------------------------------------------------------------------
+# Write outputs ----
+# ---------------------------------------------------------------------------
+
+if (scenario_ver %in% bau_scenarios) {
   
   cat("\033[32mBaU scenario selected: no demand table for ICS scenarios will be written.\033[0m\n")
   
@@ -591,21 +713,23 @@ if (scenario_ver %in% c("BaU1_v2", "BaU2_v2", "BaU3_v2")) {
     )
   )
   
-} else if (scenario_ver %in% c("ICS1_v2", "ICS2_v2", "ICS3_v2")) {
+} else if (scenario_ver %in% ics_scenarios) {
   
-  write_csv(
-    ics_mofuss_or,
-    paste0(
+  # Write ALL three demand_icsN_v2.csv files regardless of which specific
+  # ICS scenario was selected in scenario_ver.
+  for (key in names(ics_full_outputs)) {
+    out_path <- paste0(
       countrydir,
       "/LULCC/DownloadedDatasets/SourceDataGlobal/demand/demand_in/demand_",
-      tolower(scenario_ver),
+      tolower(key),
       ".csv"
     )
-  )
+    write_csv(ics_full_outputs[[key]], out_path)
+    cat(sprintf("\033[32mWrote: %s\033[0m\n", out_path))
+  }
   
 } else {
   
   stop(sprintf("Invalid scenario_ver: %s", scenario_ver))
   
 }
-
