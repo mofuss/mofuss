@@ -35,6 +35,31 @@
 # When FALSE, 2050 uses the user-defined ICS targets defined further below.
 use_bau_2050 <- FALSE
 
+# ===========================================================================
+# CONVERGENCE FACTORS --------------------------------------------------------
+# ===========================================================================
+# Controls how far each country moves from its 2025 share toward each
+# scenario's 2050 target. Per (country, area, fuel):
+#
+#     share_2050  =  (1 - c) * share_2025  +  c * target_2050
+#
+# c = 1.00 -> every country ends at the uniform target (most aggressive)
+# c = 0.50 -> every country moves halfway from its 2025 mix toward the target
+# c = 0.00 -> every country stays at its 2025 mix (no transition)
+#
+# Countries already close to the target barely move; countries far from it
+# move more, in proportion to their gap. Ignored when use_bau_2050 = TRUE.
+#
+# Per-scenario values reflect each pathway's realism:
+#   - Biomass-improvement: medium c. Stove swaps are deployable but pulling
+#     already-clean countries toward biomass is undesirable, so keep moderate.
+#   - Modern-energy: lower c. Hardest in rural areas (LPG distribution, grid
+#     expansion), so the transition is incomplete by 2050.
+#   - Mixed: medium c, blends both transition speeds.
+convergence_s1 <- 0.50   # Biomass-improvement
+convergence_s2 <- 0.90   # Modern-energy
+convergence_s3 <- 0.70   # Mixed
+
 # Country printed in the on-screen comparison (full table is always written
 # to anchor_points_comparison.csv regardless)
 sample_country <- "KEN"
@@ -167,38 +192,65 @@ shares_2050_bau  <- shares_observed %>% dplyr::filter(year == 2050)
 # ---------------------------------------------------------------------------
 # 2. User-defined 2050 targets for the three ICS scenarios ----
 # ---------------------------------------------------------------------------
-# These vectors are applied uniformly to every country. The fuel ordering
-# below must match `fuel_order` above.
+# These vectors define the *direction* each scenario points toward. Each
+# country's actual 2050 share is a convex combination of its 2025 share and
+# this target, weighted by the per-scenario convergence factor (see top of
+# script). When convergence == 1 the target is applied uniformly to every
+# country.
 
-make_2050_for_all_countries <- function(rural_vec, urban_vec) {
-  tidyr::expand_grid(
-    iso3 = countries_in_data,
-    tibble(
-      area = rep(c("rural", "urban"), each = length(fuel_order)),
-      fuel = rep(fuel_order, 2),
-      share_user = c(rural_vec, urban_vec)
-    )
-  ) %>%
-    mutate(year = 2050L) %>%
+# Pull each country's 2025 shares (the starting point for convergence)
+shares_2025 <- shares_observed %>%
+  dplyr::filter(year == 2025) %>%
+  dplyr::select(iso3, area, fuel, share_2025 = share_user)
+
+make_2050_for_all_countries <- function(rural_vec, urban_vec,
+                                        convergence = 1) {
+  # Build the per-(area, fuel) target tibble
+  target_tbl <- tibble(
+    area   = rep(c("rural", "urban"), each = length(fuel_order)),
+    fuel   = rep(fuel_order, 2),
+    target = c(rural_vec, urban_vec)
+  )
+
+  # Cross with countries, then blend with each country's 2025 share
+  tidyr::expand_grid(iso3 = countries_in_data, target_tbl) %>%
+    left_join(shares_2025, by = c("iso3", "area", "fuel")) %>%
+    mutate(
+      # If 2025 data is missing for a (iso3, area, fuel), treat it as 0
+      share_2025 = tidyr::replace_na(share_2025, 0),
+      share_user = (1 - convergence) * share_2025 + convergence * target,
+      year       = 2050L
+    ) %>%
     dplyr::select(iso3, area, year, fuel, share_user)
 }
 
 # Scenario 1: Biomass-improvement pathway
+# Cleaner biomass cookstoves displace traditional ones. The bulk of the target
+# is imp_fuelwood + imp_charcoal; gas/electric have modest roles; kerosene
+# and coal are zero (phased out); biogas plays a small rural role.
+# Fuel order: fuelwood, charcoal, imp_fuelwood, imp_charcoal, gas, kerosene,
+#             electric, pellets, ethanol, biogas, coal
 anchors_2050_s1 <- make_2050_for_all_countries(
-  rural_vec = c(0.10, 0.05, 0.45, 0.22, 0.05, 0.00, 0.03, 0.02, 0.01, 0.07, 0.00),
-  urban_vec = c(0.03, 0.10, 0.25, 0.35, 0.12, 0.00, 0.08, 0.03, 0.01, 0.02, 0.01)
+  rural_vec   = c(0.05, 0.02, 0.45, 0.25, 0.10, 0.00, 0.04, 0.02, 0.01, 0.06, 0.00),
+  urban_vec   = c(0.02, 0.05, 0.20, 0.25, 0.30, 0.00, 0.12, 0.03, 0.01, 0.02, 0.00),
+  convergence = convergence_s1
 )
 
 # Scenario 2: Modern-energy pathway
+# LPG (gas) and electric dominate. Improved biomass plays only a small
+# transitional role. Urban targets are more aggressive (existing infra).
 anchors_2050_s2 <- make_2050_for_all_countries(
-  rural_vec = c(0.02, 0.01, 0.03, 0.02, 0.56, 0.00, 0.28, 0.02, 0.02, 0.04, 0.00),
-  urban_vec = c(0.00, 0.01, 0.01, 0.01, 0.62, 0.00, 0.32, 0.01, 0.01, 0.00, 0.01)
+  rural_vec   = c(0.05, 0.02, 0.10, 0.05, 0.45, 0.00, 0.25, 0.03, 0.02, 0.03, 0.00),
+  urban_vec   = c(0.01, 0.02, 0.02, 0.02, 0.55, 0.00, 0.34, 0.02, 0.01, 0.01, 0.00),
+  convergence = convergence_s2
 )
 
 # Scenario 3: Mixed pathway
+# Balanced: roughly half improved biomass, half modern energy.
 anchors_2050_s3 <- make_2050_for_all_countries(
-  rural_vec = c(0.08, 0.03, 0.25, 0.12, 0.22, 0.01, 0.16, 0.03, 0.03, 0.07, 0.00),
-  urban_vec = c(0.02, 0.04, 0.12, 0.16, 0.34, 0.00, 0.25, 0.02, 0.02, 0.02, 0.01)
+  rural_vec   = c(0.05, 0.02, 0.25, 0.13, 0.28, 0.00, 0.15, 0.03, 0.02, 0.07, 0.00),
+  urban_vec   = c(0.02, 0.03, 0.10, 0.13, 0.42, 0.00, 0.25, 0.03, 0.01, 0.01, 0.00),
+  convergence = convergence_s3
 )
 
 # ---------------------------------------------------------------------------
@@ -210,13 +262,17 @@ if (isTRUE(use_bau_2050)) {
     "\033[33m[VALIDATION MODE] use_bau_2050 = TRUE: ",
     "all three ICS scenarios will use BaU observed 2050 shares.\n",
     "The three anchor_points files should end up IDENTICAL to ",
-    "anchor_points_bau_observed.csv\033[0m\n"
+    "anchor_points_bau_observed.csv. ",
+    "(convergence factors are ignored in this mode.)\033[0m\n"
   ))
   anchors_2050_used_s1 <- shares_2050_bau
   anchors_2050_used_s2 <- shares_2050_bau
   anchors_2050_used_s3 <- shares_2050_bau
 } else {
-  cat("\033[36muse_bau_2050 = FALSE: applying user-defined ICS 2050 targets.\033[0m\n")
+  cat(sprintf(
+    "\033[36muse_bau_2050 = FALSE: applying ICS 2050 targets with convergence c1=%.2f, c2=%.2f, c3=%.2f.\033[0m\n",
+    convergence_s1, convergence_s2, convergence_s3
+  ))
   anchors_2050_used_s1 <- anchors_2050_s1
   anchors_2050_used_s2 <- anchors_2050_s2
   anchors_2050_used_s3 <- anchors_2050_s3
