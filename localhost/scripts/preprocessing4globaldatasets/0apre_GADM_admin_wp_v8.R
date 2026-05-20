@@ -528,9 +528,27 @@ st_read("regions_adm2/mofuss_regions2.gpkg") %>%
 # Update demand_in folder with latest mofuss_regions{0,1,2}.gpkg
 for (lvl in 0:2) {
   src <- sprintf("regions_adm%d/mofuss_regions%d.gpkg", lvl, lvl)
-  dst <- paste0(demanddir, "/demand_in")
-  ok <- file.copy(from = src, to = dst, overwrite = TRUE)
-  if (!ok) warning("Failed to copy ", src, " to ", dst)
+  dst_dir <- paste0(demanddir, "/demand_in")
+  dst <- file.path(dst_dir, sprintf("mofuss_regions%d.gpkg", lvl))
+  
+  # Remove destination first if it exists
+  if (file.exists(dst)) {
+    removed <- file.remove(dst)
+    if (!removed) {
+      stop("Could not delete ", dst,
+           " — is it open in QGIS or another program?")
+    }
+  }
+  
+  # Now copy (no overwrite needed, destination is clean)
+  ok <- file.copy(from = src, to = dst)
+  if (!ok) {
+    stop("Failed to copy ", src, " to ", dst)
+  }
+  message(sprintf("Copied %s (%.0f MB) -> %s",
+                  basename(src),
+                  file.info(src)$size / 1024^2,
+                  dst))
 }
 
 # ============================================================================
