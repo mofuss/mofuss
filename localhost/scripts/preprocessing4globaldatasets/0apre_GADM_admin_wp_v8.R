@@ -17,11 +17,12 @@
 # This script loads GADM admin 0/1/2 levels and selects countries with complete
 # info in both the WHO and HRSL population maps. For Nepal use 3.
 #
-# This version supports four SSA regionalizations from a single script:
+# This version supports five SSA regionalizations from a single script:
 #   - Default (UNFCCC)        : subregionsSSA_v4.csv
 #   - FAO Miombo-Mopane       : subregionsSSA_v5FAO.csv
 #   - TNC Congo Basin         : subregionsSSA_v5TNC_congo.csv
 #   - TNC KAZA                : subregionsSSA_v5TNC_kaza.csv
+#   - ENABEL                  : subregionsSSA_v5ENABEL.csv
 #
 # To add a new SSA scenario later
 # Three steps in this order:
@@ -36,14 +37,15 @@ run_ms <- "Yes"  # Run ms_simplify?
 
 # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 # Pick ONE SSA scenario. The corresponding CSV is auto-selected below.
-ssa_scenario <- "default"   # one of: "default", "fao", "tnc_congo", "tnc_kaza"
+ssa_scenario <- "default"   # one of: "default", "fao", "tnc_congo", "tnc_kaza", "enabel"
 # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 ssa_scenarios <- list(
   default   = "subregionsSSA_v4.csv",
   fao       = "subregionsSSA_v5FAO.csv",
   tnc_congo = "subregionsSSA_v5TNC_congo.csv",
-  tnc_kaza  = "subregionsSSA_v5TNC_kaza.csv"
+  tnc_kaza  = "subregionsSSA_v5TNC_kaza.csv",
+  enabel    = "subregionsSSA_v5ENABEL.csv"
 )
 stopifnot(ssa_scenario %in% names(ssa_scenarios))
 subregionsSSA_v <- ssa_scenarios[[ssa_scenario]]
@@ -97,7 +99,9 @@ ssa_region_map <- tibble::tribble(
   # --- TNC Congo ---
   "Congo Basin",             "congo_basin",
   # --- TNC KAZA ---
-  "KAZA",                    "kaza"
+  "KAZA",                    "kaza",
+  # --- ENABEL ---
+  "MOZ ZMB MWI TZA",        "moz_zmb_mwi_tza"
 )
 
 latam_region_map <- tibble::tribble(
