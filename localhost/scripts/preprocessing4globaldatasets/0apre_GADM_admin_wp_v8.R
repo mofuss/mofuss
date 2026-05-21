@@ -36,7 +36,7 @@ run_ms <- "Yes"  # Run ms_simplify?
 
 # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 # Pick ONE SSA scenario. The corresponding CSV is auto-selected below.
-ssa_scenario <- "tnc_congo"   # one of: "default", "fao", "tnc_congo", "tnc_kaza"
+ssa_scenario <- "default"   # one of: "default", "fao", "tnc_congo", "tnc_kaza"
 # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 ssa_scenarios <- list(

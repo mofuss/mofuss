@@ -8,6 +8,7 @@
 
 # Internal parameters ----
 
+
 # Load libraries ----
 library(conflicted)
 
@@ -66,11 +67,10 @@ country_parameters %>%
   pull(ParCHR) -> byregion
 
 if (byregion == "Regional") { # Or continental
+  
   "Do nothing for the time being"
   
 } else {
-  
-  
   
   setwd(demanddir)
   
@@ -571,4 +571,4 @@ if (byregion == "Regional") { # Or continental
     
   }
   
-}
+}  
