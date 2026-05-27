@@ -74,6 +74,10 @@ country_parameters %>%
   dplyr::filter(Var == "scenario_ver") %>%
   pull(ParCHR) -> scenario_ver
 
+country_parameters %>%
+  dplyr::filter(Var == "demand_col") %>%
+  pull(ParCHR) -> demand_col
+
 target_fuels <- c(
   "fuelwood", "charcoal", "imp_fuelwood", "imp_charcoal",
   "gas", "kerosene", "electric", "pellets",
@@ -91,7 +95,7 @@ build_mofuss_demand <- function(popWHO) {
       area    = tolower(as.character(area)),
       year    = as.integer(year),
       fuel0   = tolower(as.character(fuel)),
-      people  = as.numeric(pop * 1)
+      num_fuel_users_thousands  = as.numeric(pop * 1)
     ) %>%
     mutate(
       fuel = case_when(
@@ -111,7 +115,7 @@ build_mofuss_demand <- function(popWHO) {
       year <= end_year,
       !is.na(fuel)
     ) %>%
-    distinct(iso3, country, area, year, fuel, people)
+    distinct(iso3, country, area, year, fuel, num_fuel_users_thousands)
   
   dup_who <- who_std %>%
     count(iso3, area, year, fuel) %>%
@@ -124,23 +128,23 @@ build_mofuss_demand <- function(popWHO) {
   who_full <- who_keys %>%
     tidyr::crossing(fuel = target_fuels) %>%
     left_join(
-      who_std %>% dplyr::select(iso3, country, area, year, fuel, people),
+      who_std %>% dplyr::select(iso3, country, area, year, fuel, num_fuel_users_thousands),
       by = c("iso3", "country", "area", "year", "fuel"),
       relationship = "one-to-one"
     ) %>%
     mutate(
-      people = ifelse(is.na(people), 0, people)
+      num_fuel_users_thousands = ifelse(is.na(num_fuel_users_thousands), 0, num_fuel_users_thousands)
     ) %>%
-    dplyr::select(iso3, country, area, year, fuel, people)
+    dplyr::select(iso3, country, area, year, fuel, num_fuel_users_thousands)
   
-  # 3) Add region and fuel_tons_calc only
+  # 3) Add region and demand_col only
   dem_params_reg <- dem_params %>%
     dplyr::filter(!is.na(region)) %>%
-    dplyr::select(fuel, region, pc_fuel)
+    dplyr::select(fuel, region, per_capita_fuel_cons)
   
   dem_params_all <- dem_params %>%
     dplyr::filter(is.na(region)) %>%
-    dplyr::select(fuel, pc_fuel_default = pc_fuel)
+    dplyr::select(fuel, per_capita_fuel_cons_default = per_capita_fuel_cons)
   
   bau_no_overall <- who_full %>%
     mutate(
@@ -167,18 +171,18 @@ build_mofuss_demand <- function(popWHO) {
       relationship = "many-to-one"
     ) %>%
     mutate(
-      pc_fuel = dplyr::coalesce(pc_fuel, pc_fuel_default),
-      fuel_tons_calc = case_when(
-        is.na(pc_fuel) ~ NA_real_,
-        fuel == "charcoal" ~ people * 1000 * pc_fuel * efchratio,
-        TRUE ~ people * 1000 * pc_fuel
+      per_capita_fuel_cons = dplyr::coalesce(per_capita_fuel_cons, per_capita_fuel_cons_default),
+      !!demand_col := case_when(
+        is.na(per_capita_fuel_cons) ~ NA_real_,
+        fuel == "charcoal" ~ num_fuel_users_thousands * 1000 * per_capita_fuel_cons * efchratio,
+        TRUE ~ num_fuel_users_thousands * 1000 * per_capita_fuel_cons
       )
     ) %>%
-    dplyr::select(-pc_fuel_default) %>%
+    dplyr::select(-per_capita_fuel_cons_default) %>%
     relocate(region, .after = country) %>%
     dplyr::select(
       iso3, country, region, area, fuel, year,
-      people, pc_fuel, fuel_tons_calc
+      num_fuel_users_thousands, per_capita_fuel_cons, all_of(demand_col)
     ) %>%
     arrange(iso3, year, area, fuel)
   
@@ -227,11 +231,11 @@ bau_no_overall <- bau_mofuss_or %>%
 share_table_default <- bau_no_overall %>%
   group_by(iso3, country, region, area, year) %>%
   mutate(
-    total_people_area_year = sum(people, na.rm = TRUE),
-    share_default = if_else(total_people_area_year > 0, people / total_people_area_year, 0)
+    total_people_area_year = sum(num_fuel_users_thousands, na.rm = TRUE),
+    share_default = if_else(total_people_area_year > 0, num_fuel_users_thousands / total_people_area_year, 0)
   ) %>%
   ungroup() %>%
-  dplyr::select(iso3, country, region, area, year, fuel, people, share_default)
+  dplyr::select(iso3, country, region, area, year, fuel, num_fuel_users_thousands, share_default)
 
 # Optional export for user reference
 write_csv(
@@ -415,8 +419,8 @@ run_ics_pipeline <- function(anchor_num) {
   bau_share_table <- bau_no_overall %>%
     group_by(iso3, country, region, area, year) %>%
     mutate(
-      total_people = sum(people, na.rm = TRUE),
-      share_bau = if_else(total_people > 0, people / total_people, 0)
+      total_people = sum(num_fuel_users_thousands, na.rm = TRUE),
+      share_bau = if_else(total_people > 0, num_fuel_users_thousands / total_people, 0)
     ) %>%
     ungroup() %>%
     dplyr::select(iso3, country, region, area, fuel, year, total_people, share_bau)
@@ -442,29 +446,29 @@ run_ics_pipeline <- function(anchor_num) {
   
   ## 10) REBUILD NON-overall TABLE----
   ics_no_overall <- bau_no_overall %>%
-    dplyr::select(-people, -fuel_tons_calc) %>%
+    dplyr::select(-num_fuel_users_thousands, -all_of(demand_col)) %>%
     left_join(
       share_table_final %>%
         dplyr::select(iso3, area, year, fuel, total_people, share_final),
       by = c("iso3", "area", "year", "fuel")
     ) %>%
     mutate(
-      people = total_people * share_final
+      num_fuel_users_thousands = total_people * share_final
     )
   
-  ## 11) RECALCULATE fuel_tons_calc ----
+  ## 11) RECALCULATE all_of(demand_col) ----
   #    USE THE SAME case_when() AS IN bau_mofuss_or
   ics_no_overall <- ics_no_overall %>%
     mutate(
-      fuel_tons_calc = case_when(
-        is.na(pc_fuel) ~ NA_real_,
-        fuel == "charcoal" ~ people * 1000 * pc_fuel * efchratio,
-        TRUE ~ people * 1000 * pc_fuel
+      !!demand_col := case_when(
+        is.na(per_capita_fuel_cons) ~ NA_real_,
+        fuel == "charcoal" ~ num_fuel_users_thousands * 1000 * per_capita_fuel_cons * efchratio,
+        TRUE ~ num_fuel_users_thousands * 1000 * per_capita_fuel_cons
       )
     ) %>%
     dplyr::select(
       iso3, country, region, area, fuel, year,
-      people, pc_fuel, fuel_tons_calc
+      num_fuel_users_thousands, per_capita_fuel_cons, all_of(demand_col)
     )
   
   ## 12) BAU vs ICS COMPARISON ----
@@ -473,12 +477,12 @@ run_ics_pipeline <- function(anchor_num) {
   # anchor_points covers every country).
   #
   # The diff is reported on two fields:
-  #   - people:         how the scenario reallocates population across fuels
+  #   - num_fuel_users_thousands:         how the scenario reallocates population across fuels
   #                     (per (iso3, area, year, fuel)). Note: summed across
   #                     fuels per (iso3, area, year) this should be ~0
   #                     because total population per area/year is unchanged.
-  #   - fuel_tons_calc: the downstream demand quantity. The totals across
-  #                     fuels DO change because each fuel has its own pc_fuel
+  #   - all_of(demand_col): the downstream demand quantity. The totals across
+  #                     fuels DO change because each fuel has its own per_capita_fuel_cons
   #                     factor -- this is the real demand signal.
   
   cat(sprintf("BAU vs ICS%d snapshot for KEN urban %d:\n",
@@ -495,13 +499,13 @@ run_ics_pipeline <- function(anchor_num) {
   
   bau_for_diff <- bau_no_overall %>%
     dplyr::select(iso3, country, region, area, year, fuel,
-                  people_bau = people,
-                  fuel_tons_calc_bau = fuel_tons_calc)
+                  people_bau = num_fuel_users_thousands,
+                  fuel_tons_calc_bau = all_of(demand_col))
   
   ics_for_diff <- ics_no_overall %>%
     dplyr::select(iso3, area, year, fuel,
-                  people_ics = people,
-                  fuel_tons_calc_ics = fuel_tons_calc)
+                  people_ics = num_fuel_users_thousands,
+                  fuel_tons_calc_ics = all_of(demand_col))
   
   diff_table <- bau_for_diff %>%
     left_join(ics_for_diff, by = c("iso3", "area", "year", "fuel")) %>%
@@ -572,7 +576,7 @@ run_ics_pipeline <- function(anchor_num) {
               anchor_num, end_year))
   print(head(end_year_totals, 10))
   
-  # Sanity check: per-fuel `people` reallocation should sum to ~0 across
+  # Sanity check: per-fuel `num_fuel_users_thousands` reallocation should sum to ~0 across
   # fuels within each (iso3, area, year).
   reallocation_check <- diff_table %>%
     group_by(iso3, area, year) %>%
@@ -601,25 +605,25 @@ bau_overall <- bau_no_overall %>%
   group_by(iso3, country, region, fuel, year) %>%
   summarise(
     area = "overall",
-    people = sum(people, na.rm = TRUE),
-    fuel_tons_calc = sum(fuel_tons_calc, na.rm = TRUE),
+    num_fuel_users_thousands = sum(num_fuel_users_thousands, na.rm = TRUE),
+    !!demand_col := sum(.data[[demand_col]], na.rm = TRUE),
     .groups = "drop"
   ) %>%
   mutate(
-    pc_fuel = if_else(
-      people > 0,
-      fuel_tons_calc / (people * 1000),
+    per_capita_fuel_cons = if_else(
+      num_fuel_users_thousands > 0,
+      .data[[demand_col]] / (num_fuel_users_thousands * 1000),
       NA_real_
     )
   ) %>%
   dplyr::select(
     iso3, country, region, area, fuel, year,
-    people, pc_fuel, fuel_tons_calc
+    num_fuel_users_thousands, per_capita_fuel_cons, all_of(demand_col)
   )
 
 bau_mofuss_or_rebuilt <- bind_rows(
   bau_no_overall %>%
-    dplyr::select(iso3, country, region, area, fuel, year, people, pc_fuel, fuel_tons_calc),
+    dplyr::select(iso3, country, region, area, fuel, year, num_fuel_users_thousands, per_capita_fuel_cons, all_of(demand_col)),
   bau_overall
 ) %>%
   arrange(iso3, year, area, fuel)
@@ -630,26 +634,28 @@ rebuild_ics_with_overall <- function(ics_no_overall) {
     group_by(iso3, country, region, fuel, year) %>%
     summarise(
       area = "overall",
-      people = sum(people, na.rm = TRUE),
-      fuel_tons_calc = sum(fuel_tons_calc, na.rm = TRUE),
+      num_fuel_users_thousands = sum(num_fuel_users_thousands, na.rm = TRUE),
+      !!demand_col := sum(.data[[demand_col]], na.rm = TRUE),
       .groups = "drop"
     ) %>%
     mutate(
-      pc_fuel = if_else(
-        people > 0,
-        fuel_tons_calc / (people * 1000),
+      per_capita_fuel_cons = if_else(
+        num_fuel_users_thousands > 0,
+        .data[[demand_col]] / (num_fuel_users_thousands * 1000),
         NA_real_
       )
     ) %>%
     dplyr::select(
       iso3, country, region, area, fuel, year,
-      people, pc_fuel, fuel_tons_calc
+      num_fuel_users_thousands, per_capita_fuel_cons, all_of(demand_col)
     )
   
   bind_rows(
     ics_no_overall %>%
-      dplyr::select(iso3, country, region, area, fuel, year,
-                    people, pc_fuel, fuel_tons_calc),
+      dplyr::select(
+        iso3, country, region, area, fuel, year,
+        num_fuel_users_thousands, per_capita_fuel_cons, all_of(demand_col)
+      ),
     ics_overall
   ) %>%
     arrange(iso3, year, area, fuel)

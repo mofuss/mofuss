@@ -113,6 +113,10 @@ country_parameters %>%
   dplyr::filter(Var == "scenario_ver") %>%
   pull(ParCHR) -> scenario_ver
 
+country_parameters %>%
+  dplyr::filter(Var == "demand_col") %>%
+  pull(ParCHR) -> demand_col
+
 # ---------------------------------------------------------------------------
 # Constants ----
 # ---------------------------------------------------------------------------

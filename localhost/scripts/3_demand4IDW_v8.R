@@ -434,7 +434,7 @@ if (subcountry != 1) {
     dplyr::filter(area %in% c("urban", "rural")) %>%
     group_by(iso3) %>% 
     summarise(
-      sum_pop = sum(people) * 1000,
+      sum_pop = sum(num_fuel_users_thousands) * 1000,
       .groups = "drop"
     )
   
@@ -448,7 +448,7 @@ if (subcountry != 1) {
     dplyr::filter(grepl(yr, year)) %>%
     dplyr::filter(grepl('urban', area)) %>%
     group_by(iso3) %>% 
-    summarise(urb_pop=sum(people)*1000,
+    summarise(urb_pop=sum(num_fuel_users_thousands)*1000,
               .groups = 'drop') %>%
     left_join(totpopwfdb, ., by="iso3") %>% 
     mutate(furb = urb_pop/sum_pop) %>%
@@ -466,15 +466,15 @@ if (subcountry != 1) {
     dplyr::filter(grepl(yr, year)) %>%
     dplyr::filter(area %in% c("Urban", "Rural")) %>%
     group_by(iso3) %>%
-    summarise(sum_pop=sum(people)*1000, 
+    summarise(sum_pop=sum(num_fuel_users_thousands)*1000, 
               .groups = 'drop')
   
   furb_rob <- wfdb %>%
     dplyr::filter(year == yr, area %in% c("Urban", "Rural")) %>%
     dplyr::group_by(iso3, country) %>%   # <-- key fix: include country (split)
     dplyr::summarise(
-      urb_pop = sum(people[area == "Urban"], na.rm = TRUE) * 1000,
-      rur_pop = sum(people[area == "Rural"], na.rm = TRUE) * 1000,
+      urb_pop = sum(num_fuel_users_thousands[area == "Urban"], na.rm = TRUE) * 1000,
+      rur_pop = sum(num_fuel_users_thousands[area == "Rural"], na.rm = TRUE) * 1000,
       .groups = "drop"
     ) %>%
     dplyr::mutate(
@@ -765,8 +765,8 @@ for (i in adm0_reg$GID_0) { # Start of outer region (i) loop ----
         ) %>%
         group_by(iso3) %>%
         summarise(
-          urb_frac = sum(people[area == "urban"]) /
-            sum(people[area %in% c("urban", "rural")]),
+          urb_frac = sum(num_fuel_users_thousands[area == "urban"]) /
+            sum(num_fuel_users_thousands[area %in% c("urban", "rural")]),
           .groups = "drop"
         ) %>%
         pull(urb_frac)
@@ -775,7 +775,7 @@ for (i in adm0_reg$GID_0) { # Start of outer region (i) loop ----
         dplyr::filter(area %in% c("urban", "rural")) %>%
         group_by(iso3, year) %>% 
         summarise(
-          sum_pop = sum(people) * 1000,
+          sum_pop = sum(num_fuel_users_thousands) * 1000,
           .groups = 'drop'
         )
       
@@ -804,14 +804,14 @@ for (i in adm0_reg$GID_0) { # Start of outer region (i) loop ----
         ) %>%
         group_by(iso3) %>%
         summarise(
-          urb_frac = sum(people[grepl("urban", area)]) / sum(people),
+          urb_frac = sum(num_fuel_users_thousands[grepl("urban", area)]) / sum(num_fuel_users_thousands),
           .groups = "drop"
         ) %>%
         dplyr::pull(urb_frac)
       
       totpopROB_annual <- wfdb %>% 
         group_by(iso3,year) %>% 
-        summarise(sum_pop=sum(people)*1000,
+        summarise(sum_pop=sum(num_fuel_users_thousands)*1000,
                   .groups = 'drop')
       
       rob_ctry_pop_annual <- totpopROB_annual %>%
@@ -946,7 +946,7 @@ for (i in adm0_reg$GID_0) { # Start of outer region (i) loop ----
         dplyr::filter(grepl(j, .data$year)) %>%
         dplyr::filter(grepl("rur|urb", .data$area))
       
-      pop_col_name <- "people"
+      pop_col_name <- "le"
       
       # ---- (B) DEMAND TABLE: always from wfdb (exact & case-insensitive)
       if (is.null(wfdb_fuels_for_demand)) {
