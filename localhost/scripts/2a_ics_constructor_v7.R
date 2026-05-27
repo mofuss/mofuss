@@ -155,8 +155,8 @@ demand_all <- demand_bau %>%
     area %in% c("rural", "urban"),
     year %in% c(2000, 2025, 2050)
   ) %>%
-  mutate(people = people * 1000) %>%
-  dplyr::select(iso3, area, year, fuel, people)
+  mutate(num_fuel_users_thousands = num_fuel_users_thousands * 1000) %>%
+  dplyr::select(iso3, area, year, fuel, num_fuel_users_thousands)
 
 # Make sure every (iso3, area, year, fuel) combination exists so countries
 # with missing rows still appear with share 0 rather than being dropped.
@@ -171,14 +171,14 @@ grid_full <- tidyr::expand_grid(
 
 demand_all <- grid_full %>%
   left_join(demand_all, by = c("iso3", "area", "year", "fuel")) %>%
-  mutate(people = tidyr::replace_na(people, 0))
+  mutate(num_fuel_users_thousands = tidyr::replace_na(num_fuel_users_thousands, 0))
 
 # Compute shares per (iso3, area, year)
 shares_observed <- demand_all %>%
   group_by(iso3, area, year) %>%
   mutate(
-    total_people = sum(people, na.rm = TRUE),
-    share_user   = if_else(total_people > 0, people / total_people, 0)
+    total_num_fuel_users_thousands = sum(num_fuel_users_thousands, na.rm = TRUE),
+    share_user   = if_else(total_num_fuel_users_thousands > 0, num_fuel_users_thousands / total_num_fuel_users_thousands, 0)
   ) %>%
   ungroup() %>%
   dplyr::select(iso3, area, year, fuel, share_user)

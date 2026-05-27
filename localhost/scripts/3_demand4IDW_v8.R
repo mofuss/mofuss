@@ -946,7 +946,7 @@ for (i in adm0_reg$GID_0) { # Start of outer region (i) loop ----
         dplyr::filter(grepl(j, .data$year)) %>%
         dplyr::filter(grepl("rur|urb", .data$area))
       
-      pop_col_name <- "le"
+      pop_col_name <- "num_fuel_users_thousands"
       
       # ---- (B) DEMAND TABLE: always from wfdb (exact & case-insensitive)
       if (is.null(wfdb_fuels_for_demand)) {
