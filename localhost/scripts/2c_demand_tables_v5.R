@@ -176,7 +176,7 @@ if (byregion == "Regional") { # Or continental
           year >= start_year, year <= end_year
         ) %>%
         dplyr::mutate(
-          pop  = people * 1000,
+          pop  = num_fuel_users_thousands * 1000,
           area = order_area(area),
           split = NA_character_   # keep column for consistent downstream code
         ) %>%
@@ -194,7 +194,7 @@ if (byregion == "Regional") { # Or continental
           year >= start_year, year <= end_year
         ) %>%
         dplyr::mutate(
-          pop   = people * 1000,
+          pop   = num_fuel_users_thousands * 1000,
           area  = order_area(area),
           split = as.character(country)  # Lusaka / NotLusaka
         ) %>%
@@ -219,7 +219,7 @@ if (byregion == "Regional") { # Or continental
     wide_keys <- if (all(is.na(popdb_clean$split))) c("year","area") else c("split","year","area")
     
     popdb_wide <- popdb_clean %>%
-      dplyr::mutate(colname = paste0(fuel, " [people]")) %>%
+      dplyr::mutate(colname = paste0(fuel, " [num_fuel_users_thousands]")) %>%
       dplyr::group_by(dplyr::across(dplyr::all_of(c(wide_keys, "colname")))) %>%
       dplyr::summarise(pop = sum(pop, na.rm = TRUE), .groups = "drop") %>%  # <- major fix: no list-cols
       tidyr::pivot_wider(names_from = colname, values_from = pop) %>%
