@@ -50,7 +50,7 @@ fixdir = 0 # WARNING: Check when fixdir = 0 how paths are determined, mostly for
 # output_dir2 <- "C:/Users/aghil/Documents/MoFuSS_FAO_localhost/emissions"
 # output_dir2 <- "D:/ken_fafe/nv2/emissions"
 # rTempdir <- "C:/Users/aghil/Documents/MoFuSS_FAO_localhost/rTemp"
-gid0       <- "MOZ" # Bring from table!
+gid0       <- "IND" # Bring from table!
 efchratio  <- 6 # Bring from table!
 impchfw <- 1 # turns on and off imp_charcoal and imp_fuelwood
 first_yr <- 11 # 11=2010 # 21=2020
