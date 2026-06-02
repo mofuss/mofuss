@@ -180,7 +180,8 @@ if (byregion == "Regional") { # Or continental
           area = order_area(area),
           split = NA_character_   # keep column for consistent downstream code
         ) %>%
-        dplyr::select(iso3, region, split, area, fuel, year, pop) %>%
+        # dplyr::select(iso3, region, split, area, fuel, year, pop) %>%
+        dplyr::select(iso3, split, area, fuel, year, pop) %>%
         dplyr::arrange(year, area, fuel)
       
       pop_prefix <- "wfdb_v2"
@@ -198,7 +199,8 @@ if (byregion == "Regional") { # Or continental
           area  = order_area(area),
           split = as.character(country)  # Lusaka / NotLusaka
         ) %>%
-        dplyr::select(iso3, region, split, area, fuel, year, pop) %>%
+        #dplyr::select(iso3, region, split, area, fuel, year, pop) %>%
+        dplyr::select(iso3, split, area, fuel, year, pop) %>%
         dplyr::arrange(split, year, area, fuel)
       
       pop_prefix <- "robdb"
