@@ -34,7 +34,7 @@ if (webmofuss == 1) {
 	dframe <- read.table(file='.env',header=FALSE,
 						sep='=',col.names=c('key','value'))
 	paramsEnv <- data.table(dframe,key='key')
-	gitlabdir <- paramsEnv['gitlabdir']$value 
+	githubdir <- paramsEnv['githubdir']$value
 	countrydir <- paramsEnv['countrydir']$value
 	demanddir <- paramsEnv['demanddir']$value 
 	admindir <- paramsEnv['admindir']$value
@@ -45,6 +45,7 @@ if (webmofuss == 1) {
 	parameters_file <- basename(parameters_file_path) # OJO ACA
 	
 	scriptsmofuss <- paramsEnv['scriptsmofuss']$value
+	chatId <- paramsEnv['chatId']$value
 } else if(webmofuss == 0) {
 	# ToDoList
   # Load Temporals for webmofuss if needed
