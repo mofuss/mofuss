@@ -407,116 +407,66 @@ readLines("LULCC/TempTables/UserData.txt")
 
 # AoI SELECTION **STARTS** ----
 
-# Copy-safe wrappers (NFS-hardened, cross-platform) ----
-# GeoPackage == SQLite, and SQLite advisory file-locking is unreliable over
-# NFS, especially under concurrent access. So we NEVER let GDAL write a .gpkg
-# directly onto the network share: every vector is written to LOCAL disk
-# first, verified, then placed on the target path with a temp-name + atomic
-# rename, and both the write and the copy are retried with backoff.
-# This also runs unchanged on Windows / localhost (writes just go local->local).
-
-# Per-process LOCAL scratch dir. MUST NOT live on the NFS mount. tempdir() is
-# local on both Windows and Linux. If your server's TMPDIR points at NFS, set
-# the env var MOFUSS_LOCAL_SCRATCH to a node-local path (e.g. /var/tmp or an SSD).
-.mofuss_local_scratch <- function() {
-  base <- Sys.getenv("MOFUSS_LOCAL_SCRATCH", unset = tempdir())
-  d <- file.path(base, paste0("mofuss_", Sys.getpid()))
-  dir.create(d, recursive = TRUE, showWarnings = FALSE)
-  d
-}
-
-# Generic retry-with-backoff wrapper (jittered, so concurrent users desync).
-.mofuss_retry <- function(expr, what, tries = 6, base_sleep = 1) {
-  for (i in seq_len(tries)) {
-    res <- tryCatch(force(expr), error = function(e) e)
-    if (!inherits(res, "error")) return(res)
-    if (i == tries) {
-      stop(sprintf("%s failed after %d tries: %s",
-                   what, tries, conditionMessage(res)))
-    }
-    Sys.sleep(base_sleep * 2^(i - 1) + runif(1, 0, 0.5))
-  }
-}
-
-# Confirm a GeoPackage is openable. Used on LOCAL files only, where it is fast
-# and reliable; we no longer poll this over NFS.
-wait_until_gpkg_ready <- function(path, sleep_time = 1, timeout = 120) {
+# Copy- safe wrapper
+wait_until_gpkg_ready <- function(path, sleep_time = 2, timeout = 600) {
   start <- Sys.time()
+  
   repeat {
-    ok <- tryCatch({ sf::st_layers(path); TRUE }, error = function(e) FALSE)
+    ok <- tryCatch({
+      sf::st_layers(path)
+      TRUE
+    }, error = function(e) FALSE)
+    
     if (ok) return(invisible(TRUE))
+    
     if (as.numeric(difftime(Sys.time(), start, units = "secs")) > timeout) {
-      stop("GeoPackage exists but is not readable: ", path)
+      stop("GeoPackage exists but is not readable yet: ", path)
     }
+    
     Sys.sleep(sleep_time)
   }
 }
 
-# Place a finished file at 'dst' atomically: copy to a temp name in the
-# DESTINATION dir, then rename. Rename within one dir is atomic on the same
-# filesystem, so other processes never see a half-written file. The copy step
-# is cross-volume safe; the rename is same-dir. Windows needs the final target
-# absent before rename, which we handle by unlinking it first.
-.mofuss_atomic_place <- function(src, dst, tries = 6) {
-  dir.create(dirname(dst), recursive = TRUE, showWarnings = FALSE)
-  tmp <- paste0(dst, ".tmp.", Sys.getpid())
-  .mofuss_retry({
-    if (file.exists(tmp)) unlink(tmp, force = TRUE)
-    ok <- file.copy(src, tmp, overwrite = TRUE,
-                    copy.mode = FALSE, copy.date = FALSE)  # NFS metadata copy often fails
-    if (!isTRUE(ok)) stop("file.copy returned FALSE")
-    if (is.na(file.info(tmp)$size) ||
-        file.info(tmp)$size != file.info(src)$size) {
-      stop("size mismatch after copy")
-    }
-    if (file.exists(dst)) unlink(dst, force = TRUE)  # never overwrite a live SQLite db in place
-    if (!file.rename(tmp, dst)) stop("rename failed")
-    TRUE
-  }, what = paste0("atomic place -> ", dst), tries = tries)
-  invisible(dst)
-}
-
-# Write a terra SpatVector: stage on local disk, verify, then place on target.
-# 'overwrite' is captured by name so it is never duplicated into writeVector.
-safe_write_vector <- function(x, path, overwrite = TRUE, ...) {
-  scratch <- file.path(.mofuss_local_scratch(), basename(path))
-  if (file.exists(scratch)) unlink(scratch, force = TRUE)
-  .mofuss_retry(
-    terra::writeVector(x, scratch, overwrite = TRUE, ...),
-    what = paste0("writeVector(local) ", basename(path))
-  )
-  wait_until_gpkg_ready(scratch)
-  .mofuss_atomic_place(scratch, path)
-  unlink(scratch, force = TRUE)
+safe_write_vector <- function(x, path, ...) {
+  terra::writeVector(x, path, ...)
+  wait_until_gpkg_ready(path)
   invisible(TRUE)
 }
 
-# Write an sf object: same local-staging strategy. Legacy 'overwrite' /
-# 'delete_layer' args from old call sites are absorbed and ignored, because
-# writing to a fresh scratch with delete_dsn = TRUE already overwrites cleanly.
-safe_st_write <- function(x, path, overwrite = NULL, delete_layer = NULL, ...) {
-  scratch <- file.path(.mofuss_local_scratch(), basename(path))
-  if (file.exists(scratch)) unlink(scratch, force = TRUE)
-  .mofuss_retry(
-    sf::st_write(x, scratch, quiet = TRUE, delete_dsn = TRUE, ...),
-    what = paste0("st_write(local) ", basename(path))
-  )
-  wait_until_gpkg_ready(scratch)
-  .mofuss_atomic_place(scratch, path)
-  unlink(scratch, force = TRUE)
+safe_st_write <- function(x, path, ...) {
+  sf::st_write(x, path, quiet = TRUE, ...)
+  wait_until_gpkg_ready(path)
   invisible(TRUE)
 }
 
-# Copy an already-written file (e.g. admindir -> countrydir) robustly. If the
-# source came from safe_write_vector / safe_st_write it is already complete, so
-# we just wait until it is visible (NFS close-to-open lag) and place it.
-safe_copy <- function(src, dest_dir, overwrite = TRUE, ...) {
+safe_copy <- function(src, dest_dir, overwrite = TRUE, sleep_time = 2, timeout = 600) {
+  
+  dir.create(dest_dir, recursive = TRUE, showWarnings = FALSE)
+  
   dst <- file.path(dest_dir, basename(src))
-  .mofuss_retry({
-    if (!file.exists(src) || is.na(file.info(src)$size)) stop("source not visible yet")
-    TRUE
-  }, what = paste0("see source ", basename(src)))
-  .mofuss_atomic_place(src, dst)
+  
+  ok <- file.copy(src, dest_dir, overwrite = overwrite)
+  if (!ok) stop("file.copy() failed: ", src)
+  
+  src_size <- file.info(src)$size
+  start <- Sys.time()
+  
+  repeat {
+    if (file.exists(dst)) {
+      dst_size <- file.info(dst)$size
+      
+      if (!is.na(dst_size) && dst_size == src_size) {
+        wait_until_gpkg_ready(dst)
+        return(invisible(dst))
+      }
+    }
+    
+    if (as.numeric(difftime(Sys.time(), start, units = "secs")) > timeout) {
+      stop("Timed out waiting for copied file: ", dst)
+    }
+    
+    Sys.sleep(sleep_time)
+  }
 }
 
 if (aoi_poly == 1) {
