@@ -407,68 +407,6 @@ readLines("LULCC/TempTables/UserData.txt")
 
 # AoI SELECTION **STARTS** ----
 
-# Copy- safe wrapper
-wait_until_gpkg_ready <- function(path, sleep_time = 2, timeout = 600) {
-  start <- Sys.time()
-  
-  repeat {
-    ok <- tryCatch({
-      sf::st_layers(path)
-      TRUE
-    }, error = function(e) FALSE)
-    
-    if (ok) return(invisible(TRUE))
-    
-    if (as.numeric(difftime(Sys.time(), start, units = "secs")) > timeout) {
-      stop("GeoPackage exists but is not readable yet: ", path)
-    }
-    
-    Sys.sleep(sleep_time)
-  }
-}
-
-safe_write_vector <- function(x, path, ...) {
-  terra::writeVector(x, path, ...)
-  wait_until_gpkg_ready(path)
-  invisible(TRUE)
-}
-
-safe_st_write <- function(x, path, ...) {
-  sf::st_write(x, path, quiet = TRUE, ...)
-  wait_until_gpkg_ready(path)
-  invisible(TRUE)
-}
-
-safe_copy <- function(src, dest_dir, overwrite = TRUE, sleep_time = 2, timeout = 600) {
-  
-  dir.create(dest_dir, recursive = TRUE, showWarnings = FALSE)
-  
-  dst <- file.path(dest_dir, basename(src))
-  
-  ok <- file.copy(src, dest_dir, overwrite = overwrite)
-  if (!ok) stop("file.copy() failed: ", src)
-  
-  src_size <- file.info(src)$size
-  start <- Sys.time()
-  
-  repeat {
-    if (file.exists(dst)) {
-      dst_size <- file.info(dst)$size
-      
-      if (!is.na(dst_size) && dst_size == src_size) {
-        wait_until_gpkg_ready(dst)
-        return(invisible(dst))
-      }
-    }
-    
-    if (as.numeric(difftime(Sys.time(), start, units = "secs")) > timeout) {
-      stop("Timed out waiting for copied file: ", dst)
-    }
-    
-    Sys.sleep(sleep_time)
-  }
-}
-
 if (aoi_poly == 1) {
   # Handle the case where aoi_poly is 1, regardless of byregion
   cat("aoi_poly is set to 1. This overrides other conditions.\n")
@@ -509,30 +447,29 @@ if (aoi_poly == 1) {
     terra::subset(.$GID_0 %in% unique(mofuss_region_kml$GID_0))
   mask <- st_as_sf(extent_mask0) %>%
     dplyr::mutate(ID = 1)
-  # safe_write_vector(extent_mask0, "InVector/extent_mask.gpkg", overwrite = TRUE)
+  # terra::writeVector(extent_mask0, "InVector/extent_mask.gpkg", overwrite = TRUE)
   setwd(countrydir)
 
   # mask <- userarea
   analysisshp <- st_intersection(mask, userarea)
   analysisshp_GCS <- st_transform(analysisshp, epsg_gcs)
 
-  safe_st_write(userarea_GCS, "LULCC/TempVector_GCS/userarea_GCS.gpkg", delete_layer=TRUE)
-  safe_st_write(userarea, "LULCC/TempVector/userarea.gpkg", delete_layer=TRUE)
+  st_write(userarea_GCS, "LULCC/TempVector_GCS/userarea_GCS.gpkg", delete_layer=TRUE)
+  st_write(userarea, "LULCC/TempVector/userarea.gpkg", delete_layer=TRUE)
   
   mask_GCS<-st_transform(mask,epsg_gcs)
-  safe_st_write (analysisshp,"LULCC/TempVector/ext_analysis.gpkg", delete_layer=TRUE)
-  safe_st_write (mask_GCS,"LULCC/TempVector_GCS/mask_gcs.gpkg", delete_layer=TRUE)
-  safe_st_write (analysisshp_GCS,"LULCC/TempVector_GCS/ext_analysis_gcs.gpkg", delete_layer=TRUE)
-  safe_st_write(mask, "LULCC/DownloadedDatasets/SourceDataGlobal/InVector/extent_mask.gpkg", delete_layer=TRUE)
+  st_write (analysisshp,"LULCC/TempVector/ext_analysis.gpkg", delete_layer=TRUE)
+  st_write (mask_GCS,"LULCC/TempVector_GCS/mask_gcs.gpkg", delete_layer=TRUE)
+  st_write (analysisshp_GCS,"LULCC/TempVector_GCS/ext_analysis_gcs.gpkg", delete_layer=TRUE)
+  st_write(mask, "LULCC/DownloadedDatasets/SourceDataGlobal/InVector/extent_mask.gpkg", delete_layer=TRUE)
   
   setwd(admindir)
   ecoregions0 <- vect("ecoregions_p/ecoregions2017_p.gpkg", layer = "ecoregions_mofuss") %>%
     terra::subset(.$GID_0 %in% unique(mofuss_region_kml$GID_0))
-  safe_write_vector(ecoregions0, paste0(countrydir,"/LULCC/DownloadedDatasets/SourceDataGlobal/InVector/ecoregions.gpkg"), overwrite = TRUE)
+  terra::writeVector(ecoregions0, paste0(countrydir,"/LULCC/DownloadedDatasets/SourceDataGlobal/InVector/ecoregions.gpkg"), overwrite = TRUE)
   # Save as shapefile
   writeVector(ecoregions0, filename = paste0(countrydir,"/LULCC/DownloadedDatasets/SourceDataGlobal/InVector/ecoregions.shp"), filetype = "ESRI Shapefile", overwrite = TRUE)
   setwd(countrydir)
-  
   
 } else if (aoi_poly == 0) {
   
@@ -545,11 +482,11 @@ if (aoi_poly == 1) {
     extent_mask0 <- st_read("regions_adm0_p/mofuss_regions0_p.gpkg") %>%
       dplyr::filter(grepl(mofuss_region,mofuss_reg)) %>%
       dplyr::mutate(ID = seq(1:nrow(.)))
-    safe_st_write(extent_mask0, "InVector/extent_mask.gpkg", overwrite = TRUE)
+    st_write(extent_mask0, "InVector/extent_mask.gpkg", overwrite = TRUE)
     
     ecoregions0 <- vect("ecoregions_p/ecoregions2017_p.gpkg", layer = "ecoregions_mofuss") %>%
       terra::subset(.$GID_0 == mofuss_region)
-    safe_write_vector(ecoregions0, "InVector/ecoregions.gpkg", overwrite = TRUE)
+    terra::writeVector(ecoregions0, "InVector/ecoregions.gpkg", overwrite = TRUE)
     # Save as shapefile
     writeVector(ecoregions0, filename = paste0(countrydir,"/LULCC/DownloadedDatasets/SourceDataGlobal/InVector/ecoregions.shp"), filetype = "ESRI Shapefile", overwrite = TRUE)
     
@@ -570,7 +507,7 @@ if (aoi_poly == 1) {
       extent_mask0 %>%
         terra::subset(.$NAME_0 == mofuss_country) %>%  # Remember to change in the parameters table (!?)
         sf::st_as_sf() %>%  # Convert to sf object
-        safe_st_write("InVector/extent_analysis.gpkg", overwrite = TRUE)
+        st_write("InVector/extent_analysis.gpkg", overwrite = TRUE)
     } else if (add_subadmin == "NO"){
       print("Nothing Happens")
     }
@@ -581,12 +518,12 @@ if (aoi_poly == 1) {
     mask1list_sf <- lapply(mask1list, st_read)
     mofuss_regions1_gpkg <- do.call(rbind, mask1list_sf) %>%
       dplyr::mutate(ID = seq(1:nrow(.)))
-    safe_st_write(mofuss_regions1_gpkg, "InVector/extent_mask1.gpkg", overwrite = TRUE)
+    st_write(mofuss_regions1_gpkg, "InVector/extent_mask1.gpkg", overwrite = TRUE)
     debugdfadm1 <- mofuss_regions1_gpkg %>% st_drop_geometry()
     
     mofuss_regions1_gpkg %>%
       terra::subset(.$NAME_0 == mofuss_country) %>% # Remember to change in the parameters table FIX
-      safe_st_write("InVector/extent_analysis1.gpkg", overwrite = TRUE)
+      st_write("InVector/extent_analysis1.gpkg", overwrite = TRUE)
     
     # ADM LEVEL = 2, when running ADM LEVEL = 0 #Slow process, elapsed time:
     mask2list <- paste0("regions_adm2_p/",list.files(path = paste0("regions_adm2_p/"),
@@ -594,24 +531,24 @@ if (aoi_poly == 1) {
     mask2list_sf <- lapply(mask2list, st_read)
     mofuss_regions2_gpkg <- do.call(rbind, mask2list_sf) %>%
       dplyr::mutate(ID = seq(1:nrow(.)))
-    safe_st_write(mofuss_regions2_gpkg, "InVector/extent_mask2.gpkg", overwrite = TRUE)
+    st_write(mofuss_regions2_gpkg, "InVector/extent_mask2.gpkg", overwrite = TRUE)
     debugdfadm2 <- mofuss_regions2_gpkg %>% st_drop_geometry()
     
     mofuss_regions2_gpkg %>%
       terra::subset(.$NAME_0 == mofuss_country) %>% # Remember to change in the parameters table FIX
-      safe_st_write("InVector/extent_analysis2.gpkg", overwrite = TRUE)
+      st_write("InVector/extent_analysis2.gpkg", overwrite = TRUE)
     
   }
   
   if (byregion == "Regional"){ ## Regional ----
     
     extent_mask0 <- vect(st_read(paste0("regions_adm0_p/",mofuss_region,"_p.gpkg")))
-    safe_write_vector(extent_mask0, "InVector/extent_mask.gpkg", overwrite = TRUE)
+    terra::writeVector(extent_mask0, "InVector/extent_mask.gpkg", overwrite = TRUE)
     
     # Para que esto funciona debo primero asegurarme que ecoregions tiene el campo de las regiones de mofuss
     ecoregions0 <- vect("ecoregions_p/ecoregions2017_p.gpkg", layer = "ecoregions_mofuss") %>% 
       terra::subset(.$mofuss_reg == mofuss_region)
-    safe_write_vector(ecoregions0, "InVector/ecoregions.gpkg", overwrite = TRUE)
+    terra::writeVector(ecoregions0, "InVector/ecoregions.gpkg", overwrite = TRUE)
     # Save as shapefile
     # Define full shapefile path without extension
     shp_path <- paste0(countrydir, "/LULCC/DownloadedDatasets/SourceDataGlobal/InVector/ecoregions")
@@ -641,7 +578,7 @@ if (aoi_poly == 1) {
 
     extent_mask0 %>%
       terra::subset(.$NAME_0 == mofuss_country) %>% #Remember to change in the parameters table
-      safe_write_vector("InVector/extent_analysis.gpkg", overwrite = TRUE)
+      terra::writeVector("InVector/extent_analysis.gpkg", overwrite = TRUE)
 
     } else if (add_subadmin == "NO"){
       print("Nothing Happens")
@@ -653,22 +590,22 @@ if (aoi_poly == 1) {
     
     mofuss_region1 <- gsub(0,1, mofuss_region)
     extent_mask1 <- vect(paste0("regions_adm1_p/",mofuss_region1,"_p.gpkg"))
-    safe_write_vector(extent_mask1, "InVector/extent_mask1.gpkg", overwrite = TRUE)
+    terra::writeVector(extent_mask1, "InVector/extent_mask1.gpkg", overwrite = TRUE)
     
     if (add_subadmin == "YES") {
       extent_mask1 %>%
         terra::subset(.$NAME_0 == mofuss_country) %>% #Remember to change in the parameters table
-        safe_write_vector("InVector/extent_analysis1.gpkg", overwrite = TRUE)
+        terra::writeVector("InVector/extent_analysis1.gpkg", overwrite = TRUE)
     }
     
     mofuss_region2 <- gsub(0,2, mofuss_region)
     extent_mask2 <- vect(paste0("regions_adm2_p/",mofuss_region2,"_p.gpkg"))
-    safe_write_vector(extent_mask2, "InVector/extent_mask2.gpkg", overwrite = TRUE)
+    terra::writeVector(extent_mask2, "InVector/extent_mask2.gpkg", overwrite = TRUE)
     
     if (add_subadmin == "YES") {
       extent_mask2 %>%
         terra::subset(.$NAME_0 == mofuss_country) %>% #Remember to change in the parameters table
-        safe_write_vector("InVector/extent_analysis2.gpkg", overwrite = TRUE)
+        terra::writeVector("InVector/extent_analysis2.gpkg", overwrite = TRUE)
     }
     
   }
@@ -677,19 +614,19 @@ if (aoi_poly == 1) {
     
     extent_mask0 <- vect(st_read("regions_adm0_p/mofuss_regions0_p.gpkg")) %>%
       terra::subset(.$GID_0 == mofuss_region)
-    safe_write_vector(extent_mask0, "InVector/extent_mask.gpkg", overwrite = TRUE)
+    terra::writeVector(extent_mask0, "InVector/extent_mask.gpkg", overwrite = TRUE)
     
     extent_mask1 <- vect(st_read("regions_adm1_p/mofuss_regions1_p.gpkg")) %>%
       terra::subset(.$GID_0 == mofuss_region)
-    safe_write_vector(extent_mask1, "InVector/extent_mask1.gpkg", overwrite = TRUE)
+    terra::writeVector(extent_mask1, "InVector/extent_mask1.gpkg", overwrite = TRUE)
     
     extent_mask2 <- vect(st_read("regions_adm2_p/mofuss_regions2_p.gpkg")) %>%
       terra::subset(.$GID_0 == mofuss_region)
-    safe_write_vector(extent_mask2, "InVector/extent_mask2.gpkg", overwrite = TRUE)
+    terra::writeVector(extent_mask2, "InVector/extent_mask2.gpkg", overwrite = TRUE)
     
     ecoregions0 <- vect("ecoregions_p/ecoregions2017_p.gpkg", layer = "ecoregions_mofuss") %>%
       terra::subset(.$GID_0 == mofuss_region)
-    safe_write_vector(ecoregions0, "InVector/ecoregions.gpkg", overwrite = TRUE)
+    terra::writeVector(ecoregions0, "InVector/ecoregions.gpkg", overwrite = TRUE)
     # Save as shapefile
     # Define full shapefile path without extension
     shp_path <- paste0(countrydir, "/LULCC/DownloadedDatasets/SourceDataGlobal/InVector/ecoregions")
@@ -720,19 +657,19 @@ if (aoi_poly == 1) {
       
       extent_mask1 %>%
         terra::subset(.$NAME_1 == adm1_country) %>%
-        safe_write_vector("InVector/extent_analysis.gpkg", overwrite = TRUE)
+        terra::writeVector("InVector/extent_analysis.gpkg", overwrite = TRUE)
       
       extent_mask2 %>%
         terra::subset(.$NAME_1 == adm1_country) %>%
-        safe_write_vector("InVector/extent_analysis1.gpkg", overwrite = TRUE)
+        terra::writeVector("InVector/extent_analysis1.gpkg", overwrite = TRUE)
       
       extent_mask2 %>% # Repeats previous admin 2 level for being a country crop
         terra::subset(.$NAME_1 == adm1_country) %>%
-        safe_write_vector("InVector/extent_analysis2.gpkg", overwrite = TRUE)
+        terra::writeVector("InVector/extent_analysis2.gpkg", overwrite = TRUE)
     } else {
-      # safe_write_vector(extent_mask, "InVector/extent_analysis.gpkg", overwrite = TRUE)
-      # safe_write_vector(extent_mask1, "InVector/extent_analysis1.gpkg", overwrite = TRUE)
-      # safe_write_vector(extent_mask2, "InVector/extent_analysis2.gpkg", overwrite = TRUE)
+      # terra::writeVector(extent_mask, "InVector/extent_analysis.gpkg", overwrite = TRUE)
+      # terra::writeVector(extent_mask1, "InVector/extent_analysis1.gpkg", overwrite = TRUE)
+      # terra::writeVector(extent_mask2, "InVector/extent_analysis2.gpkg", overwrite = TRUE)
     }
 
   }
@@ -740,66 +677,60 @@ if (aoi_poly == 1) {
   # Copy to MoFuSS ----
   setwd(countrydir)
   
-  mofuss_invect_dir <- paste0(
-    countrydir,
-    "/LULCC/DownloadedDatasets/SourceDataGlobal/InVector"
-  )
+  #ADM 0
+  file.copy(from=paste0(admindir,"/InVector/extent_mask.gpkg"),
+            to=paste0(countrydir,"/LULCC/DownloadedDatasets/SourceDataGlobal/InVector"),
+            overwrite = TRUE)
+
+  # file.copy(from=paste0(admindir,"/InVector/extent_analysis.gpkg"),
+  #           to=paste0(countrydir,"/LULCC/DownloadedDatasets/SourceDataGlobal/InVector"),
+  #           overwrite = TRUE)
   
-  # ADM 0
-  safe_copy(
-    src = paste0(admindir, "/InVector/extent_mask.gpkg"),
-    dest_dir = mofuss_invect_dir,
-    overwrite = TRUE
-  )
+  #ADM 1
+  file.copy(from=paste0(admindir,"/InVector/extent_mask1.gpkg"),
+            to=paste0(countrydir,"/LULCC/DownloadedDatasets/SourceDataGlobal/InVector"),
+            overwrite = TRUE)
   
-  # ADM 1
-  safe_copy(
-    src = paste0(admindir, "/InVector/extent_mask1.gpkg"),
-    dest_dir = mofuss_invect_dir,
-    overwrite = TRUE
-  )
+  # file.copy(from=paste0(admindir,"/InVector/extent_analysis1.gpkg"),
+  #           to=paste0(countrydir,"/LULCC/DownloadedDatasets/SourceDataGlobal/InVector"),
+  #           overwrite = TRUE)
   
-  # ADM 2
-  safe_copy(
-    src = paste0(admindir, "/InVector/extent_mask2.gpkg"),
-    dest_dir = mofuss_invect_dir,
-    overwrite = TRUE
-  )
+  #ADM 2
+  file.copy(from=paste0(admindir,"/InVector/extent_mask2.gpkg"),
+            to=paste0(countrydir,"/LULCC/DownloadedDatasets/SourceDataGlobal/InVector"),
+            overwrite = TRUE)
   
-  safe_copy(
-    src = paste0(admindir, "/InVector/ecoregions.gpkg"),
-    dest_dir = mofuss_invect_dir,
-    overwrite = TRUE
-  )
+  # file.copy(from=paste0(admindir,"/InVector/extent_analysis2.gpkg"),
+  #           to=paste0(countrydir,"/LULCC/DownloadedDatasets/SourceDataGlobal/InVector"),
+  #           overwrite = TRUE)
   
+  
+  file.copy(from=paste0(admindir,"/InVector/ecoregions.gpkg"),
+            to=paste0(countrydir,"/LULCC/DownloadedDatasets/SourceDataGlobal/InVector"),
+            overwrite = TRUE)
+
   if (add_subadmin == "YES") {
-    
-    safe_copy(
-      src = paste0(admindir, "/InVector/extent_analysis.gpkg"),
-      dest_dir = mofuss_invect_dir,
-      overwrite = TRUE
-    )
-    
-    safe_copy(
-      src = paste0(admindir, "/InVector/extent_analysis1.gpkg"),
-      dest_dir = mofuss_invect_dir,
-      overwrite = TRUE
-    )
-    
-    safe_copy(
-      src = paste0(admindir, "/InVector/extent_analysis2.gpkg"),
-      dest_dir = mofuss_invect_dir,
-      overwrite = TRUE
-    )
+    #ADM 0
+    file.copy(from=paste0(admindir,"/InVector/extent_analysis.gpkg"),
+              to=paste0(countrydir,"/LULCC/DownloadedDatasets/SourceDataGlobal/InVector"),
+              overwrite = TRUE)
+    #ADM 1
+    file.copy(from=paste0(admindir,"/InVector/extent_analysis1.gpkg"),
+              to=paste0(countrydir,"/LULCC/DownloadedDatasets/SourceDataGlobal/InVector"),
+              overwrite = TRUE)
+    #ADM 2
+    file.copy(from=paste0(admindir,"/InVector/extent_analysis2.gpkg"),
+              to=paste0(countrydir,"/LULCC/DownloadedDatasets/SourceDataGlobal/InVector"),
+              overwrite = TRUE)
     
     userarea <- st_read("LULCC/DownloadedDatasets/SourceDataGlobal/InVector/extent_analysis.gpkg")
     userarea_GCS <- st_transform(userarea, epsg_gcs)
     
     userarea1 <- st_read("LULCC/DownloadedDatasets/SourceDataGlobal/InVector/extent_analysis1.gpkg")
-    userarea_GCS1 <- st_transform(userarea1, epsg_gcs)
+    userarea_GCS1 <- st_transform(userarea, epsg_gcs)
     
     userarea2 <- st_read("LULCC/DownloadedDatasets/SourceDataGlobal/InVector/extent_analysis2.gpkg")
-    userarea_GCS2 <- st_transform(userarea2, epsg_gcs)
+    userarea_GCS2 <- st_transform(userarea, epsg_gcs)
     
   } else {
     
@@ -807,10 +738,10 @@ if (aoi_poly == 1) {
     userarea_GCS <- st_transform(userarea, epsg_gcs)
     
     userarea1 <- st_read("LULCC/DownloadedDatasets/SourceDataGlobal/InVector/extent_mask1.gpkg")
-    userarea_GCS1 <- st_transform(userarea1, epsg_gcs)
+    userarea_GCS1 <- st_transform(userarea, epsg_gcs)
     
     userarea2 <- st_read("LULCC/DownloadedDatasets/SourceDataGlobal/InVector/extent_mask2.gpkg")
-    userarea_GCS2 <- st_transform(userarea2, epsg_gcs)
+    userarea_GCS2 <- st_transform(userarea, epsg_gcs)
     
   }
   
@@ -827,28 +758,28 @@ if (aoi_poly == 1) {
   analysisshp2 <- st_intersection(mask2, userarea2)
   analysisshp_GCS2 <- st_transform(analysisshp2, epsg_gcs)
   
-  safe_st_write(userarea_GCS, "LULCC/TempVector_GCS/userarea_GCS.gpkg", delete_layer=TRUE)
-  safe_st_write(userarea, "LULCC/TempVector/userarea.gpkg", delete_layer=TRUE)
+  st_write(userarea_GCS, "LULCC/TempVector_GCS/userarea_GCS.gpkg", delete_layer=TRUE)
+  st_write(userarea, "LULCC/TempVector/userarea.gpkg", delete_layer=TRUE)
   
-  safe_st_write(userarea_GCS1, "LULCC/TempVector_GCS/userarea_GCS1.gpkg", delete_layer=TRUE)
-  safe_st_write(userarea1, "LULCC/TempVector/userarea1.gpkg", delete_layer=TRUE)
+  st_write(userarea_GCS1, "LULCC/TempVector_GCS/userarea_GCS1.gpkg", delete_layer=TRUE)
+  st_write(userarea1, "LULCC/TempVector/userarea1.gpkg", delete_layer=TRUE)
   
-  safe_st_write(userarea_GCS2, "LULCC/TempVector_GCS/userarea_GCS2.gpkg", delete_layer=TRUE)
-  safe_st_write(userarea2, "LULCC/TempVector/userarea2.gpkg", delete_layer=TRUE)
+  st_write(userarea_GCS2, "LULCC/TempVector_GCS/userarea_GCS2.gpkg", delete_layer=TRUE)
+  st_write(userarea2, "LULCC/TempVector/userarea2.gpkg", delete_layer=TRUE)
   
   # For future use in figures and IDW_Boost  ####
   mask_GCS<-st_transform(mask,epsg_gcs)
-  safe_st_write (analysisshp,"LULCC/TempVector/ext_analysis.gpkg", delete_layer=TRUE)
-  safe_st_write (mask_GCS,"LULCC/TempVector_GCS/mask_gcs.gpkg", delete_layer=TRUE)
-  safe_st_write (analysisshp_GCS,"LULCC/TempVector_GCS/ext_analysis_gcs.gpkg", delete_layer=TRUE)
+  st_write (analysisshp,"LULCC/TempVector/ext_analysis.gpkg", delete_layer=TRUE)
+  st_write (mask_GCS,"LULCC/TempVector_GCS/mask_gcs.gpkg", delete_layer=TRUE)
+  st_write (analysisshp_GCS,"LULCC/TempVector_GCS/ext_analysis_gcs.gpkg", delete_layer=TRUE)
   mask_GCS1<-st_transform(mask1,epsg_gcs)
-  safe_st_write (analysisshp1,"LULCC/TempVector/ext_analysis1.gpkg", delete_layer=TRUE)
-  safe_st_write (mask_GCS1,"LULCC/TempVector_GCS/mask_gc1s.gpkg", delete_layer=TRUE)
-  safe_st_write (analysisshp_GCS1,"LULCC/TempVector_GCS/ext_analysis_gcs1.gpkg", delete_layer=TRUE)
+  st_write (analysisshp1,"LULCC/TempVector/ext_analysis1.gpkg", delete_layer=TRUE)
+  st_write (mask_GCS1,"LULCC/TempVector_GCS/mask_gc1s.gpkg", delete_layer=TRUE)
+  st_write (analysisshp_GCS1,"LULCC/TempVector_GCS/ext_analysis_gcs1.gpkg", delete_layer=TRUE)
   mask_GCS2<-st_transform(mask2,epsg_gcs)
-  safe_st_write (analysisshp2,"LULCC/TempVector/ext_analysis2.gpkg", delete_layer=TRUE)
-  safe_st_write (mask_GCS2,"LULCC/TempVector_GCS/mask_gcs2.gpkg", delete_layer=TRUE)
-  safe_st_write (analysisshp_GCS2,"LULCC/TempVector_GCS/ext_analysis_gcs2.gpkg", delete_layer=TRUE)
+  st_write (analysisshp2,"LULCC/TempVector/ext_analysis2.gpkg", delete_layer=TRUE)
+  st_write (mask_GCS2,"LULCC/TempVector_GCS/mask_gcs2.gpkg", delete_layer=TRUE)
+  st_write (analysisshp_GCS2,"LULCC/TempVector_GCS/ext_analysis_gcs2.gpkg", delete_layer=TRUE)
   
 } else {
   print("NO SELECTION AREA")

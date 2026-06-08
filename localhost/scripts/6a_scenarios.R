@@ -341,9 +341,9 @@ if (friction == "R"){
   unlink("in/*.xml")
   
   # Vehicle friction
-  # roads <-  raster("LULCC/SourceData/InRaster/roads.tif")
+  # roads <-  raster("LULCC/DownloadedDatasets/SourceDataGlobal/InRaster/roads.tif")
   # raster::unique(roads)
-  # rivers <-  raster("LULCC/SourceData/InRaster/rivers.tif")
+  # rivers <-  raster("LULCC/DownloadedDatasets/SourceDataGlobal/InRaster/rivers.tif")
   # raster::unique(rivers)
   
   # rivers

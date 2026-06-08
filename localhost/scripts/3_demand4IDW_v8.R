@@ -266,7 +266,7 @@ if (aoi_poly == 1) {
   # # Handle the case where aoi_poly is 1, regardless of byregion
   # cat("aoi_poly is set to 1. This overrides other conditions.\n")
   # # Define file paths
-  # kml_file_path <- Sys.glob(paste0(countrydir,"/LULCC/SourceData/InVector_GCS/",aoi_poly_file))
+  # kml_file_path <- Sys.glob(paste0(countrydir,"/LULCC/DownloadedDatasets/SourceDataGlobal/InVector_GCS/",aoi_poly_file))
   # # Read the SpatVector files
   # kml_data <- vect(kml_file_path) # Read the .kml file
   # # plot(kml_data)
@@ -316,7 +316,7 @@ if (aoi_poly == 1) {
   # Handle the case where aoi_poly is 1, regardless of byregion
   cat("aoi_poly is set to 1. This overrides other conditions.\n")
   # Define file paths
-  kml_file_path <- Sys.glob(paste0(countrydir,"/LULCC/SourceData/InVector_GCS/",aoi_poly_file))
+  kml_file_path <- Sys.glob(paste0(countrydir,"/LULCC/DownloadedDatasets/SourceDataGlobal/InVector_GCS/",aoi_poly_file))
   # Read the SpatVector files
   kml_data <- vect(kml_file_path) # Read the .kml file
   # plot(kml_data)

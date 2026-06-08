@@ -84,9 +84,10 @@ lapply(file_patterns_to_remove, unlink, force = TRUE)
 # Create MoFuSS directory structure ----
 dirs_to_create <- c(
   "HTML_animation_OutBaU", "HTML_animation_OutICS", "Logs", "OutBaU", "OutICS", "Summary_Report", "Temp", "rTemp",
-  "In", "In/DemandScenarios", "LULCC/InVector", "LULCC/SourceData", "LULCC/SourceData/InRaster",
-  "LULCC/SourceData/InRaster_GCS", "LULCC/SourceData/InTables", "LULCC/SourceData/InVector",
-  "LULCC/SourceData/InVector_GCS", "LULCC/SourceData/InVector_GCS", "LULCC/TempRaster", "LULCC/TempTables", "LULCC/TempVector",
+  "In", "In/DemandScenarios", "LULCC/InVector", 
+  #"LULCC/SourceData", "LULCC/SourceData/InRaster", "LULCC/SourceData/InRaster_GCS", "LULCC/SourceData/InTables", 
+  #"LULCC/SourceData/InVector", "LULCC/SourceData/InVector_GCS", "LULCC/SourceData/InVector_GCS", 
+  "LULCC/TempRaster", "LULCC/TempTables", "LULCC/TempVector",
   "LULCC/TempVector_GCS", "LULCC/Wizard_imgs"
 )
 
@@ -209,14 +210,14 @@ dir.names <- dir.names[!dir.names %in% "DemandScenarios"]
 
 dir.namesD <- dir.names[dir.names != "demand"]
 
-lapply(dir.namesD, function(RO) {
-  src.dir <- paste0("LULCC/DownloadedDatasets/SourceData", country, "/", RO, "/")
-  dest.dir <- paste0("LULCC/SourceData/", RO, "/")
-  file.names <- dir(src.dir)
-  sapply(file.names, function(x) {
-    file.copy(from = paste0(src.dir, x), to = paste0(dest.dir, x), overwrite = TRUE)
-  })
-})
+# lapply(dir.namesD, function(RO) {
+#   src.dir <- paste0("LULCC/DownloadedDatasets/SourceData", country, "/", RO, "/")
+#   dest.dir <- paste0("LULCC/SourceData/", RO, "/")
+#   file.names <- dir(src.dir)
+#   sapply(file.names, function(x) {
+#     file.copy(from = paste0(src.dir, x), to = paste0(dest.dir, x), overwrite = TRUE)
+#   })
+# })
 
 dest.dir.DS <- "In/DemandScenarios/"
 src.dir.DS1 <- paste0("LULCC/DownloadedDatasets/SourceData", country, "/DemandScenarios")
@@ -284,9 +285,9 @@ for (f in friction2copy) {
   file.copy(from=f, 
             to=paste0(countrydir,"/LULCC/DownloadedDatasets/SourceData",country_name,"/InTables/"), 
             overwrite = TRUE, recursive = TRUE, copy.mode = TRUE)
-  file.copy(from=f, 
-            to=paste0(countrydir,"/LULCC/SourceData/InTables/"), 
-            overwrite = TRUE, recursive = TRUE, copy.mode = TRUE) # Check before Rob's node
+  # file.copy(from=f, 
+  #           to=paste0(countrydir,"/LULCC/SourceData/InTables/"), 
+  #           overwrite = TRUE, recursive = TRUE, copy.mode = TRUE) # Check before Rob's node
 }
 
 demandtables2copy <- list.files(
@@ -312,9 +313,9 @@ for (aois in aoiexamples2copy) {
             to=paste0("LULCC/DownloadedDatasets/SourceData", country, "/InVector_GCS/"), 
             overwrite = TRUE, recursive = TRUE, copy.mode = TRUE)
   
-  file.copy(from=aois, 
-            to=paste0(countrydir,"/LULCC/SourceData/InVector_GCS/"), 
-            overwrite = TRUE, recursive = TRUE, copy.mode = TRUE)
+  # file.copy(from=aois, 
+  #           to=paste0(countrydir,"/LULCC/SourceData/InVector_GCS/"), 
+  #           overwrite = TRUE, recursive = TRUE, copy.mode = TRUE)
   
 }
 

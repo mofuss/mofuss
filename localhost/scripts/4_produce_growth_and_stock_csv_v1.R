@@ -224,13 +224,13 @@ if (lucinputdataset == "modis") {
   
   # terra::writeRaster(lucmodis_2010_final, paste0(lulccfiles,"/out_pcs/rururb_rcl2.tif"),
   #                    filetype = "GTiff", overwrite = TRUE)
-  terra::writeRaster(lucmodis_2001_final, paste0(countrydir,"/LULCC/SourceData/InRaster/",LULCt1map_name), 
+  terra::writeRaster(lucmodis_2001_final, paste0(countrydir,"/LULCC/DownloadedDatasets/SourceDataGlobal/InRaster/",LULCt1map_name), 
                      filetype = "GTiff", overwrite = TRUE)
   
   growth_parameters_v4 <- growth_parameters_v3_modis %>%
     add_row(tibble_row(`Key*`=lastid, LULC="Urban_Forced", rmax=0, rmaxSD=0, K=10, KSD=10, TOF=1))
   str(growth_parameters_v4)
-  write.csv(growth_parameters_v4, paste0(countrydir,"/LULCC/SourceData/InTables/growth_parameters1.csv"), row.names=FALSE, quote=FALSE)
+  write.csv(growth_parameters_v4, paste0(countrydir,"/LULCC/DownloadedDatasets/SourceDataGlobal/InTables/growth_parameters1.csv"), row.names=FALSE, quote=FALSE)
   write.csv(growth_parameters_v4, paste0(countrydir,"/LULCC/TempTables/growth_parameters1.csv"), row.names=FALSE, quote=FALSE)
   tail(growth_parameters_v4)
   
@@ -285,13 +285,13 @@ if (lucinputdataset == "modis") {
   
   # terra::writeRaster(luccopernicus_2010_final, paste0(lulccfiles,"/out_pcs/rururb_rcl2.tif"),
   #                    filetype = "GTiff", overwrite = TRUE)
-  terra::writeRaster(luccopernicus_2015_final, paste0(countrydir,"/LULCC/SourceData/InRaster/",LULCt2map_name), # Double check in harmonizer
+  terra::writeRaster(luccopernicus_2015_final, paste0(countrydir,"/LULCC/DownloadedDatasets/SourceDataGlobal/InRaster/",LULCt2map_name), # Double check in harmonizer
                      filetype = "GTiff", overwrite = TRUE)
   
   growth_parameters_v4 <- growth_parameters_v3_copernicus %>%
     add_row(tibble_row(`Key*`=lastid, LULC="Urban_Forced", rmax=0, rmaxSD=0, K=10, KSD=10, TOF=1))
   str(growth_parameters_v4)
-  write.csv(growth_parameters_v4, paste0(countrydir,"/LULCC/SourceData/InTables/growth_parameters2.csv"), row.names=FALSE, quote=FALSE)
+  write.csv(growth_parameters_v4, paste0(countrydir,"/LULCC/DownloadedDatasets/SourceDataGlobal/InTables/growth_parameters2.csv"), row.names=FALSE, quote=FALSE)
   write.csv(growth_parameters_v4, paste0(countrydir,"/LULCC/TempTables/growth_parameters2.csv"), row.names=FALSE, quote=FALSE)
   tail(growth_parameters_v4)
   
