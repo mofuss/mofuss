@@ -4,7 +4,7 @@
 
 # 2dolist
 # Check after fNRB partition tables and vectors how it works for country-based and Google Earth polys
-# CtyPar<-read.csv("LULCC/SourceData/parameters.csv", header=T)
+# CtyPar<-read.csv("LULCC/DownloadedDatasets/SourceDataGlobal/parameters.csv", header=T)
 # CtyPar[] <- lapply(CtyPar, as.character)
 ## WARNING Faltan los del peridoo completo 2010 y 2020 hasta final year!!! ###
 ## Aunque estos salen de dinamica hasta cierto punto, faltaria 2020-final year ###
@@ -376,11 +376,11 @@ file.copy("LULCC/TempTables/InputPara.csv", "LaTeX/InputPara.csv")
 country_parameters %>%
   dplyr::filter(Var == "treecover_name") %>%
   pull(ParCHR) -> treecover_name
-aoi<-raster(paste("LULCC/SourceData/InRaster/",treecover_name,sep=""))
+aoi<-raster(paste("LULCC/DownloadedDatasets/SourceDataGlobal/InRaster/",treecover_name,sep=""))
 #aoi_r<-reclassify(aoi,c(-Inf,-1,NA,101,Inf,NA))
 #aoi[aoi > 100] = NA
 aoi_IniSt<-raster("Temp//2_IniSt01.tif")
-mask <- st_read("LULCC/SourceData/InVector/extent_mask.gpkg")
+mask <- st_read("LULCC/DownloadedDatasets/SourceDataGlobal/InVector/extent_mask.gpkg")
 extent_analysis <- st_read("LULCC/TempVector/ext_analysis.gpkg") #ERROR IN READING GEOPACKAGE
 aoi_c<-crop(aoi,mask)
 
@@ -1747,7 +1747,7 @@ if (fNRB_partition_tables == 1) {
     admin <- raster("LULCC/TempRaster//admin_c.tif")
     ecoregions <- raster("LULCC/TempRaster/ecoregions_c.tif")
     userarea_gpkg <- st_read("LULCC/TempVector/userarea.gpkg")
-    ecoregions_gpkg <- st_read("LULCC/SourceData/InVector/ecoregions.gpkg") # Why not TempVector?
+    ecoregions_gpkg <- st_read("LULCC/DownloadedDatasets/SourceDataGlobal/InVector/ecoregions.gpkg") # Why not TempVector?
     
     adminlevel <- c(admin, ecoregions)
     admin_name <- c("adm0", "ecoregions")
@@ -1761,7 +1761,7 @@ if (fNRB_partition_tables == 1) {
     userarea_gpkg <- st_read("LULCC/TempVector/userarea.gpkg")
     userarea_gpkg1 <- st_read("LULCC/TempVector/userarea1.gpkg")
     userarea_gpkg2 <- st_read("LULCC/TempVector/userarea2.gpkg")
-    ecoregions_gpkg <- st_read("LULCC/SourceData/InVector/ecoregions.gpkg") # Why not TempVector?
+    ecoregions_gpkg <- st_read("LULCC/DownloadedDatasets/SourceDataGlobal/InVector/ecoregions.gpkg") # Why not TempVector?
 
     country_parameters %>%
       dplyr::filter(Var == "ext_analysis_ID") %>%

@@ -1,6 +1,6 @@
 <?xml version="1.0" standalone="yes" ?>
 <script>
-    <property key="dff.date" value="Mon Apr 13 20:44:36 2026" />
+    <property key="dff.date" value="Mon Jun 08 19:35:19 2026" />
     <property key="dff.version" value="2.4.1.20140602" />
     <property key="metadata.author" value="Designed and coded by Adrian Ghilardi (UNAM) and Rob Bailis (SEI)." />
     <property key="metadata.description" value='&quot;MoFuSS&quot; is a dynamic model that simulates the effects of fuelwood harvesting on vegetation, accounting for savings in non-renewable woody biomass from reduced consumption due to an external intervention, such as an improved cookstove (ICS) or fuel substitution project.' />
@@ -3974,7 +3974,7 @@
             <property key="dff.functor.alias" value="Are you using CTrees growth and AGB data?" />
             <property key="dff.functor.comment" value="Are you using CTrees growth and AGB data?" />
             <property key="wizard.constant.input" value="Bool_constant_2" />
-            <inputport name="constant">.no</inputport>
+            <inputport name="constant">.yes</inputport>
             <outputport name="object" id="v270" />
         </functor>
         <containerfunctor name="Group">
@@ -4093,7 +4093,7 @@
             <functor name="Int">
                 <property key="dff.functor.alias" value="AGB map version" />
                 <property key="wizard.constant.input" value="Int_constant_3" />
-                <inputport name="constant">1</inputport>
+                <inputport name="constant">3</inputport>
                 <outputport name="object" id="v283" />
             </functor>
             <containerfunctor name="CreateString">
