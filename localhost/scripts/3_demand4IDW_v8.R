@@ -500,9 +500,9 @@ if (aoi_poly == 1) {
   } else if(os == "Linux") {
     pop0_reg <- pop0_K
   }
-  plot(pop0_reg, main=paste0("Overlapping with your AoI")) #,mofuss_region2))
-  lines(adm0_reg)
-  Sys.sleep(10)
+  # plot(pop0_reg, main=paste0("Overlapping with your AoI")) #,mofuss_region2))
+  # lines(adm0_reg)
+  # Sys.sleep(10)
   
 } else if (byregion == "Global" & aoi_poly == 0) {
   print("***NOW RUNNING GLOBAL DEMAND SCENARIOS - Global***")
@@ -528,9 +528,9 @@ if (aoi_poly == 1) {
   } else if(os == "Linux") {
     pop0_reg <- pop0_K
   }
-  plot(pop0_reg,main=c("Region to be processed"))
-  lines(adm0_reg)
-  Sys.sleep(10)
+  # plot(pop0_reg,main=c("Region to be processed"))
+  # lines(adm0_reg)
+  # Sys.sleep(10)
   
 } else if (byregion == "Regional" & aoi_poly == 0) {
   print("***NOW RUNNING REGION DEMAND SCENARIOS - Regional***")
@@ -544,9 +544,9 @@ if (aoi_poly == 1) {
   } else if(os == "Linux") {
     pop0_reg <- pop0_K
   }
-  plot(pop0_reg,main=c("Region to be processed"))
-  lines(adm0_reg)
-  Sys.sleep(10)
+  # plot(pop0_reg,main=c("Region to be processed"))
+  # lines(adm0_reg)
+  # Sys.sleep(10)
   
 } else if (byregion == "Country" & aoi_poly == 0 & subcountry != 1) {
   print("***NOW RUNNING COUNTRY DEMAND SCENARIOS - Country***")
@@ -558,9 +558,9 @@ if (aoi_poly == 1) {
   } else if(os == "Linux") {
     pop0_reg <- pop0_K
   }
-  plot(pop0_reg, main=paste0("You selected ",mofuss_region))
-  lines(adm0_reg)
-  Sys.sleep(10)
+  # plot(pop0_reg, main=paste0("You selected ",mofuss_region))
+  # lines(adm0_reg)
+  # Sys.sleep(10)
   
 } else if (byregion == "Country" & aoi_poly == 0 & subcountry == 1) { 
   print("***NOW RUNNING SUB-COUNTRY DEMAND SCENARIOS - Country***")
@@ -674,9 +674,9 @@ if (aoi_poly == 1) {
   } else if(os == "Linux") {
     pop0_reg <- pop0_K
   }
-  plot(pop0_reg, main=paste0("You selected ",region2BprocessedCtry_iso))
-  lines(adm0_reg)
-  Sys.sleep(10)
+  # plot(pop0_reg, main=paste0("You selected ",region2BprocessedCtry_iso))
+  # lines(adm0_reg)
+  # Sys.sleep(10)
   
 } else {
   # Handle any other conditions if necessary
@@ -720,10 +720,10 @@ for (i in adm0_reg$GID_0) { # Start of outer region (i) loop ----
   }
   png(file=paste0("pop_maps_byregion/",i,".png"),
       width=600, height=350)
-  plot(pop0_ctry_ras, main=i, xlab = "Long", ylab = "Lat")
-  lines(ctry_vector, lwd=0.2)
-  Sys.sleep(5)
-  dev.off()
+  # plot(pop0_ctry_ras, main=i, xlab = "Long", ylab = "Lat")
+  # lines(ctry_vector, lwd=0.2)
+  # Sys.sleep(5)
+  # dev.off()
   
   totpop <- global(pop0_ctry_ras, "sum", na.rm=TRUE) %>%
     pull(sum)
@@ -887,8 +887,8 @@ for (i in adm0_reg$GID_0) { # Start of outer region (i) loop ----
                                      `1` = "rural",
                                      `2` = "urban"))
     
-    plot(rururbpopulationR_plot.anno, main=paste0(i," : ",j))
-    lines(ctry_vector, lwd=2)
+    # plot(rururbpopulationR_plot.anno, main=paste0(i," : ",j))
+    # lines(ctry_vector, lwd=2)
     terra::writeRaster(rururbpopulationR.anno, paste0("pop_temp/",pop_ver,"_",i,"_",j,"_rururbR.tif"), filetype = "GTiff", overwrite = TRUE)
     
     # Validation
