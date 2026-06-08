@@ -530,7 +530,7 @@ if (aoi_poly == 1) {
     terra::subset(.$GID_0 %in% unique(mofuss_region_kml$GID_0))
   safe_write_vector(ecoregions0, paste0(countrydir,"/LULCC/DownloadedDatasets/SourceDataGlobal/InVector/ecoregions.gpkg"), overwrite = TRUE)
   # Save as shapefile
-  writeVector(ecoregions0, filename = paste0(countrydir,"/LULCC/DownloadedDatasets/SourceDataGlobal/InVector/ecoregions.shp"), filetype = "ESRI Shapefile", overwrite = TRUE)
+  # writeVector(ecoregions0, filename = paste0(countrydir,"/LULCC/DownloadedDatasets/SourceDataGlobal/InVector/ecoregions.shp"), filetype = "ESRI Shapefile", overwrite = TRUE)
   setwd(countrydir)
   
   
@@ -551,7 +551,7 @@ if (aoi_poly == 1) {
       terra::subset(.$GID_0 == mofuss_region)
     safe_write_vector(ecoregions0, "InVector/ecoregions.gpkg", overwrite = TRUE)
     # Save as shapefile
-    writeVector(ecoregions0, filename = paste0(countrydir,"/LULCC/DownloadedDatasets/SourceDataGlobal/InVector/ecoregions.shp"), filetype = "ESRI Shapefile", overwrite = TRUE)
+    # writeVector(ecoregions0, filename = paste0(countrydir,"/LULCC/DownloadedDatasets/SourceDataGlobal/InVector/ecoregions.shp"), filetype = "ESRI Shapefile", overwrite = TRUE)
     
     countries.list <- extent_mask0 %>%
       as.data.frame() %>%
@@ -622,7 +622,7 @@ if (aoi_poly == 1) {
     file.remove(shp_files[file.exists(shp_files)])
     
     # Now write the shapefile
-    writeVector(ecoregions0, filename = paste0(shp_path, ".shp"), filetype = "ESRI Shapefile")
+    # writeVector(ecoregions0, filename = paste0(shp_path, ".shp"), filetype = "ESRI Shapefile")
     
     countries.list <- extent_mask0 %>%
       as.data.frame() %>%
@@ -700,7 +700,7 @@ if (aoi_poly == 1) {
     file.remove(shp_files[file.exists(shp_files)])
     
     # Now write the shapefile
-    writeVector(ecoregions0, filename = paste0(shp_path, ".shp"), filetype = "ESRI Shapefile")
+    # writeVector(ecoregions0, filename = paste0(shp_path, ".shp"), filetype = "ESRI Shapefile")
 
     if (add_subadmin == "YES") {
       
