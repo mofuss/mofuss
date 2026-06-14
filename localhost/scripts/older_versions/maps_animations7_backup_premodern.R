@@ -182,9 +182,9 @@ userarea_r <- raster("LULCC/TempRaster/mask_c.tif")
 globe_name <- paste0("LULCC/Countries/",country_name,".tif") # REPLACE!!!
 
 if (BaUvsICS == "ICS") {
-  OutDir<-"Out"
+  OutDir<-"OutICS"
 } else {
-  OutDir<-"Out"
+  OutDir<-"OutBaU"
 }
 
 if (OSType == 64) {
@@ -938,7 +938,7 @@ if (uncertaintystacks == 1) {
 
 if (SumTables == 1) {
   
-  dir.create("Out/webmofuss_results/") 
+  dir.create("OutBaU/webmofuss_results/") 
   
   country_parameters %>%
     dplyr::filter(Var == "ext_analysis_ID") %>%
@@ -1046,7 +1046,7 @@ if (SumTables == 1) {
   
   
   write.csv(NRB_fNRB2, "LULCC/TempTables/summary_adm0.csv", row.names=FALSE, quote=FALSE)
-  write.csv(NRB_fNRB2, "Out/webmofuss_results/summary_adm0.csv", row.names=FALSE, quote=FALSE)
+  write.csv(NRB_fNRB2, "OutBaU/webmofuss_results/summary_adm0.csv", row.names=FALSE, quote=FALSE)
   
   NRB_fNRB2annual <- NRB_fNRB2 %>%
     dplyr::mutate(NRB_yr = round(NRB_MC_mean/ST,0)) %>%
@@ -1054,7 +1054,7 @@ if (SumTables == 1) {
     dplyr::mutate(CON_NRB_yr = round(CON_NRB_MC_mean/ST,0))
   
   write.csv(NRB_fNRB2annual, "LULCC/TempTables/summary_adm0_yr.csv", row.names=FALSE, quote=FALSE)
-  write.csv(NRB_fNRB2annual, "Out/webmofuss_results/summary_adm0_yr.csv", row.names=FALSE, quote=FALSE)
+  write.csv(NRB_fNRB2annual, "OutBaU/webmofuss_results/summary_adm0_yr.csv", row.names=FALSE, quote=FALSE)
   
   # Produce simplified shapefile for webmofuss
   userarea0_simpx <- userarea_gpkg %>%
@@ -1108,7 +1108,7 @@ if (SumTables == 1) {
   }
   
   
-  st_write(userarea0_simp, "Out/webmofuss_results/mofuss_regions0.gpkg", delete_layer = TRUE)
+  st_write(userarea0_simp, "OutBaU/webmofuss_results/mofuss_regions0.gpkg", delete_layer = TRUE)
   
   if(file.exists("LULCC/TempVector/userarea1.gpkg")){
     userarea_gpkg1 <- st_read("LULCC/TempVector/userarea1.gpkg")
@@ -1194,14 +1194,14 @@ if (SumTables == 1) {
     }
     
     write.csv(NRB_fNRB21, "LULCC/TempTables/summary_adm1.csv", row.names=FALSE, quote=FALSE)
-    write.csv(NRB_fNRB21, "Out/webmofuss_results/summary_adm1.csv", row.names=FALSE, quote=FALSE)
+    write.csv(NRB_fNRB21, "OutBaU/webmofuss_results/summary_adm1.csv", row.names=FALSE, quote=FALSE)
     
     NRB_fNRB21annual <- NRB_fNRB21 %>%
       dplyr::mutate(NRB_yr = round(NRB_MC_mean/ST,0)) %>%
       dplyr::mutate(CON_TOT_yr = round(CON_TOT_MC_mean/ST,0)) %>%
       dplyr::mutate(CON_NRB_yr = round(CON_NRB_MC_mean/ST,0))
     write.csv(NRB_fNRB21annual, "LULCC/TempTables/summary_adm1_yr.csv", row.names=FALSE, quote=FALSE)
-    write.csv(NRB_fNRB21annual, "Out/webmofuss_results/summary_adm1_yr.csv", row.names=FALSE, quote=FALSE)
+    write.csv(NRB_fNRB21annual, "OutBaU/webmofuss_results/summary_adm1_yr.csv", row.names=FALSE, quote=FALSE)
     
     # Produce simplified shapefile for webmofuss
     userarea1_simpx <- userarea_gpkg1 %>%
@@ -1254,7 +1254,7 @@ if (SumTables == 1) {
       userarea1_simp <- userarea1_simpx
     }
     
-    st_write(userarea1_simp, "Out/webmofuss_results/mofuss_regions1.gpkg", delete_layer = TRUE)
+    st_write(userarea1_simp, "OutBaU/webmofuss_results/mofuss_regions1.gpkg", delete_layer = TRUE)
     
     if(file.exists("LULCC/TempVector/userarea2.gpkg")){
       userarea_gpkg2 <- st_read("LULCC/TempVector/userarea2.gpkg")
@@ -1342,14 +1342,14 @@ if (SumTables == 1) {
       }
       
       write.csv(NRB_fNRB22, "LULCC/TempTables/summary_adm2.csv", row.names=FALSE, quote=FALSE)
-      write.csv(NRB_fNRB22, "Out/webmofuss_results/summary_adm2.csv", row.names=FALSE, quote=FALSE)
+      write.csv(NRB_fNRB22, "OutBaU/webmofuss_results/summary_adm2.csv", row.names=FALSE, quote=FALSE)
       
       NRB_fNRB22annual <- NRB_fNRB22 %>%
         dplyr::mutate(NRB_yr = round(NRB_MC_mean/ST,0)) %>%
         dplyr::mutate(CON_TOT_yr = round(CON_TOT_MC_mean/ST,0)) %>%
         dplyr::mutate(CON_NRB_yr = round(CON_NRB_MC_mean/ST,0))
       write.csv(NRB_fNRB22annual, "LULCC/TempTables/summary_adm2_yr.csv", row.names=FALSE, quote=FALSE)
-      write.csv(NRB_fNRB22annual, "Out/webmofuss_results/summary_adm2_yr.csv", row.names=FALSE, quote=FALSE)
+      write.csv(NRB_fNRB22annual, "OutBaU/webmofuss_results/summary_adm2_yr.csv", row.names=FALSE, quote=FALSE)
       
       # Produce simplified shapefile for webmofuss
       userarea2_simpx <- userarea_gpkg2 %>%
@@ -1404,7 +1404,7 @@ if (SumTables == 1) {
         userarea2_simp <- userarea2_simpx
       }
       
-      st_write(userarea2_simp, "Out/webmofuss_results/mofuss_regions2.gpkg", delete_layer = TRUE)
+      st_write(userarea2_simp, "OutBaU/webmofuss_results/mofuss_regions2.gpkg", delete_layer = TRUE)
       
     }
   }
@@ -1624,7 +1624,7 @@ if (copy_old_dinamica_rasters == 1) {
                    "aNRBmean.tif", "aNRBsd.tif")
   for (p in rasternames){
     file.copy(from=paste0("Temp//",p),
-              to="Out/webmofuss_results/",
+              to="OutBaU/webmofuss_results/",
               overwrite = TRUE, recursive = TRUE, copy.mode = TRUE)
   }
 }
@@ -1632,27 +1632,115 @@ if (copy_old_dinamica_rasters == 1) {
 # Compile LATEX file infot pdf report ####
 if (compilelatex == 1) {
   
-  # ---- Modern summary report (auto-generated; replaces legacy texi2dvi block) ----
-  # Reads current MoFuSS outputs, auto-detects available data and figures,
-  # compiles the modern template with MiKTeX, and writes:
-  #     Summary_Report/Mofuss_Summary_Report_<SceCode>.pdf
-  # The original legacy block is preserved in maps_animations7_backup_premodern.R
-  print("Run LaTeX and compile modern summary report (pdf)")
-  source(file.path(getwd(), "LaTeX", "generate_modern_report.R"))
-  report_out <- tryCatch(
-    generate_modern_report(base_dir = getwd()),
-    error = function(e) {
-      message("Modern report generation failed: ", conditionMessage(e)); NA_character_
+  # Three key files that must be present for full pdf report
+  # BaUexist<-file.exists("OutBaU/png/Map_AGB.png")
+  # ICSexist<-file.exists("OutICS/png/Map_AGB.png")
+  # BaUexist_v<-file.exists("LaTeX/Growth_Harvest_AniOutBaU.mp4")
+  # ICSexist_v<-file.exists("LaTeX/Growth_Harvest_AniOutICS.mp4")
+  # BaUexist_b<-file.exists("OutBaU/png/Boxplots.png")
+  # ICSexist_b<-file.exists("OutICS/png/Boxplots.png")
+  #
+  # if (BaUexist == FALSE | BaUexist_v == FALSE | BaUexist_b == FALSE) {
+  # 	#shell.exec(file.path(getwd(), "LULCC/Wizard_imgs/BaU.pdf"))
+  # } else {
+  # 	if (ICSexist == FALSE | ICSexist_v == FALSE | ICSexist_b == FALSE) {
+  # 		#shell.exec(file.path(getwd(), "LULCC/Wizard_imgs/ICS.pdf"))
+  # 	} else {
+  print("Run LaTeX and compile report in pdf")
+  for (x in 1:5) {
+    namepdf <- paste("errorpdf", x, sep = "")
+    Sys.sleep(1)
+    compilePDF <- function(x) {
+      out <- tryCatch(
+        {
+          message("This is the 'try' part")
+          tools::texi2dvi("LaTeX/Mofuss_Summary_Report_v3.tex", pdf = TRUE,
+                          clean = TRUE, index=TRUE)
+        },
+        error=function(cond) {
+          message(paste("Function caused an error!:", x))
+          message("Here's the original error message:")
+          message(cond)
+          # Choose a return value in case of error
+          return(conditionMessage(cond))
+        },
+        warning=function(cond) {
+          message(paste("Function caused a warning:", x))
+          message("Here's the original warning message:")
+          message(cond)
+          # Choose a return value in case of warning
+          return(conditionMessage(cond))
+        },
+        finally={
+          message(paste("\nTry number:", x))
+          #message("Some other message at the end")
+        }
+      )
+      return(out)
     }
-  )
-  if (!is.na(report_out)) print(paste("Modern report written:", report_out))
+    assign(namepdf, lapply(x, compilePDF))
+  }
+  
+  if (errorpdf1=="pdflatex is not available"
+      & errorpdf2=="pdflatex is not available"
+      & errorpdf3=="pdflatex is not available"
+      & errorpdf4=="pdflatex is not available"
+      & errorpdf5=="pdflatex is not available") {
+    #shell.exec(file.path(getwd(), "LULCC/Wizard_imgs/pdflatex.pdf"))
+  } else {
+    PDFreport<-file.exists("Mofuss_Summary_Report_v3.pdf")
+    if (PDFreport == "TRUE") {
+      file.copy("Mofuss_Summary_Report_v3.pdf", "Summary_Report", recursive=TRUE)
+      unlink("Mofuss_Summary_Report_v3.*", force=TRUE)
+      #shell.exec(file.path(getwd(), "Summary_Report/Mofuss_Summary_Report.pdf"))
+    } else {
+      latexlogerror<-file.exists("Mofuss_Summary_Report_v3.log")
+      if (latexlogerror == TRUE) {
+        #shell.exec(file.path(getwd(), "LULCC/Wizard_imgs/TexPkgMissing.pdf"))
+        file.copy("Mofuss_Summary_Report_v3.log", "Logs", recursive=TRUE)
+        count<-0
+        
+        while(file.exists("Mofuss_Summary_Report_v3.pdf")== FALSE) {
+          count<-count+1;
+          namepdfB <- paste("errorpdfB", count, sep = "");
+          #assign(namepdfB, lapply(count, compilePDFB));
+          assign(namepdfB, lapply(count, compilePDF));
+          if (count == 10) {shell.exec(file.path(getwd(), "LULCC/Wizard_imgs/Houston.pdf"))}
+          if (file.exists("Mofuss_Summary_Report_v3.pdf") == TRUE | count == 20) break; print(count);}
+        
+        if (file.exists("Mofuss_Summary_Report_v3.pdf") == TRUE) {
+          file.copy("Mofuss_Summary_Report_v3.pdf", "Summary_Report", recursive=TRUE)
+          unlink("Mofuss_Summary_Report_v3.*", force=TRUE)
+          #shell.exec(file.path(getwd(), "Summary_Report/Mofuss_Summary_Report.pdf"))
+        } else {
+          #shell.exec(file.path(getwd(), "LULCC/Wizard_imgs/NoLuck.pdf"))
+        }
+        
+      } else {
+        #shell.exec(file.path(getwd(), "LULCC/Wizard_imgs/PDFrareerror.pdf"))
+      }
+    }
+  }
+  write.csv(errorpdf1, "Logs/errorpdf1.csv")
+  write.csv(errorpdf2, "Logs/errorpdf2.csv")
+  write.csv(errorpdf3, "Logs/errorpdf3.csv")
+  write.csv(errorpdf4, "Logs/errorpdf4.csv")
+  write.csv(errorpdf5, "Logs/errorpdf5.csv")
+  write.csv(Sys.which("pdflatex"), "Logs/pdflatexpath.csv")
+  # 	}
+  # }
+  
+  SceCode_pdf <- 	readLines("LULCC/TempTables/SceCode.txt")
+  origpdfname <- "Summary_Report/Mofuss_Summary_Report_v3.pdf"
+  newpdfname <- paste0("Summary_Report/Mofuss_Summary_Report_v3_",SceCode_pdf,".pdf")
+  file.rename(origpdfname, newpdfname)
   
 }
 
 
 if (fNRB_partition_tables == 1) {
   
-  dir.create("Out/webmofuss_results/") 
+  dir.create("OutBaU/webmofuss_results/") 
   
   # fNRB partition tables and vectors ####
   if (aoi_poly == 1) {
@@ -2347,11 +2435,11 @@ if (fNRB_partition_tables == 1) {
           merge(., NRB_fNRB2_fr, by.x = ext_analysis_ID, by.y = "zone") %>%
           replace(is.na(.), 0)
         write.csv(NRB_fNRB2_frcompl_madm0, "LULCC/TempTables/summary_adm0_frcompl.csv", row.names=FALSE, quote=FALSE)
-        write.csv(NRB_fNRB2_frcompl_madm0, "Out/webmofuss_results/summary_adm0_frcompl.csv", row.names=FALSE, quote=FALSE)
+        write.csv(NRB_fNRB2_frcompl_madm0, "OutBaU/webmofuss_results/summary_adm0_frcompl.csv", row.names=FALSE, quote=FALSE)
         
         NRB_fNRB3_fr_madm0 <- NRB_fNRB2_frcompl_madm0
         write.csv(NRB_fNRB3_fr_madm0, "LULCC/TempTables/summary_adm0_fr.csv", row.names=FALSE, quote=FALSE)
-        write.csv(NRB_fNRB3_fr_madm0, "Out/webmofuss_results/summary_adm0_fr.csv", row.names=FALSE, quote=FALSE)
+        write.csv(NRB_fNRB3_fr_madm0, "OutBaU/webmofuss_results/summary_adm0_fr.csv", row.names=FALSE, quote=FALSE)
         
         print(paste0(admname," finished for tables"))
         
@@ -2361,7 +2449,7 @@ if (fNRB_partition_tables == 1) {
             dplyr::select(-NAME_0.y) %>%
             dplyr::rename(NAME_0 = NAME_0.x) %>%
             replace(is.na(.), 0)
-          st_write(userarea_simpx_fr0, "Out/webmofuss_results/mofuss_adm0_fr.gpkg", delete_layer = TRUE)
+          st_write(userarea_simpx_fr0, "OutBaU/webmofuss_results/mofuss_adm0_fr.gpkg", delete_layer = TRUE)
           print(paste0(admname," finished for vector layers"))
         } else {
           userarea_simpx_fr0 <- userarea_gpkg %>%
@@ -2372,7 +2460,7 @@ if (fNRB_partition_tables == 1) {
                           Subregion = Subregion.x,
                           mofuss_reg = mofuss_reg.x) %>%
             replace(is.na(.), 0)
-          st_write(userarea_simpx_fr0, "Out/webmofuss_results/mofuss_adm0_fr.gpkg", delete_layer = TRUE)
+          st_write(userarea_simpx_fr0, "OutBaU/webmofuss_results/mofuss_adm0_fr.gpkg", delete_layer = TRUE)
           print(paste0(admname," finished for vector layers"))
         }
         
@@ -2383,11 +2471,11 @@ if (fNRB_partition_tables == 1) {
           dplyr::select(-GID_0, -GID_1) %>%
           replace(is.na(.), 0)
         write.csv(NRB_fNRB2_frcompl_madm1, "LULCC/TempTables/summary_adm1_frcompl.csv", row.names=FALSE, quote=FALSE)
-        write.csv(NRB_fNRB2_frcompl_madm1, "Out/webmofuss_results/summary_adm1_frcompl.csv", row.names=FALSE, quote=FALSE)
+        write.csv(NRB_fNRB2_frcompl_madm1, "OutBaU/webmofuss_results/summary_adm1_frcompl.csv", row.names=FALSE, quote=FALSE)
         
         NRB_fNRB3_fr_madm1 <- NRB_fNRB2_frcompl_madm1
         write.csv(NRB_fNRB3_fr_madm1, "LULCC/TempTables/summary_adm1_fr.csv", row.names=FALSE, quote=FALSE)
-        write.csv(NRB_fNRB3_fr_madm1, "Out/webmofuss_results/summary_adm1_fr.csv", row.names=FALSE, quote=FALSE)
+        write.csv(NRB_fNRB3_fr_madm1, "OutBaU/webmofuss_results/summary_adm1_fr.csv", row.names=FALSE, quote=FALSE)
         
         print(paste0(admname," finished for tables"))
         
@@ -2397,7 +2485,7 @@ if (fNRB_partition_tables == 1) {
           dplyr::rename(NAME_0 = NAME_0.x,
                         NAME_1 = NAME_1.x) %>%
           replace(is.na(.), 0)
-        st_write(userarea_simpx_fr1, "Out/webmofuss_results/mofuss_adm1_fr.gpkg", delete_layer = TRUE)
+        st_write(userarea_simpx_fr1, "OutBaU/webmofuss_results/mofuss_adm1_fr.gpkg", delete_layer = TRUE)
         print(paste0(admname," finished for vector layers"))
         
       } else if (admname == "adm2") {
@@ -2407,11 +2495,11 @@ if (fNRB_partition_tables == 1) {
           dplyr::select(-GID_0, -GID_1, -GID_2) %>%
           replace(is.na(.), 0)
         write.csv(NRB_fNRB2_frcompl_madm2, "LULCC/TempTables/summary_adm2_frcompl.csv", row.names=FALSE, quote=FALSE)
-        write.csv(NRB_fNRB2_frcompl_madm2, "Out/webmofuss_results/summary_adm2_frcompl.csv", row.names=FALSE, quote=FALSE)
+        write.csv(NRB_fNRB2_frcompl_madm2, "OutBaU/webmofuss_results/summary_adm2_frcompl.csv", row.names=FALSE, quote=FALSE)
         
         NRB_fNRB3_fr_madm2 <- NRB_fNRB2_frcompl_madm2
         write.csv(NRB_fNRB3_fr_madm2, "LULCC/TempTables/summary_adm2_fr.csv", row.names=FALSE, quote=FALSE)
-        write.csv(NRB_fNRB3_fr_madm2, "Out/webmofuss_results/summary_adm2_fr.csv", row.names=FALSE, quote=FALSE)
+        write.csv(NRB_fNRB3_fr_madm2, "OutBaU/webmofuss_results/summary_adm2_fr.csv", row.names=FALSE, quote=FALSE)
         
         print(paste0(admname," finished for tables"))
         
@@ -2422,7 +2510,7 @@ if (fNRB_partition_tables == 1) {
                         NAME_1 = NAME_1.x,
                         NAME_2 = NAME_2.x,) %>%
           replace(is.na(.), 0)
-        st_write(userarea_simpx_fr2, "Out/webmofuss_results/mofuss_adm2_fr.gpkg", delete_layer = TRUE)
+        st_write(userarea_simpx_fr2, "OutBaU/webmofuss_results/mofuss_adm2_fr.gpkg", delete_layer = TRUE)
         print(paste0(admname," finished for vector layers"))
         
       } else if (admname == "ecoregions") {
@@ -2431,11 +2519,11 @@ if (fNRB_partition_tables == 1) {
           merge(., NRB_fNRB2_fr, by.x = ecoregions_ID, by.y = "zone") %>%
           replace(is.na(.), 0)
         write.csv(NRB_fNRB2_frcompl_meco2, "LULCC/TempTables/summary_ecoregions_frcompl.csv", row.names=FALSE, quote=FALSE)
-        write.csv(NRB_fNRB2_frcompl_meco2, "Out/webmofuss_results/summary_ecoregions_frcompl.csv", row.names=FALSE, quote=FALSE)
+        write.csv(NRB_fNRB2_frcompl_meco2, "OutBaU/webmofuss_results/summary_ecoregions_frcompl.csv", row.names=FALSE, quote=FALSE)
         
         NRB_fNRB3_fr_meco2 <- NRB_fNRB2_frcompl_meco2
         write.csv(NRB_fNRB3_fr_meco2, "LULCC/TempTables/summary_ecoregions_fr.csv", row.names=FALSE, quote=FALSE)
-        write.csv(NRB_fNRB3_fr_meco2, "Out/webmofuss_results/summary_ecoregions_fr.csv", row.names=FALSE, quote=FALSE)
+        write.csv(NRB_fNRB3_fr_meco2, "OutBaU/webmofuss_results/summary_ecoregions_fr.csv", row.names=FALSE, quote=FALSE)
         
         print(paste0(admname," finished for tables"))
         
@@ -2450,7 +2538,7 @@ if (fNRB_partition_tables == 1) {
                         ID = ID.x,
                         mofuss_reg = mofuss_reg.x) %>%
           replace(is.na(.), 0)
-        st_write(userarea_simpx_fr2, "Out/webmofuss_results/mofuss_ecoregions_fr.gpkg", delete_layer = TRUE)
+        st_write(userarea_simpx_fr2, "OutBaU/webmofuss_results/mofuss_ecoregions_fr.gpkg", delete_layer = TRUE)
         print(paste0(admname," finished for vector layers"))
       }
       
@@ -2526,13 +2614,13 @@ if (fNRB_partition_tables == 1) {
           merge(., NRB_fNRB2_fr, by.x = ext_analysis_ID, by.y = "zone") %>%
           replace(is.na(.), 0)
         write.csv(NRB_fNRB2_frcompl_madm0, "LULCC/TempTables/summary_adm0_frcompl.csv", row.names=FALSE, quote=FALSE)
-        write.csv(NRB_fNRB2_frcompl_madm0, "Out/webmofuss_results/summary_adm0_frcompl.csv", row.names=FALSE, quote=FALSE)
+        write.csv(NRB_fNRB2_frcompl_madm0, "OutBaU/webmofuss_results/summary_adm0_frcompl.csv", row.names=FALSE, quote=FALSE)
         
         NRB_fNRB3_fr_madm0 <- NRB_fNRB2_frcompl_madm0 %>%
           dplyr::select(-matches("_2010_2030|_2010_2020"), -ends_with("_sd")) %>%
           dplyr::select(-ends_with("_1MC"))
         write.csv(NRB_fNRB3_fr_madm0, "LULCC/TempTables/summary_adm0_fr.csv", row.names=FALSE, quote=FALSE)
-        write.csv(NRB_fNRB3_fr_madm0, "Out/webmofuss_results/summary_adm0_fr.csv", row.names=FALSE, quote=FALSE)
+        write.csv(NRB_fNRB3_fr_madm0, "OutBaU/webmofuss_results/summary_adm0_fr.csv", row.names=FALSE, quote=FALSE)
         
         print(paste0(admname," finished for tables"))
         
@@ -2542,7 +2630,7 @@ if (fNRB_partition_tables == 1) {
             dplyr::select(-NAME_0.y) %>%
             dplyr::rename(NAME_0 = NAME_0.x) %>%
             replace(is.na(.), 0)
-          st_write(userarea_simpx_fr0, "Out/webmofuss_results/mofuss_adm0_fr.gpkg", delete_layer = TRUE)
+          st_write(userarea_simpx_fr0, "OutBaU/webmofuss_results/mofuss_adm0_fr.gpkg", delete_layer = TRUE)
           print(paste0(admname," finished for vector layers"))
         } else {
           userarea_simpx_fr0 <- userarea_gpkg %>%
@@ -2553,7 +2641,7 @@ if (fNRB_partition_tables == 1) {
                           Subregion = Subregion.x,
                           mofuss_reg = mofuss_reg.x) %>%
             replace(is.na(.), 0)
-          st_write(userarea_simpx_fr0, "Out/webmofuss_results/mofuss_adm0_fr.gpkg", delete_layer = TRUE)
+          st_write(userarea_simpx_fr0, "OutBaU/webmofuss_results/mofuss_adm0_fr.gpkg", delete_layer = TRUE)
           print(paste0(admname," finished for vector layers"))
         }
         
@@ -2564,13 +2652,13 @@ if (fNRB_partition_tables == 1) {
           dplyr::select(-GID_0, -GID_1) %>%
           replace(is.na(.), 0)
         write.csv(NRB_fNRB2_frcompl_madm1, "LULCC/TempTables/summary_adm1_frcompl.csv", row.names=FALSE, quote=FALSE)
-        write.csv(NRB_fNRB2_frcompl_madm1, "Out/webmofuss_results/summary_adm1_frcompl.csv", row.names=FALSE, quote=FALSE)
+        write.csv(NRB_fNRB2_frcompl_madm1, "OutBaU/webmofuss_results/summary_adm1_frcompl.csv", row.names=FALSE, quote=FALSE)
         
         NRB_fNRB3_fr_madm1 <- NRB_fNRB2_frcompl_madm1 %>%
           dplyr::select(-matches("_2010_2030|_2010_2020"), -ends_with("_sd")) %>%
           dplyr::select(-ends_with("_1MC"))
         write.csv(NRB_fNRB3_fr_madm1, "LULCC/TempTables/summary_adm1_fr.csv", row.names=FALSE, quote=FALSE)
-        write.csv(NRB_fNRB3_fr_madm1, "Out/webmofuss_results/summary_adm1_fr.csv", row.names=FALSE, quote=FALSE)
+        write.csv(NRB_fNRB3_fr_madm1, "OutBaU/webmofuss_results/summary_adm1_fr.csv", row.names=FALSE, quote=FALSE)
         
         print(paste0(admname," finished for tables"))
         
@@ -2580,7 +2668,7 @@ if (fNRB_partition_tables == 1) {
           dplyr::rename(NAME_0 = NAME_0.x,
                         NAME_1 = NAME_1.x) %>%
           replace(is.na(.), 0)
-        st_write(userarea_simpx_fr1, "Out/webmofuss_results/mofuss_adm1_fr.gpkg", delete_layer = TRUE)
+        st_write(userarea_simpx_fr1, "OutBaU/webmofuss_results/mofuss_adm1_fr.gpkg", delete_layer = TRUE)
         print(paste0(admname," finished for vector layers"))
         
       } else if (admname == "adm2") {
@@ -2590,13 +2678,13 @@ if (fNRB_partition_tables == 1) {
           dplyr::select(-GID_0, -GID_1, -GID_2) %>%
           replace(is.na(.), 0)
         write.csv(NRB_fNRB2_frcompl_madm2, "LULCC/TempTables/summary_adm2_frcompl.csv", row.names=FALSE, quote=FALSE)
-        write.csv(NRB_fNRB2_frcompl_madm2, "Out/webmofuss_results/summary_adm2_frcompl.csv", row.names=FALSE, quote=FALSE)
+        write.csv(NRB_fNRB2_frcompl_madm2, "OutBaU/webmofuss_results/summary_adm2_frcompl.csv", row.names=FALSE, quote=FALSE)
         
         NRB_fNRB3_fr_madm2 <- NRB_fNRB2_frcompl_madm2 %>%
           dplyr::select(-matches("_2010_2030|_2010_2020"), -ends_with("_sd")) %>%
           dplyr::select(-ends_with("_1MC"))
         write.csv(NRB_fNRB3_fr_madm2, "LULCC/TempTables/summary_adm2_fr.csv", row.names=FALSE, quote=FALSE)
-        write.csv(NRB_fNRB3_fr_madm2, "Out/webmofuss_results/summary_adm2_fr.csv", row.names=FALSE, quote=FALSE)
+        write.csv(NRB_fNRB3_fr_madm2, "OutBaU/webmofuss_results/summary_adm2_fr.csv", row.names=FALSE, quote=FALSE)
         
         print(paste0(admname," finished for tables"))
         
@@ -2607,7 +2695,7 @@ if (fNRB_partition_tables == 1) {
                         NAME_1 = NAME_1.x,
                         NAME_2 = NAME_2.x,) %>%
           replace(is.na(.), 0)
-        st_write(userarea_simpx_fr2, "Out/webmofuss_results/mofuss_adm2_fr.gpkg", delete_layer = TRUE)
+        st_write(userarea_simpx_fr2, "OutBaU/webmofuss_results/mofuss_adm2_fr.gpkg", delete_layer = TRUE)
         print(paste0(admname," finished for vector layers"))
         
       } else if (admname == "ecoregions") {
@@ -2616,13 +2704,13 @@ if (fNRB_partition_tables == 1) {
           merge(., NRB_fNRB2_fr, by.x = ecoregions_ID, by.y = "zone") %>%
           replace(is.na(.), 0)
         write.csv(NRB_fNRB2_frcompl_meco2, "LULCC/TempTables/summary_ecoregions_frcompl.csv", row.names=FALSE, quote=FALSE)
-        write.csv(NRB_fNRB2_frcompl_meco2, "Out/webmofuss_results/summary_ecoregions_frcompl.csv", row.names=FALSE, quote=FALSE)
+        write.csv(NRB_fNRB2_frcompl_meco2, "OutBaU/webmofuss_results/summary_ecoregions_frcompl.csv", row.names=FALSE, quote=FALSE)
         
         NRB_fNRB3_fr_meco2 <- NRB_fNRB2_frcompl_meco2 %>%
           dplyr::select(-matches("_2010_2030|_2010_2020"), -ends_with("_sd")) %>%
           dplyr::select(-ends_with("_1MC"))
         write.csv(NRB_fNRB3_fr_meco2, "LULCC/TempTables/summary_ecoregions_fr.csv", row.names=FALSE, quote=FALSE)
-        write.csv(NRB_fNRB3_fr_meco2, "Out/webmofuss_results/summary_ecoregions_fr.csv", row.names=FALSE, quote=FALSE)
+        write.csv(NRB_fNRB3_fr_meco2, "OutBaU/webmofuss_results/summary_ecoregions_fr.csv", row.names=FALSE, quote=FALSE)
         
         print(paste0(admname," finished for tables"))
         
@@ -2637,7 +2725,7 @@ if (fNRB_partition_tables == 1) {
                         ID = ID.x,
                         mofuss_reg = mofuss_reg.x) %>%
           replace(is.na(.), 0)
-        st_write(userarea_simpx_fr2, "Out/webmofuss_results/mofuss_ecoregions_fr.gpkg", delete_layer = TRUE)
+        st_write(userarea_simpx_fr2, "OutBaU/webmofuss_results/mofuss_ecoregions_fr.gpkg", delete_layer = TRUE)
         print(paste0(admname," finished for vector layers"))
       }
       
@@ -2719,7 +2807,7 @@ if (fNRB_partition_tables == 1) {
           merge(., NRB_fNRB2_fr, by.x = ext_analysis_ID, by.y = "zone") %>%
           replace(is.na(.), 0)
         write.csv(NRB_fNRB2_frcompl_madm0, "LULCC/TempTables/summary_adm0_frcompl.csv", row.names=FALSE, quote=FALSE)
-        write.csv(NRB_fNRB2_frcompl_madm0, "Out/webmofuss_results/summary_adm0_frcompl.csv", row.names=FALSE, quote=FALSE)
+        write.csv(NRB_fNRB2_frcompl_madm0, "OutBaU/webmofuss_results/summary_adm0_frcompl.csv", row.names=FALSE, quote=FALSE)
         
         NRB_fNRB3_fr_madm0 <- NRB_fNRB2_frcompl_madm0 %>%
           dplyr::select(-matches("_2010_2035|_2010_2020"), -ends_with("_sd")) %>%
@@ -2727,7 +2815,7 @@ if (fNRB_partition_tables == 1) {
           dplyr::relocate(Harv_2020_2035_1MC, .after = NRB_2030_2035_1MC) %>% #Not sure this will work with STdyn==25
           dplyr::select(-ends_with("_1MC"))
         write.csv(NRB_fNRB3_fr_madm0, "LULCC/TempTables/summary_adm0_fr.csv", row.names=FALSE, quote=FALSE)
-        write.csv(NRB_fNRB3_fr_madm0, "Out/webmofuss_results/summary_adm0_fr.csv", row.names=FALSE, quote=FALSE)
+        write.csv(NRB_fNRB3_fr_madm0, "OutBaU/webmofuss_results/summary_adm0_fr.csv", row.names=FALSE, quote=FALSE)
         
         print(paste0(admname," finished for tables"))
         
@@ -2737,7 +2825,7 @@ if (fNRB_partition_tables == 1) {
             dplyr::select(-NAME_0.y) %>%
             dplyr::rename(NAME_0 = NAME_0.x) %>%
             replace(is.na(.), 0)
-          st_write(userarea_simpx_fr0, "Out/webmofuss_results/mofuss_adm0_fr.gpkg", delete_layer = TRUE)
+          st_write(userarea_simpx_fr0, "OutBaU/webmofuss_results/mofuss_adm0_fr.gpkg", delete_layer = TRUE)
           print(paste0(admname," finished for vector layers"))
         } else {
           userarea_simpx_fr0 <- userarea_gpkg %>%
@@ -2748,7 +2836,7 @@ if (fNRB_partition_tables == 1) {
                           Subregion = Subregion.x,
                           mofuss_reg = mofuss_reg.x) %>%
             replace(is.na(.), 0)
-          st_write(userarea_simpx_fr0, "Out/webmofuss_results/mofuss_adm0_fr.gpkg", delete_layer = TRUE)
+          st_write(userarea_simpx_fr0, "OutBaU/webmofuss_results/mofuss_adm0_fr.gpkg", delete_layer = TRUE)
           print(paste0(admname," finished for vector layers"))
         }
         
@@ -2759,7 +2847,7 @@ if (fNRB_partition_tables == 1) {
           dplyr::select(-GID_0, -GID_1) %>%
           replace(is.na(.), 0)
         write.csv(NRB_fNRB2_frcompl_madm1, "LULCC/TempTables/summary_adm1_frcompl.csv", row.names=FALSE, quote=FALSE)
-        write.csv(NRB_fNRB2_frcompl_madm1, "Out/webmofuss_results/summary_adm1_frcompl.csv", row.names=FALSE, quote=FALSE)
+        write.csv(NRB_fNRB2_frcompl_madm1, "OutBaU/webmofuss_results/summary_adm1_frcompl.csv", row.names=FALSE, quote=FALSE)
         
         NRB_fNRB3_fr_madm1 <- NRB_fNRB2_frcompl_madm1 %>%
           dplyr::select(-matches("_2010_2035|_2010_2020"), -ends_with("_sd")) %>%
@@ -2767,7 +2855,7 @@ if (fNRB_partition_tables == 1) {
           dplyr::relocate(Harv_2020_2035_1MC, .after = NRB_2030_2035_1MC) %>% #Not sure this will work with STdyn==25
           dplyr::select(-ends_with("_1MC"))
         write.csv(NRB_fNRB3_fr_madm1, "LULCC/TempTables/summary_adm1_fr.csv", row.names=FALSE, quote=FALSE)
-        write.csv(NRB_fNRB3_fr_madm1, "Out/webmofuss_results/summary_adm1_fr.csv", row.names=FALSE, quote=FALSE)
+        write.csv(NRB_fNRB3_fr_madm1, "OutBaU/webmofuss_results/summary_adm1_fr.csv", row.names=FALSE, quote=FALSE)
         
         print(paste0(admname," finished for tables"))
         
@@ -2777,7 +2865,7 @@ if (fNRB_partition_tables == 1) {
           dplyr::rename(NAME_0 = NAME_0.x,
                         NAME_1 = NAME_1.x) %>%
           replace(is.na(.), 0)
-        st_write(userarea_simpx_fr1, "Out/webmofuss_results/mofuss_adm1_fr.gpkg", delete_layer = TRUE)
+        st_write(userarea_simpx_fr1, "OutBaU/webmofuss_results/mofuss_adm1_fr.gpkg", delete_layer = TRUE)
         print(paste0(admname," finished for vector layers"))
         
       } else if (admname == "adm2") {
@@ -2787,7 +2875,7 @@ if (fNRB_partition_tables == 1) {
           dplyr::select(-GID_0, -GID_1, -GID_2) %>%
           replace(is.na(.), 0)
         write.csv(NRB_fNRB2_frcompl_madm2, "LULCC/TempTables/summary_adm2_frcompl.csv", row.names=FALSE, quote=FALSE)
-        write.csv(NRB_fNRB2_frcompl_madm2, "Out/webmofuss_results/summary_adm2_frcompl.csv", row.names=FALSE, quote=FALSE)
+        write.csv(NRB_fNRB2_frcompl_madm2, "OutBaU/webmofuss_results/summary_adm2_frcompl.csv", row.names=FALSE, quote=FALSE)
         
         NRB_fNRB3_fr_madm2 <- NRB_fNRB2_frcompl_madm2 %>%
           dplyr::select(-matches("_2010_2035|_2010_2020"), -ends_with("_sd")) %>%
@@ -2795,7 +2883,7 @@ if (fNRB_partition_tables == 1) {
           dplyr::relocate(Harv_2020_2035_1MC, .after = NRB_2030_2035_1MC) %>% #Not sure this will work with STdyn==25
           dplyr::select(-ends_with("_1MC"))
         write.csv(NRB_fNRB3_fr_madm2, "LULCC/TempTables/summary_adm2_fr.csv", row.names=FALSE, quote=FALSE)
-        write.csv(NRB_fNRB3_fr_madm2, "Out/webmofuss_results/summary_adm2_fr.csv", row.names=FALSE, quote=FALSE)
+        write.csv(NRB_fNRB3_fr_madm2, "OutBaU/webmofuss_results/summary_adm2_fr.csv", row.names=FALSE, quote=FALSE)
         
         print(paste0(admname," finished for tables"))
         
@@ -2806,7 +2894,7 @@ if (fNRB_partition_tables == 1) {
                         NAME_1 = NAME_1.x,
                         NAME_2 = NAME_2.x,) %>%
           replace(is.na(.), 0)
-        st_write(userarea_simpx_fr2, "Out/webmofuss_results/mofuss_adm2_fr.gpkg", delete_layer = TRUE)
+        st_write(userarea_simpx_fr2, "OutBaU/webmofuss_results/mofuss_adm2_fr.gpkg", delete_layer = TRUE)
         print(paste0(admname," finished for vector layers"))
         
       } else if (admname == "ecoregions") {
@@ -2815,7 +2903,7 @@ if (fNRB_partition_tables == 1) {
           merge(., NRB_fNRB2_fr, by.x = ecoregions_ID, by.y = "zone") %>%
           replace(is.na(.), 0)
         write.csv(NRB_fNRB2_frcompl_meco2, "LULCC/TempTables/summary_ecoregions_frcompl.csv", row.names=FALSE, quote=FALSE)
-        write.csv(NRB_fNRB2_frcompl_meco2, "Out/webmofuss_results/summary_ecoregions_frcompl.csv", row.names=FALSE, quote=FALSE)
+        write.csv(NRB_fNRB2_frcompl_meco2, "OutBaU/webmofuss_results/summary_ecoregions_frcompl.csv", row.names=FALSE, quote=FALSE)
         
         NRB_fNRB3_fr_meco2 <- NRB_fNRB2_frcompl_meco2 %>%
           dplyr::select(-matches("_2010_2035|_2010_2020"), -ends_with("_sd")) %>%
@@ -2823,7 +2911,7 @@ if (fNRB_partition_tables == 1) {
           dplyr::relocate(Harv_2020_2035_1MC, .after = NRB_2020_2035_1MC) %>%
           dplyr::select(-ends_with("_1MC"))
         write.csv(NRB_fNRB3_fr_meco2, "LULCC/TempTables/summary_ecoregions_fr.csv", row.names=FALSE, quote=FALSE)
-        write.csv(NRB_fNRB3_fr_meco2, "Out/webmofuss_results/summary_ecoregions_fr.csv", row.names=FALSE, quote=FALSE)
+        write.csv(NRB_fNRB3_fr_meco2, "OutBaU/webmofuss_results/summary_ecoregions_fr.csv", row.names=FALSE, quote=FALSE)
         
         print(paste0(admname," finished for tables"))
         
@@ -2838,7 +2926,7 @@ if (fNRB_partition_tables == 1) {
                         ID = ID.x,
                         mofuss_reg = mofuss_reg.x) %>%
           replace(is.na(.), 0)
-        st_write(userarea_simpx_fr2, "Out/webmofuss_results/mofuss_ecoregions_fr.gpkg", delete_layer = TRUE)
+        st_write(userarea_simpx_fr2, "OutBaU/webmofuss_results/mofuss_ecoregions_fr.gpkg", delete_layer = TRUE)
         print(paste0(admname," finished for vector layers"))
       }
       
@@ -2928,7 +3016,7 @@ if (fNRB_partition_tables == 1) {
           merge(., NRB_fNRB2_fr, by.x = ext_analysis_ID, by.y = "zone") %>%
           replace(is.na(.), 0)
         write.csv(NRB_fNRB2_frcompl_madm0, "LULCC/TempTables/summary_adm0_frcompl.csv", row.names=FALSE, quote=FALSE)
-        write.csv(NRB_fNRB2_frcompl_madm0, "Out/webmofuss_results/summary_adm0_frcompl.csv", row.names=FALSE, quote=FALSE)
+        write.csv(NRB_fNRB2_frcompl_madm0, "OutBaU/webmofuss_results/summary_adm0_frcompl.csv", row.names=FALSE, quote=FALSE)
         
         NRB_fNRB3_fr_madm0 <- NRB_fNRB2_frcompl_madm0 %>%
           dplyr::select(-matches("_2010_2040|_2010_2020"), -ends_with("_sd")) %>%
@@ -2936,7 +3024,7 @@ if (fNRB_partition_tables == 1) {
           dplyr::relocate(Harv_2020_2040_1MC, .after = NRB_2030_2040_1MC) %>%
           dplyr::select(-ends_with("_1MC"))
         write.csv(NRB_fNRB3_fr_madm0, "LULCC/TempTables/summary_adm0_fr.csv", row.names=FALSE, quote=FALSE)
-        write.csv(NRB_fNRB3_fr_madm0, "Out/webmofuss_results/summary_adm0_fr.csv", row.names=FALSE, quote=FALSE)
+        write.csv(NRB_fNRB3_fr_madm0, "OutBaU/webmofuss_results/summary_adm0_fr.csv", row.names=FALSE, quote=FALSE)
         
         print(paste0(admname," finished for tables"))
         
@@ -2946,7 +3034,7 @@ if (fNRB_partition_tables == 1) {
             dplyr::select(-NAME_0.y) %>%
             dplyr::rename(NAME_0 = NAME_0.x) %>%
             replace(is.na(.), 0)
-          st_write(userarea_simpx_fr0, "Out/webmofuss_results/mofuss_adm0_fr.gpkg", delete_layer = TRUE)
+          st_write(userarea_simpx_fr0, "OutBaU/webmofuss_results/mofuss_adm0_fr.gpkg", delete_layer = TRUE)
           print(paste0(admname," finished for vector layers"))
         } else {
           userarea_simpx_fr0 <- userarea_gpkg %>%
@@ -2957,7 +3045,7 @@ if (fNRB_partition_tables == 1) {
                           Subregion = Subregion.x,
                           mofuss_reg = mofuss_reg.x) %>%
             replace(is.na(.), 0)
-          st_write(userarea_simpx_fr0, "Out/webmofuss_results/mofuss_adm0_fr.gpkg", delete_layer = TRUE)
+          st_write(userarea_simpx_fr0, "OutBaU/webmofuss_results/mofuss_adm0_fr.gpkg", delete_layer = TRUE)
           print(paste0(admname," finished for vector layers"))
         }
         
@@ -2968,7 +3056,7 @@ if (fNRB_partition_tables == 1) {
           dplyr::select(-GID_0, -GID_1) %>%
           replace(is.na(.), 0)
         write.csv(NRB_fNRB2_frcompl_madm1, "LULCC/TempTables/summary_adm1_frcompl.csv", row.names=FALSE, quote=FALSE)
-        write.csv(NRB_fNRB2_frcompl_madm1, "Out/webmofuss_results/summary_adm1_frcompl.csv", row.names=FALSE, quote=FALSE)
+        write.csv(NRB_fNRB2_frcompl_madm1, "OutBaU/webmofuss_results/summary_adm1_frcompl.csv", row.names=FALSE, quote=FALSE)
         
         NRB_fNRB3_fr_madm1 <- NRB_fNRB2_frcompl_madm1 %>%
           dplyr::select(-matches("_2010_2040|_2010_2020"), -ends_with("_sd")) %>%
@@ -2976,7 +3064,7 @@ if (fNRB_partition_tables == 1) {
           dplyr::relocate(Harv_2020_2040_1MC, .after = NRB_2030_2040_1MC) %>%
           dplyr::select(-ends_with("_1MC"))
         write.csv(NRB_fNRB3_fr_madm1, "LULCC/TempTables/summary_adm1_fr.csv", row.names=FALSE, quote=FALSE)
-        write.csv(NRB_fNRB3_fr_madm1, "Out/webmofuss_results/summary_adm1_fr.csv", row.names=FALSE, quote=FALSE)
+        write.csv(NRB_fNRB3_fr_madm1, "OutBaU/webmofuss_results/summary_adm1_fr.csv", row.names=FALSE, quote=FALSE)
         
         print(paste0(admname," finished for tables"))
         
@@ -2986,7 +3074,7 @@ if (fNRB_partition_tables == 1) {
           dplyr::rename(NAME_0 = NAME_0.x,
                         NAME_1 = NAME_1.x) %>%
           replace(is.na(.), 0)
-        st_write(userarea_simpx_fr1, "Out/webmofuss_results/mofuss_adm1_fr.gpkg", delete_layer = TRUE)
+        st_write(userarea_simpx_fr1, "OutBaU/webmofuss_results/mofuss_adm1_fr.gpkg", delete_layer = TRUE)
         print(paste0(admname," finished for vector layers"))
         
       } else if (admname == "adm2") {
@@ -2996,7 +3084,7 @@ if (fNRB_partition_tables == 1) {
           dplyr::select(-GID_0, -GID_1, -GID_2) %>%
           replace(is.na(.), 0)
         write.csv(NRB_fNRB2_frcompl_madm2, "LULCC/TempTables/summary_adm2_frcompl.csv", row.names=FALSE, quote=FALSE)
-        write.csv(NRB_fNRB2_frcompl_madm2, "Out/webmofuss_results/summary_adm2_frcompl.csv", row.names=FALSE, quote=FALSE)
+        write.csv(NRB_fNRB2_frcompl_madm2, "OutBaU/webmofuss_results/summary_adm2_frcompl.csv", row.names=FALSE, quote=FALSE)
         
         NRB_fNRB3_fr_madm2 <- NRB_fNRB2_frcompl_madm2 %>%
           dplyr::select(-matches("_2010_2040|_2010_2020"), -ends_with("_sd")) %>%
@@ -3004,7 +3092,7 @@ if (fNRB_partition_tables == 1) {
           dplyr::relocate(Harv_2020_2040_1MC, .after = NRB_2030_2040_1MC) %>%
           dplyr::select(-ends_with("_1MC"))
         write.csv(NRB_fNRB3_fr_madm2, "LULCC/TempTables/summary_adm2_fr.csv", row.names=FALSE, quote=FALSE)
-        write.csv(NRB_fNRB3_fr_madm2, "Out/webmofuss_results/summary_adm2_fr.csv", row.names=FALSE, quote=FALSE)
+        write.csv(NRB_fNRB3_fr_madm2, "OutBaU/webmofuss_results/summary_adm2_fr.csv", row.names=FALSE, quote=FALSE)
         
         print(paste0(admname," finished for tables"))
         
@@ -3015,7 +3103,7 @@ if (fNRB_partition_tables == 1) {
                         NAME_1 = NAME_1.x,
                         NAME_2 = NAME_2.x,) %>%
           replace(is.na(.), 0)
-        st_write(userarea_simpx_fr2, "Out/webmofuss_results/mofuss_adm2_fr.gpkg", delete_layer = TRUE)
+        st_write(userarea_simpx_fr2, "OutBaU/webmofuss_results/mofuss_adm2_fr.gpkg", delete_layer = TRUE)
         print(paste0(admname," finished for vector layers"))
         
       } else if (admname == "ecoregions") {
@@ -3024,7 +3112,7 @@ if (fNRB_partition_tables == 1) {
           merge(., NRB_fNRB2_fr, by.x = ecoregions_ID, by.y = "zone") %>%
           replace(is.na(.), 0)
         write.csv(NRB_fNRB2_frcompl_meco2, "LULCC/TempTables/summary_ecoregions_frcompl.csv", row.names=FALSE, quote=FALSE)
-        write.csv(NRB_fNRB2_frcompl_meco2, "Out/webmofuss_results/summary_ecoregions_frcompl.csv", row.names=FALSE, quote=FALSE)
+        write.csv(NRB_fNRB2_frcompl_meco2, "OutBaU/webmofuss_results/summary_ecoregions_frcompl.csv", row.names=FALSE, quote=FALSE)
         
         NRB_fNRB3_fr_meco2 <- NRB_fNRB2_frcompl_meco2 %>%
           dplyr::select(-matches("_2010_2040|_2010_2020"), -ends_with("_sd")) %>%
@@ -3032,7 +3120,7 @@ if (fNRB_partition_tables == 1) {
           dplyr::relocate(Harv_2020_2040_1MC, .after = NRB_2030_2040_1MC) %>%
           dplyr::select(-ends_with("_1MC"))
         write.csv(NRB_fNRB3_fr_meco2, "LULCC/TempTables/summary_ecoregions_fr.csv", row.names=FALSE, quote=FALSE)
-        write.csv(NRB_fNRB3_fr_meco2, "Out/webmofuss_results/summary_ecoregions_fr.csv", row.names=FALSE, quote=FALSE)
+        write.csv(NRB_fNRB3_fr_meco2, "OutBaU/webmofuss_results/summary_ecoregions_fr.csv", row.names=FALSE, quote=FALSE)
         
         print(paste0(admname," finished for tables"))
         
@@ -3047,7 +3135,7 @@ if (fNRB_partition_tables == 1) {
                         ID = ID.x,
                         mofuss_reg = mofuss_reg.x) %>%
           replace(is.na(.), 0)
-        st_write(userarea_simpx_fr2, "Out/webmofuss_results/mofuss_ecoregions_fr.gpkg", delete_layer = TRUE)
+        st_write(userarea_simpx_fr2, "OutBaU/webmofuss_results/mofuss_ecoregions_fr.gpkg", delete_layer = TRUE)
         print(paste0(admname," finished for vector layers"))
       }
       
@@ -3145,7 +3233,7 @@ if (fNRB_partition_tables == 1) {
           merge(., NRB_fNRB2_fr, by.x = ext_analysis_ID, by.y = "zone") %>%
           replace(is.na(.), 0)
         write.csv(NRB_fNRB2_frcompl_madm0, "LULCC/TempTables/summary_adm0_frcompl.csv", row.names=FALSE, quote=FALSE)
-        write.csv(NRB_fNRB2_frcompl_madm0, "Out/webmofuss_results/summary_adm0_frcompl.csv", row.names=FALSE, quote=FALSE)
+        write.csv(NRB_fNRB2_frcompl_madm0, "OutBaU/webmofuss_results/summary_adm0_frcompl.csv", row.names=FALSE, quote=FALSE)
         
         NRB_fNRB3_fr_madm0 <- NRB_fNRB2_frcompl_madm0 %>%
           dplyr::select(-matches("_2010_2050|_2010_2020"), -ends_with("_sd")) %>%
@@ -3153,7 +3241,7 @@ if (fNRB_partition_tables == 1) {
           dplyr::relocate(Harv_2020_2050_1MC, .after = NRB_2040_2050_1MC) %>%
           dplyr::select(-ends_with("_1MC"))
         write.csv(NRB_fNRB3_fr_madm0, "LULCC/TempTables/summary_adm0_fr.csv", row.names=FALSE, quote=FALSE)
-        write.csv(NRB_fNRB3_fr_madm0, "Out/webmofuss_results/summary_adm0_fr.csv", row.names=FALSE, quote=FALSE)
+        write.csv(NRB_fNRB3_fr_madm0, "OutBaU/webmofuss_results/summary_adm0_fr.csv", row.names=FALSE, quote=FALSE)
         
         print(paste0(admname," finished for tables"))
         
@@ -3163,7 +3251,7 @@ if (fNRB_partition_tables == 1) {
             dplyr::select(-NAME_0.y) %>%
             dplyr::rename(NAME_0 = NAME_0.x) %>%
             replace(is.na(.), 0)
-          st_write(userarea_simpx_fr0, "Out/webmofuss_results/mofuss_adm0_fr.gpkg", delete_layer = TRUE)
+          st_write(userarea_simpx_fr0, "OutBaU/webmofuss_results/mofuss_adm0_fr.gpkg", delete_layer = TRUE)
           print(paste0(admname," finished for vector layers"))
         } else {
           userarea_simpx_fr0 <- userarea_gpkg %>%
@@ -3174,7 +3262,7 @@ if (fNRB_partition_tables == 1) {
                           Subregion = Subregion.x,
                           mofuss_reg = mofuss_reg.x) %>%
             replace(is.na(.), 0)
-          st_write(userarea_simpx_fr0, "Out/webmofuss_results/mofuss_adm0_fr.gpkg", delete_layer = TRUE)
+          st_write(userarea_simpx_fr0, "OutBaU/webmofuss_results/mofuss_adm0_fr.gpkg", delete_layer = TRUE)
           print(paste0(admname," finished for vector layers"))
         }
         
@@ -3185,7 +3273,7 @@ if (fNRB_partition_tables == 1) {
           dplyr::select(-GID_0, -GID_1) %>%
           replace(is.na(.), 0)
         write.csv(NRB_fNRB2_frcompl_madm1, "LULCC/TempTables/summary_adm1_frcompl.csv", row.names=FALSE, quote=FALSE)
-        write.csv(NRB_fNRB2_frcompl_madm1, "Out/webmofuss_results/summary_adm1_frcompl.csv", row.names=FALSE, quote=FALSE)
+        write.csv(NRB_fNRB2_frcompl_madm1, "OutBaU/webmofuss_results/summary_adm1_frcompl.csv", row.names=FALSE, quote=FALSE)
         
         NRB_fNRB3_fr_madm1 <- NRB_fNRB2_frcompl_madm1 %>%
           dplyr::select(-matches("_2010_2050|_2010_2020"), -ends_with("_sd")) %>%
@@ -3193,7 +3281,7 @@ if (fNRB_partition_tables == 1) {
           dplyr::relocate(Harv_2020_2050_1MC, .after = NRB_2040_2050_1MC) %>%
           dplyr::select(-ends_with("_1MC"))
         write.csv(NRB_fNRB3_fr_madm1, "LULCC/TempTables/summary_adm1_fr.csv", row.names=FALSE, quote=FALSE)
-        write.csv(NRB_fNRB3_fr_madm1, "Out/webmofuss_results/summary_adm1_fr.csv", row.names=FALSE, quote=FALSE)
+        write.csv(NRB_fNRB3_fr_madm1, "OutBaU/webmofuss_results/summary_adm1_fr.csv", row.names=FALSE, quote=FALSE)
         
         print(paste0(admname," finished for tables"))
         
@@ -3203,7 +3291,7 @@ if (fNRB_partition_tables == 1) {
           dplyr::rename(NAME_0 = NAME_0.x,
                         NAME_1 = NAME_1.x) %>%
           replace(is.na(.), 0)
-        st_write(userarea_simpx_fr1, "Out/webmofuss_results/mofuss_adm1_fr.gpkg", delete_layer = TRUE)
+        st_write(userarea_simpx_fr1, "OutBaU/webmofuss_results/mofuss_adm1_fr.gpkg", delete_layer = TRUE)
         print(paste0(admname," finished for vector layers"))
         
       } else if (admname == "adm2") {
@@ -3213,7 +3301,7 @@ if (fNRB_partition_tables == 1) {
           dplyr::select(-GID_0, -GID_1, -GID_2) %>%
           replace(is.na(.), 0)
         write.csv(NRB_fNRB2_frcompl_madm2, "LULCC/TempTables/summary_adm2_frcompl.csv", row.names=FALSE, quote=FALSE)
-        write.csv(NRB_fNRB2_frcompl_madm2, "Out/webmofuss_results/summary_adm2_frcompl.csv", row.names=FALSE, quote=FALSE)
+        write.csv(NRB_fNRB2_frcompl_madm2, "OutBaU/webmofuss_results/summary_adm2_frcompl.csv", row.names=FALSE, quote=FALSE)
         
         NRB_fNRB3_fr_madm2 <- NRB_fNRB2_frcompl_madm2 %>%
           dplyr::select(-matches("_2010_2050|_2010_2020"), -ends_with("_sd")) %>%
@@ -3221,7 +3309,7 @@ if (fNRB_partition_tables == 1) {
           dplyr::relocate(Harv_2020_2050_1MC, .after = NRB_2040_2050_1MC) %>%
           dplyr::select(-ends_with("_1MC"))
         write.csv(NRB_fNRB3_fr_madm2, "LULCC/TempTables/summary_adm2_fr.csv", row.names=FALSE, quote=FALSE)
-        write.csv(NRB_fNRB3_fr_madm2, "Out/webmofuss_results/summary_adm2_fr.csv", row.names=FALSE, quote=FALSE)
+        write.csv(NRB_fNRB3_fr_madm2, "OutBaU/webmofuss_results/summary_adm2_fr.csv", row.names=FALSE, quote=FALSE)
         
         print(paste0(admname," finished for tables"))
         
@@ -3232,7 +3320,7 @@ if (fNRB_partition_tables == 1) {
                         NAME_1 = NAME_1.x,
                         NAME_2 = NAME_2.x,) %>%
           replace(is.na(.), 0)
-        st_write(userarea_simpx_fr2, "Out/webmofuss_results/mofuss_adm2_fr.gpkg", delete_layer = TRUE)
+        st_write(userarea_simpx_fr2, "OutBaU/webmofuss_results/mofuss_adm2_fr.gpkg", delete_layer = TRUE)
         print(paste0(admname," finished for vector layers"))
         
       } else if (admname == "ecoregions") {
@@ -3241,7 +3329,7 @@ if (fNRB_partition_tables == 1) {
           merge(., NRB_fNRB2_fr, by.x = ecoregions_ID, by.y = "zone") %>%
           replace(is.na(.), 0)
         write.csv(NRB_fNRB2_frcompl_meco2, "LULCC/TempTables/summary_ecoregions_frcompl.csv", row.names=FALSE, quote=FALSE)
-        write.csv(NRB_fNRB2_frcompl_meco2, "Out/webmofuss_results/summary_ecoregions_frcompl.csv", row.names=FALSE, quote=FALSE)
+        write.csv(NRB_fNRB2_frcompl_meco2, "OutBaU/webmofuss_results/summary_ecoregions_frcompl.csv", row.names=FALSE, quote=FALSE)
 
         NRB_fNRB3_fr_meco2 <- NRB_fNRB2_frcompl_meco2 %>%
           dplyr::select(-matches("_2010_2050|_2010_2020"), -ends_with("_sd")) %>%
@@ -3249,7 +3337,7 @@ if (fNRB_partition_tables == 1) {
           dplyr::relocate(Harv_2020_2050_1MC, .after = NRB_2040_2050_1MC) %>%
           dplyr::select(-ends_with("_1MC"))
         write.csv(NRB_fNRB3_fr_meco2, "LULCC/TempTables/summary_ecoregions_fr.csv", row.names=FALSE, quote=FALSE)
-        write.csv(NRB_fNRB3_fr_meco2, "Out/webmofuss_results/summary_ecoregions_fr.csv", row.names=FALSE, quote=FALSE)
+        write.csv(NRB_fNRB3_fr_meco2, "OutBaU/webmofuss_results/summary_ecoregions_fr.csv", row.names=FALSE, quote=FALSE)
         
         print(paste0(admname," finished for tables"))
         
@@ -3264,7 +3352,7 @@ if (fNRB_partition_tables == 1) {
                         ID = ID.x,
                         mofuss_reg = mofuss_reg.x) %>%
           replace(is.na(.), 0)
-        st_write(userarea_simpx_fr2, "Out/webmofuss_results/mofuss_ecoregions_fr.gpkg", delete_layer = TRUE)
+        st_write(userarea_simpx_fr2, "OutBaU/webmofuss_results/mofuss_ecoregions_fr.gpkg", delete_layer = TRUE)
         print(paste0(admname," finished for vector layers"))
       }
       

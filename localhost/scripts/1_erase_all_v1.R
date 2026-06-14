@@ -39,8 +39,7 @@ demand_base <- if (dir.exists(file.path(base_path, "demand100m"))) {
 # Define directories to remove ----
 directories_to_remove <- c(
   "Debugging", "debug*", "norm*", 
-  "HTML_animation_OutBaU", "HTML_animation_OutICS", 
-  "Logs", "OutBaU", "OutICS", "Summary_Report", 
+  "HTML_animation", "Logs", "Out", "Summary_Report", 
   "Temp", "In", "ffmpeg32", "ffmpeg64", "LaTeX", "rTemp", "demand_atlas",
   "LULCC/InVector", "LULCC/Out_lulcc", "LULCC/SourceData", 
   "LULCC/TempRaster", "LULCC/TempTables", "LULCC/TempVector", 

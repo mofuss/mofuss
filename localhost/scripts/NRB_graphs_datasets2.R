@@ -118,9 +118,9 @@ country_parameters %>%
 STdyn <- end_year - IT
 
 if (BaUvsICS == "ICS") {
-	OutDir<-"OutICS"
+	OutDir<-"Out"
 } else {
-	OutDir<-"OutBaU"
+	OutDir<-"Out"
 }
 print(OutDir)
 

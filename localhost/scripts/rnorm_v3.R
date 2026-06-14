@@ -82,49 +82,20 @@ if(length(args)==0){
   }
 }
 
-if (BaUvsICS == "ICS") {
-  unlink("OutICS//*", recursive = TRUE,force=TRUE)
-  unlink("LaTeX//Growth_Harvest_AniOutICS.mp4", force=TRUE)
-  unlink("HTML_animation_OutICS//*", recursive = TRUE,force=TRUE)	
-  unlink("LaTeX//SumTableICS.csv", force=TRUE)
-  unlink("DebuggingICS//*", recursive = TRUE,force=TRUE)
-  unlink("TempICS//*", recursive = TRUE,force=TRUE)
-  OutDir<-"OutICS"
-  DebugDir<-"DebuggingICS"
-  TempDir<-"TempICS"
-} else {
-  unlink("OutBaU//*", recursive = TRUE,force=TRUE)
-  unlink("LaTeX//Growth_Harvest_AniOutBaU.mp4", force=TRUE)
-  unlink("HTML_animation_OutBaU//*", recursive = TRUE,force=TRUE)	
-  unlink("LaTeX//SumTableBaU.csv", force=TRUE)
-  unlink("DebuggingBaU//*", recursive = TRUE,force=TRUE)
-  unlink("TempBaU//*", recursive = TRUE,force=TRUE)
-  OutDir<-"OutBaU"
-  DebugDir<-"DebuggingBaU"
-  TempDir<-"TempBaU"
-  
-  for (i in 1:MC) {
-    print(i)
-    unlink(paste0("debugging_",i), recursive = TRUE,force=TRUE)
-  }
-  Sys.sleep(15)
-  for (i in 1:MC) {
-    print(i)
-    dir.create(paste0("debugging_",i))
-  }
-  
-  # # To save two digits 
-  # for (i in sprintf("%02d", 1:MC)) { 
-  #   print(i)
-  #   unlink(paste0("debugging_",i), recursive = TRUE,force=TRUE)
-  # }
-  # Sys.sleep(15)
-  # for (i in sprintf("%02d", 1:MC)) {
-  #   print(i)
-  #   dir.create(paste0("debugging_",i))
-  # }
-  
+unlink("Out//*", recursive = TRUE,force=TRUE)
+unlink("HTML_animation//*", recursive = TRUE,force=TRUE)	
+OutDir<-"Out"
+
+for (i in 1:MC) {
+  print(i)
+  unlink(paste0("debugging_",i), recursive = TRUE,force=TRUE)
 }
+Sys.sleep(15)
+for (i in 1:MC) {
+  print(i)
+  dir.create(paste0("debugging_",i))
+}
+
 
 # Read parameters table ----
 read.csv("LULCC/TempTables/Country.csv") %>%

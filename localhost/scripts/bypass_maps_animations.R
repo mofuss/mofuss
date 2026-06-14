@@ -5,7 +5,7 @@
 rm(list=ls(all=TRUE))
 
 textmsg<-"Maps and animations turned off by user"
-write.csv(textmsg,paste("OutBaU//",textmsg,".csv",sep=""),row.names = FALSE)
+write.csv(textmsg,paste("Out//",textmsg,".csv",sep=""),row.names = FALSE)
 
 
 ###############################

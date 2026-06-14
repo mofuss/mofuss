@@ -48,8 +48,8 @@ setwd(countrydir)
 
 # Clean temps ----
 directories_to_remove <- c(
-  "Debugging", "DebuggingBaU", "DebuggingICS", "HTML_animation_OutBaU", "HTML_animation_OutICS", 
-  "Logs", "OutBaU", "OutICS", "Summary_Report", "Temp", "TempBaU", "TempICS", "rTemp", "In",
+  "Debugging", "DebuggingBaU", "DebuggingICS", "HTML_animation", 
+  "Logs", "Out", "Summary_Report", "Temp", "TempBaU", "TempICS", "rTemp", "In",
   "ffmpeg32", "ffmpeg64", "LaTeX", 
   "LULCC/InVector", 
   "LULCC/Out_lulcc", 
@@ -83,7 +83,7 @@ lapply(file_patterns_to_remove, unlink, force = TRUE)
 
 # Create MoFuSS directory structure ----
 dirs_to_create <- c(
-  "HTML_animation_OutBaU", "HTML_animation_OutICS", "Logs", "OutBaU", "OutICS", "Summary_Report", "Temp", "rTemp",
+  "HTML_animation", "Logs", "Out", "Summary_Report", "Temp", "rTemp",
   "In", "In/DemandScenarios", "LULCC/InVector", 
   #"LULCC/SourceData", "LULCC/SourceData/InRaster", "LULCC/SourceData/InRaster_GCS", "LULCC/SourceData/InTables", 
   #"LULCC/SourceData/InVector", "LULCC/SourceData/InVector_GCS", "LULCC/SourceData/InVector_GCS", 
@@ -251,11 +251,17 @@ lapply(files2copy, function(f) {
   file.copy(from = paste0(githubdir, "/localhost/scripts/", f), to = paste0(countrydir), overwrite = TRUE, recursive = TRUE, copy.mode = TRUE)
 })
 
-# Copy wizard images
+
+# Copy contents of logos_imgs into Wizard_imgs
 file.copy(
-  from = paste0(githubdir, "/localhost/scripts/LULCC/Wizard_imgs/"),
-  to = paste0(countrydir, "/LULCC/"),
-  overwrite = TRUE, recursive = TRUE, copy.mode = TRUE
+  from = list.files(
+    paste0(githubdir, "/logos_imgs"),
+    full.names = TRUE
+  ),
+  to = paste0(countrydir, "/LULCC/Wizard_imgs/"),
+  overwrite = TRUE,
+  recursive = TRUE,
+  copy.mode = TRUE
 )
 
 # Clean MoFuSS working folder ----

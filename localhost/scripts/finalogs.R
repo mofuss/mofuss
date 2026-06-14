@@ -53,9 +53,9 @@ if(length(args)==0){
 
 
 if (BaUvsICS == "ICS") {
-	OutDir<-"OutICS"
+	OutDir<-"Out"
 } else {
-	OutDir<-"OutBaU"
+	OutDir<-"Out"
 }
 
 
@@ -107,12 +107,10 @@ mapply(time,Routlist,timetabs)
 ###Zip logs withing "Logs" folder
 #########################
 
-BaUexist<-file.exists("OutBaU/jpg/Map_AGB.jpg")
-ICSexist<-file.exists("OutICS/jpg/Map_AGB.jpg")
-BaUexist_b<-file.exists("OutBaU/png/Boxplots.png")
-ICSexist_b<-file.exists("OutICS/png/Boxplots.png")
+BaUICSexist<-file.exists("Out/jpg/Map_AGB.jpg")
+BaUICSexist_b<-file.exists("Out/png/Boxplots.png")
 
-if (BaUexist == TRUE & ICSexist == TRUE & BaUexist_b == TRUE & ICSexist_b == TRUE) {
+if (BaUICSexist == TRUE & BaUICSexist_b == TRUE) {
 	zip("Logs/all_logs.zip", "Logs", zip="LULCC/Wizard_imgs/zip.exe")
 }
 
