@@ -10,10 +10,10 @@
 ## Aunque estos salen de dinamica hasta cierto punto, faltaria 2020-final year ###
 
 # Internal parameters
-videoson <- 1
+videoson <- 0
 compilelatex <- 1
 uncertaintystacks <- 0
-fNRB_partition_tables <- 1
+fNRB_partition_tables <- 0
 mcthreshold <- 30
 copy_old_dinamica_rasters <- 0
 
