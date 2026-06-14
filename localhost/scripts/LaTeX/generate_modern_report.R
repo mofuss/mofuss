@@ -37,7 +37,7 @@ generate_modern_report <- function(base_dir,
   BUILD  <- file.path(latex_dir, "build_modern")
   ASSETS <- file.path(BUILD, "assets")
   SR     <- file.path(base_dir, "Summary_Report")
-  outdirs <- c("OutBaU", "OutICS")
+  outdirs <- c("Out")
   outdirs <- outdirs[dir.exists(file.path(base_dir, outdirs))]
   dir.create(ASSETS, recursive = TRUE, showWarnings = FALSE)
   dir.create(SR,     recursive = TRUE, showWarnings = FALSE)
@@ -220,8 +220,8 @@ generate_modern_report <- function(base_dir,
 
   ## ---- animation (optional) ----------------------------------------------
   mp4_dest <- NULL
-  for (cand in c(file.path(latex_dir, "Growth_Harvest_AniOutBaU.mp4"),
-                 file.path(base_dir, "OutBaU", "Growth_Harvest_AniOutBaU.mp4"))) {
+  for (cand in c(file.path(latex_dir, "Growth_Harvest_AniOut.mp4"),
+                 file.path(base_dir, "Out", "Growth_Harvest_AniOut.mp4"))) {
     if (file.exists(cand)) {
       mp4_dest <- basename(cand)
       file.copy(cand, file.path(ASSETS, mp4_dest), overwrite = TRUE); break
