@@ -3,10 +3,13 @@
 \thispagestyle{empty}
 \centering
 
-% top brand logo
-\IfFileExists{assets/mofuss_366.png}{%
-  \includegraphics[width=0.40\linewidth,keepaspectratio]{assets/mofuss_366.png}
-}{}
+% top brand band
+\colorbox{mfdark}{\parbox[t][2.4cm][c]{\dimexpr\textwidth-2\fboxsep}{%
+  \centering
+  \sffamily\bfseries\color{white}\LARGE MoFuSS\\[2pt]
+  \normalfont\sffamily\color{mfrule}\small
+  Modeling Fuelwood Savings Scenarios%
+}}
 
 \vspace{0.9cm}
 
