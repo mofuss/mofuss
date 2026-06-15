@@ -428,7 +428,7 @@ generate_modern_report <- function(base_dir,
   for (role in c("temporal", "spatial", "boxplot")) {
     grp <- Filter(function(x) x$role == role, fig_lines)
     if (!length(grp)) next
-    fo <- c(fo, "\\clearpage", sprintf("\\section{%s}", role_title[[role]]))
+    fo <- c(fo, sprintf("\\section{%s}", role_title[[role]]))
     for (g in grp) {
       fo <- c(fo, "\\begin{figure}[H]\\centering",
               sprintf("  \\includegraphics[%s]{assets/%s}", g$sizing, g$dest),
@@ -439,7 +439,7 @@ generate_modern_report <- function(base_dir,
   wf("_figures.tex", fo)
 
   if (!is.null(mp4_dest)) {
-    anim <- c("\\clearpage", "\\section{Animation of fuelwood harvest and AGB}",
+    anim <- c("\\section{Animation of fuelwood harvest and AGB}",
       "\\begin{mfnote}{Interactive content}",
       sprintf(paste0("A spatio-temporal animation of fuelwood harvest and ",
         "aboveground biomass is available for this run: ",
