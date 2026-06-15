@@ -22,10 +22,10 @@ generate_modern_report <- function(base_dir,
   if (is.null(pdflatex)) {
     cand <- c(
       Sys.getenv("MOFUSS_PDFLATEX"),
-      Sys.which("pdflatex"),
       "C:/Program Files/MiKTeX/miktex/bin/x64/pdflatex.exe",
       file.path(Sys.getenv("LOCALAPPDATA"),
-                "Programs/MiKTeX/miktex/bin/x64/pdflatex.exe"))
+                "Programs/MiKTeX/miktex/bin/x64/pdflatex.exe"),
+      Sys.which("pdflatex"))
     cand <- cand[nzchar(cand) & file.exists(cand)]
     if (!length(cand)) stop("pdflatex not found; pass pdflatex = '...path...'.")
     pdflatex <- cand[1]
@@ -245,15 +245,11 @@ generate_modern_report <- function(base_dir,
   ## ---- summary table (auto-detect) ---------------------------------------
   cands <- c("summary_adm0_fr.csv", "summary_adm0_frcompl.csv",
              "summary_ecoregions_fr.csv")
-  sdirs <- c(file.path(base_dir, "Out", "webmofuss_results"), TT)
-  summ <- NA
-  for (sd in sdirs) {
-    hit <- cands[file.exists(file.path(sd, cands))]
-    if (length(hit)) { summ <- file.path(sd, hit[1]); break }
-  }
+  summ <- cands[file.exists(file.path(TT, cands))]
+  summ <- if (length(summ)) summ[1] else NA
   nrb_rows <- list(); unit_name <- ""
   if (!is.na(summ)) {
-    d <- read.csv(summ, check.names = FALSE,
+    d <- read.csv(file.path(TT, summ), check.names = FALSE,
                   stringsAsFactors = FALSE, fileEncoding = "UTF-8-BOM")
     if (nrow(d)) {
       cn <- colnames(d)
@@ -266,7 +262,7 @@ generate_modern_report <- function(base_dir,
         mm <- regmatches(col, regexec(pat, col))[[1]]
         metric <- mm[2]; key <- paste(mm[3], mm[4], sep = "_")
         if (is.null(per[[key]])) per[[key]] <- list()
-        per[[key]][[metric]] <- sum(suppressWarnings(as.numeric(d[[col]])), na.rm = TRUE)
+        per[[key]][[metric]] <- d[[col]][1]
       }
       if (length(per)) {
         starts <- as.integer(sub("_.*", "", names(per)))
@@ -276,12 +272,11 @@ generate_modern_report <- function(base_dir,
         ord <- c(ord[ord != full_key], if (full_key %in% names(per)) full_key)
         for (k in ord) {
           dd <- per[[k]]; yy <- strsplit(k, "_")[[1]]
-          fnrb_val <- if (nrow(d) > 1 && !is.null(dd[["Harv"]]) && isTRUE(dd[["Harv"]] > 0)) round(dd[["NRB"]] / dd[["Harv"]] * 100) else dd[["fNRB"]]
           nrb_rows[[length(nrb_rows) + 1]] <- list(
             period = paste0(yy[1], "\\textendash{}", yy[2]),
             nrb  = thousands(dd[["NRB"]]),
             harv = thousands(dd[["Harv"]]),
-            fnrb = thousands(fnrb_val),
+            fnrb = thousands(dd[["fNRB"]]),
             full = identical(k, full_key))
         }
       }
@@ -383,7 +378,7 @@ generate_modern_report <- function(base_dir,
     macro("mfMCruns",      latex_escape(mc_runs)),
     macro("mfResolution",  latex_escape(resolution)),
     macro("mfSceType",     latex_escape(sce_type)),
-    macro("mfUnitName",    latex_escape(if (nzchar(country_names)) country_names else if (nzchar(unit_name)) unit_name else country)))
+    macro("mfUnitName",    latex_escape(if (nzchar(unit_name)) unit_name else country_disp)))
   wf("_meta.tex", meta)
 
   ## NOTE: params table uses {@{}l l@{}} (NOT >{\raggedright\arraybackslash}p{}).
