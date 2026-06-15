@@ -113,8 +113,6 @@ generate_modern_report <- function(base_dir,
     v <- trimws(as.character(d[[col]]))
     v <- unique(v[!is.na(v) & nzchar(v)])
     if (length(v) == 0) return("")
-    if (any(grepl("GoogleEarthPoly", v, ignore.case = TRUE)))
-      return("a user-defined area of interest")
     if (length(v) == 1) return(v[1])
     paste(paste(v[-length(v)], collapse = ", "), v[length(v)], sep = " and ")
   })
