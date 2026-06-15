@@ -1629,6 +1629,26 @@ if (copy_old_dinamica_rasters == 1) {
   }
 }
 
+# Compile LATEX file infot pdf report ####
+if (compilelatex == 1) {
+  
+  # ---- Modern summary report (auto-generated; replaces legacy texi2dvi block) ----
+  # Reads current MoFuSS outputs, auto-detects available data and figures,
+  # compiles the modern template with MiKTeX, and writes:
+  #     Summary_Report/Mofuss_Summary_Report_<SceCode>.pdf
+  # The original legacy block is preserved in maps_animations7_backup_premodern.R
+  print("Run LaTeX and compile modern summary report (pdf)")
+  source(file.path(getwd(), "LaTeX", "generate_modern_report.R"))
+  report_out <- tryCatch(
+    generate_modern_report(base_dir = getwd()),
+    error = function(e) {
+      message("Modern report generation failed: ", conditionMessage(e)); NA_character_
+    }
+  )
+  if (!is.na(report_out)) print(paste("Modern report written:", report_out))
+  
+}
+
 
 if (fNRB_partition_tables == 1) {
   
@@ -3255,26 +3275,5 @@ if (fNRB_partition_tables == 1) {
   } # foreach(admm = adminlevel, admname = admin_name) %do% {
   
 } # if (fNRB_partition_tables == 1) {
-
-# Compile LATEX file infot pdf report ####
-if (compilelatex == 1) {
-  
-  # ---- Modern summary report (auto-generated; replaces legacy texi2dvi block) ----
-  # Reads current MoFuSS outputs, auto-detects available data and figures,
-  # compiles the modern template with MiKTeX, and writes:
-  #     Summary_Report/Mofuss_Summary_Report_<SceCode>.pdf
-  # The original legacy block is preserved in maps_animations7_backup_premodern.R
-  print("Run LaTeX and compile modern summary report (pdf)")
-  source(file.path(getwd(), "LaTeX", "generate_modern_report.R"))
-  report_out <- tryCatch(
-    generate_modern_report(base_dir = getwd()),
-    error = function(e) {
-      message("Modern report generation failed: ", conditionMessage(e)); NA_character_
-    }
-  )
-  if (!is.na(report_out)) print(paste("Modern report written:", report_out))
-  
-}
-
 
 # END ----
