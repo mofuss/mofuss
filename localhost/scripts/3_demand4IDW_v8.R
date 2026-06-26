@@ -496,9 +496,10 @@ if (aoi_poly == 1) {
     dplyr::filter(GID_0 %in% mofuss_region_kml$GID_0) # Check if multiple countries or values is doable
   pop0_K <- crop(pop0, ext(adm0_reg) + .01)
   if (os == "Windows") {
-    pop0_reg <- mask(pop0_K, adm0_reg) #THIS BREAKS IN UBUNTU
+    pop0_reg <- terra::mask(pop0_K, adm0_reg) # THIS BREAKS IN UBUNTU
   } else if(os == "Linux") {
-    pop0_reg <- pop0_K
+    pop0_reg <- terra::mask(pop0_K, adm0_reg)
+    # pop0_reg <- pop0_K
   }
   # plot(pop0_reg, main=paste0("Overlapping with your AoI")) #,mofuss_region2))
   # lines(adm0_reg)
@@ -509,9 +510,10 @@ if (aoi_poly == 1) {
   adm0_reg <- mofuss_regions0_gpkg
   pop0_K <- crop(pop0, ext(adm0_reg) + .01)
   if (os == "Windows") {
-    pop0_reg <- mTeask(pop0_K, adm0_reg) #THIS BREAKS IN UBUNTU
+    pop0_reg <- terra::mask(pop0_K, adm0_reg) #THIS BREAKS IN UBUNTU
   } else if(os == "Linux") {
-    pop0_reg <- pop0_K
+    pop0_reg <- terra::mask(pop0_K, adm0_reg)
+    #pop0_reg <- pop0_K
   }
   # plot(pop0_reg)
   # lines(adm0_reg)
@@ -524,9 +526,10 @@ if (aoi_poly == 1) {
   # # lines(adm0_reg, lwd=2)
   pop0_K <- crop(pop0, ext(adm0_reg) + .01)
   if (os == "Windows") {
-    pop0_reg <- mask(pop0_K, adm0_reg) #THIS BREAKS IN UBUNTU
+    pop0_reg <- terra::mask(pop0_K, adm0_reg) #THIS BREAKS IN UBUNTU
   } else if(os == "Linux") {
-    pop0_reg <- pop0_K
+    pop0_reg <- terra::mask(pop0_K, adm0_reg)
+    # pop0_reg <- pop0_K
   }
   # plot(pop0_reg,main=c("Region to be processed"))
   # lines(adm0_reg)
@@ -540,9 +543,10 @@ if (aoi_poly == 1) {
   # lines(adm0_reg, lwd=2)
   pop0_K <- crop(pop0, ext(adm0_reg) + .01)
   if (os == "Windows") {
-    pop0_reg <- mask(pop0_K, adm0_reg) # THIS BREAKS IN UBUNTU NA WINDOWS AS ELL
+    pop0_reg <- terra::mask(pop0_K, adm0_reg) # THIS BREAKS IN UBUNTU NA WINDOWS AS ELL
   } else if(os == "Linux") {
-    pop0_reg <- pop0_K
+    pop0_reg <- terra::mask(pop0_K, adm0_reg)
+    #pop0_reg <- pop0_K
   }
   # plot(pop0_reg,main=c("Region to be processed"))
   # lines(adm0_reg)
@@ -554,9 +558,10 @@ if (aoi_poly == 1) {
     dplyr::filter(GID_0 == mofuss_region) # Check if multiple countries or values is doable
   pop0_K <- crop(pop0, ext(adm0_reg) + .01)
   if (os == "Windows") {
-    pop0_reg <- mask(pop0_K, adm0_reg) #THIS BREAKS IN UBUNTU
+    pop0_reg <- terra::mask(pop0_K, adm0_reg) #THIS BREAKS IN UBUNTU
   } else if(os == "Linux") {
-    pop0_reg <- pop0_K
+    pop0_reg <- terra::mask(pop0_K, adm0_reg)
+    # pop0_reg <- pop0_K
   }
   # plot(pop0_reg, main=paste0("You selected ",mofuss_region))
   # lines(adm0_reg)
