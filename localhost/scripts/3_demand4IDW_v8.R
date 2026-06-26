@@ -675,9 +675,10 @@ if (aoi_poly == 1) {
   adm0_reg <- result_vec
   pop0_K <- crop(pop0, ext(adm0_reg) + .01)
   if (os == "Windows") {
-    pop0_reg <- mask(pop0_K, adm0_reg) #THIS BREAKS IN UBUNTU
+    pop0_reg <- terra::mask(pop0_K, adm0_reg) #THIS BREAKS IN UBUNTU
   } else if(os == "Linux") {
-    pop0_reg <- pop0_K
+    pop0_reg <- terra::mask(pop0_K, adm0_reg)
+    # pop0_reg <- pop0_K
   }
   # plot(pop0_reg, main=paste0("You selected ",region2BprocessedCtry_iso))
   # lines(adm0_reg)
