@@ -21,7 +21,7 @@
 # Internal parameters ----
 temdirdefined <- 1
 fixdir <-  0
-string_pattern_yes <- "ind_ics2_1km_nv3_" # String pattern to be searched when selecting folders for the rasters' geocomputation
+string_pattern_yes <- "zmb_bau_1km_subcX" # String pattern to be searched when selecting folders for the rasters' geocomputation
 string_pattern_no <- "idw" # String pattern to be searched when selecting folders for the rasters' geocomputation
  
 # Load packages ----
@@ -71,7 +71,7 @@ if (fixdir == 1){
 
 # Loop through each adm0 directory----
 for (dir in adm0_dirs) {
-  # dir = "C:/Users/aghil/Documents/MoFuSS_FAO_localhost/ken_bau_1km_nv1"
+  # dir = "D:/_zambia/zmb_bau_1km_subcX"
   print(paste("Processing directory:", dir))
   setwd(dir)
   getwd()
@@ -172,7 +172,13 @@ for (dir in adm0_dirs) {
       nrb_bin2010_2020[nrb_bin2010_2020 <= 0] = NA 
       
       nrb_bin2020_2030 <- stackG[[21]] - stackGlH[[30]] # Bin will be 2020-2030
-      nrb_bin2020_2030[nrb_bin2020_2030 <= 0] = NA 
+      nrb_bin2020_2030[nrb_bin2020_2030 <= 0] = NA
+      
+      nrb_bin2020_2035 <- stackG[[21]] - stackGlH[[35]] # Bin will be 2020-2035
+      nrb_bin2020_2035[nrb_bin2020_2035 <= 0] = NA 
+      
+      nrb_bin2020_2040 <- stackG[[21]] - stackGlH[[40]] # Bin will be 2020-2040
+      nrb_bin2020_2040[nrb_bin2020_2040 <= 0] = NA 
       
       nrb_bin2030_2040 <- stackG[[31]] - stackGlH[[nlay]] # Bin will be 2030-2040
       nrb_bin2030_2040[nrb_bin2030_2040 <= 0] = NA 
@@ -265,6 +271,16 @@ for (dir in adm0_dirs) {
       nlyr(stackharv_bin2020_2030)
       harvest_st_bin2020_2030 <- app(stackharv_bin2020_2030, fun=sum)
       
+      listharv_bin2020_2035 <- listharv_per[21:35]
+      stackharv_bin2020_2035 <- rast(paste0(debug_dir,"/",listharv_bin2020_2035))
+      nlyr(stackharv_bin2020_2035)
+      harvest_st_bin2020_2035 <- app(stackharv_bin2020_2035, fun=sum)
+      
+      listharv_bin2020_2040 <- listharv_per[21:40]
+      stackharv_bin2020_2040 <- rast(paste0(debug_dir,"/",listharv_bin2020_2040))
+      nlyr(stackharv_bin2020_2040)
+      harvest_st_bin2020_2040 <- app(stackharv_bin2020_2040, fun=sum)
+      
       listharv_bin2030_2040 <- listharv_per[31:nlay]
       stackharv_bin2030_2040 <- rast(paste0(debug_dir,"/",listharv_bin2030_2040))
       nlyr(stackharv_bin2030_2040)
@@ -306,7 +322,7 @@ for (dir in adm0_dirs) {
     }
     
     # Store rasters in the lists ----
-    
+    getwd()
     # Create the directory only if it doesn't exist
     if (!dir.exists("temp_raster_lists")) {
       dir.create("temp_raster_lists")
@@ -641,6 +657,62 @@ for (dir in adm0_dirs) {
       # Save the updated list of file paths to disk
       saveRDS(harvest_st_bin2020_2030_list, file = paste0("temp_raster_lists/harvest_st_bin2020_2030_step_", i, ".rds"))
       
+      ### nrb_bin2020_2035----
+      if (file.exists(paste0("temp_raster_lists/nrb_bin2020_2035_step_", i - 1, ".rds"))) {
+        nrb_bin2020_2035_list <- readRDS(paste0("temp_raster_lists/nrb_bin2020_2035_step_", i - 1, ".rds"))
+      } else {
+        nrb_bin2020_2035_list <- list()
+      }
+      # Save each SpatRaster to disk
+      tif_file_nrb <- paste0("temp_raster_lists/nrb_bin2020_2035_", i, ".tif")
+      writeRaster(nrb_bin2020_2035, tif_file_nrb, overwrite=TRUE)
+      # Store the file path in the list
+      nrb_bin2020_2035_list[[length(nrb_bin2020_2035_list) + 1]] <- tif_file_nrb
+      # Save the updated list of file paths to disk
+      saveRDS(nrb_bin2020_2035_list, file = paste0("temp_raster_lists/nrb_bin2020_2035_step_", i, ".rds"))
+      
+      ### harvest_st_bin2020_2035 ----
+      if (file.exists(paste0("temp_raster_lists/harvest_st_bin2020_2035_step_", i - 1, ".rds"))) {
+        harvest_st_bin2020_2035_list <- readRDS(paste0("temp_raster_lists/harvest_st_bin2020_2035_step_", i - 1, ".rds"))
+      } else {
+        harvest_st_bin2020_2035_list <- list()
+      }
+      # Save each SpatRaster to disk
+      tif_file_harv <- paste0("temp_raster_lists/harvest_st_bin2020_2035_", i, ".tif")
+      writeRaster(harvest_st_bin2020_2035, tif_file_harv, overwrite=TRUE)
+      # Store the file path in the list
+      harvest_st_bin2020_2035_list[[length(harvest_st_bin2020_2035_list) + 1]] <- tif_file_harv
+      # Save the updated list of file paths to disk
+      saveRDS(harvest_st_bin2020_2035_list, file = paste0("temp_raster_lists/harvest_st_bin2020_2035_step_", i, ".rds"))
+      
+      ### nrb_bin2020_2040----
+      if (file.exists(paste0("temp_raster_lists/nrb_bin2020_2040_step_", i - 1, ".rds"))) {
+        nrb_bin2020_2040_list <- readRDS(paste0("temp_raster_lists/nrb_bin2020_2040_step_", i - 1, ".rds"))
+      } else {
+        nrb_bin2020_2040_list <- list()
+      }
+      # Save each SpatRaster to disk
+      tif_file_nrb <- paste0("temp_raster_lists/nrb_bin2020_2050_", i, ".tif")
+      writeRaster(nrb_bin2020_2040, tif_file_nrb, overwrite=TRUE)
+      # Store the file path in the list
+      nrb_bin2020_2040_list[[length(nrb_bin2020_2040_list) + 1]] <- tif_file_nrb
+      # Save the updated list of file paths to disk
+      saveRDS(nrb_bin2020_2040_list, file = paste0("temp_raster_lists/nrb_bin2020_2040_step_", i, ".rds"))
+      
+      ### harvest_st_bin2020_2040 ----
+      if (file.exists(paste0("temp_raster_lists/harvest_st_bin2020_2040_step_", i - 1, ".rds"))) {
+        harvest_st_bin2020_2040_list <- readRDS(paste0("temp_raster_lists/harvest_st_bin2020_2040_step_", i - 1, ".rds"))
+      } else {
+        harvest_st_bin2020_2040_list <- list()
+      }
+      # Save each SpatRaster to disk
+      tif_file_harv <- paste0("temp_raster_lists/harvest_st_bin2020_2040_", i, ".tif")
+      writeRaster(harvest_st_bin2020_2040, tif_file_harv, overwrite=TRUE)
+      # Store the file path in the list
+      harvest_st_bin2020_2040_list[[length(harvest_st_bin2020_2040_list) + 1]] <- tif_file_harv
+      # Save the updated list of file paths to disk
+      saveRDS(harvest_st_bin2020_2040_list, file = paste0("temp_raster_lists/harvest_st_bin2020_2040_step_", i, ".rds"))
+      
       ### nrb_bin2030_2040----
       if (file.exists(paste0("temp_raster_lists/nrb_bin2030_2040_step_", i - 1, ".rds"))) {
         nrb_bin2030_2040_list <- readRDS(paste0("temp_raster_lists/nrb_bin2030_2040_step_", i - 1, ".rds"))
@@ -713,6 +785,21 @@ for (dir in adm0_dirs) {
       agb_2030_list[[length(agb_2030_list) + 1]] <- tif_file_agb
       # Save the updated list of file paths to disk
       saveRDS(agb_2030_list, file = paste0("temp_raster_lists/agb_2030_step_", i, ".rds"))
+      
+      ### agb_2035----
+      if (file.exists(paste0("temp_raster_lists/agb_2035_step_", i - 1, ".rds"))) {
+        agb_2035_list <- readRDS(paste0("temp_raster_lists/agb_2035_step_", i - 1, ".rds"))
+      } else {
+        agb_2035_list <- list()
+      }
+      # Save each SpatRaster to disk
+      tif_file_agb <- paste0("temp_raster_lists/agb_2035_", i, ".tif")
+      agb_2035 <- stackG[[35]]
+      writeRaster(agb_2035, tif_file_agb, overwrite=TRUE)
+      # Store the file path in the list
+      agb_2035_list[[length(agb_2035_list) + 1]] <- tif_file_agb
+      # Save the updated list of file paths to disk
+      saveRDS(agb_2035_list, file = paste0("temp_raster_lists/agb_2035_step_", i, ".rds"))
       
       ### agb_2040----
       if (file.exists(paste0("temp_raster_lists/agb_2040_step_", i - 1, ".rds"))) {
@@ -815,7 +902,6 @@ for (dir in adm0_dirs) {
       harvest_st_bin2020_2035_list[[length(harvest_st_bin2020_2035_list) + 1]] <- tif_file_harv
       # Save the updated list of file paths to disk
       saveRDS(harvest_st_bin2020_2035_list, file = paste0("temp_raster_lists/harvest_st_bin2020_2035_step_", i, ".rds"))
-      
       
       ### nrb_bin2020_2050----
       if (file.exists(paste0("temp_raster_lists/nrb_bin2020_2050_step_", i - 1, ".rds"))) {
@@ -1011,8 +1097,10 @@ for (dir in adm0_dirs) {
   
   # MEAN, SD, and SE ----
   # Define the output directory ----
-  output_dir <- paste0(dir,"/OutBaU/webmofuss_results")
-  
+  out_folder <- list.dirs(dir, recursive = FALSE, full.names = TRUE)
+  out_folder <- out_folder[grepl("^Out", basename(out_folder))]
+  output_dir <- file.path(out_folder, "webmofuss_results")
+
   # Define configurations for different STdyn values
   configurations <- list(
     "20" = list(
