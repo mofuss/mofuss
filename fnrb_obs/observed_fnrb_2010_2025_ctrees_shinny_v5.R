@@ -1,15 +1,60 @@
-library(shiny)
-library(sf)
+# MoFuSS
+# Version 2
+# Date: Jul 2026
+
+# 2dolist ----
+
+# Internal parameters ----
+temdirdefined = 1 
+
+if (webmofuss == 1){
+  setwd("/home/rrangel/common")
+  rTempdir_fnrbobs = "RUTA EN WEBMOFUSS" # Roberto: necesitas crea rTempdir_fnrbobs (DEBE SER DIFERENTE A rTempdir -de los scripts de mofuss- porque no pueden estar siendo usadas al mismo tiempo)
+  agbpath = ""
+  demandpath = ""
+} else if (webmofuss == 0){
+  # ONLY WORKS IN NRBV1 NODE as localhost"
+  rTempdir_fnrbobs <- "D:/rTempdir_fnrbobs/"
+  agbpath = "G:/Mi unidad/webpages/2026_MoFuSSGlobal_Datasets/fnrb_obs_data/1km_agco2_2000_2025/"
+  demandpath = "G:/Mi unidad/webpages/2026_MoFuSSGlobal_Datasets/fnrb_obs_data/"
+}
+
+# Load packages ----
 library(terra)
+# terraOptions(steps = 55)
+if (temdirdefined == 1) {
+  terraOptions(tempdir = rTempdir_fnrbobs)
+  # List all files and directories inside the folder
+  contents <- list.files(rTempdir_fnrbobs, full.names = TRUE, recursive = TRUE)
+  # Delete the contents but keep the folder
+  # unlink(contents, recursive = TRUE, force = TRUE)
+}
 library(dplyr)
 library(leaflet)
 library(readr)
 library(rnaturalearth)
 library(rnaturalearthdata)
+library(sf)
+library(shiny)
+
+# library(shiny)
+# library(sf)
+# library(terra)
+# library(dplyr)
+# library(leaflet)
+# library(readr)
+# library(rnaturalearth)
+# library(rnaturalearthdata)
+# library(shinythemes)
+# library(shinycssloaders)
+
+# Start script 1 - Define the UI ----
+library(shiny)
+library(leaflet)
 library(shinythemes)
 library(shinycssloaders)
 
-# Define the UI
+
 ui <- fluidPage(
   theme = shinytheme("cyborg"),  # Use a dark theme
   tags$style(HTML("
@@ -60,6 +105,7 @@ ui <- fluidPage(
     )
   )
 )
+# Ends script 1 - Define the UI ----
 
 server <- function(input, output, session) {
   # Load country polygons
@@ -158,11 +204,10 @@ server <- function(input, output, session) {
       selected_polygon_vect <- vect(selected_polygon)
       
       # Load and crop rasters
-      # agb2010CO2 <- rast("E:/agb3rdparties/Pantropical_AGC/ctrees_global_2010_AGC_pantropic_1km_MgC02_ha.tif")
-      agb2010CO2 <- rast("C:/Users/aghil/Documents/MoFuSS_localhost/ctrees_dic2025_agb_paras/1km_agco2_2000_2025/ctrees_global_2010_AGC.tif")
+      agb2010CO2 <- rast(paste0(agbpath,"ctrees_global_2010_AGC.tif"))
       
       # agb20XXCO2 <- rast(paste0("E:/agb3rdparties/Pantropical_AGC/ctrees_global_", endyr, "_AGC_pantropic_1km_MgC02_ha.tif"))
-      agb20XXCO2 <- rast(paste0("C:/Users/aghil/Documents/MoFuSS_localhost/ctrees_dic2025_agb_paras/1km_agco2_2000_2025/ctrees_global_",endyr,"_AGC.tif"))
+      agb20XXCO2 <- rast(paste0(agbpath,"ctrees_global_",endyr,"_AGC.tif"))
       
       agb2010 <- agb2010CO2 * 12/44 / 0.47
       agb20XX <- agb20XXCO2 * 12/44 / 0.47
@@ -186,7 +231,7 @@ server <- function(input, output, session) {
       total_agblosses10_XX <- round(total_agblosses10_XX_df[1, 1], 0)
       
       # Load demand data
-      data_wf <- read_csv("C:/Users/aghil/Documents/MoFuSS_localhost/demand_bau1_v2.csv")
+      data_wf <- read_csv(paste0(demandpath,"demand_bau1_v2.csv"))
       demand_sum <- data_wf %>%
         filter(iso3 == country_code, year >= 2010, year <= endyr,
                (fuel == "fuelwood" & area %in% c("rural", "urban")) | 
