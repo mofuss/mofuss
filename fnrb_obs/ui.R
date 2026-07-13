@@ -1,3 +1,12 @@
+# MoFuSS
+# Version 2
+# Date: Jul 2026
+
+# 2dolist ----
+
+# Internal parameters ----
+
+# Load packages ----
 library(shiny)
 library(leaflet)
 library(shinythemes)
@@ -28,24 +37,29 @@ ui <- fluidPage(
       actionButton("calculate", "Calculate"),
       actionButton("clear_selection", "Clear Selection"),  # Add clear selection button
       tags$hr(),
-      p("This tool is a prototype, it is slow and could be buggy.
-        For an extended description on what the tool does and how to interpret its results, follow this link."),
-      p(HTML("Send questions and suggestions to <span class='email-text'>mofussfreeware@gmail.com</span>.
-        A proper tool with similar functionalities is being built as part of MoFuSS-US.")),
+      p("This tool compares gross aboveground biomass (AGB) losses between two years, 
+        regardless of the driver of change. These losses may therefore include deforestation, 
+        natural and human-induced fires, logging, agricultural expansion, woodfuel harvesting, 
+        and other disturbances. Woodfuel-related biomass losses are included within this total rather than identified separately. 
+        The tool then estimates the fraction of non-renewable biomass (fNRB) by comparing total gross AGB losses 
+        with total baseline woodfuel demand over the same period. 
+        Because only a fraction of all AGB losses are caused by woodfuel harvesting, 
+        the resulting estimate should be interpreted as an upper threshold; for most countries, the true fNRB must be substantially lower."),
+      p(HTML("Send questions and suggestions to <span class='email-text'>mofussfreeware@gmail.com</span>.")),
       h4("Instructions"),
       p(class = "instruction-text", "1.- Select end year of analysis."),
       p(class = "instruction-text", "2.- Select up to 16 countries, by clicking or tapping on the map, and waiting 1-2 seconds in each case for the selected country to be highlighted."),
       p(class = "instruction-text", HTML("3.- Press <span class='highlight-text'>Calculate</span> and wait for the results table to appear. Depending on the number of countries and their area,
         it can take up to 5-7 minutes. Do not close your browser.")),
       p(class = "instruction-text", HTML("4.- Press <span class='highlight-text'>Clear Selection</span> to start from scratch.")),
-      p(class = "instruction-text", HTML("5.- You can add countries to the list or change the end year and recalculate,
-      but you can't deselect countries from the list (bug), just press <span class='highlight-text'>Clear Selection</span> and start again.")),
+      p(class = "instruction-text", HTML("5.- You can add or remove countries to the list or change the end year and recalculate.
+                                         Press <span class='highlight-text'>Clear Selection</span> and start again.")),
       fluidRow(
         column(6, img(src = "ctrees.png", height = "100px")),
         column(6, img(src = "mofuss.png", height = "100px"))
       ),
       p(style = 'margin-top: 20px; font-size: 14px; color: #FFFFFF;',
-        HTML("<a href='https://www.mofuss-sandbox.unam.mx' style='color: #12b974;' target='_blank'>MoFuSS main webpage</a>")
+        HTML("<a href='https://www.mofuss.unam.mx' style='color: #12b974;' target='_blank'>MoFuSS main webpage</a>")
       )  # Inserted link below the logos
     ),
     mainPanel(

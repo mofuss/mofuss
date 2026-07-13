@@ -1,7 +1,16 @@
+# MoFuSS
+# Version 2
+# Date: Jul 2026
 
+# 2dolist ----
 
+# Internal parameters ----
+
+# Load packages ----
 library(shiny)
 library(leaflet)
+library(shinythemes)
+library(shinycssloaders)
 
 shinyUI(fluidPage(
 	tags$style(HTML("

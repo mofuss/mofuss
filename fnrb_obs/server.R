@@ -95,6 +95,7 @@ shinyServer(function(input, output, session) {
         clearShapes() %>%
         addPolygons(data = world, layerId = ~iso_a3, popup = ~name, fillOpacity = 0.2, weight = 1, color = "#444444") %>%
         addPolygons(data = world %>% filter(iso_a3 %in% current_selection),
+                    layerId = ~iso_a3, popup = ~name,
                     fillColor = "blue", fillOpacity = 0.5, weight = 2, color = "#0000FF")
     }
   })
