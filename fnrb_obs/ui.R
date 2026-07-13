@@ -37,14 +37,21 @@ ui <- fluidPage(
       actionButton("calculate", "Calculate"),
       actionButton("clear_selection", "Clear Selection"),  # Add clear selection button
       tags$hr(),
-      p("This tool compares gross aboveground biomass (AGB) losses between two years, 
-        regardless of the driver of change. These losses may therefore include deforestation, 
-        natural and human-induced fires, logging, agricultural expansion, woodfuel harvesting, 
-        and other disturbances. Woodfuel-related biomass losses are included within this total rather than identified separately. 
-        The tool then estimates the fraction of non-renewable biomass (fNRB) by comparing total gross AGB losses 
-        with total baseline woodfuel demand over the same period. 
-        Because only a fraction of all AGB losses are caused by woodfuel harvesting, 
-        the resulting estimate should be interpreted as an upper threshold; for most countries, the true fNRB must be substantially lower."),
+      p(
+        "This tool compares gross aboveground biomass (AGB) losses between two years, 
+  regardless of the driver of change. These losses may therefore include deforestation, 
+  natural and human-induced fires, logging, agricultural expansion, woodfuel harvesting, 
+  and other disturbances. Woodfuel-related biomass losses are included within this total 
+  rather than identified separately. The tool then estimates the fraction of non-renewable 
+  biomass (fNRB) by comparing total gross AGB losses with total baseline woodfuel demand 
+  over the same period. Because only a fraction of all AGB losses are caused by woodfuel 
+  harvesting, the resulting estimate should be interpreted as an upper threshold: ",
+        
+        span(
+          "the true fNRB must be substantially lower.",
+          style = "color: white;"
+        )
+      ),
       p(HTML("Send questions and suggestions to <span class='email-text'>mofussfreeware@gmail.com</span>.")),
       h4("Instructions"),
       p(class = "instruction-text", "1.- Select end year of analysis."),
