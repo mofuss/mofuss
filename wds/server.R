@@ -1,6 +1,16 @@
-#install.packages("devtools") # I guess you also need this
-#devtools::install_github("ropensci/rnaturalearthhires")
+# MoFuSS
+# Version 2
+# Date: Jul 2026
 
+# 2dolist ----
+
+# Internal parameters ----
+# temdirdefined = 1 
+options(shiny.launch.browser = TRUE)
+
+if (!exists("webmofuss", inherits = TRUE)) {
+  webmofuss <- 0
+}
 if (webmofuss == 1){
   setwd("/home/rrangel/common")
   demandpath = ""
@@ -9,18 +19,24 @@ if (webmofuss == 1){
   demandpath = "G:/Mi unidad/webpages/2026_MoFuSSGlobal_Datasets/fnrb_obs_data/"
 }
 
-install_and_load <- function(packages) {
-  for (package in packages) {
-    if (!require(package, character.only = TRUE)) {
-      install.packages(package, dependencies = TRUE)
-      library(package, character.only = TRUE)
-    }
-  }
-}
-
-required_packages <- c("shiny", "ggplot2", "dplyr", "readr", "leaflet", "sf", "rnaturalearth", "rnaturalearthdata")
-
-install_and_load(required_packages)
+# Load packages ----
+library(terra)
+# # terraOptions(steps = 55)
+# if (temdirdefined == 1) {
+#   terraOptions(tempdir = rTempdir_fnrbobs)
+#   # List all files and directories inside the folder
+#   contents <- list.files(rTempdir_fnrbobs, full.names = TRUE, recursive = TRUE)
+#   # Delete the contents but keep the folder
+#   # unlink(contents, recursive = TRUE, force = TRUE)
+# }
+library(dplyr)
+library(ggplot2)
+library(leaflet)
+library(readr)
+library(rnaturalearth)
+library(rnaturalearthdata)
+library(sf)
+library(shiny)
 
 shinyServer(function(input, output) {
   # Load the data from the CSV file
