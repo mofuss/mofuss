@@ -1,4 +1,16 @@
+# MoFuSS
+# Version 2
+# Date: Jul 2026
 
+# 2dolist ----
+
+# Internal parameters ----
+temdirdefined = 1 
+options(shiny.launch.browser = TRUE)
+
+if (!exists("webmofuss", inherits = TRUE)) {
+  webmofuss <- 0
+}
 
 if (webmofuss == 1){
   setwd("/home/rrangel/common")
@@ -7,17 +19,10 @@ if (webmofuss == 1){
   demandpath = ""
 } else if (webmofuss == 0){
   # ONLY WORKS IN NRBV1 NODE as localhost"
-  rTempdir_fnrbobs <- "D:/rTempdir_fnrbobs/"
-  #agbpath = "E:/agb3rdparties/"
+  rTempdir_fnrbobs <- "C:/Users/aghil/Documents/MoFuSS_localhost/rTempdir_fnrbobs/"
   agbpath = "G:/Mi unidad/webpages/2026_MoFuSSGlobal_Datasets/fnrb_obs_data/1km_agco2_2000_2025/"
   demandpath = "G:/Mi unidad/webpages/2026_MoFuSSGlobal_Datasets/fnrb_obs_data/"
 }
-
-# 2dolist ----
-
-# Internal parameters ----
-
-temdirdefined = 1 
 
 # Load packages ----
 library(terra)
@@ -36,11 +41,9 @@ library(rnaturalearth)
 library(rnaturalearthdata)
 library(sf)
 library(shiny)
-# library(shinythemes)
-# library(shinycssloaders)
 
-# Define the server logic
 shinyServer(function(input, output, session) {
+  # Load country polygons
   world <- ne_countries(scale = "medium", returnclass = "sf")
   
   # Initialize the results data frame with proper columns
@@ -53,7 +56,7 @@ shinyServer(function(input, output, session) {
     "fNRB.%  " = numeric(),
     stringsAsFactors = FALSE
   )
-  
+
   # Store selected countries and results
   selected_countries <- reactiveVal(character())  # Initialize as empty vector
   results <- reactiveVal(initial_results)  # Store results with year and country
@@ -108,16 +111,15 @@ shinyServer(function(input, output, session) {
   
   # Store the period when the end year changes
   observeEvent(input$endyr, {
-    period(paste0("2010-", input$endyr))  # <- no longer needed
+    period(paste0("2010-", input$endyr))  # Store the period as "2010-endyr"
   })
-  
   
   # Calculate results when "Calculate" button is clicked
   observeEvent(input$calculate, {
     # Show spinner after pressing "Calculate"
     showModal(modalDialog("Calculating, please wait...", footer = NULL, easyClose = FALSE))
     
-    endyr <- 2022
+    endyr <- input$endyr
     countries <- selected_countries()
     
     # If no countries selected, just close the modal and return
@@ -136,57 +138,53 @@ shinyServer(function(input, output, session) {
       selected_polygon <- world %>% filter(iso_a3 == country_code)
       selected_polygon_vect <- vect(selected_polygon)
       
+      # Load and crop rasters
+      agb2010CO2 <- rast(paste0(agbpath,"ctrees_global_2010_AGC.tif"))
+      
+      # agb20XXCO2 <- rast(paste0("E:/agb3rdparties/Pantropical_AGC/ctrees_global_", endyr, "_AGC_pantropic_1km_MgC02_ha.tif"))
+      agb20XXCO2 <- rast(paste0(agbpath,"ctrees_global_",endyr,"_AGC.tif"))
+      
+      agb2010 <- agb2010CO2 * 12/44 / 0.47
+      agb20XX <- agb20XXCO2 * 12/44 / 0.47
+      
+      agb2010_cropped <- terra::crop(agb2010, selected_polygon_vect)
+      agb20XX_cropped <- terra::crop(agb20XX, selected_polygon_vect)
+      
+      agb2010_masked <- terra::mask(agb2010_cropped, selected_polygon_vect)
+      agb20XX_masked <- terra::mask(agb20XX_cropped, selected_polygon_vect)
+      
+      agb2010_masked_pixel_area_ha <- cellSize(agb2010_masked, unit = "m") / 10000
+      agb20XX_masked_pixel_area_ha <- cellSize(agb20XX_masked, unit = "m") / 10000
+      
+      agb2010_masked2 <- agb2010_masked * agb2010_masked_pixel_area_ha
+      agb20XX_masked2 <- agb20XX_masked * agb20XX_masked_pixel_area_ha
+      
+      agblosses10_XX <- agb2010_masked2 - agb20XX_masked2
+      agblosses10_XX[agblosses10_XX <= 0] <- NA
+      
+      total_agblosses10_XX_df <- global(agblosses10_XX, "sum", na.rm = TRUE)
+      total_agblosses10_XX <- round(total_agblosses10_XX_df[1, 1], 0)
+      
       # Load demand data
       data_wf <- read_csv(paste0(demandpath,"demand_bau1_v2.csv"))
       demand_sum <- data_wf %>%
-        filter(iso3 == country_code, year >= 2010, year <= 2022,
-               (fuel == "biomass" & area %in% c("Rural", "Urban")) | 
-                 (fuel == "charcoal" & area %in% c("Rural", "Urban"))) %>%
-        summarise(total_value = sum(fuel_tons3, na.rm = TRUE)) %>%
+        filter(iso3 == country_code, year >= 2010, year <= endyr,
+               (fuel == "fuelwood" & area %in% c("rural", "urban")) | 
+                 (fuel == "charcoal" & area %in% c("rural", "urban"))) %>%
+        summarise(total_value = sum(fuel_cons_tons, na.rm = TRUE)) %>%
         pull(total_value) %>%
         round(., 0)
       
-      ### -- CTREES --
-      agb2010CO2 <- rast(paste0(agbpath,"ctrees_global_2007_AGC.tif"))
-      agb2022CO2 <- rast(paste0(agbpath,"Pantropical_AGC_ctrees/ctrees_global_2022_AGC_pantropic_1km_MgC02_ha.tif"))
-      agb2010_ctrees <- agb2010CO2 * 12/44 / 0.47
-      agb2022_ctrees <- agb2022CO2 * 12/44 / 0.47
+      fNRB_obs <- round(total_agblosses10_XX / demand_sum * 100, 0)
       
-      agb2010_ctrees <- mask(crop(agb2010_ctrees, selected_polygon_vect), selected_polygon_vect)
-      agb2022_ctrees <- mask(crop(agb2022_ctrees, selected_polygon_vect), selected_polygon_vect)
-      
-      agb2010_ctrees_area <- agb2010_ctrees * cellSize(agb2010_ctrees, unit = "m") / 10000
-      agb2022_ctrees_area <- agb2022_ctrees * cellSize(agb2022_ctrees, unit = "m") / 10000
-      agbloss_ctrees <- agb2010_ctrees_area - agb2022_ctrees_area
-      agbloss_ctrees[agbloss_ctrees <= 0] <- NA
-      agbloss_ctrees_sum <- round(global(agbloss_ctrees, "sum", na.rm = TRUE)[1, 1], 0)
-      
-      fNRB_ctrees <- round(agbloss_ctrees_sum / demand_sum * 100, 0)
-      
-      ### -- ESA --
-      agb2010_esa <- rast(paste0(agbpath,"esa_1km_global/agbd_2010_1000m.tif"))
-      agb2022_esa <- rast(paste0(agbpath,"esa_1km_global/agbd_2022_1000m.tif"))
-      
-      agb2010_esa <- mask(crop(agb2010_esa, selected_polygon_vect), selected_polygon_vect)
-      agb2022_esa <- mask(crop(agb2022_esa, selected_polygon_vect), selected_polygon_vect)
-      
-      agb2010_esa_area <- agb2010_esa * cellSize(agb2010_esa, unit = "m") / 10000
-      agb2022_esa_area <- agb2022_esa * cellSize(agb2022_esa, unit = "m") / 10000
-      agbloss_esa <- agb2010_esa_area - agb2022_esa_area
-      agbloss_esa[agbloss_esa <= 0] <- NA
-      agbloss_esa_sum <- round(global(agbloss_esa, "sum", na.rm = TRUE)[1, 1], 0)
-      
-      fNRB_esa <- round(agbloss_esa_sum / demand_sum * 100, 0)
-      
-      return(rbind(
-        data.frame(Country = country_code, Source = "Ctrees", Start.Year = 2010, End.Year = 2022,
-                   `Demand.Mg.period` = demand_sum, `AGB.losses.Mg.period` = agbloss_ctrees_sum,
-                   `fNRB.%  ` = fNRB_ctrees),
-        data.frame(Country = country_code, Source = "ESA", Start.Year = 2010, End.Year = 2022,
-                   `Demand.Mg.period` = demand_sum, `AGB.losses.Mg.period` = agbloss_esa_sum,
-                   `fNRB.%  ` = fNRB_esa)
+      return(data.frame(
+        Country = country_code,
+        Start.Year = "2010",  # Add the Start.Year column as 2010
+        End.Year = endyr,
+        "Demand.Mg.period" = demand_sum,
+        "AGB.losses.Mg.period" = total_agblosses10_XX,
+        "fNRB.%  " = fNRB_obs
       ))
-      
     })
     
     # If any new results, update the table

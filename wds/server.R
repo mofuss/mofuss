@@ -148,14 +148,11 @@ shinyServer(function(input, output) {
     plot_data <- filtered_data()
     req(plot_data)
     
-    # Define color palette for original and projected data
-    colors <- c("Fuelwood.Rural" = "darkgreen", "Fuelwood.Urban" = "darkorange",
-                "Charcoal.Rural" = "darkred", "Charcoal.Urban" = "black")
-    
-    colors_proj <- c("Fuelwood.Rural" = "#90EE90",   # Light green
-                     "Fuelwood.Urban" = "#FFDAB9",   # Peachpuff (light orange)
-                     "Charcoal.Rural" = "#F08080",  # Light coral
-                     "Charcoal.Urban" = "#A9A9A9")  # Grey
+    # Match interaction(fuel, area) values from the v2 demand CSVs.
+    colors <- c("fuelwood.rural" = "darkgreen",
+                "fuelwood.urban" = "darkorange",
+                "charcoal.rural" = "darkred",
+                "charcoal.urban" = "black")
     
     # Calculate the maximum y-value if same Y-scale is selected
     if (same_yscale()) {
@@ -163,7 +160,7 @@ shinyServer(function(input, output) {
       ggplot(plot_data, aes(x = year, y = fuel_cons_tons, color = interaction(fuel, area), linetype = dataset)) +
         geom_line(data = subset(plot_data, dataset == "Business-as-Usual"), linewidth = 1) +
         geom_line(data = subset(plot_data, dataset == "Intervention Scenario"), linewidth = 0.8, alpha = 0.6) +
-        scale_color_manual(values = c(colors, colors_proj)) +
+        scale_color_manual(values = colors) +
         labs(title = "Temporal Trajectories of Woodfuel Demand (2000-2050)",
              x = "Year",
              y = "Tonnes of air-dried wood equivalent per year",
@@ -182,7 +179,7 @@ shinyServer(function(input, output) {
       ggplot(plot_data, aes(x = year, y = fuel_cons_tons, color = interaction(fuel, area), linetype = dataset)) +
         geom_line(data = subset(plot_data, dataset == "Business-as-Usual"), linewidth = 1) +
         geom_line(data = subset(plot_data, dataset == "Intervention Scenario"), linewidth = 0.8, alpha = 0.6) +
-        scale_color_manual(values = c(colors, colors_proj)) +
+        scale_color_manual(values = colors) +
         labs(title = "Temporal Trajectories of Woodfuel Demand (2000-2050)",
              x = "Year",
              y = "Tonnes of air-dried wood equivalent per year",
