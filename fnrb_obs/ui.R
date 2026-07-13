@@ -59,8 +59,7 @@ ui <- fluidPage(
       p(class = "instruction-text", HTML("3.- Press <span class='highlight-text'>Calculate</span> and wait for the results table to appear. Depending on the number of countries and their area,
         it can take up to 5-7 minutes. Do not close your browser.")),
       p(class = "instruction-text", HTML("4.- Press <span class='highlight-text'>Clear Selection</span> to start from scratch.")),
-      p(class = "instruction-text", HTML("5.- You can add or remove countries to the list or change the end year and recalculate.
-                                         Press <span class='highlight-text'>Clear Selection</span> and start again.")),
+      p(class = "instruction-text", HTML("5.- You can add or remove countries to the list or change the end year and recalculate.")),
       fluidRow(
         column(6, img(src = "ctrees.png", height = "100px")),
         column(6, img(src = "mofuss.png", height = "100px"))
