@@ -79,7 +79,7 @@ shinyServer(function(input, output) {
     
     proxy <- leafletProxy("worldMap")	
     proxy %>% removeShape(layerId = clicked_country)
-    polygon <- world %>% filter(adm0_a3==clicked_country)
+    polygon <- world %>% dplyr::filter(adm0_a3==clicked_country)
     fillColorT <- "white"
     if (clicked_country %in% current_selection) {
       new_selection <- setdiff(current_selection, clicked_country)
@@ -140,7 +140,7 @@ shinyServer(function(input, output) {
     
     # Filter original data
     data_filtered <- data %>%
-      filter(iso3 %in% selected_countries(),
+      dplyr::filter(iso3 %in% selected_countries(),
              year >= 2000, year <= 2050,
              (fuel == "fuelwood" & area %in% c("rural", "urban")) |
                (fuel == "charcoal" & area %in% c("rural", "urban"))) %>%
@@ -148,7 +148,7 @@ shinyServer(function(input, output) {
     
     # Filter projected data
     proj_data_filtered <- proj_data %>%
-      filter(iso3 %in% selected_countries(),
+      dplyr::filter(iso3 %in% selected_countries(),
              year >= 2000, year <= 2050,
              (fuel == "fuelwood" & area %in% c("rural", "urban")) |
                (fuel == "charcoal" & area %in% c("rural", "urban"))) %>%
