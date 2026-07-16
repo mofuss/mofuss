@@ -38,7 +38,7 @@ demand_base <- if (dir.exists(file.path(base_path, "demand100m"))) {
 
 # Define directories to remove ----
 directories_to_remove <- c(
-  "HTML_animation_OutBaU", "HTML_animation_OutICS", "OutBaU", "OutICS",
+  "HTML_animation_OutBaU", "HTML_animation_OutICS", "OutBaU", "OutICS", "HTML_animation_Out",
   "Debugging", "debug*", "norm*", 
   "HTML_animation", "Logs", "Out", "Summary_Report",
   "Temp", "In", "ffmpeg32", "ffmpeg64", "LaTeX", "rTemp", "demand_atlas",
@@ -46,6 +46,7 @@ directories_to_remove <- c(
   "LULCC/TempRaster", "LULCC/TempTables", "LULCC/TempVector", 
   "LULCC/TempVector_GCS", "LULCC/Wizard_imgs",
   "LULCC/lucdynamics_luc1", "LULCC/lucdynamics_luc2", "LULCC/lucdynamics_luc3",
+  "agb_g_h_curves",
   file.path(demand_base, "demand_out"),
   file.path(demand_base, "demand_temp"),
   file.path(demand_base, "pop_maps_byregion"),

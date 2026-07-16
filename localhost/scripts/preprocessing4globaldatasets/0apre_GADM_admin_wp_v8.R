@@ -171,14 +171,17 @@ conflicts_prefer(base::union)
 conflicts_prefer(dplyr::select)
 conflicts_prefer(dplyr::rename)
 
+library(jsonlite)
 library(lwgeom)
 library(magrittr)
 library(sf)
+library(tibble)
 library(tidyverse)
 library(readxl)
 library(readr)
 library(rmapshaper)
 library(svDialogs)
+
 
 setwd(countrydir)
 getwd()
@@ -473,8 +476,41 @@ norafr_built <- build_and_write_regions(
 regions.list0 <- list.files(path = "regions_adm0", pattern = "*.gpkg", full.names = TRUE)
 mofuss_regions0 <- do.call("rbind", lapply(regions.list0, st_read))
 st_write(mofuss_regions0, "regions_adm0/mofuss_regions0.gpkg", delete_layer = TRUE)
+
+mofuss_regions0 %>%
+  sf::st_drop_geometry() %>%
+  dplyr::transmute(
+    Value  = GID_0,
+    Option = NAME_0
+  ) %>%
+  dplyr::arrange(Option) %>%
+  jsonlite::write_json(
+    "mofuss_countries0.json",
+    pretty = TRUE,
+    na = "null"
+  )
+
 st_write(mofuss_regions0, "regions_adm0/mofuss_regions0.shp",  delete_layer = TRUE)
 unique(mofuss_regions0$GID_0)
+
+files <- list.files("regions_adm0", full.names = FALSE)
+file_options <- files %>%
+  # Exclude subdirectories and files beginning with "mofuss"
+  .[!dir.exists(file.path("regions_adm0", .))] %>%
+  .[!startsWith(., "mofuss")] %>%
+  # Remove the .gpkg extension
+  sub("\\.gpkg$", "", ., ignore.case = TRUE) %>%
+  tibble(
+    Value  = .,
+    Option = .
+  ) %>%
+  arrange(Option)
+write_json(
+  file_options,
+  file.path("mofuss_regions0.json"),
+  pretty = TRUE,
+  na = "null"
+)
 
 regions.list1 <- list.files(path = "regions_adm1", pattern = "*.gpkg", full.names = TRUE)
 mofuss_regions1 <- do.call("rbind", lapply(regions.list1, st_read))
