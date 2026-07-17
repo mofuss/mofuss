@@ -105,45 +105,6 @@ if (byregion == "Regional") { # Or continental
       stop(paste0("Invalid scenario_ver: ", scenario_ver))
       
     }
-
-    # For every ICS scenario, load the BaU1 table used as the common baseline
-    # by the global ICS constructor. Plotting data will contain BaU1 on the top
-    # row and the selected ICS scenario on the bottom row. The CSV outputs
-    # remain selected-scenario-only.
-    is_ics_scenario <- scenario_ver %in% c("ICS1_v2", "ICS2_v2", "ICS3_v2")
-    bau_comparison_ver <- "BaU1_v2"
-    wfdb_bau <- NULL
-
-    if (is_ics_scenario) {
-      bau_comparison_path <- file.path(
-        "demand_in",
-        paste0("demand_", tolower(bau_comparison_ver), ".csv")
-      )
-
-      if (!file.exists(bau_comparison_path)) {
-        stop(paste0(
-          "ICS comparison requested, but the BaU file is missing: ",
-          bau_comparison_path
-        ))
-      }
-
-      wfdb_bau <- read_wfdb(bau_comparison_path)
-    }
-
-    scenario_levels <- if (is_ics_scenario) {
-      c(bau_comparison_ver, scenario_ver)
-    } else {
-      scenario_ver
-    }
-
-    scenario_comparison_text <- if (is_ics_scenario) {
-      paste0(bau_comparison_ver, " vs ", scenario_ver)
-    } else {
-      scenario_ver
-    }
-
-    comparison_plot_height <- if (is_ics_scenario) 11 else 7
-    comparison_grid_height <- if (is_ics_scenario) 14 else 9
     
     unique(wfdb$fuel)
     head(wfdb)
@@ -181,7 +142,7 @@ if (byregion == "Regional") { # Or continental
       value_col <- rlang::enquo(value_col)
       df %>%
         dplyr::filter(area == area_level) %>%
-        dplyr::group_by(scenario_panel, year) %>%
+        dplyr::group_by(year) %>%
         dplyr::summarise(total = sum(!!value_col, na.rm = TRUE), .groups = "drop") %>%
         dplyr::summarise(ymax = max(total, na.rm = TRUE), .groups = "drop") %>%
         dplyr::pull(ymax)
@@ -244,35 +205,6 @@ if (byregion == "Regional") { # Or continental
       
       pop_prefix <- "robdb"
     }
-
-    # Plotting copy. For ICS runs, prepend the equivalent BaU1 rows and retain
-    # an explicit scenario factor so facet_grid() produces vertically aligned
-    # BaU and ICS panels with shared axes and colors.
-    popdb_plot <- popdb_clean %>%
-      mutate(scenario_panel = scenario_ver)
-
-    if (is_ics_scenario) {
-      popdb_bau_plot <- wfdb_bau %>%
-        dplyr::filter(
-          iso3 == region2BprocessedCtry_iso,
-          year >= start_year, year <= end_year
-        ) %>%
-        dplyr::mutate(
-          pop = num_fuel_users_thousands * 1000,
-          area = order_area(area),
-          split = if (subcountry == 1) as.character(country) else NA_character_,
-          scenario_panel = bau_comparison_ver
-        ) %>%
-        dplyr::select(iso3, split, area, fuel, year, pop, scenario_panel)
-
-      popdb_plot <- dplyr::bind_rows(popdb_bau_plot, popdb_plot)
-    }
-
-    popdb_plot <- popdb_plot %>%
-      mutate(
-        scenario_panel = factor(scenario_panel, levels = scenario_levels)
-      ) %>%
-      arrange(scenario_panel, split, year, area, fuel)
     
     popdb_clean %>% count(split, area, fuel, year) %>% dplyr::filter(n > 1)
     
@@ -310,7 +242,7 @@ if (byregion == "Regional") { # Or continental
         ymax <- .ymax_from_area(df, "overall", pop)
       } else {
         ymax <- df %>%
-          dplyr::group_by(scenario_panel, year) %>%
+          dplyr::group_by(year) %>%
           dplyr::summarise(total = sum(pop, na.rm = TRUE), .groups = "drop") %>%
           dplyr::summarise(ymax = max(total, na.rm = TRUE), .groups = "drop") %>%
           dplyr::pull(ymax)
@@ -323,8 +255,7 @@ if (byregion == "Regional") { # Or continental
                          if (!is.null(title_suffix)) paste0(" — ", title_suffix) else ""),
           subtitle = sprintf("%d–%d • Faceted by area (common Y from %s)",
                              start_year, end_year, if (has_overall) "Overall" else "max across areas"),
-          x = NULL, y = "People", fill = "Fuel",
-          caption = scenario_comparison_text
+          x = NULL, y = "People", fill = "Fuel"
         ) +
         scale_x_continuous(breaks = seq(start_year, end_year, by = 5)) +
         scale_y_continuous(
@@ -332,21 +263,14 @@ if (byregion == "Regional") { # Or continental
           expand = expansion(mult = c(0, .05))
         ) +
         coord_cartesian(ylim = c(0, ymax)) +
-        facet_grid(
-          rows = vars(scenario_panel),
-          cols = vars(area),
-          scales = "fixed"
-        ) +
+        facet_wrap(~ area, ncol = 3, scales = "fixed") +
         scale_fill_manual(values = fuel_palette, na.value = "grey70") +
         theme_bw(base_size = 13) +
         theme(panel.grid.minor = element_blank(),
               plot.title.position = "plot",
               legend.position = "bottom")
       
-      ggsave(
-        out_png, p, width = 14, height = comparison_plot_height,
-        dpi = 300, bg = "white"
-      )
+      ggsave(out_png, p, width = 14, height = 7, dpi = 300, bg = "white")
       invisible(p)
     }
     
@@ -355,7 +279,7 @@ if (byregion == "Regional") { # Or continental
       
       # Single plot (no split)
       plot_pop_stack(
-        df = popdb_plot,
+        df = popdb_clean,
         title_suffix = NULL,
         out_png = file.path(outdir, sprintf("%s_pop_stack_faceted_%s_%s_%s.png",
                                             pop_prefix, region2BprocessedCtry_iso, start_year, end_year))
@@ -364,10 +288,10 @@ if (byregion == "Regional") { # Or continental
     } else {
       
       # One plot per split (e.g., Lusaka / NotLusaka)
-      splits <- sort(unique(popdb_plot$split))
+      splits <- sort(unique(popdb_clean$split))
       
       for (sp in splits) {
-        df_sp <- popdb_plot %>% dplyr::filter(split == sp)
+        df_sp <- popdb_clean %>% dplyr::filter(split == sp)
         
         plot_pop_stack(
           df = df_sp,
@@ -381,23 +305,22 @@ if (byregion == "Regional") { # Or continental
       # (comment out if you don’t want it)
       # Compute Y max as the maximum of Overall totals
       # across Lusaka / NotLusaka (but NOT larger combinations)
-      ymax_all <- popdb_plot %>%
+      ymax_all <- popdb_clean %>%
         dplyr::filter(area == "overall") %>%          # key line
-        dplyr::group_by(scenario_panel, split, year) %>%
+        dplyr::group_by(split, year) %>%
         dplyr::summarise(total = sum(pop, na.rm = TRUE), .groups = "drop") %>%
-        dplyr::group_by(scenario_panel, split) %>%
+        dplyr::group_by(split) %>%
         dplyr::summarise(ymax_split = max(total, na.rm = TRUE), .groups = "drop") %>%
         dplyr::summarise(ymax = max(ymax_split, na.rm = TRUE)) %>%
         dplyr::pull(ymax)
       
-      p_combined <- ggplot(popdb_plot, aes(x = year, y = pop, fill = fuel)) +
+      p_combined <- ggplot(popdb_clean, aes(x = year, y = pop, fill = fuel)) +
         geom_area(alpha = 0.95, color = "grey30", linewidth = 0.2) +
         labs(
           title = sprintf("Population using each fuel in %s — by subcountry split", region2BprocessedCtry_iso),
           subtitle = sprintf("%d–%d • Rows = split • Columns = area (common Y across all splits)",
                              start_year, end_year),
-          x = NULL, y = "People", fill = "Fuel",
-          caption = scenario_comparison_text
+          x = NULL, y = "People", fill = "Fuel"
         ) +
         scale_x_continuous(breaks = seq(start_year, end_year, by = 5)) +
         scale_y_continuous(
@@ -405,11 +328,7 @@ if (byregion == "Regional") { # Or continental
           expand = expansion(mult = c(0, .05))
         ) +
         coord_cartesian(ylim = c(0, ymax_all)) +
-        facet_grid(
-          rows = vars(scenario_panel, split),
-          cols = vars(area),
-          scales = "fixed"
-        ) +
+        facet_grid(split ~ area, scales = "fixed") +
         scale_fill_manual(values = fuel_palette, na.value = "grey70") +
         theme_bw(base_size = 12) +
         theme(panel.grid.minor = element_blank(),
@@ -419,8 +338,7 @@ if (byregion == "Regional") { # Or continental
       ggsave(
         file.path(outdir, sprintf("%s_pop_stack_splitgrid_%s_%s_%s.png",
                                   pop_prefix, region2BprocessedCtry_iso, start_year, end_year)),
-        p_combined, width = 14, height = comparison_grid_height,
-        dpi = 300, bg = "white"
+        p_combined, width = 14, height = 9, dpi = 300, bg = "white"
       )
     }
     
@@ -432,41 +350,22 @@ if (byregion == "Regional") { # Or continental
     
     col_sym <- rlang::sym(demand_col)
     
-    build_wfdb_base <- function(source_df, scenario_label) {
-      source_df %>%
-        dplyr::filter(
-          iso3 == region2BprocessedCtry_iso,
-          year >= start_year, year <= end_year,
-          fuel %in% c("fuelwood", "charcoal", "imp_fuelwood", "imp_charcoal")
-        ) %>%
-        dplyr::mutate(
-          # Collapse improved fuels into the two MoFuSS demand categories.
-          fuel = dplyr::case_when(
-            fuel %in% c("fuelwood", "imp_fuelwood") ~ "fuelwood",
-            fuel %in% c("charcoal", "imp_charcoal") ~ "charcoal",
-            TRUE ~ fuel
-          ),
-          area = order_area(area),
-          split = if (subcountry == 1) as.character(country) else NA_character_,
-          scenario_panel = scenario_label
-        )
-    }
-
-    wfdb_base <- build_wfdb_base(wfdb, scenario_ver)
-
-    wfdb_plot_base <- wfdb_base
-    if (is_ics_scenario) {
-      wfdb_plot_base <- dplyr::bind_rows(
-        build_wfdb_base(wfdb_bau, bau_comparison_ver),
-        wfdb_plot_base
-      )
-    }
-
-    wfdb_plot_base <- wfdb_plot_base %>%
-      mutate(
-        scenario_panel = factor(scenario_panel, levels = scenario_levels)
+    wfdb_base <- wfdb %>%
+      dplyr::filter(
+        iso3 == region2BprocessedCtry_iso,
+        year >= start_year, year <= end_year,
+        fuel %in% c("fuelwood", "charcoal", "imp_fuelwood", "imp_charcoal")
       ) %>%
-      arrange(scenario_panel, split, year, area, fuel)
+      dplyr::mutate(
+        # Collapse imported fuels into main categories
+        fuel = dplyr::case_when(
+          fuel %in% c("fuelwood", "imp_fuelwood") ~ "fuelwood",
+          fuel %in% c("charcoal", "imp_charcoal") ~ "charcoal",
+          TRUE ~ fuel
+        ),
+        area = order_area(area),
+        split = if (subcountry == 1) as.character(country) else NA_character_
+      )
     
     wfdb_check <- wfdb %>%
       dplyr::mutate(
@@ -511,43 +410,6 @@ if (byregion == "Regional") { # Or continental
         ) %>%
         dplyr::arrange(year, area, fuel)
     }
-
-    # Separate plotting summary: include BaU1 only for ICS runs. Keeping this
-    # separate ensures the long/wide CSV exports above and below retain their
-    # original selected-scenario schema and row counts.
-    wfdb_twofuels_plot <- if (subcountry == 1) {
-      wfdb_plot_base %>%
-        dplyr::group_by(scenario_panel, split, year, area, fuel) %>%
-        dplyr::summarise(
-          value_woodeq_t = sum(!!col_sym, na.rm = TRUE),
-          .groups = "drop"
-        ) %>%
-        dplyr::mutate(
-          value_t = dplyr::if_else(
-            fuel == "charcoal",
-            value_woodeq_t / efchratio,
-            value_woodeq_t
-          ),
-          units = "tonnes"
-        ) %>%
-        dplyr::arrange(scenario_panel, split, year, area, fuel)
-    } else {
-      wfdb_plot_base %>%
-        dplyr::group_by(scenario_panel, year, area, fuel) %>%
-        dplyr::summarise(
-          value_woodeq_t = sum(!!col_sym, na.rm = TRUE),
-          .groups = "drop"
-        ) %>%
-        dplyr::mutate(
-          value_t = dplyr::if_else(
-            fuel == "charcoal",
-            value_woodeq_t / efchratio,
-            value_woodeq_t
-          ),
-          units = "tonnes"
-        ) %>%
-        dplyr::arrange(scenario_panel, year, area, fuel)
-    }
     
     # Long table
     write_csv(
@@ -586,24 +448,24 @@ if (byregion == "Regional") { # Or continental
     
     if (subcountry == 1) {
       
-      ymax_all_wfdb <- wfdb_twofuels_plot %>%
+      ymax_all_wfdb <- wfdb_twofuels %>%
         dplyr::filter(area == "overall") %>%
-        dplyr::group_by(scenario_panel, split, year) %>%
+        dplyr::group_by(split, year) %>%
         dplyr::summarise(total = sum(value_t, na.rm = TRUE), .groups = "drop") %>%
-        dplyr::group_by(scenario_panel, split) %>%
+        dplyr::group_by(split) %>%
         dplyr::summarise(ymax_split = max(total, na.rm = TRUE), .groups = "drop") %>%
         dplyr::summarise(ymax = max(ymax_split, na.rm = TRUE), .groups = "drop") %>%
         dplyr::pull(ymax)
       
       # One plot per split (3-panel by area)
       # One plot per split (3-panel by area) — each uses its OWN ymax from Overall
-      for (sp in sort(unique(wfdb_twofuels_plot$split))) {
+      for (sp in sort(unique(wfdb_twofuels$split))) {
         
-        df_sp <- wfdb_twofuels_plot %>% dplyr::filter(split == sp)
+        df_sp <- wfdb_twofuels %>% dplyr::filter(split == sp)
         
         ymax_sp <- df_sp %>%
           dplyr::filter(area == "overall") %>%
-          dplyr::group_by(scenario_panel, year) %>%
+          dplyr::group_by(year) %>%
           dplyr::summarise(total = sum(value_t, na.rm = TRUE), .groups = "drop") %>%
           dplyr::summarise(ymax = max(total, na.rm = TRUE), .groups = "drop") %>%
           dplyr::pull(ymax)
@@ -615,8 +477,7 @@ if (byregion == "Regional") { # Or continental
                             region2BprocessedCtry_iso, sp, efchratio),
             subtitle = sprintf("%d–%d • Faceted by area (Y from max stacked in Overall) • source col: %s",
                                start_year, end_year, demand_col),
-            x = NULL, y = "Tonnes", fill = "Fuel",
-            caption = scenario_comparison_text
+            x = NULL, y = "Tonnes", fill = "Fuel"
           ) +
           scale_x_continuous(breaks = seq(start_year, end_year, by = 5)) +
           scale_y_continuous(
@@ -624,11 +485,7 @@ if (byregion == "Regional") { # Or continental
             expand = expansion(mult = c(0, .05))
           ) +
           coord_cartesian(ylim = c(0, ymax_sp)) +  # <- KEY CHANGE (per-split ymax)
-          facet_grid(
-            rows = vars(scenario_panel),
-            cols = vars(area),
-            scales = "fixed"
-          ) +
+          facet_wrap(~ area, ncol = 3, scales = "fixed") +
           scale_fill_manual(values = c("fuelwood" = "#8B4513", "charcoal" = "#2B2B2B")) +
           theme_bw(base_size = 13) +
           theme(panel.grid.minor = element_blank(),
@@ -638,22 +495,20 @@ if (byregion == "Regional") { # Or continental
         ggsave(
           file.path(outdir, sprintf("wfdb_fw_char_stack_faceted_%s_%s_%s_%s_%s.png",
                                     region2BprocessedCtry_iso, sp, demand_col, start_year, end_year)),
-          p_sp, width = 14, height = comparison_plot_height,
-          dpi = 300, bg = "white"
+          p_sp, width = 14, height = 7, dpi = 300, bg = "white"
         )
       }
       
       
       # Optional: combined split grid (rows = split, cols = area), same Y
-      p_grid <- ggplot(wfdb_twofuels_plot, aes(x = year, y = value_t, fill = fuel)) +
+      p_grid <- ggplot(wfdb_twofuels, aes(x = year, y = value_t, fill = fuel)) +
         geom_area(alpha = 0.95, color = "grey30", linewidth = 0.2) +
         labs(
           title = sprintf("Fuelwood & Charcoal demand in %s — by subcountry split (tonnes, charcoal ÷ %s)",
                           region2BprocessedCtry_iso, efchratio),
           subtitle = sprintf("%d–%d • Rows = split • Columns = area (common Y based on max(Overall) across splits) • source col: %s",
                              start_year, end_year, demand_col),
-          x = NULL, y = "Tonnes", fill = "Fuel",
-          caption = scenario_comparison_text
+          x = NULL, y = "Tonnes", fill = "Fuel"
         ) +
         scale_x_continuous(breaks = seq(start_year, end_year, by = 5)) +
         scale_y_continuous(
@@ -661,11 +516,7 @@ if (byregion == "Regional") { # Or continental
           expand = expansion(mult = c(0, .05))
         ) +
         coord_cartesian(ylim = c(0, ymax_all_wfdb)) +
-        facet_grid(
-          rows = vars(scenario_panel, split),
-          cols = vars(area),
-          scales = "fixed"
-        ) +
+        facet_grid(split ~ area, scales = "fixed") +
         scale_fill_manual(values = c("fuelwood" = "#8B4513", "charcoal" = "#2B2B2B")) +
         theme_bw(base_size = 12) +
         theme(panel.grid.minor = element_blank(),
@@ -675,28 +526,26 @@ if (byregion == "Regional") { # Or continental
       ggsave(
         file.path(outdir, sprintf("wfdb_fw_char_stack_splitgrid_%s_%s_%s_%s.png",
                                   region2BprocessedCtry_iso, demand_col, start_year, end_year)),
-        p_grid, width = 14, height = comparison_grid_height,
-        dpi = 300, bg = "white"
+        p_grid, width = 14, height = 9, dpi = 300, bg = "white"
       )
       
     } else {
       
       # Original behavior (no split)
-      ymax_overall_wfdb <- wfdb_twofuels_plot %>%
+      ymax_overall_wfdb <- wfdb_twofuels %>%
         dplyr::filter(area == "overall") %>%
-        dplyr::group_by(scenario_panel, year) %>%
+        dplyr::group_by(year) %>%
         dplyr::summarise(total = sum(value_t, na.rm = TRUE), .groups = "drop") %>%
         dplyr::summarise(ymax = max(total, na.rm = TRUE), .groups = "drop") %>%
         dplyr::pull(ymax)
       
-      p_wfdb <- ggplot(wfdb_twofuels_plot, aes(x = year, y = value_t, fill = fuel)) +
+      p_wfdb <- ggplot(wfdb_twofuels, aes(x = year, y = value_t, fill = fuel)) +
         geom_area(alpha = 0.95, color = "grey30", linewidth = 0.2) +
         labs(
           title = sprintf("Fuelwood & Charcoal demand in %s (tonnes, charcoal ÷ %s)", region2BprocessedCtry_iso, efchratio),
           subtitle = sprintf("%d–%d • Faceted by area (Y from max stacked in Overall) • source col: %s",
                              start_year, end_year, demand_col),
-          x = NULL, y = "Tonnes", fill = "Fuel",
-          caption = scenario_comparison_text
+          x = NULL, y = "Tonnes", fill = "Fuel"
         ) +
         scale_x_continuous(breaks = seq(start_year, end_year, by = 5)) +
         scale_y_continuous(
@@ -704,11 +553,7 @@ if (byregion == "Regional") { # Or continental
           expand = expansion(mult = c(0, .05))
         ) +
         coord_cartesian(ylim = c(0, ymax_overall_wfdb)) +
-        facet_grid(
-          rows = vars(scenario_panel),
-          cols = vars(area),
-          scales = "fixed"
-        ) +
+        facet_wrap(~ area, ncol = 3, scales = "fixed") +
         scale_fill_manual(values = c("fuelwood" = "#8B4513", "charcoal" = "#2B2B2B")) +
         theme_bw(base_size = 13) +
         theme(panel.grid.minor = element_blank(),
@@ -718,8 +563,7 @@ if (byregion == "Regional") { # Or continental
       ggsave(
         file.path(outdir, sprintf("wfdb_fw_char_stack_faceted_%s_%s_%s_%s.png",
                                   region2BprocessedCtry_iso, demand_col, start_year, end_year)),
-        p_wfdb, width = 14, height = comparison_plot_height,
-        dpi = 300, bg = "white"
+        p_wfdb, width = 14, height = 7, dpi = 300, bg = "white"
       )
     }
     

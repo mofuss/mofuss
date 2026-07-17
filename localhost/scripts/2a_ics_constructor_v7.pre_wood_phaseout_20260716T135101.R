@@ -15,9 +15,6 @@
 #   * 2000 / 2025 shares derived per-country from demand_bau1_v2.csv
 #   * 2050 shares are user-defined ICS targets (same vectors applied to all
 #     countries) OR observed BaU shares when `use_bau_2050 = TRUE`
-#   * ICS3 applies an exact 2050 phase-out of fuelwood, charcoal,
-#     imp_fuelwood and imp_charcoal, with country-specific reallocation to
-#     gas, electric, pellets, ethanol and biogas
 # Date: May 2026
 
 # 2dolist ----
@@ -58,12 +55,10 @@ use_bau_2050 <- FALSE
 #     already-clean countries toward biomass is undesirable, so keep moderate.
 #   - Modern-energy: lower c. Hardest in rural areas (LPG distribution, grid
 #     expansion), so the transition is incomplete by 2050.
-#   - Mixed: medium c, blends both transition speeds. For ICS3, c controls
-#     the relative replacement-fuel mix and the residual kerosene/coal shares;
-#     the four wood-based fuels are nevertheless forced to exactly zero in 2050.
+#   - Mixed: medium c, blends both transition speeds.
 convergence_s1 <- 0.50   # Biomass-improvement
 convergence_s2 <- 0.90   # Modern-energy
-convergence_s3 <- 0.70   # Wood phase-out with mixed clean replacements
+convergence_s3 <- 0.70   # Mixed
 
 # Country printed in the on-screen comparison (full table is always written
 # to anchor_points_comparison.csv regardless)
@@ -233,53 +228,6 @@ make_2050_for_all_countries <- function(rural_vec, urban_vec,
     dplyr::select(iso3, area, year, fuel, share_user)
 }
 
-# Force selected fuels to zero while preserving the scenario's country- and
-# area-specific transition logic for the remaining fuels. The phase-out share
-# is reallocated only to `recipient_fuels`, in proportion to their shares in
-# the unconstrained 2050 anchor. `protected_fuels` retain their unconstrained
-# shares exactly and therefore receive none of the displaced wood share.
-force_exact_phaseout <- function(anchor_2050, phaseout_fuels,
-                                 recipient_fuels, protected_fuels) {
-  expected_fuels <- sort(c(phaseout_fuels, recipient_fuels, protected_fuels))
-
-  if (!identical(sort(fuel_order), expected_fuels)) {
-    stop("Phase-out, recipient and protected fuel sets must partition fuel_order exactly.")
-  }
-
-  group_stats <- anchor_2050 %>%
-    group_by(iso3, area, year) %>%
-    summarise(
-      recipient_total = sum(share_user[fuel %in% recipient_fuels]),
-      protected_total = sum(share_user[fuel %in% protected_fuels]),
-      .groups = "drop"
-    )
-
-  bad_groups <- group_stats %>%
-    dplyr::filter(
-      recipient_total <= 0 |
-        protected_total < 0 |
-        protected_total >= 1
-    )
-
-  if (nrow(bad_groups) > 0) {
-    print(head(bad_groups, 20))
-    stop("Cannot reallocate the phase-out share for one or more country-area groups.")
-  }
-
-  anchor_2050 %>%
-    left_join(group_stats, by = c("iso3", "area", "year")) %>%
-    mutate(
-      share_user = case_when(
-        fuel %in% phaseout_fuels ~ 0,
-        fuel %in% recipient_fuels ~
-          share_user / recipient_total * (1 - protected_total),
-        fuel %in% protected_fuels ~ share_user,
-        TRUE ~ NA_real_
-      )
-    ) %>%
-    dplyr::select(iso3, area, year, fuel, share_user)
-}
-
 # Scenario 1: Biomass-improvement pathway
 # Cleaner biomass cookstoves displace traditional ones. The bulk of the target
 # is imp_fuelwood + imp_charcoal; gas/electric have modest roles; kerosene
@@ -301,34 +249,12 @@ anchors_2050_s2 <- make_2050_for_all_countries(
   convergence = convergence_s2
 )
 
-# Scenario 3: Exact wood-fuel phase-out with mixed clean replacements
-# Start with the original mixed-pathway anchor so the relative mix remains
-# country-specific and distinguishes rural from urban areas. Then set
-# fuelwood, charcoal, imp_fuelwood and imp_charcoal to exactly zero. Their
-# combined share is distributed only across gas, electric, pellets, ethanol
-# and biogas, proportional to each country's unconstrained ICS3 mix.
-# Kerosene and coal retain their prior ICS3 shares but receive no reallocation.
-anchors_2050_s3_unconstrained <- make_2050_for_all_countries(
+# Scenario 3: Mixed pathway
+# Balanced: roughly half improved biomass, half modern energy.
+anchors_2050_s3 <- make_2050_for_all_countries(
   rural_vec   = c(0.05, 0.02, 0.25, 0.13, 0.28, 0.00, 0.15, 0.03, 0.02, 0.07, 0.00),
   urban_vec   = c(0.02, 0.03, 0.10, 0.13, 0.42, 0.00, 0.25, 0.03, 0.01, 0.01, 0.00),
   convergence = convergence_s3
-)
-
-phaseout_fuels_s3 <- c(
-  "fuelwood", "charcoal", "imp_fuelwood", "imp_charcoal"
-)
-
-recipient_fuels_s3 <- c(
-  "gas", "electric", "pellets", "ethanol", "biogas"
-)
-
-protected_fuels_s3 <- c("kerosene", "coal")
-
-anchors_2050_s3 <- force_exact_phaseout(
-  anchors_2050_s3_unconstrained,
-  phaseout_fuels = phaseout_fuels_s3,
-  recipient_fuels = recipient_fuels_s3,
-  protected_fuels = protected_fuels_s3
 )
 
 # ---------------------------------------------------------------------------
@@ -439,28 +365,6 @@ check_shares <- function(df, label) {
   ))
 }
 
-# Scenario-specific endpoint validator. This is separate from check_shares()
-# because a valid set of shares could still fail the exact phase-out policy.
-check_exact_phaseout <- function(df, label, phaseout_fuels, endpoint_year = 2050L) {
-  bad_endpoint <- df %>%
-    dplyr::filter(
-      year == endpoint_year,
-      fuel %in% phaseout_fuels,
-      abs(share_user) > 1e-12
-    )
-
-  if (nrow(bad_endpoint) > 0) {
-    print(head(bad_endpoint, 20))
-    stop(sprintf("%s does not reach the exact %d phase-out endpoint.",
-                 label, endpoint_year))
-  }
-
-  cat(sprintf(
-    "\033[32m[OK] %s: %s are exactly zero in %d.\033[0m\n",
-    label, paste(phaseout_fuels, collapse = ", "), endpoint_year
-  ))
-}
-
 anchors_user_fixed1 <- fix_anchors(build_anchor_table(shares_2000_2025, anchors_2050_used_s1))
 anchors_user_fixed2 <- fix_anchors(build_anchor_table(shares_2000_2025, anchors_2050_used_s2))
 anchors_user_fixed3 <- fix_anchors(build_anchor_table(shares_2000_2025, anchors_2050_used_s3))
@@ -469,15 +373,6 @@ cat("\n\033[36m--- Share-range validation (must be in [0, 1] and sum to 1) ---\0
 check_shares(anchors_user_fixed1, "anchor_points1")
 check_shares(anchors_user_fixed2, "anchor_points2")
 check_shares(anchors_user_fixed3, "anchor_points3")
-
-if (!isTRUE(use_bau_2050)) {
-  check_exact_phaseout(
-    anchors_user_fixed3,
-    "anchor_points3",
-    phaseout_fuels_s3,
-    endpoint_year = 2050L
-  )
-}
 
 # ---------------------------------------------------------------------------
 # 5. Write the three anchor_points CSVs ----
