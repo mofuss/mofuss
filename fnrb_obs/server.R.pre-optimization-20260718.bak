@@ -42,21 +42,20 @@ library(rnaturalearthdata)
 library(sf)
 library(shiny)
 
-# Load immutable data once and share it across Shiny sessions
-world <- ne_countries(scale = "medium", returnclass = "sf")
-
-# Initialize the results data frame with proper columns
-initial_results <- data.frame(
-  Country = character(),
-  Start.Year = integer(),
-  End.Year = integer(),
-  "Demand.Mg.period" = numeric(),
-  "AGB.losses.Mg.period" = numeric(),
-  "fNRB.%  " = numeric(),
-  stringsAsFactors = FALSE
-)
-
 shinyServer(function(input, output, session) {
+  # Load country polygons
+  world <- ne_countries(scale = "medium", returnclass = "sf")
+  
+  # Initialize the results data frame with proper columns
+  initial_results <- data.frame(
+    Country = character(),
+    Start.Year = integer(),
+    End.Year = integer(),
+    "Demand.Mg.period" = numeric(),
+    "AGB.losses.Mg.period" = numeric(),
+    "fNRB.%  " = numeric(),
+    stringsAsFactors = FALSE
+  )
 
   # Store selected countries and results
   selected_countries <- reactiveVal(character())  # Initialize as empty vector
@@ -70,25 +69,6 @@ shinyServer(function(input, output, session) {
       setView(lng = 20, lat = 0, zoom = 3) %>%
       addPolygons(layerId = ~iso_a3, popup = ~name, fillOpacity = 0.2, weight = 1, color = "#444444")
   })
-
-  # Keep the base map in the browser and redraw only the small selection layer
-  update_country_highlights <- function(country_codes) {
-    map_proxy <- leafletProxy("world_map") %>%
-      clearGroup("selected_countries")
-
-    if (length(country_codes) > 0) {
-      map_proxy %>%
-        addPolygons(
-          data = world[world$iso_a3 %in% country_codes, ],
-          group = "selected_countries",
-          fillColor = "blue",
-          fillOpacity = 0.5,
-          weight = 2,
-          color = "#0000FF",
-          options = pathOptions(interactive = FALSE)
-        )
-    }
-  }
   
   # Update selected countries based on clicks on the map
   observeEvent(input$world_map_shape_click, {
@@ -111,7 +91,12 @@ shinyServer(function(input, output, session) {
       selected_countries(current_selection)
       
       # Re-highlight selected countries on the map
-      update_country_highlights(current_selection)
+      leafletProxy("world_map") %>%
+        clearShapes() %>%
+        addPolygons(data = world, layerId = ~iso_a3, popup = ~name, fillOpacity = 0.2, weight = 1, color = "#444444") %>%
+        addPolygons(data = world %>% filter(iso_a3 %in% current_selection),
+                    layerId = ~iso_a3, popup = ~name,
+                    fillColor = "blue", fillOpacity = 0.5, weight = 2, color = "#0000FF")
     }
   })
   
@@ -120,7 +105,9 @@ shinyServer(function(input, output, session) {
     selected_countries(character())  # Reset the country selection
     results(initial_results)  # Clear the results table
     period("")  # Clear the period
-    update_country_highlights(character())
+    leafletProxy("world_map") %>%
+      clearShapes() %>%
+      addPolygons(data = world, layerId = ~iso_a3, popup = ~name, fillOpacity = 0.2, weight = 1, color = "#444444")
   })
   
   # Store the period when the end year changes
@@ -146,62 +133,60 @@ shinyServer(function(input, output, session) {
     
     # Find countries that haven't been calculated for the selected end year
     new_countries <- setdiff(countries, current_results %>% filter(End.Year == endyr) %>% pull(Country))
-
-    new_results <- list()
-
-    if (length(new_countries) > 0) {
-      # Open each shared input once per calculation, not once per country
-      agb2010CO2 <- rast(paste0(agbpath, "ctrees_global_2010_AGC.tif"))
-      agb20XXCO2 <- rast(paste0(agbpath, "ctrees_global_", endyr, "_AGC.tif"))
-      agbCO2 <- c(agb2010CO2, agb20XXCO2)
-      data_wf <- read_csv(paste0(demandpath, "demand_bau1_v2.csv"))
-
-      # Perform calculation only for new countries for the selected end year
-      new_results <- lapply(new_countries, function(country_code) {
-        selected_polygon <- world[which(world$iso_a3 == country_code), ]
-        selected_polygon_vect <- vect(selected_polygon)
-
-        # Crop the source values before doing raster arithmetic. This preserves
-        # the calculation but avoids processing two complete global rasters for
-        # every selected country. Mask both aligned layers in a single operation.
-        agb_cropped <- terra::crop(agbCO2, selected_polygon_vect)
-        agb_masked <- terra::mask(agb_cropped, selected_polygon_vect)
-
-        agb2010_masked <- agb_masked[[1]] * 12/44 / 0.47
-        agb20XX_masked <- agb_masked[[2]] * 12/44 / 0.47
-
-        # Both layers have identical geometry, so their cell areas are identical.
-        masked_pixel_area_ha <- cellSize(agb2010_masked, unit = "m") / 10000
-
-        agb2010_masked2 <- agb2010_masked * masked_pixel_area_ha
-        agb20XX_masked2 <- agb20XX_masked * masked_pixel_area_ha
-
-        agblosses10_XX <- agb2010_masked2 - agb20XX_masked2
-        agblosses10_XX[agblosses10_XX <= 0] <- NA
-
-        total_agblosses10_XX_df <- global(agblosses10_XX, "sum", na.rm = TRUE)
-        total_agblosses10_XX <- round(total_agblosses10_XX_df[1, 1], 0)
-
-        demand_sum <- data_wf %>%
-          filter(iso3 == country_code, year >= 2010, year <= endyr,
-                 (fuel == "fuelwood" & area %in% c("rural", "urban")) |
-                   (fuel == "charcoal" & area %in% c("rural", "urban"))) %>%
-          summarise(total_value = sum(fuel_cons_tons, na.rm = TRUE)) %>%
-          pull(total_value) %>%
-          round(., 0)
-
-        fNRB_obs <- round(total_agblosses10_XX / demand_sum * 100, 0)
-
-        data.frame(
-          Country = country_code,
-          Start.Year = "2010",  # Add the Start.Year column as 2010
-          End.Year = endyr,
-          "Demand.Mg.period" = demand_sum,
-          "AGB.losses.Mg.period" = total_agblosses10_XX,
-          "fNRB.%  " = fNRB_obs
-        )
-      })
-    }
+    
+    # Perform calculation only for new countries for the selected end year
+    new_results <- lapply(new_countries, function(country_code) {
+      selected_polygon <- world %>% filter(iso_a3 == country_code)
+      selected_polygon_vect <- vect(selected_polygon)
+      
+      # Load and crop rasters
+      agb2010CO2 <- rast(paste0(agbpath,"ctrees_global_2010_AGC.tif"))
+      
+      # agb20XXCO2 <- rast(paste0("E:/agb3rdparties/Pantropical_AGC/ctrees_global_", endyr, "_AGC_pantropic_1km_MgC02_ha.tif"))
+      agb20XXCO2 <- rast(paste0(agbpath,"ctrees_global_",endyr,"_AGC.tif"))
+      
+      agb2010 <- agb2010CO2 * 12/44 / 0.47
+      agb20XX <- agb20XXCO2 * 12/44 / 0.47
+      
+      agb2010_cropped <- terra::crop(agb2010, selected_polygon_vect)
+      agb20XX_cropped <- terra::crop(agb20XX, selected_polygon_vect)
+      
+      agb2010_masked <- terra::mask(agb2010_cropped, selected_polygon_vect)
+      agb20XX_masked <- terra::mask(agb20XX_cropped, selected_polygon_vect)
+      
+      agb2010_masked_pixel_area_ha <- cellSize(agb2010_masked, unit = "m") / 10000
+      agb20XX_masked_pixel_area_ha <- cellSize(agb20XX_masked, unit = "m") / 10000
+      
+      agb2010_masked2 <- agb2010_masked * agb2010_masked_pixel_area_ha
+      agb20XX_masked2 <- agb20XX_masked * agb20XX_masked_pixel_area_ha
+      
+      agblosses10_XX <- agb2010_masked2 - agb20XX_masked2
+      agblosses10_XX[agblosses10_XX <= 0] <- NA
+      
+      total_agblosses10_XX_df <- global(agblosses10_XX, "sum", na.rm = TRUE)
+      total_agblosses10_XX <- round(total_agblosses10_XX_df[1, 1], 0)
+      
+      # Load demand data
+      data_wf <- read_csv(paste0(demandpath,"demand_bau1_v2.csv"))
+      demand_sum <- data_wf %>%
+        filter(iso3 == country_code, year >= 2010, year <= endyr,
+               (fuel == "fuelwood" & area %in% c("rural", "urban")) | 
+                 (fuel == "charcoal" & area %in% c("rural", "urban"))) %>%
+        summarise(total_value = sum(fuel_cons_tons, na.rm = TRUE)) %>%
+        pull(total_value) %>%
+        round(., 0)
+      
+      fNRB_obs <- round(total_agblosses10_XX / demand_sum * 100, 0)
+      
+      return(data.frame(
+        Country = country_code,
+        Start.Year = "2010",  # Add the Start.Year column as 2010
+        End.Year = endyr,
+        "Demand.Mg.period" = demand_sum,
+        "AGB.losses.Mg.period" = total_agblosses10_XX,
+        "fNRB.%  " = fNRB_obs
+      ))
+    })
     
     # If any new results, update the table
     if (length(new_results) > 0) {
