@@ -14,7 +14,7 @@
 # Version 5 -- runs ALL three ICS scenarios in one shot when scenario_ver is
 # any of ICS1_v2 / ICS2_v2 / ICS3_v2 (writes demand_ics1_v2.csv,
 # demand_ics2_v2.csv, demand_ics3_v2.csv). BaU behaviour unchanged.
-# Date: July 2026
+# Date: May 2026
 
 # 2dolist ----
 
@@ -60,11 +60,10 @@ country_parameters %>%
   pull(ParCHR) %>%
   as.integer(.) -> start_year
 
-# country_parameters %>%
-#   dplyr::filter(Var == "end_year") %>%
-#   pull(ParCHR) %>%
-#   as.integer(.) -> end_year
-end_year <- 2050
+country_parameters %>%
+  dplyr::filter(Var == "end_year") %>%
+  pull(ParCHR) %>%
+  as.integer(.) -> end_year
 
 country_parameters %>%
   dplyr::filter(Var == "efchratio") %>%
@@ -74,7 +73,6 @@ country_parameters %>%
 country_parameters %>%
   dplyr::filter(Var == "scenario_ver") %>%
   pull(ParCHR) -> scenario_ver
-# scenario_ver <- "BaU1_v2"
 
 country_parameters %>%
   dplyr::filter(Var == "demand_col") %>%
@@ -256,18 +254,6 @@ write_csv(
 ics_scenarios <- c("ICS1_v2", "ICS2_v2", "ICS3_v2")
 bau_scenarios <- c("BaU1_v2", "BaU2_v2", "BaU3_v2")
 
-# Keep the observed/baseline history unchanged. The 2025 anchor is the
-# transition point, so the first year in which an ICS can differ from BaU is
-# 2026. This avoids back-casting the 2025 ICS anchor into 2001-2024.
-historical_bau_end_year <- 2025L
-
-if (historical_bau_end_year < start_year || historical_bau_end_year >= end_year) {
-  stop(sprintf(
-    "historical_bau_end_year (%d) must be within the simulation horizon [%d, %d).",
-    historical_bau_end_year, start_year, end_year
-  ))
-}
-
 if (!scenario_ver %in% c(ics_scenarios, bau_scenarios)) {
   stop(sprintf("Invalid scenario_ver: %s", scenario_ver))
 }
@@ -377,9 +363,8 @@ run_ics_pipeline <- function(anchor_num) {
     stop("For each iso3-area-year, anchor shares must sum to 1 (or 100 before standardization).")
   }
   
-  ## 6) BUILD THE USER-ANCHOR TRAJECTORY ACROSS 2000-2050 ----
-  # The complete trajectory is retained for diagnostics, but section 9 keeps
-  # exact BaU shares through 2025 and applies this trajectory only from 2026.
+  ## 6) INTERPOLATE USER SHARES ACROSS 2000-2050 ----
+  #    USING ONLY USER ANCHORS
   anchor_meta <- bau_no_overall %>%
     distinct(iso3, country, region, area)
   
@@ -415,9 +400,20 @@ run_ics_pipeline <- function(anchor_num) {
     stop("Interpolated ICS shares do not sum to 1 for some iso3-area-year groups.")
   }
   
-  # Intermediate user-anchor trajectory
+  # Optional output table
   share_table_ics_out <- share_table_ics %>%
     arrange(iso3, area, year, fuel)
+  
+  # Save per-scenario shares (suffixed so the three runs don't overwrite each other)
+  write_csv(
+    share_table_ics_out,
+    paste0(
+      countrydir,
+      "/LULCC/DownloadedDatasets/SourceDataGlobal/demand/demand_in/demand_ics",
+      anchor_num,
+      "_shares.csv"
+    )
+  )
   
   ## 8) BUILD BAU SHARES + TOTAL PEOPLE FOR ALL COUNTRIES----
   bau_share_table <- bau_no_overall %>%
@@ -429,7 +425,8 @@ run_ics_pipeline <- function(anchor_num) {
     ungroup() %>%
     dplyr::select(iso3, country, region, area, fuel, year, total_people, share_bau)
   
-  ## 9) KEEP BAU THROUGH 2025; APPLY ICS FROM 2026 ----
+  ## 9) APPLY ICS ONLY WHERE AVAILABLE----
+  #    OTHERWISE KEEP BAU SHARES
   share_table_final <- bau_share_table %>%
     left_join(
       share_table_ics_out %>%
@@ -437,50 +434,8 @@ run_ics_pipeline <- function(anchor_num) {
       by = c("iso3", "area", "year", "fuel")
     ) %>%
     mutate(
-      share_final = if_else(
-        year <= historical_bau_end_year,
-        share_bau,
-        coalesce(share_ics, share_bau)
-      )
+      share_final = coalesce(share_ics, share_bau)
     )
-
-  # Hard regression guard: the applied fuel shares must be exactly BaU for
-  # every historical row, not merely close after rounding.
-  max_abs_historical_share_diff <- share_table_final %>%
-    dplyr::filter(year <= historical_bau_end_year) %>%
-    summarise(value = max(abs(share_final - share_bau), na.rm = TRUE)) %>%
-    pull(value)
-
-  if (!is.finite(max_abs_historical_share_diff) || max_abs_historical_share_diff != 0) {
-    stop(sprintf(
-      "ICS%d historical-share freeze failed (max absolute difference: %s).",
-      anchor_num, format(max_abs_historical_share_diff, scientific = TRUE)
-    ))
-  }
-
-  cat(sprintf(
-    "\033[32mICS%d historical shares match BaU exactly through %d.\033[0m\n",
-    anchor_num, historical_bau_end_year
-  ))
-
-  # Save the shares actually applied to the demand table. This deliberately
-  # reports BaU through 2025 and the selected ICS trajectory from 2026.
-  share_table_ics_applied_out <- share_table_final %>%
-    transmute(
-      iso3, country, region, area, fuel, year,
-      share_ics = share_final
-    ) %>%
-    arrange(iso3, area, year, fuel)
-
-  write_csv(
-    share_table_ics_applied_out,
-    paste0(
-      countrydir,
-      "/LULCC/DownloadedDatasets/SourceDataGlobal/demand/demand_in/demand_ics",
-      anchor_num,
-      "_shares.csv"
-    )
-  )
   
   # Optional check: shares should sum to 1 everywhere
   share_check <- share_table_final %>%
@@ -515,21 +470,6 @@ run_ics_pipeline <- function(anchor_num) {
       iso3, country, region, area, fuel, year,
       num_fuel_users_thousands, per_capita_fuel_cons, all_of(demand_col)
     )
-
-  # Copy the BaU records themselves for the frozen period. Besides preserving
-  # shares, this guarantees byte-for-byte-equivalent numeric values in all
-  # historical demand fields and prevents floating-point reconstruction noise.
-  ics_no_overall <- bind_rows(
-    bau_no_overall %>%
-      dplyr::filter(year <= historical_bau_end_year) %>%
-      dplyr::select(
-        iso3, country, region, area, fuel, year,
-        num_fuel_users_thousands, per_capita_fuel_cons, all_of(demand_col)
-      ),
-    ics_no_overall %>%
-      dplyr::filter(year > historical_bau_end_year)
-  ) %>%
-    arrange(iso3, year, area, fuel)
   
   ## 12) BAU vs ICS COMPARISON ----
   # Compare the ICS demand to BaU across ALL countries (the previous version
@@ -726,33 +666,6 @@ ics_full_outputs <- list()
 if (scenario_ver %in% ics_scenarios) {
   for (key in names(ics_outputs)) {
     ics_full_outputs[[key]] <- rebuild_ics_with_overall(ics_outputs[[key]])
-
-    # Freeze the complete published table (including "overall" rows) to the
-    # exact BaU records through 2025.
-    ics_full_outputs[[key]] <- bind_rows(
-      bau_mofuss_or_rebuilt %>%
-        dplyr::filter(year <= historical_bau_end_year),
-      ics_full_outputs[[key]] %>%
-        dplyr::filter(year > historical_bau_end_year)
-    ) %>%
-      arrange(iso3, year, area, fuel)
-
-    historical_bau <- bau_mofuss_or_rebuilt %>%
-      dplyr::filter(year <= historical_bau_end_year)
-    historical_ics <- ics_full_outputs[[key]] %>%
-      dplyr::filter(year <= historical_bau_end_year)
-
-    if (!identical(historical_ics, historical_bau)) {
-      stop(sprintf(
-        "%s output does not exactly match BaU through %d.",
-        key, historical_bau_end_year
-      ))
-    }
-
-    cat(sprintf(
-      "\033[32m%s output matches BaU exactly through %d.\033[0m\n",
-      key, historical_bau_end_year
-    ))
   }
 }
 

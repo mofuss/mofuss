@@ -5,18 +5,18 @@
 # 2dolist ----
 
 # Internal parameters ----
-temdirdefined = 1 
-options(shiny.launch.browser = TRUE)
+temdirdefined = 1
+# options(shiny.launch.browser = TRUE)
 
 if (!exists("webmofuss", inherits = TRUE)) {
   webmofuss <- 0
 }
-
+# webmofuss = 1
 if (webmofuss == 1){
-  setwd("/home/rrangel/common")
-  rTempdir_fnrbobs = "RUTA EN WEBMOFUSS" # Roberto: necesitas crea rTempdir_fnrbobs (DEBE SER DIFERENTE A rTempdir -de los scripts de mofuss- porque no pueden estar siendo usadas al mismo tiempo)
-  agbpath = ""
-  demandpath = ""
+  setwd("/mnt/storage/apps/fnrb_obs_data/")
+  rTempdir_fnrbobs = "/mnt/storage/apps/fnrb_obs_data/rTempdir_fnrbobs/"
+  agbpath = "/mnt/storage/apps/fnrb_obs_data/1km_agco2_2000_2025/"
+  demandpath = "/mnt/storage/apps/fnrb_obs_data/"
 } else if (webmofuss == 0){
   # ONLY WORKS IN NRBV1 NODE as localhost"
   rTempdir_fnrbobs <- "C:/Users/aghil/Documents/MoFuSS_localhost/rTempdir_fnrbobs/"
@@ -30,7 +30,7 @@ library(terra)
 if (temdirdefined == 1) {
   terraOptions(tempdir = rTempdir_fnrbobs)
   # List all files and directories inside the folder
-  contents <- list.files(rTempdir_fnrbobs, full.names = TRUE, recursive = TRUE)
+  # contents <- list.files(rTempdir_fnrbobs, full.names = TRUE, recursive = TRUE)
   # Delete the contents but keep the folder
   # unlink(contents, recursive = TRUE, force = TRUE)
 }
@@ -62,7 +62,7 @@ shinyServer(function(input, output, session) {
   selected_countries <- reactiveVal(character())  # Initialize as empty vector
   results <- reactiveVal(initial_results)  # Store results with year and country
   period <- reactiveVal("")  # Store the period
-  
+
   # Render leaflet map centered on Africa
   output$world_map <- renderLeaflet({
     leaflet(world) %>%
@@ -89,32 +89,32 @@ shinyServer(function(input, output, session) {
         )
     }
   }
-  
+
   # Update selected countries based on clicks on the map
   observeEvent(input$world_map_shape_click, {
     country_code <- input$world_map_shape_click$id
     current_selection <- selected_countries()
-    
+
     if (!is.null(country_code)) {  # Ensure a valid country is clicked
       # Toggle country selection (add or remove)
       if (country_code %in% current_selection) {
         current_selection <- setdiff(current_selection, country_code)
         # Remove deselected country from results
         current_results <- results()
-        updated_results <- current_results %>% filter(Country != country_code)
+        updated_results <- current_results %>% dplyr::filter(Country != country_code)
         results(updated_results)
       } else if (length(current_selection) < 16) {
         current_selection <- c(current_selection, country_code)
       }
-      
+
       # Update selected countries
       selected_countries(current_selection)
-      
+
       # Re-highlight selected countries on the map
       update_country_highlights(current_selection)
     }
   })
-  
+
   # Clear selection button
   observeEvent(input$clear_selection, {
     selected_countries(character())  # Reset the country selection
@@ -122,30 +122,30 @@ shinyServer(function(input, output, session) {
     period("")  # Clear the period
     update_country_highlights(character())
   })
-  
+
   # Store the period when the end year changes
   observeEvent(input$endyr, {
     period(paste0("2010-", input$endyr))  # Store the period as "2010-endyr"
   })
-  
+
   # Calculate results when "Calculate" button is clicked
   observeEvent(input$calculate, {
     # Show spinner after pressing "Calculate"
     showModal(modalDialog("Calculating, please wait...", footer = NULL, easyClose = FALSE))
-    
+
     endyr <- input$endyr
     countries <- selected_countries()
-    
+
     # If no countries selected, just close the modal and return
     if (length(countries) == 0) {
       removeModal()
       return()
     }
-    
+
     current_results <- results()  # Get current table
-    
+
     # Find countries that haven't been calculated for the selected end year
-    new_countries <- setdiff(countries, current_results %>% filter(End.Year == endyr) %>% pull(Country))
+    new_countries <- setdiff(countries, current_results %>% dplyr::filter(End.Year == endyr) %>% pull(Country))
 
     new_results <- list()
 
@@ -183,7 +183,7 @@ shinyServer(function(input, output, session) {
         total_agblosses10_XX <- round(total_agblosses10_XX_df[1, 1], 0)
 
         demand_sum <- data_wf %>%
-          filter(iso3 == country_code, year >= 2010, year <= endyr,
+          dplyr::filter(iso3 == country_code, year >= 2010, year <= endyr,
                  (fuel == "fuelwood" & area %in% c("rural", "urban")) |
                    (fuel == "charcoal" & area %in% c("rural", "urban"))) %>%
           summarise(total_value = sum(fuel_cons_tons, na.rm = TRUE)) %>%
@@ -202,14 +202,14 @@ shinyServer(function(input, output, session) {
         )
       })
     }
-    
+
     # If any new results, update the table
     if (length(new_results) > 0) {
       new_results_df <- do.call(rbind, new_results)
       updated_results <- rbind(current_results, new_results_df)
       results(updated_results)
     }
-    
+
     # Close modal and update the table
     removeModal()
     output$results_table <- renderTable({

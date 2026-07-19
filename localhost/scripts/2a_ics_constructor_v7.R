@@ -104,10 +104,11 @@ country_parameters %>%
   pull(ParCHR) %>%
   as.integer(.) -> start_year
 
-country_parameters %>%
-  dplyr::filter(Var == "end_year") %>%
-  pull(ParCHR) %>%
-  as.integer(.) -> end_year
+# country_parameters %>%
+#   dplyr::filter(Var == "end_year") %>%
+#   pull(ParCHR) %>%
+#   as.integer(.) -> end_year
+end_year <- 2050
 
 country_parameters %>%
   dplyr::filter(Var == "efchratio") %>%

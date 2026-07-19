@@ -5,15 +5,16 @@
 # 2dolist ----
 
 # Internal parameters ----
-# temdirdefined = 1 
-options(shiny.launch.browser = TRUE)
+temdirdefined = 1
+#options(shiny.launch.browser = TRUE)
 
 if (!exists("webmofuss", inherits = TRUE)) {
   webmofuss <- 0
 }
+# webmofuss = 1
 if (webmofuss == 1){
-  setwd("/home/rrangel/common")
-  demandpath = ""
+  setwd("/mnt/storage/apps/fnrb_obs_data/")
+  demandpath = "/mnt/storage/apps/fnrb_obs_data/"
 } else if (webmofuss == 0){
   # ONLY WORKS IN NRBV1 NODE as localhost"
   demandpath = "G:/Mi unidad/webpages/2026_MoFuSSGlobal_Datasets/fnrb_obs_data/"
@@ -44,40 +45,40 @@ shinyServer(function(input, output) {
   proj_file_path <- paste0(demandpath,"demand_ics2_v2.csv")
   data <- read_csv(file_path)
   proj_data <- read_csv(proj_file_path)
-  
+
   # Load the lighter world map
   world <- ne_countries(scale = "medium", returnclass = "sf")
-  
+
   # Initialize selected countries list
   selected_countries <- reactiveVal(character(0))
-  
+
   # Initialize same Y-scale setting
   same_yscale <- reactiveVal(FALSE)
-  
+
   # Render the world map
   output$worldMap <- renderLeaflet({
     leaflet(world) %>%
       addTiles() %>%
       setView(lng = 0, lat = 20, zoom = 2) %>%
       addPolygons(layerId = ~adm0_a3,
-                  fillColor = "white", 
-                  fillOpacity = 0.7, 
-                  color = "black", 
+                  fillColor = "white",
+                  fillOpacity = 0.7,
+                  color = "black",
                   weight = 1,
                   highlight = highlightOptions(weight = 2, color = "#666", fillOpacity = 0.7),
                   label = ~adm0_a3)
   })
-  
+
   # Observe map clicks and update selected countries
   observeEvent(input$worldMap_shape_click, {
-    
+
     if(is.null(input$worldMap_shape_click))
-      return() 
-    
+      return()
+
     clicked_country <- input$worldMap_shape_click$id
     current_selection <- selected_countries()
-    
-    proxy <- leafletProxy("worldMap")	
+
+    proxy <- leafletProxy("worldMap")
     proxy %>% removeShape(layerId = clicked_country)
     polygon <- world %>% dplyr::filter(adm0_a3==clicked_country)
     fillColorT <- "white"
@@ -87,49 +88,49 @@ shinyServer(function(input, output) {
       new_selection <- c(current_selection, clicked_country)
       fillColorT <- "blue"
     }
-    
-    proxy %>% addPolygons(data = polygon, 
+
+    proxy %>% addPolygons(data = polygon,
                           fillColor = fillColorT,
-                          fillOpacity = 0.7, 
-                          color = "black", 
+                          fillOpacity = 0.7,
+                          color = "black",
                           weight = 1,
                           highlight = highlightOptions(weight = 2, color = "#666", fillOpacity = 0.7),
                           label = polygon$adm0_a3,
                           layerId = polygon$adm0_a3)
-    
+
     selected_countries(new_selection)
-    
+
     # Display selected countries
     output$selected_countries_text <- renderText({
       paste("Selected countries:", paste(new_selection, collapse = ", "))
     })
   })
-  
+
   # Observe "Clear Selection" button click
   observeEvent(input$clear_button, {
     selected_countries(character(0))
-    
+
     leafletProxy("worldMap") %>%
       clearShapes() %>%
-      addPolygons(data = world, 
-                  layerId = ~iso_a3, 
-                  fillColor = "white", 
-                  fillOpacity = 0.7, 
-                  color = "black", 
+      addPolygons(data = world,
+                  layerId = ~iso_a3,
+                  fillColor = "white",
+                  fillOpacity = 0.7,
+                  color = "black",
                   weight = 1,
                   highlight = highlightOptions(weight = 2, color = "#666", fillOpacity = 0.7),
                   label = ~name)
-    
+
     output$selected_countries_text <- renderText({
       "Selected countries: None"
     })
   })
-  
+
   # Observe "Same Y-scale" button click
   observeEvent(input$same_yscale_button, {
     same_yscale(!same_yscale())  # Toggle the Y-scale setting
   })
-  
+
   # Reactive expression to generate the plot whenever selection changes
   filtered_data <- reactive({
     req(selected_countries())
@@ -137,7 +138,7 @@ shinyServer(function(input, output) {
       showNotification("Please select between one and eight countries.", type = "error")
       return(NULL)
     }
-    
+
     # Filter original data
     data_filtered <- data %>%
       dplyr::filter(iso3 %in% selected_countries(),
@@ -145,7 +146,7 @@ shinyServer(function(input, output) {
              (fuel == "fuelwood" & area %in% c("rural", "urban")) |
                (fuel == "charcoal" & area %in% c("rural", "urban"))) %>%
       mutate(dataset = "Business-as-Usual")
-    
+
     # Filter projected data
     proj_data_filtered <- proj_data %>%
       dplyr::filter(iso3 %in% selected_countries(),
@@ -153,23 +154,23 @@ shinyServer(function(input, output) {
              (fuel == "fuelwood" & area %in% c("rural", "urban")) |
                (fuel == "charcoal" & area %in% c("rural", "urban"))) %>%
       mutate(dataset = "Intervention Scenario")
-    
+
     # Combine both filtered datasets
     combined_data <- bind_rows(data_filtered, proj_data_filtered)
     combined_data
   })
-  
+
   # Render the plot automatically based on the filtered data
   output$fuelPlot <- renderPlot({
     plot_data <- filtered_data()
     req(plot_data)
-    
+
     # Match interaction(fuel, area) values from the v2 demand CSVs.
     colors <- c("fuelwood.rural" = "darkgreen",
                 "fuelwood.urban" = "darkorange",
                 "charcoal.rural" = "darkred",
                 "charcoal.urban" = "black")
-    
+
     # Calculate the maximum y-value if same Y-scale is selected
     if (same_yscale()) {
       y_max <- max(plot_data$fuel_cons_tons, na.rm = TRUE)
@@ -188,7 +189,7 @@ shinyServer(function(input, output) {
           plot.title = element_text(hjust = 0.5),
           legend.position = "bottom"
         ) +
-        facet_wrap(~country, ncol = ifelse(length(selected_countries()) > 4, 4, length(selected_countries())), 
+        facet_wrap(~country, ncol = ifelse(length(selected_countries()) > 4, 4, length(selected_countries())),
                    scales = "fixed") +
         coord_cartesian(ylim = c(0, y_max))
     } else {
@@ -207,7 +208,7 @@ shinyServer(function(input, output) {
           plot.title = element_text(hjust = 0.5),
           legend.position = "bottom"
         ) +
-        facet_wrap(~country, ncol = ifelse(length(selected_countries()) > 4, 4, length(selected_countries())), 
+        facet_wrap(~country, ncol = ifelse(length(selected_countries()) > 4, 4, length(selected_countries())),
                    scales = "free_y")
     }
   })
