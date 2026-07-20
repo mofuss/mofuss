@@ -6,12 +6,10 @@
 
 # Internal parameters ----
 temdirdefined = 1
-#options(shiny.launch.browser = TRUE)
+# options(shiny.launch.browser = TRUE)
 
-if (!exists("webmofuss", inherits = TRUE)) {
-  webmofuss <- 0
-}
-# webmofuss = 1
+webmofuss <- if (file.exists(".env")) 1 else 0
+
 if (webmofuss == 1){
   setwd("/mnt/storage/apps/fnrb_obs_data/")
   demandpath = "/mnt/storage/apps/fnrb_obs_data/"
