@@ -73,9 +73,9 @@ country_parameters %>%
   as.integer(.) -> monte_carlo_runs
 
 country_parameters %>%
-  dplyr::filter(Var == "ctrees_agb") %>%
+  dplyr::filter(Var == "uncapped_regrowth") %>%
   pull(ParCHR) %>%
-  as.integer(.) -> ctrees_agb
+  as.integer(.) -> uncapped_regrowth
 
 country_parameters %>%
   dplyr::filter(Var == "npa_ease") %>%
@@ -93,7 +93,7 @@ country_parameters_din <- data.frame(
     "start_year",
     "end_year",
     "monte_carlo_runs",
-    "ctrees_agb",
+    "uncapped_regrowth",
     "npa_ease",
     "instant_demand"
   ),
@@ -101,7 +101,7 @@ country_parameters_din <- data.frame(
     start_year,
     end_year,
     monte_carlo_runs,
-    ctrees_agb,
+    uncapped_regrowth,
     npa_ease,
     instant_demand
   )),

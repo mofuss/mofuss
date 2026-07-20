@@ -75,6 +75,7 @@ country_parameters %>%
   dplyr::filter(Var == "scenario_ver") %>%
   pull(ParCHR) -> scenario_ver
 # scenario_ver <- "BaU1_v2"
+# scenario_ver <- "ICS1_v2"
 
 country_parameters %>%
   dplyr::filter(Var == "demand_col") %>%
