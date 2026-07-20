@@ -82,10 +82,10 @@ country_parameters %>%
   pull(ParCHR) %>%
   as.integer(.) -> npa_ease
 
-country_parameters %>%
-  dplyr::filter(Var == "instant_demand") %>%
-  pull(ParCHR) %>%
-  as.integer(.) -> instant_demand
+# country_parameters %>%
+#   dplyr::filter(Var == "instant_demand") %>%
+#   pull(ParCHR) %>%
+#   as.integer(.) -> instant_demand
 
 # Save parameters table for Dinamica EGO ----
 country_parameters_din <- data.frame(
@@ -94,16 +94,16 @@ country_parameters_din <- data.frame(
     "end_year",
     "monte_carlo_runs",
     "uncapped_regrowth",
-    "npa_ease",
-    "instant_demand"
+    "npa_ease"
+    # "instant_demand"
   ),
   "ParCHR" = as.integer(c(
     start_year,
     end_year,
     monte_carlo_runs,
     uncapped_regrowth,
-    npa_ease,
-    instant_demand
+    npa_ease
+    # instant_demand
   )),
   check.names = FALSE
 )

@@ -8,7 +8,6 @@
 
 # Internal parameters ----
 
-
 # Load libraries ----
 library(conflicted)
 
@@ -107,15 +106,16 @@ if (byregion == "Regional") { # Or continental
       
     }
 
-    # For every ICS scenario, load the BaU1 table used as the common baseline
-    # by the global ICS constructor. Plotting data will contain BaU1 on the top
-    # row and the selected ICS scenario on the bottom row. The CSV outputs
-    # remain selected-scenario-only.
+    # For local ICS runs (webmofuss == 0), load the BaU1 table used as the
+    # common baseline by the global ICS constructor. Web-MoFuSS runs do not
+    # have this BaU table, so their plots contain only the selected ICS scenario.
+    # The CSV outputs remain selected-scenario-only in both cases.
     is_ics_scenario <- scenario_ver %in% c("ICS1_v2", "ICS2_v2", "ICS3_v2")
+    include_bau_comparison <- is_ics_scenario && webmofuss == 0
     bau_comparison_ver <- "BaU1_v2"
     wfdb_bau <- NULL
 
-    if (is_ics_scenario) {
+    if (include_bau_comparison) {
       bau_comparison_path <- file.path(
         "demand_in",
         paste0("demand_", tolower(bau_comparison_ver), ".csv")
@@ -131,20 +131,20 @@ if (byregion == "Regional") { # Or continental
       wfdb_bau <- read_wfdb(bau_comparison_path)
     }
 
-    scenario_levels <- if (is_ics_scenario) {
+    scenario_levels <- if (include_bau_comparison) {
       c(bau_comparison_ver, scenario_ver)
     } else {
       scenario_ver
     }
 
-    scenario_comparison_text <- if (is_ics_scenario) {
+    scenario_comparison_text <- if (include_bau_comparison) {
       paste0(bau_comparison_ver, " vs ", scenario_ver)
     } else {
       scenario_ver
     }
 
-    comparison_plot_height <- if (is_ics_scenario) 11 else 7
-    comparison_grid_height <- if (is_ics_scenario) 14 else 9
+    comparison_plot_height <- if (include_bau_comparison) 11 else 7
+    comparison_grid_height <- if (include_bau_comparison) 14 else 9
     
     unique(wfdb$fuel)
     head(wfdb)
@@ -246,13 +246,13 @@ if (byregion == "Regional") { # Or continental
       pop_prefix <- "robdb"
     }
 
-    # Plotting copy. For ICS runs, prepend the equivalent BaU1 rows and retain
-    # an explicit scenario factor so facet_grid() produces vertically aligned
-    # BaU and ICS panels with shared axes and colors.
+    # Plotting copy. For local ICS runs, prepend the equivalent BaU1 rows and
+    # retain an explicit scenario factor so facet_grid() produces vertically
+    # aligned BaU and ICS panels with shared axes and colors.
     popdb_plot <- popdb_clean %>%
       mutate(scenario_panel = scenario_ver)
 
-    if (is_ics_scenario) {
+    if (include_bau_comparison) {
       popdb_bau_plot <- wfdb_bau %>%
         dplyr::filter(
           iso3 == region2BprocessedCtry_iso,
@@ -456,7 +456,7 @@ if (byregion == "Regional") { # Or continental
     wfdb_base <- build_wfdb_base(wfdb, scenario_ver)
 
     wfdb_plot_base <- wfdb_base
-    if (is_ics_scenario) {
+    if (include_bau_comparison) {
       wfdb_plot_base <- dplyr::bind_rows(
         build_wfdb_base(wfdb_bau, bau_comparison_ver),
         wfdb_plot_base
@@ -513,9 +513,9 @@ if (byregion == "Regional") { # Or continental
         dplyr::arrange(year, area, fuel)
     }
 
-    # Separate plotting summary: include BaU1 only for ICS runs. Keeping this
-    # separate ensures the long/wide CSV exports above and below retain their
-    # original selected-scenario schema and row counts.
+    # Separate plotting summary: include BaU1 only for local ICS runs. Keeping
+    # this separate ensures the long/wide CSV exports above and below retain
+    # their original selected-scenario schema and row counts.
     wfdb_twofuels_plot <- if (subcountry == 1) {
       wfdb_plot_base %>%
         dplyr::group_by(scenario_panel, split, year, area, fuel) %>%
