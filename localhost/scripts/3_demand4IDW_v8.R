@@ -1529,8 +1529,12 @@ if (optimizeD == 1) {
 }
 
 # --- 1) Build value dfs (x, y, <layer_value>) ---
-layer_namesw <- if (!is.null(names(wf_w_st)) && all(nzchar(names(wf_w_st))))
-  names(wf_w_st) else paste0("lyr", seq_len(nlyr(wf_w_st)))
+if (nlyr(wf_w_st) != length(annos)) {
+  stop("Walking raster count does not match the simulation year count")
+}
+
+names(wf_w_st) <- paste0("y", annos)
+layer_namesw <- names(wf_w_st)
 
 val_dfsw <- map2(seq_len(nlyr(wf_w_st)), layer_namesw, function(k, nm) {
   dfw <- as.data.frame(wf_w_st[[k]], xy = TRUE, na.rm = TRUE)
@@ -1658,8 +1662,12 @@ if (optimizeD == 1) {
 }
 
 # --- 1) Build value dfs (x, y, <layer_value>) ---
-layer_namesv <- if (!is.null(names(wf_v_st)) && all(nzchar(names(wf_v_st))))
-  names(wf_v_st) else paste0("lyr", seq_len(nlyr(wf_v_st)))
+if (nlyr(wf_v_st) != length(annos)) {
+  stop("Vehicle raster count does not match the simulation year count")
+}
+
+names(wf_v_st) <- paste0("y", annos)
+layer_namesv <- names(wf_v_st)
 
 val_dfsv <- map2(seq_len(nlyr(wf_v_st)), layer_namesv, function(k, nm) {
   dfv <- as.data.frame(wf_v_st[[k]], xy = TRUE, na.rm = TRUE)
