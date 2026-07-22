@@ -236,8 +236,8 @@ setwd(admindir)
 
 # Clean previous outputs
 for (d in c("regions_adm0","regions_adm1","regions_adm2",
-            "regions_adm0_p","regions_adm1_p","regions_adm2_p",
-            "InVector","ecoregions","ecoregions_p")) {
+            "regions_adm0_p","regions_adm1_p","regions_adm2_p"
+            ,"ecoregions","ecoregions_p")) {
   unlink(d, recursive = TRUE, force = TRUE)
   if (!dir.exists(d)) dir.create(d)
 }

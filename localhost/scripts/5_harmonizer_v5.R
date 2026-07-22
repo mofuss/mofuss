@@ -207,16 +207,25 @@ if (aoi_poly == 1) {
   # Read the SpatVector files
   kml_data <- vect(kml_file_path) # Read the .kml file
   # plot(kml_data)
-  # Reassign the CRS of kml_data to match mofuss_regions0_gpkg
+  # KML coordinates are WGS84. Only assign that CRS when the file does not
+  # provide one; otherwise preserve its declared CRS and transform it.
   
   # Re-read mofuss_regions0_gpkg for the case the object does not exist
   if (!exists("mofuss_regions0_gpkg")) {
     mofuss_regions0_gpkg <- vect(st_read(paste0(demanddir,"/demand_in/mofuss_regions0.gpkg")))
   }
   
-  crs(kml_data) <- crs(mofuss_regions0_gpkg)
-  # Ensure both layers are in the same projection
-  if (!crs(mofuss_regions0_gpkg) == crs(kml_data)) {
+  kml_crs <- terra::crs(kml_data)
+  if (is.na(kml_crs) || !nzchar(kml_crs)) {
+    terra::crs(kml_data) <- "EPSG:4326"
+  }
+
+  if (!terra::same.crs(kml_data, mofuss_regions0_gpkg)) {
+    kml_data <- terra::project(kml_data, terra::crs(mofuss_regions0_gpkg))
+  }
+
+  # Ensure both layers are now in the same projection
+  if (!terra::same.crs(mofuss_regions0_gpkg, kml_data)) {
     stop("Projections do not match!")
   }
   # Generic rename handler
@@ -532,6 +541,9 @@ if (aoi_poly == 1) {
   # Read the SpatVector files
   # kml_data <- vect(kml_file_path) # Read the .kml file (Terra)
   polykml <- st_read(kml_file_path) # Read the .kml file (SF)
+  if (is.na(sf::st_crs(polykml))) {
+    sf::st_crs(polykml) <- 4326
+  }
 
   dfx =  data.frame(1,"GoogleEarthPoly")
   colnames(dfx) <- c( country_parameters %>%
@@ -585,21 +597,35 @@ if (aoi_poly == 1) {
   
   
 } else if (aoi_poly == 0) {
+
+  # admindir contains shared, read-only source data. All derived vectors must
+  # be written directly into this job's working directory.
+  mofuss_invect_dir <- file.path(
+    countrydir,
+    "LULCC/DownloadedDatasets/SourceDataGlobal/InVector"
+  )
+  dir.create(mofuss_invect_dir, recursive = TRUE, showWarnings = FALSE)
   
   setwd(admindir)
-  
-  unlink("InVector/*.*")
   
   if (byregion == "Continental"){ ## Continent ---- THIS LEVEL REQUIERS TO BE UPDATED!!!
     
     extent_mask0 <- st_read("regions_adm0_p/mofuss_regions0_p.gpkg") %>%
       dplyr::filter(grepl(mofuss_region,mofuss_reg)) %>%
       dplyr::mutate(ID = seq(1:nrow(.)))
-    safe_st_write(extent_mask0, "InVector/extent_mask.gpkg", overwrite = TRUE)
+    safe_st_write(
+      extent_mask0,
+      file.path(mofuss_invect_dir, "extent_mask.gpkg"),
+      overwrite = TRUE
+    )
     
     ecoregions0 <- vect("ecoregions_p/ecoregions2017_p.gpkg", layer = "ecoregions_mofuss") %>%
       terra::subset(.$GID_0 == mofuss_region)
-    safe_write_vector(ecoregions0, "InVector/ecoregions.gpkg", overwrite = TRUE)
+    safe_write_vector(
+      ecoregions0,
+      file.path(mofuss_invect_dir, "ecoregions.gpkg"),
+      overwrite = TRUE
+    )
     # Save as shapefile
     # writeVector(ecoregions0, filename = paste0(countrydir,"/LULCC/DownloadedDatasets/SourceDataGlobal/InVector/ecoregions.shp"), filetype = "ESRI Shapefile", overwrite = TRUE)
     
@@ -620,7 +646,10 @@ if (aoi_poly == 1) {
       extent_mask0 %>%
         terra::subset(.$NAME_0 == mofuss_country) %>%  # Remember to change in the parameters table (!?)
         sf::st_as_sf() %>%  # Convert to sf object
-        safe_st_write("InVector/extent_analysis.gpkg", overwrite = TRUE)
+        safe_st_write(
+          file.path(mofuss_invect_dir, "extent_analysis.gpkg"),
+          overwrite = TRUE
+        )
     } else if (add_subadmin == "NO"){
       print("Nothing Happens")
     }
@@ -631,12 +660,19 @@ if (aoi_poly == 1) {
     mask1list_sf <- lapply(mask1list, st_read)
     mofuss_regions1_gpkg <- do.call(rbind, mask1list_sf) %>%
       dplyr::mutate(ID = seq(1:nrow(.)))
-    safe_st_write(mofuss_regions1_gpkg, "InVector/extent_mask1.gpkg", overwrite = TRUE)
+    safe_st_write(
+      mofuss_regions1_gpkg,
+      file.path(mofuss_invect_dir, "extent_mask1.gpkg"),
+      overwrite = TRUE
+    )
     debugdfadm1 <- mofuss_regions1_gpkg %>% st_drop_geometry()
     
     mofuss_regions1_gpkg %>%
       terra::subset(.$NAME_0 == mofuss_country) %>% # Remember to change in the parameters table FIX
-      safe_st_write("InVector/extent_analysis1.gpkg", overwrite = TRUE)
+      safe_st_write(
+        file.path(mofuss_invect_dir, "extent_analysis1.gpkg"),
+        overwrite = TRUE
+      )
     
     # ADM LEVEL = 2, when running ADM LEVEL = 0 #Slow process, elapsed time:
     mask2list <- paste0("regions_adm2_p/",list.files(path = paste0("regions_adm2_p/"),
@@ -644,24 +680,39 @@ if (aoi_poly == 1) {
     mask2list_sf <- lapply(mask2list, st_read)
     mofuss_regions2_gpkg <- do.call(rbind, mask2list_sf) %>%
       dplyr::mutate(ID = seq(1:nrow(.)))
-    safe_st_write(mofuss_regions2_gpkg, "InVector/extent_mask2.gpkg", overwrite = TRUE)
+    safe_st_write(
+      mofuss_regions2_gpkg,
+      file.path(mofuss_invect_dir, "extent_mask2.gpkg"),
+      overwrite = TRUE
+    )
     debugdfadm2 <- mofuss_regions2_gpkg %>% st_drop_geometry()
     
     mofuss_regions2_gpkg %>%
       terra::subset(.$NAME_0 == mofuss_country) %>% # Remember to change in the parameters table FIX
-      safe_st_write("InVector/extent_analysis2.gpkg", overwrite = TRUE)
+      safe_st_write(
+        file.path(mofuss_invect_dir, "extent_analysis2.gpkg"),
+        overwrite = TRUE
+      )
     
   }
   
   if (byregion == "Regional"){ ## Regional ----
     
     extent_mask0 <- vect(st_read(paste0("regions_adm0_p/",mofuss_region,"_p.gpkg")))
-    safe_write_vector(extent_mask0, "InVector/extent_mask.gpkg", overwrite = TRUE)
+    safe_write_vector(
+      extent_mask0,
+      file.path(mofuss_invect_dir, "extent_mask.gpkg"),
+      overwrite = TRUE
+    )
     
     # Para que esto funciona debo primero asegurarme que ecoregions tiene el campo de las regiones de mofuss
     ecoregions0 <- vect("ecoregions_p/ecoregions2017_p.gpkg", layer = "ecoregions_mofuss") %>% 
       terra::subset(.$mofuss_reg == mofuss_region)
-    safe_write_vector(ecoregions0, "InVector/ecoregions.gpkg", overwrite = TRUE)
+    safe_write_vector(
+      ecoregions0,
+      file.path(mofuss_invect_dir, "ecoregions.gpkg"),
+      overwrite = TRUE
+    )
     # Save as shapefile
     # Define full shapefile path without extension
     shp_path <- paste0(countrydir, "/LULCC/DownloadedDatasets/SourceDataGlobal/InVector/ecoregions")
@@ -691,7 +742,10 @@ if (aoi_poly == 1) {
 
     extent_mask0 %>%
       terra::subset(.$NAME_0 == mofuss_country) %>% #Remember to change in the parameters table
-      safe_write_vector("InVector/extent_analysis.gpkg", overwrite = TRUE)
+      safe_write_vector(
+        file.path(mofuss_invect_dir, "extent_analysis.gpkg"),
+        overwrite = TRUE
+      )
 
     } else if (add_subadmin == "NO"){
       print("Nothing Happens")
@@ -703,22 +757,36 @@ if (aoi_poly == 1) {
     
     mofuss_region1 <- gsub(0,1, mofuss_region)
     extent_mask1 <- vect(paste0("regions_adm1_p/",mofuss_region1,"_p.gpkg"))
-    safe_write_vector(extent_mask1, "InVector/extent_mask1.gpkg", overwrite = TRUE)
+    safe_write_vector(
+      extent_mask1,
+      file.path(mofuss_invect_dir, "extent_mask1.gpkg"),
+      overwrite = TRUE
+    )
     
     if (add_subadmin == "YES") {
       extent_mask1 %>%
         terra::subset(.$NAME_0 == mofuss_country) %>% #Remember to change in the parameters table
-        safe_write_vector("InVector/extent_analysis1.gpkg", overwrite = TRUE)
+        safe_write_vector(
+          file.path(mofuss_invect_dir, "extent_analysis1.gpkg"),
+          overwrite = TRUE
+        )
     }
     
     mofuss_region2 <- gsub(0,2, mofuss_region)
     extent_mask2 <- vect(paste0("regions_adm2_p/",mofuss_region2,"_p.gpkg"))
-    safe_write_vector(extent_mask2, "InVector/extent_mask2.gpkg", overwrite = TRUE)
+    safe_write_vector(
+      extent_mask2,
+      file.path(mofuss_invect_dir, "extent_mask2.gpkg"),
+      overwrite = TRUE
+    )
     
     if (add_subadmin == "YES") {
       extent_mask2 %>%
         terra::subset(.$NAME_0 == mofuss_country) %>% #Remember to change in the parameters table
-        safe_write_vector("InVector/extent_analysis2.gpkg", overwrite = TRUE)
+        safe_write_vector(
+          file.path(mofuss_invect_dir, "extent_analysis2.gpkg"),
+          overwrite = TRUE
+        )
     }
     
   }
@@ -727,19 +795,35 @@ if (aoi_poly == 1) {
     
     extent_mask0 <- vect(st_read("regions_adm0_p/mofuss_regions0_p.gpkg")) %>%
       terra::subset(.$GID_0 == mofuss_region)
-    safe_write_vector(extent_mask0, "InVector/extent_mask.gpkg", overwrite = TRUE)
+    safe_write_vector(
+      extent_mask0,
+      file.path(mofuss_invect_dir, "extent_mask.gpkg"),
+      overwrite = TRUE
+    )
     
     extent_mask1 <- vect(st_read("regions_adm1_p/mofuss_regions1_p.gpkg")) %>%
       terra::subset(.$GID_0 == mofuss_region)
-    safe_write_vector(extent_mask1, "InVector/extent_mask1.gpkg", overwrite = TRUE)
+    safe_write_vector(
+      extent_mask1,
+      file.path(mofuss_invect_dir, "extent_mask1.gpkg"),
+      overwrite = TRUE
+    )
     
     extent_mask2 <- vect(st_read("regions_adm2_p/mofuss_regions2_p.gpkg")) %>%
       terra::subset(.$GID_0 == mofuss_region)
-    safe_write_vector(extent_mask2, "InVector/extent_mask2.gpkg", overwrite = TRUE)
+    safe_write_vector(
+      extent_mask2,
+      file.path(mofuss_invect_dir, "extent_mask2.gpkg"),
+      overwrite = TRUE
+    )
     
     ecoregions0 <- vect("ecoregions_p/ecoregions2017_p.gpkg", layer = "ecoregions_mofuss") %>%
       terra::subset(.$GID_0 == mofuss_region)
-    safe_write_vector(ecoregions0, "InVector/ecoregions.gpkg", overwrite = TRUE)
+    safe_write_vector(
+      ecoregions0,
+      file.path(mofuss_invect_dir, "ecoregions.gpkg"),
+      overwrite = TRUE
+    )
     # Save as shapefile
     # Define full shapefile path without extension
     shp_path <- paste0(countrydir, "/LULCC/DownloadedDatasets/SourceDataGlobal/InVector/ecoregions")
@@ -770,15 +854,24 @@ if (aoi_poly == 1) {
       
       extent_mask1 %>%
         terra::subset(.$NAME_1 == adm1_country) %>%
-        safe_write_vector("InVector/extent_analysis.gpkg", overwrite = TRUE)
+        safe_write_vector(
+          file.path(mofuss_invect_dir, "extent_analysis.gpkg"),
+          overwrite = TRUE
+        )
       
       extent_mask2 %>%
         terra::subset(.$NAME_1 == adm1_country) %>%
-        safe_write_vector("InVector/extent_analysis1.gpkg", overwrite = TRUE)
+        safe_write_vector(
+          file.path(mofuss_invect_dir, "extent_analysis1.gpkg"),
+          overwrite = TRUE
+        )
       
       extent_mask2 %>% # Repeats previous admin 2 level for being a country crop
         terra::subset(.$NAME_1 == adm1_country) %>%
-        safe_write_vector("InVector/extent_analysis2.gpkg", overwrite = TRUE)
+        safe_write_vector(
+          file.path(mofuss_invect_dir, "extent_analysis2.gpkg"),
+          overwrite = TRUE
+        )
     } else {
       # safe_write_vector(extent_mask, "InVector/extent_analysis.gpkg", overwrite = TRUE)
       # safe_write_vector(extent_mask1, "InVector/extent_analysis1.gpkg", overwrite = TRUE)
@@ -787,61 +880,11 @@ if (aoi_poly == 1) {
 
   }
   
-  # Copy to MoFuSS ----
+  # Return to this job's working directory. Derived vectors were written
+  # directly to mofuss_invect_dir; admindir remains read-only.
   setwd(countrydir)
-  
-  mofuss_invect_dir <- paste0(
-    countrydir,
-    "/LULCC/DownloadedDatasets/SourceDataGlobal/InVector"
-  )
-  
-  # ADM 0
-  safe_copy(
-    src = paste0(admindir, "/InVector/extent_mask.gpkg"),
-    dest_dir = mofuss_invect_dir,
-    overwrite = TRUE
-  )
-  
-  # ADM 1
-  safe_copy(
-    src = paste0(admindir, "/InVector/extent_mask1.gpkg"),
-    dest_dir = mofuss_invect_dir,
-    overwrite = TRUE
-  )
-  
-  # ADM 2
-  safe_copy(
-    src = paste0(admindir, "/InVector/extent_mask2.gpkg"),
-    dest_dir = mofuss_invect_dir,
-    overwrite = TRUE
-  )
-  
-  safe_copy(
-    src = paste0(admindir, "/InVector/ecoregions.gpkg"),
-    dest_dir = mofuss_invect_dir,
-    overwrite = TRUE
-  )
-  
+
   if (add_subadmin == "YES") {
-    
-    safe_copy(
-      src = paste0(admindir, "/InVector/extent_analysis.gpkg"),
-      dest_dir = mofuss_invect_dir,
-      overwrite = TRUE
-    )
-    
-    safe_copy(
-      src = paste0(admindir, "/InVector/extent_analysis1.gpkg"),
-      dest_dir = mofuss_invect_dir,
-      overwrite = TRUE
-    )
-    
-    safe_copy(
-      src = paste0(admindir, "/InVector/extent_analysis2.gpkg"),
-      dest_dir = mofuss_invect_dir,
-      overwrite = TRUE
-    )
-    
     userarea <- st_read("LULCC/DownloadedDatasets/SourceDataGlobal/InVector/extent_analysis.gpkg")
     userarea_GCS <- st_transform(userarea, epsg_gcs)
     
@@ -1092,12 +1135,12 @@ lossyear_r_m %>%
 
 # Annual losses using apply or map ####
 #tic()
-seq(1:20) %>%
+lossyear_source <- lossyear_r_m
+
+seq_len(20) %>%
   walk(function(i){
-    lossyear_r_m[lossyear_r_m == i] <- 1
-    lossyear_r_m[lossyear_r_m != i] <- 0
-    #lossyear_r_m[lossyear_r_m != i | is.na(lossyear_r_m)] <- 0
-    lossyear_r_m %>%
+    annual_loss <- lossyear_source == i
+    annual_loss %>%
       writeRaster(str_c("LULCC/TempRaster/AnnLoss", str_pad(i, width = 2, pad = "0"),".tif"), datatype = "INT2S",overwrite = T)
     })
 #toc()
@@ -1327,10 +1370,38 @@ for (v in growth_vars) {
   message(sprintf("Wrote: %s", out_file))
 }
 
+# Normalize optional raster/vector flags. Missing, blank, NA, and values other
+# than YES use the established vector fallback.
+get_raster_flag <- function(var_name) {
+  values <- country_parameters %>%
+    dplyr::filter(Var == var_name) %>%
+    pull(ParCHR) %>%
+    as.character() %>%
+    trimws()
+
+  values <- toupper(values[!is.na(values) & nzchar(values)])
+  values <- unique(values)
+
+  if (length(values) == 0L) {
+    return(NA_character_)
+  }
+
+  if (length(values) > 1L) {
+    stop(
+      "Multiple conflicting values found for parameter '",
+      var_name,
+      "': ",
+      paste(values, collapse = ", ")
+    )
+  }
+
+  values[[1]]
+}
+
 # Protected Areas ----
-if (identical(country_parameters %>%
-              dplyr::filter(Var == "npa_raster") %>%
-              pull(ParCHR), NA_character_)) { # variable exists with no value
+npa_raster_param <- get_raster_flag("npa_raster")
+
+if (!identical(npa_raster_param, "YES")) {
   tic()
   # Read the vector file
   npa <- st_read(paste0("LULCC/DownloadedDatasets/SourceDataGlobal/InVector/", country_parameters %>%
@@ -1348,9 +1419,7 @@ if (identical(country_parameters %>%
   writeRaster(npa_c, filename = "LULCC/TempRaster/npa_c.tif", 
               datatype = "INT2S", overwrite = TRUE)
   toc()
-} else if (country_parameters %>%
-           dplyr::filter(Var == "npa_raster") %>%
-           pull(ParCHR)  == "YES"){
+} else {
   print("Processing protected areas from raster format")
   # Load raster using terra
   npa_raster <- rast(paste0("LULCC/DownloadedDatasets/SourceDataGlobal/InRaster/", country_parameters %>%
@@ -1370,53 +1439,13 @@ if (identical(country_parameters %>%
   # Write raster to file
   writeRaster(npa_c, filename = "LULCC/TempRaster/npa_c.tif", 
               datatype = "INT4S", overwrite = TRUE)
-} else if (country_parameters %>%
-           dplyr::filter(Var == "npa_raster") %>%
-           pull(ParCHR)  == character(0)){ # variable doesn't exist, assume vector format
-  tic()
-  # Read the vector file
-  npa <- st_read(paste0("LULCC/DownloadedDatasets/SourceDataGlobal/InVector/", country_parameters %>%
-                          dplyr::filter (Var == "npa_name") %>%
-                          pull(ParCHR)))
-  # Rasterize using the specified field
-  npa_r <- rasterize(npa, userarea_r, field = country_parameters %>%
-                       dplyr::filter (Var == "npa_fieldname") %>%
-                       pull(ParCHR))
-  # Multiply raster by userarea_r
-  npa_c <- npa_r * userarea_r
-  # Assign layer name
-  names(npa_c) <- "layer_0"
-  # Write raster to file
-  writeRaster(npa_c, filename = "LULCC/TempRaster/npa_c.tif", 
-              datatype = "INT2S", overwrite = TRUE)
-  toc()
-} else {
-  tic()
-  # Read the vector file
-  npa <- st_read(paste0("LULCC/DownloadedDatasets/SourceDataGlobal/InVector/", country_parameters %>%
-                          dplyr::filter (Var == "npa_name") %>%
-                          pull(ParCHR)))
-  # Rasterize using the specified field
-  npas_r <- rasterize(npa, userarea_r, field = country_parameters %>%
-                        dplyr::filter (Var == "npa_fieldname") %>%
-                        pull(ParCHR))
-  # Multiply raster by userarea_r
-  npa_c <- npas_r * userarea_r
-  # Assign layer name
-  names(npa_c) <- "layer_0"
-  # Write raster to file
-  writeRaster(npa_c, filename = "LULCC/TempRaster/npa_c.tif", 
-              datatype = "INT2S", overwrite = TRUE)
-  toc()
 }
 
 # Rivers ----
 # Extract river raster parameter
-rivers_raster_param <- country_parameters %>%
-  dplyr::filter (Var == "rivers_raster") %>%
-  pull(ParCHR)
+rivers_raster_param <- get_raster_flag("rivers_raster")
 
-if (identical(rivers_raster_param, NA_character_)) {  # Variable exists but has no value
+if (!identical(rivers_raster_param, "YES")) {
   tic()
   rivers <- st_read(paste0("LULCC/DownloadedDatasets/SourceDataGlobal/InVector/", country_parameters %>%
                              dplyr::filter (Var == "rivers_name") %>%
@@ -1433,7 +1462,7 @@ if (identical(rivers_raster_param, NA_character_)) {  # Variable exists but has 
   
   toc()
   
-} else if (rivers_raster_param == "YES") {  
+} else {
   print("Processing rivers from raster format")
   
   rivers_raster <- rast(paste0("LULCC/DownloadedDatasets/SourceDataGlobal/InRaster/", country_parameters %>%
@@ -1451,49 +1480,14 @@ if (identical(rivers_raster_param, NA_character_)) {  # Variable exists but has 
   writeRaster(rivers_c, filename = "LULCC/TempRaster/rivers_c.tif", 
               datatype = "INT4S", overwrite = TRUE)
   
-} else if (length(rivers_raster_param) == 0) {  # Variable doesn't exist, assume vector format
-  tic()
-  rivers <- st_read(paste0("LULCC/DownloadedDatasets/SourceDataGlobal/InVector/", country_parameters %>%
-                             dplyr::filter (Var == "rivers_name") %>%
-                             pull(ParCHR)))
-  
-  rivers_r <- rasterize(rivers, userarea_r, field = country_parameters %>%
-                          dplyr::filter (Var == "rivers_fieldname") %>%
-                          pull(ParCHR))
-  
-  rivers_c <- rivers_r * userarea_r
-  
-  writeRaster(rivers_c, filename = "LULCC/TempRaster/rivers_c.tif", 
-              datatype = "INT2S", overwrite = TRUE)
-  
-  toc()
-  
-} else {  
-  tic()
-  rivers <- st_read(paste0("LULCC/DownloadedDatasets/SourceDataGlobal/InVector/", country_parameters %>%
-                             dplyr::filter (Var == "rivers_name") %>%
-                             pull(ParCHR)))
-  
-  rivers_r <- rasterize(rivers, userarea_r, field = country_parameters %>%
-                          dplyr::filter (Var == "rivers_fieldname") %>%
-                          pull(ParCHR))
-  
-  rivers_c <- rivers_r * userarea_r
-  
-  writeRaster(rivers_c, filename = "LULCC/TempRaster/rivers_c.tif", 
-              datatype = "INT2S", overwrite = TRUE)
-  
-  toc()
 }
 
 
 # Lakes ----
 # Extract lakes raster parameter
-lakes_raster_param <- country_parameters %>%
-  dplyr::filter (Var == "lakes_raster") %>%
-  pull(ParCHR)
+lakes_raster_param <- get_raster_flag("lakes_raster")
 
-if (identical(lakes_raster_param, NA_character_)) {  # Variable exists but has no value
+if (!identical(lakes_raster_param, "YES")) {
   tic()
   lakes <- st_read(paste0("LULCC/DownloadedDatasets/SourceDataGlobal/InVector/", country_parameters %>%
                             dplyr::filter (Var == "lakes_name") %>%
@@ -1510,7 +1504,7 @@ if (identical(lakes_raster_param, NA_character_)) {  # Variable exists but has n
   
   toc()
   
-} else if (lakes_raster_param == "YES") {  
+} else {
   print("Processing lakes from raster format")
   
   lakes_raster <- rast(paste0("LULCC/DownloadedDatasets/SourceDataGlobal/InRaster/", country_parameters %>%
@@ -1528,49 +1522,14 @@ if (identical(lakes_raster_param, NA_character_)) {  # Variable exists but has n
   writeRaster(lakes_c, filename = "LULCC/TempRaster/lakes_c.tif", 
               datatype = "INT4S", overwrite = TRUE)
   
-} else if (length(lakes_raster_param) == 0) {  # Variable doesn't exist, assume vector format
-  tic()
-  lakes <- st_read(paste0("LULCC/DownloadedDatasets/SourceDataGlobal/InVector/", country_parameters %>%
-                            dplyr::filter (Var == "lakes_name") %>%
-                            pull(ParCHR)))
-  
-  lakes_r <- rasterize(lakes, userarea_r, field = country_parameters %>%
-                         dplyr::filter (Var == "lakes_fieldname") %>%
-                         pull(ParCHR))
-  
-  lakes_c <- lakes_r * userarea_r
-  
-  writeRaster(lakes_c, filename = "LULCC/TempRaster/lakes_c.tif", 
-              datatype = "INT2S", overwrite = TRUE)
-  
-  toc()
-  
-} else {  
-  tic()
-  lakes <- st_read(paste0("LULCC/DownloadedDatasets/SourceDataGlobal/InVector/", country_parameters %>%
-                            dplyr::filter (Var == "lakes_name") %>%
-                            pull(ParCHR)))
-  
-  lakes_r <- rasterize(lakes, userarea_r, field = country_parameters %>%
-                         dplyr::filter (Var == "lakes_fieldname") %>%
-                         pull(ParCHR))
-  
-  lakes_c <- lakes_r * userarea_r
-  
-  writeRaster(lakes_c, filename = "LULCC/TempRaster/lakes_c.tif", 
-              datatype = "INT2S", overwrite = TRUE)
-  
-  toc()
 }
 
 
 # Roads ----
 # Extract roads raster parameter
-roads_raster_param <- country_parameters %>%
-  dplyr::filter (Var == "roads_raster") %>%
-  pull(ParCHR)
+roads_raster_param <- get_raster_flag("roads_raster")
 
-if (identical(roads_raster_param, NA_character_)) {  # Variable exists but has no value
+if (!identical(roads_raster_param, "YES")) {
   tic()
   roads <- st_read(paste0("LULCC/DownloadedDatasets/SourceDataGlobal/InVector/", country_parameters %>%
                             dplyr::filter (Var == "roads_name") %>%
@@ -1587,7 +1546,7 @@ if (identical(roads_raster_param, NA_character_)) {  # Variable exists but has n
   
   toc()
   
-} else if (roads_raster_param == "YES") {  
+} else {
   print("Processing roads from raster format")
   
   roads_raster <- rast(paste0("LULCC/DownloadedDatasets/SourceDataGlobal/InRaster/", country_parameters %>%
@@ -1605,48 +1564,13 @@ if (identical(roads_raster_param, NA_character_)) {  # Variable exists but has n
   writeRaster(roads_c, filename = "LULCC/TempRaster/roads_c.tif", 
               datatype = "INT4S", overwrite = TRUE)
   
-} else if (length(roads_raster_param) == 0) {  # Variable doesn't exist, assume vector format
-  tic()
-  roads <- st_read(paste0("LULCC/DownloadedDatasets/SourceDataGlobal/InVector/", country_parameters %>%
-                            dplyr::filter (Var == "roads_name") %>%
-                            pull(ParCHR)))
-  
-  roads_r <- rasterize(roads, userarea_r, field = country_parameters %>%
-                         dplyr::filter (Var == "roads_fieldname") %>%
-                         pull(ParCHR))
-  
-  roads_c <- roads_r * userarea_r
-  
-  writeRaster(roads_c, filename = "LULCC/TempRaster/roads_c.tif", 
-              datatype = "INT2S", overwrite = TRUE)
-  
-  toc()
-  
-} else {  
-  tic()
-  roads <- st_read(paste0("LULCC/DownloadedDatasets/SourceDataGlobal/InVector/", country_parameters %>%
-                            dplyr::filter (Var == "roads_name") %>%
-                            pull(ParCHR)))
-  
-  roads_r <- rasterize(roads, userarea_r, field = country_parameters %>%
-                         dplyr::filter (Var == "roads_fieldname") %>%
-                         pull(ParCHR))
-  
-  roads_c <- roads_r * userarea_r
-  
-  writeRaster(roads_c, filename = "LULCC/TempRaster/roads_c.tif", 
-              datatype = "INT2S", overwrite = TRUE)
-  
-  toc()
 }
 
 # Borders ----
 # Extract borders raster parameter
-borders_raster_param <- country_parameters %>%
-  dplyr::filter (Var == "borders_raster") %>%
-  pull(ParCHR)
+borders_raster_param <- get_raster_flag("borders_raster")
 
-if (identical(borders_raster_param, NA_character_)) {  # Variable exists but has no value
+if (!identical(borders_raster_param, "YES")) {
   tic()
   borders <- st_read(paste0("LULCC/DownloadedDatasets/SourceDataGlobal/InVector/", country_parameters %>%
                               dplyr::filter (Var == "borders_name") %>%
@@ -1663,7 +1587,7 @@ if (identical(borders_raster_param, NA_character_)) {  # Variable exists but has
   
   toc()
   
-} else if (borders_raster_param == "YES") {  
+} else {
   print("Processing borders from raster format")
   
   borders_raster <- rast(paste0("LULCC/DownloadedDatasets/SourceDataGlobal/InRaster/", country_parameters %>%
@@ -1681,46 +1605,13 @@ if (identical(borders_raster_param, NA_character_)) {  # Variable exists but has
   writeRaster(borders_c, filename = "LULCC/TempRaster/borders_c.tif", 
               datatype = "INT4S", overwrite = TRUE)
   
-} else if (length(borders_raster_param) == 0) {  # Variable doesn't exist, assume vector format
-  tic()
-  borders <- st_read(paste0("LULCC/DownloadedDatasets/SourceDataGlobal/InVector/", country_parameters %>%
-                              dplyr::filter (Var == "borders_name") %>%
-                              pull(ParCHR)))
-  
-  borders_r <- rasterize(borders, userarea_r, field = country_parameters %>%
-                           dplyr::filter (Var == "borders_fieldname") %>%
-                           pull(ParCHR))
-  
-  borders_c <- borders_r * userarea_r
-  
-  writeRaster(borders_c, filename = "LULCC/TempRaster/borders_c.tif", 
-              datatype = "INT2S", overwrite = TRUE)
-  
-  toc()
-  
-} else {  
-  tic()
-  borders <- st_read(paste0("LULCC/DownloadedDatasets/SourceDataGlobal/InVector/", country_parameters %>%
-                              dplyr::filter (Var == "borders_name") %>%
-                              pull(ParCHR)))
-  
-  borders_r <- rasterize(borders, userarea_r, field = country_parameters %>%
-                           dplyr::filter (Var == "borders_fieldname") %>%
-                           pull(ParCHR))
-  
-  borders_c <- borders_r * userarea_r
-  
-  writeRaster(borders_c, filename = "LULCC/TempRaster/borders_c.tif", 
-              datatype = "INT2S", overwrite = TRUE)
-  
-  toc()
 }
 
 #################################TERRA#####################################
 ##### VOY POR ACÁ!! Pasar a a Terra
 # Maritime routes ----
 if (identical(country_parameters %>%
-              dplyr::filter(Var == "Maritime_lyr") %>%
+              dplyr::filter(Var == "maritime_lyr") %>%
               pull(ParCHR), NA_character_)) { # variable exists with no value
   print ("No Maritime layer") 
 } else if (identical(country_parameters %>%
