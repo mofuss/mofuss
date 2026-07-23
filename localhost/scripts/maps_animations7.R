@@ -2256,7 +2256,12 @@ if (fNRB_partition_tables == 1) {
             fNRB_2030_2040 = NRB_2030_2040 / Harv_2030_2040 * 100,
             fNRB_2040_2050 = NRB_2040_2050 / Harv_2040_2050 * 100
           ) %>%
-          dplyr::mutate(across(starts_with("fNRB_"), \(x) round(x, 0)))
+          dplyr::mutate(
+            dplyr::across(
+              tidyselect::starts_with("fNRB_"),
+              \(x) round(x, 0)
+            )
+          )
         
         NRBzon_fr$MC <- j  # maybe you want to keep track of which iteration produced it?
         NRBzon_frlist[[j]] <- NRBzon_fr # add it to your list
@@ -2626,9 +2631,9 @@ if (fNRB_partition_tables == 1) {
       print(35)
       
       NRBzon_frbind <- dplyr::bind_rows(NRBzon_frlist)
-      summarycols <- c("NRB_2010_2035", "NRB_2020_2035", "NRB_2010_2020", "NRB_2020_2035", 
-                       "Harv_2010_2035", "Harv_2020_2035", "Harv_2010_2020", "Harv_2020_2035",
-                       "fNRB_2010_2035", "fNRB_2020_2035", "fNRB_2010_2020", "fNRB_2020_2035")
+      summarycols <- c("NRB_2010_2035", "NRB_2020_2035", "NRB_2010_2020", 
+                       "Harv_2010_2035", "Harv_2020_2035", "Harv_2010_2020",
+                       "fNRB_2010_2035", "fNRB_2020_2035", "fNRB_2010_2020")
       
       NRBzonfr_st <- NRBzon_frbind %>%
         group_by(zone) %>%
@@ -2704,7 +2709,7 @@ if (fNRB_partition_tables == 1) {
         NRB_fNRB3_fr_madm0 <- NRB_fNRB2_frcompl_madm0 %>%
           dplyr::select(-matches("_2010_2035|_2010_2020"), -ends_with("_sd")) %>%
           dplyr::relocate(NRB_2020_2035_1MC, .after = zone_1MC) %>%
-          dplyr::relocate(Harv_2020_2035_1MC, .after = NRB_2030_2035_1MC) %>% #Not sure this will work with STdyn==25
+          dplyr::relocate(Harv_2020_2035_1MC, .after = NRB_2020_2035_1MC) %>%
           dplyr::select(-ends_with("_1MC"))
         write.csv(NRB_fNRB3_fr_madm0, "LULCC/TempTables/summary_adm0_fr.csv", row.names=FALSE, quote=FALSE)
         write.csv(NRB_fNRB3_fr_madm0, "Out/webmofuss_results/summary_adm0_fr.csv", row.names=FALSE, quote=FALSE)
@@ -2744,7 +2749,7 @@ if (fNRB_partition_tables == 1) {
         NRB_fNRB3_fr_madm1 <- NRB_fNRB2_frcompl_madm1 %>%
           dplyr::select(-matches("_2010_2035|_2010_2020"), -ends_with("_sd")) %>%
           dplyr::relocate(NRB_2020_2035_1MC, .after = zone_1MC) %>%
-          dplyr::relocate(Harv_2020_2035_1MC, .after = NRB_2030_2035_1MC) %>% #Not sure this will work with STdyn==25
+          dplyr::relocate(Harv_2020_2035_1MC, .after = NRB_2020_2035_1MC) %>%
           dplyr::select(-ends_with("_1MC"))
         write.csv(NRB_fNRB3_fr_madm1, "LULCC/TempTables/summary_adm1_fr.csv", row.names=FALSE, quote=FALSE)
         write.csv(NRB_fNRB3_fr_madm1, "Out/webmofuss_results/summary_adm1_fr.csv", row.names=FALSE, quote=FALSE)
@@ -2772,7 +2777,7 @@ if (fNRB_partition_tables == 1) {
         NRB_fNRB3_fr_madm2 <- NRB_fNRB2_frcompl_madm2 %>%
           dplyr::select(-matches("_2010_2035|_2010_2020"), -ends_with("_sd")) %>%
           dplyr::relocate(NRB_2020_2035_1MC, .after = zone_1MC) %>%
-          dplyr::relocate(Harv_2020_2035_1MC, .after = NRB_2030_2035_1MC) %>% #Not sure this will work with STdyn==25
+          dplyr::relocate(Harv_2020_2035_1MC, .after = NRB_2020_2035_1MC) %>%
           dplyr::select(-ends_with("_1MC"))
         write.csv(NRB_fNRB3_fr_madm2, "LULCC/TempTables/summary_adm2_fr.csv", row.names=FALSE, quote=FALSE)
         write.csv(NRB_fNRB3_fr_madm2, "Out/webmofuss_results/summary_adm2_fr.csv", row.names=FALSE, quote=FALSE)
