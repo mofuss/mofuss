@@ -20,14 +20,14 @@ demand_tuning,0
 urb_shift_factor,1
 efchratio,6
 SCENARIO,
-scenario_ver,ICS3_v2
+scenario_ver,BaU1_v2
 idw_debug,NO
 friction,R
 SIMULATION LENGTH,
 start_year,2000
-end_year,2030
+end_year,2050
 DINAMICA EGO,
-monte_carlo_runs,3
+monte_carlo_runs,2
 uncapped_regrowth,0
 npa_ease,10
 instant_demand,0
