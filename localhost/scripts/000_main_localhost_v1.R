@@ -120,77 +120,223 @@ source_script <- function(script_path, script_name) {
 }
 
 copy_personal_demand_csv <- function() {
-  
-  if (personal_demand == 1) {
-    
-    cat("\033[32mPlease choose the demand table (.csv).\033[0m\n")
-    
-    if (telegram_msgs == 1) {
-      send_telegram_message(
-        paste(
-          "You now need you to upload the demand table 📂",
-          "-- running on", computer_name, "(", os_name, ")"
-        )
-      )
+  if (personal_demand != 1) {
+    return(invisible(NULL))
+  }
+
+  parameters_path <- file.path(
+    countrydir,
+    "LULCC",
+    "DownloadedDatasets",
+    "SourceDataGlobal",
+    "parameters.csv"
+  )
+
+  # Use the parameter path found by 0_set_directories_and_region_v3.R when the
+  # standard SourceDataGlobal path is not available.
+  if (!file.exists(parameters_path)) {
+    configured_parameters_path <- if (
+      exists("parameters_file_path", inherits = TRUE)
+    ) {
+      get("parameters_file_path", inherits = TRUE)
+    } else {
+      character(0)
     }
-    
-    # Opens pop-up file chooser
-    input_csv <- utils::choose.files(
-      caption = "Please choose the demand table (.csv)",
+
+    configured_parameters_path <- configured_parameters_path[
+      !is.na(configured_parameters_path) &
+        nzchar(configured_parameters_path) &
+        file.exists(configured_parameters_path)
+    ]
+
+    if (length(configured_parameters_path) == 0) {
+      stop("Could not find parameters.csv to determine scenario_ver.")
+    }
+
+    parameters_path <- configured_parameters_path[[1]]
+  }
+
+  first_line <- readLines(parameters_path, n = 1, warn = FALSE)
+  parameters_delimiter <- if (grepl(";", first_line, fixed = TRUE)) ";" else ","
+  demand_parameters <- utils::read.table(
+    parameters_path,
+    header = TRUE,
+    sep = parameters_delimiter,
+    stringsAsFactors = FALSE,
+    check.names = FALSE,
+    quote = "\"",
+    comment.char = ""
+  )
+
+  required_parameter_columns <- c("Var", "ParCHR")
+  missing_parameter_columns <- setdiff(
+    required_parameter_columns,
+    names(demand_parameters)
+  )
+
+  if (length(missing_parameter_columns) > 0) {
+    stop(
+      "parameters.csv is missing required column(s): ",
+      paste(missing_parameter_columns, collapse = ", ")
+    )
+  }
+
+  scenario_values <- unique(trimws(as.character(
+    demand_parameters$ParCHR[demand_parameters$Var == "scenario_ver"]
+  )))
+  scenario_values <- scenario_values[!is.na(scenario_values) & nzchar(scenario_values)]
+
+  if (length(scenario_values) != 1) {
+    stop("parameters.csv must contain exactly one non-empty scenario_ver value.")
+  }
+
+  selected_scenario <- scenario_values[[1]]
+  ics_scenarios <- c("ICS1_v2", "ICS2_v2", "ICS3_v2")
+  bau_scenarios <- c("BaU1_v2", "BaU2_v2", "BaU3_v2")
+
+  if (!selected_scenario %in% c(bau_scenarios, ics_scenarios)) {
+    stop("Invalid scenario_ver in parameters.csv: ", selected_scenario)
+  }
+
+  choose_demand_csv <- function(caption) {
+    cat(paste0("\033[32m", caption, "\033[0m\n"))
+
+    selected_file <- utils::choose.files(
+      caption = caption,
+      multi = FALSE,
       filters = matrix(
         c("CSV Files", "*.csv"),
         ncol = 2,
         byrow = TRUE
       )
     )
-    
-    input_csv <- input_csv[1]
-    
-    if (!grepl("\\.csv$", input_csv, ignore.case = TRUE)) {
-      stop("Selected file is not a .csv file.")
+
+    if (
+      length(selected_file) == 0 ||
+        is.na(selected_file[[1]]) ||
+        !nzchar(selected_file[[1]])
+    ) {
+      stop("Demand table selection was cancelled.")
     }
-    
-    # Extract uploaded filename
-    uploaded_name <- basename(input_csv)
-    
-    demand_dir <- paste0(
-      countrydir,
-      "/LULCC/DownloadedDatasets/SourceDataGlobal/demand/demand_in/"
-    )
-    
-    if (!dir.exists(demand_dir)) {
-      dir.create(demand_dir, recursive = TRUE)
+
+    selected_file <- selected_file[[1]]
+
+    if (!grepl("\\.csv$", selected_file, ignore.case = TRUE)) {
+      stop("Selected file is not a .csv file: ", selected_file)
     }
-    
-    output_path <- paste0(
-      demand_dir,
-      uploaded_name
+
+    selected_file
+  }
+
+  is_ics_scenario <- selected_scenario %in% ics_scenarios
+
+  if (telegram_msgs == 1) {
+    upload_message <- if (is_ics_scenario) {
+      paste(
+        "You now need to upload two demand tables: BaU and",
+        selected_scenario, "📂"
+      )
+    } else {
+      "You now need to upload the demand table 📂"
+    }
+
+    send_telegram_message(
+      paste(
+        upload_message,
+        "-- running on", computer_name, "(", os_name, ")"
+      )
     )
-    
-    file.copy(
-      from = input_csv,
+  }
+
+  if (is_ics_scenario) {
+    bau_input_csv <- choose_demand_csv(
+      "Please choose the Business as Usual demand table (.csv)"
+    )
+    ics_input_csv <- choose_demand_csv(
+      paste0("Please choose the ", selected_scenario, " demand table (.csv)")
+    )
+
+    if (identical(
+      normalizePath(bau_input_csv, winslash = "/", mustWork = TRUE),
+      normalizePath(ics_input_csv, winslash = "/", mustWork = TRUE)
+    )) {
+      stop("The BaU and ICS demand tables must be different files.")
+    }
+
+    uploads <- list(
+      list(
+        input = bau_input_csv,
+        output_name = "demand_bau1_v2.csv"
+      ),
+      list(
+        input = ics_input_csv,
+        output_name = paste0("demand_", tolower(selected_scenario), ".csv")
+      )
+    )
+  } else {
+    input_csv <- choose_demand_csv(
+      "Please choose the demand table (.csv)"
+    )
+    uploads <- list(
+      list(
+        input = input_csv,
+        output_name = basename(input_csv)
+      )
+    )
+  }
+
+  demand_dir <- file.path(
+    countrydir,
+    "LULCC",
+    "DownloadedDatasets",
+    "SourceDataGlobal",
+    "demand",
+    "demand_in"
+  )
+
+  if (!dir.exists(demand_dir)) {
+    dir.create(demand_dir, recursive = TRUE)
+  }
+
+  if (!dir.exists(demand_dir)) {
+    stop("Could not create the demand input directory: ", demand_dir)
+  }
+
+  copied_files <- character(0)
+
+  for (upload in uploads) {
+    output_path <- file.path(demand_dir, upload$output_name)
+    copy_succeeded <- file.copy(
+      from = upload$input,
       to = output_path,
       overwrite = TRUE
     )
-    
+
+    if (!isTRUE(copy_succeeded)) {
+      stop("Could not copy the demand table to: ", output_path)
+    }
+
+    copied_files <- c(copied_files, upload$output_name)
     cat(
       paste0(
         "\033[32mPersonal demand CSV copied successfully as: ",
-        uploaded_name,
+        upload$output_name,
         "\033[0m\n"
       )
     )
-    
-    if (telegram_msgs == 1) {
-      send_telegram_message(
-        paste(
-          "Personal demand table uploaded successfully ✅",
-          "\nFile:", uploaded_name,
-          "-- running on", computer_name, "(", os_name, ")"
-        )
-      )
-    }
   }
+
+  if (telegram_msgs == 1) {
+    send_telegram_message(
+      paste(
+        "Personal demand table upload completed successfully ✅",
+        "\nFile(s):", paste(copied_files, collapse = ", "),
+        "-- running on", computer_name, "(", os_name, ")"
+      )
+    )
+  }
+
+  invisible(file.path(demand_dir, copied_files))
 }
 
 # Source files ----

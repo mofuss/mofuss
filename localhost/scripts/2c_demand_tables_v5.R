@@ -76,16 +76,78 @@ if (byregion == "Regional") { # Or continental
   
   if (aoi_poly == 0){
     
-    # Define scenarios ----
-    detect_delimiter <- function(file) {
-      line1 <- readLines(file, n = 1)
-      if (stringr::str_detect(line1, ";")) return(";")
-      return(",")
-    }
-    
     read_wfdb <- function(file) {
-      delim <- detect_delimiter(file)
-      readr::read_delim(file, delim = delim, show_col_types = FALSE)
+      if (!file.exists(file)) {
+        stop("Demand table not found: ", file)
+      }
+
+      # Some personal ICS exports contain scenario metadata before the actual
+      # demand-table header. Locate the real header and infer its delimiter
+      # instead of assuming that the first line contains the column names.
+      header_lines <- readLines(file, n = 100, warn = FALSE)
+      required_columns <- unique(c(
+        "iso3",
+        "area",
+        "fuel",
+        "year",
+        "num_fuel_users_thousands",
+        demand_col
+      ))
+      header_row <- Inf
+      delimiter <- NULL
+
+      for (candidate_delimiter in c(",", ";")) {
+        candidate_rows <- which(vapply(
+          header_lines,
+          function(header_line) {
+            header_fields <- strsplit(
+              sub("^\ufeff", "", header_line),
+              candidate_delimiter,
+              fixed = TRUE
+            )[[1]]
+            header_fields <- tolower(trimws(gsub(
+              "\"",
+              "",
+              header_fields,
+              fixed = TRUE
+            )))
+            all(tolower(required_columns) %in% header_fields)
+          },
+          logical(1)
+        ))
+
+        if (length(candidate_rows) > 0 && candidate_rows[[1]] < header_row) {
+          header_row <- candidate_rows[[1]]
+          delimiter <- candidate_delimiter
+        }
+      }
+
+      if (is.null(delimiter)) {
+        stop(
+          "Could not find a valid demand-table header in ", file,
+          ". Required columns: ", paste(required_columns, collapse = ", ")
+        )
+      }
+
+      demand_table <- readr::read_delim(
+        file,
+        delim = delimiter,
+        skip = header_row - 1,
+        show_col_types = FALSE,
+        progress = FALSE,
+        trim_ws = TRUE
+      )
+      names(demand_table) <- trimws(sub("^\ufeff", "", names(demand_table)))
+
+      missing_columns <- setdiff(required_columns, names(demand_table))
+      if (length(missing_columns) > 0) {
+        stop(
+          "Demand table ", file, " is missing required column(s): ",
+          paste(missing_columns, collapse = ", ")
+        )
+      }
+
+      demand_table
     }
     
     # Define scenarios ----
