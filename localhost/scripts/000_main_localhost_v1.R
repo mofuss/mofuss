@@ -124,51 +124,72 @@ copy_personal_demand_csv <- function() {
     return(invisible(NULL))
   }
 
-  parameters_path <- file.path(
-    countrydir,
-    "LULCC",
-    "DownloadedDatasets",
-    "SourceDataGlobal",
-    "parameters.csv"
-  )
+  required_parameter_columns <- c("Var", "ParCHR")
+  demand_parameters <- NULL
 
-  # Use the parameter path found by 0_set_directories_and_region_v3.R when the
-  # standard SourceDataGlobal path is not available.
-  if (!file.exists(parameters_path)) {
-    configured_parameters_path <- if (
-      exists("parameters_file_path", inherits = TRUE)
+  # The preceding setup/copy scripts already parse parameters.csv with readr.
+  # Reuse that table so irregular non-scenario rows cannot prevent the demand
+  # file chooser from opening.
+  if (exists("country_parameters", inherits = TRUE)) {
+    parsed_parameters <- get("country_parameters", inherits = TRUE)
+
+    if (
+      is.data.frame(parsed_parameters) &&
+        all(required_parameter_columns %in% names(parsed_parameters))
     ) {
-      get("parameters_file_path", inherits = TRUE)
-    } else {
-      character(0)
+      demand_parameters <- parsed_parameters
     }
-
-    configured_parameters_path <- configured_parameters_path[
-      !is.na(configured_parameters_path) &
-        nzchar(configured_parameters_path) &
-        file.exists(configured_parameters_path)
-    ]
-
-    if (length(configured_parameters_path) == 0) {
-      stop("Could not find parameters.csv to determine scenario_ver.")
-    }
-
-    parameters_path <- configured_parameters_path[[1]]
   }
 
-  first_line <- readLines(parameters_path, n = 1, warn = FALSE)
-  parameters_delimiter <- if (grepl(";", first_line, fixed = TRUE)) ";" else ","
-  demand_parameters <- utils::read.table(
-    parameters_path,
-    header = TRUE,
-    sep = parameters_delimiter,
-    stringsAsFactors = FALSE,
-    check.names = FALSE,
-    quote = "\"",
-    comment.char = ""
-  )
+  # Fallback for calling this function independently of the normal script loop.
+  if (is.null(demand_parameters)) {
+    parameters_path <- file.path(
+      countrydir,
+      "LULCC",
+      "DownloadedDatasets",
+      "SourceDataGlobal",
+      "parameters.csv"
+    )
 
-  required_parameter_columns <- c("Var", "ParCHR")
+    if (!file.exists(parameters_path)) {
+      configured_parameters_path <- if (
+        exists("parameters_file_path", inherits = TRUE)
+      ) {
+        get("parameters_file_path", inherits = TRUE)
+      } else {
+        character(0)
+      }
+
+      configured_parameters_path <- configured_parameters_path[
+        !is.na(configured_parameters_path) &
+          nzchar(configured_parameters_path) &
+          file.exists(configured_parameters_path)
+      ]
+
+      if (length(configured_parameters_path) == 0) {
+        stop("Could not find parameters.csv to determine scenario_ver.")
+      }
+
+      parameters_path <- configured_parameters_path[[1]]
+    }
+
+    first_line <- readLines(parameters_path, n = 1, warn = FALSE)
+    parameters_delimiter <- if (
+      grepl(";", first_line, fixed = TRUE)
+    ) {
+      ";"
+    } else {
+      ","
+    }
+    demand_parameters <- readr::read_delim(
+      parameters_path,
+      delim = parameters_delimiter,
+      show_col_types = FALSE,
+      progress = FALSE,
+      trim_ws = TRUE
+    )
+  }
+
   missing_parameter_columns <- setdiff(
     required_parameter_columns,
     names(demand_parameters)
