@@ -1,20 +1,18 @@
 # MoFuSS
-# Version 3
-# Date: Mar 2024
+# Version 4
+# Date: Jul 2026
 
 # 2dolist
 # Check after fNRB partition tables and vectors how it works for country-based and Google Earth polys
 # CtyPar<-read.csv("LULCC/DownloadedDatasets/SourceDataGlobal/parameters.csv", header=T)
 # CtyPar[] <- lapply(CtyPar, as.character)
-## WARNING Faltan los del peridoo completo 2010 y 2020 hasta final year!!! ###
-## Aunque estos salen de dinamica hasta cierto punto, faltaria 2020-final year ###
 
 # Internal parameters
-videoson <- 1
+videoson <- 1 # 1 creates the MP4 animation; no other animation formats are generated
 compilelatex <- 1
-uncertaintystacks <- 0
 fNRB_partition_tables <- 1
 mcthreshold <- 30
+uncertainty_digits <- 2
 copy_old_dinamica_rasters <- 0
 
 # Load packages ----
@@ -58,7 +56,7 @@ args=(commandArgs(TRUE))
 if(length(args)==0){
   print("No arguments supplied by DINAMICA.")
   ##Supply default values here (to be used when running the script through R directly)
-  MC = 2 # MonteCarlo runs
+  MC = 30 # MonteCarlo runs
   IT = 2000 # Initial year
   K_MC=1
   TOF_MC=1
@@ -77,8 +75,6 @@ if(length(args)==0){
   Prune_MC=0
   # Subset_locs=0
   MaxAGB=400 # Maximum K for all LULC classes at any MC
-  MaxAGB_firstMC=400 # Maximum K for all LULC classes at first MC run
-  MaxAGB_lastMC=400 # Maximum K for all LULC classes at last MC run
   AGBmap=1
   SumTables=0
   OSType=64
@@ -90,6 +86,19 @@ if(length(args)==0){
   for(i in 1:length(args)){
     eval(parse(text=args[[i]]))
   }
+}
+
+MC <- as.integer(MC)
+if (length(MC) != 1 || is.na(MC) || MC < 1) {
+  stop("MC must be one positive integer giving the number of Monte Carlo runs.")
+}
+
+# This script intentionally resolves all data paths relative to countrydir.
+if (!file.exists("LULCC/TempTables/Country.csv")) {
+  stop(
+    "Run maps_animations7.R from countrydir. Missing: ",
+    file.path(getwd(), "LULCC", "TempTables", "Country.csv")
+  )
 }
 
 # Read parameters table ----
@@ -447,81 +456,9 @@ plot(extent_analysis, border="red", col="transparent", add=TRUE, lwd = 0.25)
 dev.off()
 
 
-# Read files according to simulation lenght (ST) ####
-
-# Files paths and names
-bal="debugging_1//Growth_less_harv"
-harv_tot="debugging_1//Harvest_tot"
-
-# Un ciclo de 1 hasta MC en el que se lean estos archivos
-# Los nombres acutalizarlos de acuerdo al contador del ciclo
-# Conservar todos los archivos, ie hay que haer un arreglo en donde meterlos todos
-
-# string #1
-s0<-rep(bal,ST)
-
-# string #2
-s1<-seq(1,ST,1)
-if (length(s1)<10) {    # cuando ST es menor de 10
-  cmen10<-as.character(s1)
-  c0s<-rep("0",length(cmen10)) # construye vector con "0"
-  c2<-paste(c0s,cmen10,sep="")
-} else {
-  smen10<-s1[s1<10] #separa los numeros menores a 10
-  smas10<-s1[s1>9] #separa los numeros mayores a 9
-  cmas10<-as.character(smas10)
-  cmen10<-as.character(smen10)
-  c0s<-rep("0",length(smen10)) # construye vector con "0"
-  c01<-paste(c0s,cmen10,sep="")
-  c2<-c(c01,cmas10)
-}
-First_frame<-min(c2)
-Last_frame<-max(c2)
-
-# string #3
-s2<-rep(".tif",ST)
-
-# Final names
-bal_names<-paste0(s0,c2,s2)
-bal_names
-
-# string #1_b
-s0_b<-rep(harv_tot,ST)
-# Nombres finales
-harv_tot_names<-paste(s0_b,c2,s2,sep="")
-harv_tot_names
-
-MCx_s1<-seq(1,MC,1)
-if (length(MCx_s1)<10) {    # cuando ST es menor de 10
-  MCx_cmen10<-as.character(MCx_s1)
-  MCx_c0s<-rep("0",length(MCx_cmen10)) # construye vector con "0"
-  MCx_c2<-paste(MCx_c0s,MCx_cmen10,sep="")
-} else {
-  MCx_smen10<-MCx_s1[MCx_s1<10] #separa los numeros menores a 10
-  MCx_smas10<-MCx_s1[MCx_s1>9] #separa los numeros mayores a 9
-  MCx_cmas10<-as.character(MCx_smas10)
-  MCx_cmen10<-as.character(MCx_smen10)
-  MCx_c0s<-rep("0",length(MCx_smen10)) # construye vector con "0"
-  MCx_c01<-paste(MCx_c0s,MCx_cmen10,sep="")
-  MCx_c2<-c(MCx_c01,MCx_cmas10)
-}
-Last_MC<-max(MCx_c2)
-
-x_s1<-seq(1,STdyn,1)
-if (length(x_s1)<10) {    # cuando ST es menor de 10
-  x_cmen10<-as.character(x_s1)
-  x_c0s<-rep("0",length(x_cmen10)) # construye vector con "0"
-  x_c2<-paste(x_c0s,x_cmen10,sep="")
-} else {
-  x_smen10<-x_s1[x_s1<10] #separa los numeros menores a 10
-  x_smas10<-x_s1[x_s1>9] #separa los numeros mayores a 9
-  x_cmas10<-as.character(x_smas10)
-  x_cmen10<-as.character(x_smen10)
-  x_c0s<-rep("0",length(x_smen10)) # construye vector con "0"
-  x_c01<-paste(x_c0s,x_cmen10,sep="")
-  x_c2<-c(x_c01,x_cmas10)
-}
-Last_STdyn <- max(x_c2)
+# Shared temporal metadata ####
+# Last_STdyn is used by static maps as well as the optional MP4.
+Last_STdyn <- STdyn
 
 
 # Map AGB ####
@@ -662,277 +599,71 @@ if(runagbmap == 1){
 
 # Animations ####
 if (videoson == 1){
-  ## HTML video - corresponds to last MC run ####
+  # MP4-only temporal setup. The video uses the first Monte Carlo run because
+  # its source rasters are stored in debugging_1.
+  frame_ids <- sprintf("%02d", seq_len(ST))
+  bal_names <- file.path("debugging_1", paste0("Growth_less_harv", frame_ids, ".tif"))
+  harv_tot_names <- file.path("debugging_1", paste0("Harvest_tot", frame_ids, ".tif"))
+  frame_years <- IT - 1 + trunc(seq(1, STdyn + 1, length.out = ST))
 
-  MaxAGB_lastMC<-(MaxAGB_lastMC/Areaadj)
-
-  seqyr<-seq(1,STdyn+1,(1/(48/IL)))
-  seqyrtrunc<-trunc(seqyr)
-  simyr<-as.data.frame(seqyrtrunc)
-
-  saveHTML({
-    par(mar = c(5, 5, 5, 1))
-    for(i in 1:ST){
-      if (simyr[i, ]<10) {
-        cerohtml=NULL
-      } else {
-        cerohtml=NULL
-      }
-      plot((raster(bal_names[i])/Areaadj),main=paste("Aboveground Biomass: period ",IT," to ",(IT+as.numeric(Last_STdyn)),"\n year: ",cerohtml,(IT-1+simyr[i, ]),sep=""),
-           sub="Showing first Monte Carlo run", xlab="UTM W-E coords", ylab="UTM S-N coords",cex.main=2,
-           legend=TRUE, legend.width=3, legend.shrink=1,cex.axis=1,
-           legend.args=list(text=expression("Aboveground Biomass (t ha"^-1*")"),
-                            side=4, font=2, line=-1.37, cex=1.25),zlim=c(0,MaxAGB_lastMC))
-      ani.options(autoplay=TRUE)
-      scalebar(scalebar_loi,type='line', divs=4, lwd=2, label=label_scalebar_loi, cex=1.5)
-      plot(locs_figures, pch=19, cex=(0.25), add=TRUE)
-      plot(extent_analysis, border="red", col="transparent", add=TRUE, lwd = redline_wd)
-    }
-
-  },
-  img.name = "norm_plot", single.opts = "utf8: false", autoplay = FALSE, interval = 0.5,
-  imgdir = "norm_dir", htmlfile = "AGB_dynamics.html", ani.height = 550, ani.width = 900,
-  title = "AGB Dynamics",
-  description = c("Insertar en mi pagina web como html 5. Revisar que DINAMICA pueda abrir el browser desde la consola,",
-                  "Pasar argumentos (args) pa'adelante y pa'atras...", "NRBv1.0",
-                  ani.options(outdir = paste(getwd(),"/HTML_animation_",OutDir,"/",sep="")))
-  )
-
-  # Move HTML files into single directory (in case it was not done before - Win8 bug)
-
-  AGBexist<-file.exists("AGB_dynamics.html")
-  if (AGBexist == "TRUE") {
-    file.copy("css", paste("HTML_animation_",OutDir,sep=""), recursive=TRUE)
-    file.copy("norm_dir", paste("HTML_animation_",OutDir,sep=""), recursive=TRUE)
-    file.copy("js", paste("HTML_animation_",OutDir,sep=""), recursive=TRUE)
-    file.copy("AGB_dynamics.html", paste("HTML_animation_",OutDir,sep=""))
-    unlink("css", recursive=TRUE, force=TRUE)
-    unlink("norm_dir", recursive=TRUE, force=TRUE)
-    unlink("js", recursive=TRUE, force=TRUE)
-    unlink("AGB_dynamics.html", recursive=TRUE, force=TRUE)
-  } else {
-    "HTML animation OK!"
+  missing_animation_files <- c(bal_names, harv_tot_names)[
+    !file.exists(c(bal_names, harv_tot_names))
+  ]
+  if (length(missing_animation_files) > 0) {
+    stop(
+      "Cannot create MP4; missing ", length(missing_animation_files),
+      " animation raster(s). First missing file: ", missing_animation_files[1]
+    )
   }
-
-
-  # # WMV video - corresponds to last MC run ####
 
   Harvest_MAX<-(raster(harv_tot_names[1]))
   HarMAX<-(cellStats(Harvest_MAX,max)/Areaadj)
-  if(HarMAX == 0){
-    HarMAX=1
-  } else {
-    HarMax<-(cellStats(Harvest_MAX,max)/Areaadj)
+  if (!is.finite(HarMAX) || HarMAX <= 0) {
+    HarMAX <- 1
   }
-  
-  # Video_path<-paste(getwd(),"/",OutDir,"/Growth_Harvest_Ani.wmv",sep="")
-  #
-  # saveVideo(expr={
-  # par(mfrow = c(1, 2), oma=c(1,1,1,1), mar=c(4,4,2,1))
-  # 	for(i in 1:ST){
-  # 		if (simyr[i, ]<10) {
-  # 			cerowmv="0"
-  # 		} else {
-  # 			cerowmv=NULL
-  # 		}
-  #
-  # 		plot((raster(harv_tot_names[i])/Areaadj),
-  # 			main=paste("Annually harvested fuelwood ",(IT+as.numeric(cerohtml)),(IT+simyr[i, ]),sep=""),cex.main=1.5,
-  # 			#main=paste("Annually harvested fuelwood ",cerowmv,simyr[i, ],sep=""),cex.main=1.5,
-  # 			legend=TRUE, legend.width=6, legend.shrink=0.4, cex.axis=1,
-  # 			legend.args=list(text=expression("t ha"^-1*"yr"^-1*""),side=4, font=2, line=(-1.35), cex=1.25),
-  # 			zlim=c(0,HarMAX))
-  # 		scalebar(scalebar_loi,type='line', divs=4, lwd=1.5, label=label_scalebar_loi, cex=1.15)
-  # 		plot(locs_figures, pch=19, cex=(0.25), add=TRUE)
-  # 		plot(extent_analysis, border="red", col="transparent", add=TRUE, lwd = redline_wd)
-  # 		title(xlab="UTM W-E coords\nShowing last Monte Carlo run",ylab="UTM S-N coords", sub="Showing first Monte Carlo run", outer=TRUE, line=-0.5)
-  #
-  # 		plot((raster(bal_names[i])/Areaadj),
-  # 			main=paste("Aboveground Biomass ",(IT+as.numeric(cerohtml)),(IT+simyr[i, ]),sep=""),cex.main=1.5,
-  # 			#main=paste("Aboveground Biomass 20",cerowmv,simyr[i, ],sep=""),cex.main=1.5,
-  # 			legend=TRUE, legend.width=6,legend.shrink=0.4, cex.axis=1,
-  # 			legend.args=list(text=expression("t ha"^-1*""),side=4, font=2, line=(-1.35), cex=1.25),
-  # 			zlim=c(0,MaxAGB_lastMC))
-  # 		plot(locs_figures, pch=19, cex=(0.25), add=TRUE)
-  # 		plot(extent_analysis, border="red", col="transparent", add=TRUE, lwd = redline_wd)
-  # 		}
-  # 	},
-  # 		ffmpeg = ffmpeg_path, other.opts = "-vcodec mpeg4 -r 30000/1001 -b:v 6M",
-  # 		video.name = Video_path, overwrite=TRUE,ani.height = 700, ani.width = 1200, interval = 1, nmax=ST)
-  
-  
-  
-  # # AVI video - corresponds to last MC run ####
-  
-  
-  # Video_path<-paste(getwd(),"/",OutDir,"/Growth_Harvest_Ani.avi",sep="")
-  #
-  # saveVideo(expr={
-  # par(mfrow = c(1, 2), oma=c(1,1,1,1), mar=c(4,4,2,1))
-  # 	for(i in 1:ST){
-  # 		if (simyr[i, ]<10) {
-  # 			ceroavi="0"
-  # 		} else {
-  # 			ceroavi=NULL
-  # 		}
-  #
-  # 		plot((raster(harv_tot_names[i])/Areaadj),
-  # 			main=paste("Annually harvested fuelwood ",(IT+as.numeric(cerohtml)),(IT+simyr[i, ]),sep=""),cex.main=1.5,
-  # 			#main=paste("Annually harvested fuelwood 20",ceroavi,simyr[i, ],sep=""),cex.main=1.5,
-  # 			legend=TRUE, legend.width=6, legend.shrink=0.4, cex.axis=1,
-  # 			legend.args=list(text=expression("t ha"^-1*"yr"^-1*""),side=4, font=2, line=(-1.35), cex=1.25),
-  # 			zlim=c(0,HarMAX))
-  # 		scalebar(scalebar_loi,type='line', divs=4, lwd=1.5, label=label_scalebar_loi, cex=1.15)
-  # 		plot(locs_figures, pch=19, cex=(0.25), add=TRUE)
-  # 		plot(extent_analysis, border="red", col="transparent", add=TRUE, lwd = redline_wd)
-  # 		title(xlab="UTM W-E coords\nShowing last Monte Carlo run",ylab="UTM S-N coords", outer=TRUE, line=-0.5)
-  #
-  # 		plot((raster(bal_names[i])/Areaadj),
-  # 			main=paste("Aboveground Biomass ",(IT+as.numeric(cerohtml)),(IT+simyr[i, ]),sep=""),cex.main=1.5,
-  # 			#main=paste("Aboveground Biomass 20",ceroavi,simyr[i, ],sep=""),cex.main=1.5,
-  # 			legend=TRUE, legend.width=6,legend.shrink=0.4, cex.axis=1,
-  # 			legend.args=list(text=expression("t ha"^-1*""),side=4, font=2, line=(-1.35), cex=1.25),
-  # 			zlim=c(0,MaxAGB_lastMC))
-  # 		plot(locs_figures, pch=19, cex=(0.25), add=TRUE)
-  # 		plot(extent_analysis, border="red", col="transparent", add=TRUE, lwd = redline_wd)
-  # 		}
-  # 	},
-  # 		ffmpeg = ffmpeg_path, other.opts = "-vcodec mpeg4 -r 30000/1001 -b:v 6M",
-  # 		video.name = Video_path, overwrite=TRUE,ani.height = 700, ani.width = 1200, interval = 1, nmax=ST)
-  
-  # MP4 video - corresponds to last MC run ####
-  
-  Video_path<-paste(getwd(),"/",OutDir,"/Growth_Harvest_Ani",OutDir,".mp4",sep="")
-  
-  saveVideo(expr={
-    par(mfrow = c(1, 2), oma=c(1,1,1,1), mar=c(4,4,2,1))
-    for(i in 1:ST){
-      if (simyr[i, ]<10) {
-        ceroavi="0"
-      } else {
-        ceroavi=NULL
-      }
-      
+
+  # MP4 video ####
+  if (!file.exists(ffmpeg_path)) {
+    stop("Cannot create MP4; ffmpeg was not found at: ", ffmpeg_path)
+  }
+  Video_path <- file.path(
+    getwd(), OutDir, paste0("Growth_Harvest_Ani", OutDir, ".mp4")
+  )
+
+  saveVideo(expr = {
+    par(mfrow = c(1, 2), oma = c(1, 1, 1, 1), mar = c(4, 4, 2, 1))
+    for (i in seq_len(ST)) {
       plot((raster(harv_tot_names[i])/Areaadj),
-           main=paste("Annually harvested fuelwood ",(IT+as.numeric(cerohtml)),(IT+simyr[i, ]),sep=""),cex.main=1.5,
-           col=colors, 
-           #main=paste("Annually harvested fuelwood 20",ceroavi,simyr[i, ],sep=""),cex.main=1.5,
+           main = paste("Annually harvested fuelwood", frame_years[i]),
+           cex.main = 1.5,
+           col=colors,
            legend=TRUE, legend.width=6, legend.shrink=0.4, cex.axis=1,
            legend.args=list(text=expression("t ha"^-1*"yr"^-1*""),side=4, font=2, line=(-1.35), cex=1.25),
            zlim=c(0,HarMAX))
       scalebar(scalebar_loi,type='line', divs=4, lwd=1.5, label=label_scalebar_loi, cex=1.15)
-      # plot(locs_figures, pch=19, cex=(0.25), add=TRUE)
       plot(extent_analysis, border="red", col="transparent", add=TRUE, lwd = redline_wd)
-      title(xlab="UTM W-E coords\nShowing last Monte Carlo run",ylab="UTM S-N coords", outer=TRUE, line=-0.5)
+      title(xlab="UTM W-E coords\nShowing first Monte Carlo run",ylab="UTM S-N coords", outer=TRUE, line=-0.5)
       
       plot((raster(bal_names[i])/Areaadj),
-           main=paste("Aboveground Biomass ",(IT+as.numeric(cerohtml)),(IT+simyr[i, ]),sep=""),cex.main=1.5,
-           #main=paste("Aboveground Biomass 20",ceroavi,simyr[i, ],sep=""),cex.main=1.5,
+           main = paste("Aboveground Biomass", frame_years[i]),
+           cex.main = 1.5,
            legend=TRUE, legend.width=6,legend.shrink=0.4, cex.axis=1,
            legend.args=list(text=expression("t ha"^-1*""),side=4, font=2, line=(-1.35), cex=1.25),
-           zlim=c(0,MaxAGB_1stMC)) # Era este: MaxAGB_lastMC
-      #plot(locs_figures, pch=19, cex=(0.25), add=TRUE)
+           zlim=c(0,MaxAGB_1stMC))
       plot(extent_analysis, border="red", col="transparent", add=TRUE, lwd = redline_wd)
     }
   },
-  ffmpeg = ffmpeg_path, other.opts = "-c:v libx264 -r 30000/1001 -b:v 6M -vf scale=iw*3:ih*3 -pix_fmt yuv420p",
-  video.name = Video_path, overwrite=TRUE,ani.height = 700, ani.width = 1200, interval = 1, nmax=ST)
-  unlink("LaTeX/Growth_Harvest_Ani.mp4", force=TRUE)
-  file.copy(paste(OutDir,"/Growth_Harvest_Ani",OutDir,".mp4",sep=""), paste("LaTeX/Growth_Harvest_Ani",OutDir,".mp4",sep=""))
+  ffmpeg = ffmpeg_path,
+  other.opts = "-c:v libx264 -r 30000/1001 -b:v 6M -vf scale=iw*3:ih*3 -pix_fmt yuv420p",
+  video.name = Video_path, overwrite = TRUE,
+  ani.height = 700, ani.width = 1200, interval = 1, nmax = ST)
+
+  if (!file.exists(Video_path)) {
+    stop("MP4 generation finished without creating the expected file: ", Video_path)
+  }
+  message("MP4 animation written to: ", Video_path)
 }
 
-
-# Spatial stats ####
-## Standard Deviation and Variance in NRB ####		
-# listNRB <- list.files("Temp", pattern = "^2_NRB.+[.]tif$",ignore.case=F)
-# StackNRB <- stack(paste("Temp/",listNRB,sep=""))
-# nlay <- nlayers(StackNRB)
-# NRBmean <- stackApply(StackNRB, indices=1, fun=mean)
-# writeRaster(NRBmean, filename="Temp//aNRBmean.tif", datatype="FLT4S", overwrite=TRUE)
-# writeRaster(NRBmean, filename="Temp//3_NRBmean.tif", datatype="FLT4S", overwrite=TRUE)
-
-if (uncertaintystacks == 1) {
-  NRBvar <- stackApply(StackNRB, indices=1, fun=var)
-  NRBsd <- sqrt(NRBvar)
-  writeRaster(NRBvar, filename="Temp//aNRBvar.tif", datatype="FLT4S", overwrite=TRUE)
-  writeRaster(NRBsd, filename="Temp//aNRBsd.tif", datatype="FLT4S", overwrite=TRUE)
-  writeRaster(NRBvar, filename="Temp//3_NRBvar.tif", datatype="FLT4S", overwrite=TRUE)
-  writeRaster(NRBsd, filename="Temp//3_NRBsd.tif", datatype="FLT4S", overwrite=TRUE)
-  
-  NRBsdmax <- (cellStats(NRBsd,max)/Areaadj)
-  
-  tiff(filename=paste(OutDir,"//NRBsd.tif",sep=""),width=290,height=290,units="mm",res=res300,bg="white",compression=c("lzw"),type=c("windows"),pointsize=12,family="",restoreConsole=TRUE)
-  plot((NRBsd/Areaadj), main=paste("Standard Deviation in NRB \n after ",MC," Monte Carlo runs for ",STdyn,"-year simulations",sep=""),ylab="UTM S-N coords",xlab="UTM W-E coords",
-       col=colors,  # Apply the custom color palette
-       cex.main=1.5,
-       legend=TRUE, legend.width=2.5,
-       legend.args=list(text=expression("t ha"^-1*""),side=4, font=2, line=-1.35, cex=1.35),zlim=c(0,NRBsdmax))
-  #plot(locs_figures, pch=19, cex=(0.50), add=TRUE)
-  scalebar(scalebar_loi,type='line', divs=4, lwd=2.5, label=label_scalebar_loi, cex=1.5)
-  plot(extent_analysis, border="red", col="transparent", add=TRUE, lwd = 1.75)
-  dev.off()
-  
-}
-
-# listCON_NRB <-list.files("Temp", pattern = "^2_CON_NRBs.+[.]tif$",ignore.case=F) # Dinamica saves "2_CON_NRB##.tif AND "2_CON_NRBs##.tif. Exactly the same, erase one of them and save time
-# StackCON_NRB <- stack(paste("Temp/",listCON_NRB,sep=""))
-# nlayCON_NRB <- nlayers(StackCON_NRB)
-# CON_NRBmean <- stackApply(StackCON_NRB, indices=1, fun=mean)
-# writeRaster(CON_NRBmean, filename="Temp//aCON_NRBmean.tif", datatype="FLT4S", overwrite=TRUE)
-# writeRaster(CON_NRBmean, filename="Temp//3_CON_NRBmean.tif", datatype="FLT4S", overwrite=TRUE)
-
-if (uncertaintystacks == 1) {
-  CON_NRBvar <- stackApply(StackCON_NRB, indices=1, fun=var)
-  CON_NRBsd <- sqrt(CON_NRBvar)
-  writeRaster(CON_NRBvar, filename="Temp//aCON_NRBvar.tif", datatype="FLT4S", overwrite=TRUE)
-  writeRaster(CON_NRBsd, filename="Temp//aCON_NRBsd.tif", datatype="FLT4S", overwrite=TRUE)
-  writeRaster(CON_NRBvar, filename="Temp//3_CON_NRBvar.tif", datatype="FLT4S", overwrite=TRUE)
-  writeRaster(CON_NRBsd, filename="Temp//3_CON_NRBsd.tif", datatype="FLT4S", overwrite=TRUE)
-  
-  CON_NRBsdmax<-(cellStats(CON_NRBsd,max)/Areaadj)
-  
-  tiff(filename=paste(OutDir,"//CON_NRBsd.tif",sep=""),width=290,height=290,units="mm",res=res300,bg="white",compression=c("lzw"),type=c("windows"),pointsize=12,family="",restoreConsole=TRUE)
-  plot((CON_NRBsd/Areaadj), main=paste("Standard Deviation in fuelwood use \n after ",MC," Monte Carlo runs for ",STdyn,"-year simulations",sep=""),ylab="UTM S-N coords",xlab="UTM W-E coords",
-       col=colors,  # Apply the custom color palette
-       cex.main=1.5,
-       legend=TRUE, legend.width=2.5,
-       legend.args=list(text=expression("t ha"^-1*""),side=4, font=2, line=-1.35, cex=1.35),zlim=c(0,CON_NRBsdmax))
-  #plot(locs_figures, pch=19, cex=(0.50), add=TRUE)
-  scalebar(scalebar_loi,type='line', divs=4, lwd=2.5, label=label_scalebar_loi, cex=1.5)
-  plot(extent_analysis, border="red", col="transparent", add=TRUE, lwd = 1.75)
-  dev.off()
-  
-}
-
-# listCON_TOT<-list.files("Temp", pattern = "^2_CON_TOT.+[.]tif$",ignore.case=F)
-# StackCON_TOT <- stack(paste("Temp/",listCON_TOT,sep=""))
-# nlayCON_TOT<-nlayers(StackCON_TOT)
-# CON_TOTmean<- stackApply(StackCON_TOT, indices=1, fun=mean)
-# writeRaster(CON_TOTmean, filename="Temp//aCON_TOTmean.tif", datatype="FLT4S", overwrite=TRUE)
-# writeRaster(CON_TOTmean, filename="Temp//3_CON_TOTmean.tif", datatype="FLT4S", overwrite=TRUE)
-
-if (uncertaintystacks == 1) {
-  CON_TOTvar <- stackApply(StackCON_TOT, indices=1, fun=var)
-  CON_TOTsd <- sqrt(CON_TOTvar)
-  writeRaster(CON_TOTvar, filename="Temp//aCON_TOTvar.tif", datatype="FLT4S", overwrite=TRUE)
-  writeRaster(CON_TOTsd, filename="Temp//aCON_TOTsd.tif", datatype="FLT4S", overwrite=TRUE)
-  writeRaster(CON_TOTvar, filename="Temp//3_CON_TOTvar.tif", datatype="FLT4S", overwrite=TRUE)
-  writeRaster(CON_TOTsd, filename="Temp//3_CON_TOTsd.tif", datatype="FLT4S", overwrite=TRUE)
-  
-  CON_TOTsdmax<-(cellStats(CON_TOTsd,max)/Areaadj)
-  
-  tiff(filename=paste(OutDir,"//CON_TOTsd.tif",sep=""),width=290,height=290,units="mm",res=res300,bg="white",compression=c("lzw"),type=c("windows"),pointsize=12,family="",restoreConsole=TRUE)
-  plot((CON_TOTsd/Areaadj), main=paste("Standard Deviation in fuelwood use driving degradation \n after ",MC," Monte Carlo runs for ",STdyn,"-year simulations",sep=""),ylab="UTM S-N coords",xlab="UTM W-E coords",
-       col=colors,  # Apply the custom color palette
-       cex.main=1.5,
-       legend=TRUE, legend.width=2.5,
-       legend.args=list(text=expression("t ha"^-1*""),side=4, font=2, line=-1.35, cex=1.35),zlim=c(0,CON_TOTsdmax))
-  #plot(locs_figures, pch=19, cex=(0.50), add=TRUE)
-  scalebar(scalebar_loi,type='line', divs=4, lwd=2.5, label=label_scalebar_loi, cex=1.5)
-  plot(extent_analysis, border="red", col="transparent", add=TRUE, lwd = 1.75)
-  dev.off()
-  
-}
 
 # Summary tables ####
 
@@ -1620,8 +1351,8 @@ for (i in figlist) {
 
 # Copy key rasters to output folder - 1st MC ----
 if (copy_old_dinamica_rasters == 1) {
-  rasternames <- c("2_NRB01.tif", "2_CON_TOT01.tif", "2_CON_NRB01.tif", "2_fNRB01.tif", "2_IniSt01.tif", "2_AGBt101.tif",
-                   "aNRBmean.tif", "aNRBsd.tif")
+  rasternames <- c("2_NRB01.tif", "2_CON_TOT01.tif", "2_CON_NRB01.tif",
+                   "2_fNRB01.tif", "2_IniSt01.tif", "2_AGBt101.tif")
   for (p in rasternames){
     file.copy(from=paste0("Temp//",p),
               to="Out/webmofuss_results/",
@@ -1629,6 +1360,82 @@ if (copy_old_dinamica_rasters == 1) {
   }
 }
 
+
+# Summarise variation among independent Monte Carlo runs. These are absolute
+# uncertainties: NRB and harvest retain their source units, while fNRB retains
+# percentage points. stats::sd() is the sample SD (denominator n - 1), and the
+# standard error is SD / sqrt(n), where n is the number of valid runs.
+summarise_mc_uncertainty <- function(data, value_columns, expected_runs,
+                                     digits = uncertainty_digits) {
+  required_columns <- c("zone", "MC", value_columns)
+  missing_columns <- setdiff(required_columns, names(data))
+  if (length(missing_columns) > 0) {
+    stop(
+      "Cannot calculate Monte Carlo uncertainty; missing columns: ",
+      paste(missing_columns, collapse = ", ")
+    )
+  }
+
+  duplicate_runs <- data %>%
+    dplyr::count(zone, MC, name = "rows_per_run") %>%
+    dplyr::filter(rows_per_run != 1)
+  if (nrow(duplicate_runs) > 0) {
+    stop("Each zone must have exactly one row per Monte Carlo run.")
+  }
+
+  run_counts <- data %>%
+    dplyr::group_by(zone) %>%
+    dplyr::summarise(MC_n = dplyr::n_distinct(MC), .groups = "drop")
+  if (any(run_counts$MC_n != expected_runs)) {
+    warning(
+      "Expected ", expected_runs, " Monte Carlo runs per zone, but observed: ",
+      paste(sort(unique(run_counts$MC_n)), collapse = ", ")
+    )
+  }
+
+  mc_mean <- function(x) {
+    x <- x[is.finite(x)]
+    if (length(x) == 0) NA_real_ else mean(x)
+  }
+  mc_sd <- function(x) {
+    x <- x[is.finite(x)]
+    if (length(x) < 2) NA_real_ else stats::sd(x)
+  }
+  mc_se <- function(x) {
+    x <- x[is.finite(x)]
+    if (length(x) < 2) NA_real_ else stats::sd(x) / sqrt(length(x))
+  }
+
+  data %>%
+    dplyr::group_by(zone) %>%
+    dplyr::summarise(
+      dplyr::across(
+        dplyr::all_of(value_columns),
+        list(mean = mc_mean, sd = mc_sd, se = mc_se),
+        .names = "{.col}_{.fn}"
+      ),
+      MC_n = dplyr::n_distinct(MC),
+      .groups = "drop"
+    ) %>%
+    dplyr::mutate(
+      dplyr::across(
+        tidyselect::matches("_(mean|sd|se)$"),
+        \(x) round(x, digits)
+      )
+    )
+}
+
+# Apply presentation rounding only to Monte Carlo result fields. Identifier
+# fields (for example zone, ID, and MC_n) are deliberately left unchanged.
+round_mc_result_columns <- function(data, digits) {
+  data %>%
+    dplyr::mutate(
+      dplyr::across(
+        tidyselect::matches("^(NRB|Harv|fNRB).*_(mean|sd|se|1MC)$"),
+        \(x) round(x, digits)
+      )
+    )
+}
 
 if (fNRB_partition_tables == 1) {
   
@@ -2183,8 +1990,7 @@ if (fNRB_partition_tables == 1) {
           # dplyr::rename(NRB_2010_2020 = x,
           #               Harv_2010_2020 = y) %>%
           dplyr::mutate(across(everything(), ~as.numeric(trimws(.x)))) %>%
-          dplyr::mutate(fNRB_2010_2020 = NRB_2010_2020/Harv_2010_2020*100) %>%
-          round(.,0) 
+          dplyr::mutate(fNRB_2010_2020 = NRB_2010_2020/Harv_2010_2020*100)
         
         NRBzon_fr$MC <- j  # maybe you want to keep track of which iteration produced it?
         NRBzon_frlist[[j]] <- NRBzon_fr # add it to your list
@@ -2199,8 +2005,7 @@ if (fNRB_partition_tables == 1) {
           dplyr::mutate(across(everything(), ~as.numeric(trimws(.x)))) %>%
           dplyr::mutate(fNRB_2010_2030 = NRB_2010_2030/Harv_2010_2030*100,
                         fNRB_2020_2030 = NRB_2020_2030/Harv_2020_2030*100,
-                        fNRB_2010_2020 = NRB_2010_2020/Harv_2010_2020*100) %>%
-          round(.,0) 
+                        fNRB_2010_2020 = NRB_2010_2020/Harv_2010_2020*100)
         
         NRBzon_fr$MC <- j  # maybe you want to keep track of which iteration produced it?
         NRBzon_frlist[[j]] <- NRBzon_fr # add it to your list
@@ -2216,8 +2021,7 @@ if (fNRB_partition_tables == 1) {
           dplyr::mutate(across(everything(), ~as.numeric(trimws(.x)))) %>%
           dplyr::mutate(fNRB_2010_2035 = NRB_2010_2035/Harv_2010_2035*100,
                         fNRB_2020_2035 = NRB_2020_2035/Harv_2020_2035*100,
-                        fNRB_2010_2020 = NRB_2010_2020/Harv_2010_2020*100) %>%
-          round(.,0) 
+                        fNRB_2010_2020 = NRB_2010_2020/Harv_2010_2020*100)
         
         NRBzon_fr$MC <- j  # maybe you want to keep track of which iteration produced it?
         NRBzon_frlist[[j]] <- NRBzon_fr # add it to your list
@@ -2234,8 +2038,7 @@ if (fNRB_partition_tables == 1) {
                         fNRB_2020_2040 = NRB_2020_2040/Harv_2020_2040*100,
                         fNRB_2010_2020 = NRB_2010_2020/Harv_2010_2020*100,
                         fNRB_2020_2030 = NRB_2020_2030/Harv_2020_2030*100,
-                        fNRB_2030_2040 = NRB_2030_2040/Harv_2030_2040*100) %>%
-          round(.,0) 
+                        fNRB_2030_2040 = NRB_2030_2040/Harv_2030_2040*100)
         
         NRBzon_fr$MC <- j  # maybe you want to keep track of which iteration produced it?
         NRBzon_frlist[[j]] <- NRBzon_fr # add it to your list
@@ -2255,12 +2058,6 @@ if (fNRB_partition_tables == 1) {
             fNRB_2020_2030 = NRB_2020_2030 / Harv_2020_2030 * 100,
             fNRB_2030_2040 = NRB_2030_2040 / Harv_2030_2040 * 100,
             fNRB_2040_2050 = NRB_2040_2050 / Harv_2040_2050 * 100
-          ) %>%
-          dplyr::mutate(
-            dplyr::across(
-              tidyselect::starts_with("fNRB_"),
-              \(x) round(x, 0)
-            )
           )
         
         NRBzon_fr$MC <- j  # maybe you want to keep track of which iteration produced it?
@@ -2284,13 +2081,9 @@ if (fNRB_partition_tables == 1) {
       NRBzon_frbind <- dplyr::bind_rows(NRBzon_frlist)
       summarycols <- c("NRB_2010_2020", "Harv_2010_2020", "fNRB_2010_2020")
       
-      NRBzonfr_st <- NRBzon_frbind %>%
-        group_by(zone) %>%
-        summarise_at(vars(all_of(summarycols)), 
-                     list(mean = mean, 
-                          sd = sd, 
-                          se = ~ sd(.) / sqrt(n()))) %>%
-        round(.,0)
+      NRBzonfr_st <- summarise_mc_uncertainty(
+        NRBzon_frbind, summarycols, expected_runs = MC
+      )
       
       NRBzonfr_stR <- reduce(
         .x = list(
@@ -2304,16 +2097,10 @@ if (fNRB_partition_tables == 1) {
       NRBzonfr_stR
       names(NRBzonfr_stR)
       
-      # Calculate n assuming a spatial autocorrelation of 100km: 4 pixels in 10,000 kernels
-      # se_ncell100km <- round((ncell(stackG[[1]])/2500),0)
-      se_ncell100km <- MC
-      
-      NRBzonfr_statsx <- NRBzonfr_stR %>%
-        dplyr::mutate(fNRB_2010_2020_mean = NRB_2010_2020_mean / Harv_2010_2020_mean * 100,
-                      fNRB_2010_2020_sd = sqrt(((NRB_2010_2020_sd/NRB_2010_2020_mean)^2) + 
-                                                 ((Harv_2010_2020_sd/Harv_2010_2020_mean)^2))*100,
-                      fNRB_2010_2020_se = fNRB_2010_2020_sd/sqrt(se_ncell100km)) %>%
-        round(.,0)
+      # fNRB mean, SD, and SE above come directly from the per-run fNRB values.
+      # This preserves absolute percentage-point uncertainty and the covariance
+      # between numerator and denominator within each Monte Carlo run.
+      NRBzonfr_statsx <- NRBzonfr_stR
       
       if (MC < mcthreshold) {
         NRBzonfr_stats <- NRBzonfr_statsx %>%
@@ -2322,7 +2109,8 @@ if (fNRB_partition_tables == 1) {
         NRBzonfr_stats <- NRBzonfr_statsx
       }
       
-      NRB_fNRB2_fr <- cbind(NRBzonfr_stats,NRBzon_frlist1MC)
+      NRB_fNRB2_fr <- cbind(NRBzonfr_stats,NRBzon_frlist1MC) %>%
+        round_mc_result_columns(uncertainty_digits)
       NRB_fNRB2_fr
       names(NRB_fNRB2_fr)
       
@@ -2334,7 +2122,8 @@ if (fNRB_partition_tables == 1) {
         write.csv(NRB_fNRB2_frcompl_madm0, "LULCC/TempTables/summary_adm0_frcompl.csv", row.names=FALSE, quote=FALSE)
         write.csv(NRB_fNRB2_frcompl_madm0, "Out/webmofuss_results/summary_adm0_frcompl.csv", row.names=FALSE, quote=FALSE)
         
-        NRB_fNRB3_fr_madm0 <- NRB_fNRB2_frcompl_madm0
+        NRB_fNRB3_fr_madm0 <- NRB_fNRB2_frcompl_madm0 %>%
+          round_mc_result_columns(0)
         write.csv(NRB_fNRB3_fr_madm0, "LULCC/TempTables/summary_adm0_fr.csv", row.names=FALSE, quote=FALSE)
         write.csv(NRB_fNRB3_fr_madm0, "Out/webmofuss_results/summary_adm0_fr.csv", row.names=FALSE, quote=FALSE)
         
@@ -2370,7 +2159,8 @@ if (fNRB_partition_tables == 1) {
         write.csv(NRB_fNRB2_frcompl_madm1, "LULCC/TempTables/summary_adm1_frcompl.csv", row.names=FALSE, quote=FALSE)
         write.csv(NRB_fNRB2_frcompl_madm1, "Out/webmofuss_results/summary_adm1_frcompl.csv", row.names=FALSE, quote=FALSE)
         
-        NRB_fNRB3_fr_madm1 <- NRB_fNRB2_frcompl_madm1
+        NRB_fNRB3_fr_madm1 <- NRB_fNRB2_frcompl_madm1 %>%
+          round_mc_result_columns(0)
         write.csv(NRB_fNRB3_fr_madm1, "LULCC/TempTables/summary_adm1_fr.csv", row.names=FALSE, quote=FALSE)
         write.csv(NRB_fNRB3_fr_madm1, "Out/webmofuss_results/summary_adm1_fr.csv", row.names=FALSE, quote=FALSE)
         
@@ -2394,7 +2184,8 @@ if (fNRB_partition_tables == 1) {
         write.csv(NRB_fNRB2_frcompl_madm2, "LULCC/TempTables/summary_adm2_frcompl.csv", row.names=FALSE, quote=FALSE)
         write.csv(NRB_fNRB2_frcompl_madm2, "Out/webmofuss_results/summary_adm2_frcompl.csv", row.names=FALSE, quote=FALSE)
         
-        NRB_fNRB3_fr_madm2 <- NRB_fNRB2_frcompl_madm2
+        NRB_fNRB3_fr_madm2 <- NRB_fNRB2_frcompl_madm2 %>%
+          round_mc_result_columns(0)
         write.csv(NRB_fNRB3_fr_madm2, "LULCC/TempTables/summary_adm2_fr.csv", row.names=FALSE, quote=FALSE)
         write.csv(NRB_fNRB3_fr_madm2, "Out/webmofuss_results/summary_adm2_fr.csv", row.names=FALSE, quote=FALSE)
         
@@ -2418,7 +2209,8 @@ if (fNRB_partition_tables == 1) {
         write.csv(NRB_fNRB2_frcompl_meco2, "LULCC/TempTables/summary_ecoregions_frcompl.csv", row.names=FALSE, quote=FALSE)
         write.csv(NRB_fNRB2_frcompl_meco2, "Out/webmofuss_results/summary_ecoregions_frcompl.csv", row.names=FALSE, quote=FALSE)
         
-        NRB_fNRB3_fr_meco2 <- NRB_fNRB2_frcompl_meco2
+        NRB_fNRB3_fr_meco2 <- NRB_fNRB2_frcompl_meco2 %>%
+          round_mc_result_columns(0)
         write.csv(NRB_fNRB3_fr_meco2, "LULCC/TempTables/summary_ecoregions_fr.csv", row.names=FALSE, quote=FALSE)
         write.csv(NRB_fNRB3_fr_meco2, "Out/webmofuss_results/summary_ecoregions_fr.csv", row.names=FALSE, quote=FALSE)
         
@@ -2449,13 +2241,9 @@ if (fNRB_partition_tables == 1) {
                        "Harv_2010_2030", "Harv_2010_2020", "Harv_2020_2030",
                        "fNRB_2010_2030", "fNRB_2010_2020", "fNRB_2020_2030")
       
-      NRBzonfr_st <- NRBzon_frbind %>%
-        group_by(zone) %>%
-        summarise_at(vars(all_of(summarycols)), 
-                     list(mean = mean, 
-                          sd = sd, 
-                          se = ~ sd(.) / sqrt(n()))) %>%
-        round(.,0)
+      NRBzonfr_st <- summarise_mc_uncertainty(
+        NRBzon_frbind, summarycols, expected_runs = MC
+      )
       
       NRBzonfr_stR <- reduce(
         .x = list(
@@ -2475,24 +2263,7 @@ if (fNRB_partition_tables == 1) {
       NRBzonfr_stR
       names(NRBzonfr_stR)
       
-      # Calculate n assuming a spatial autocorrelation of 100km: 4 pixels in 10,000 kernels
-      # se_ncell100km <- round((ncell(stackG[[1]])/2500),0)
-      se_ncell100km <- MC
-      
-      NRBzonfr_statsx <- NRBzonfr_stR %>%
-        dplyr::mutate(fNRB_2010_2030_mean = NRB_2010_2030_mean / Harv_2010_2030_mean * 100,
-                      fNRB_2010_2030_sd = sqrt(((NRB_2010_2030_sd/NRB_2010_2030_mean)^2) + 
-                                                 ((Harv_2010_2030_sd/Harv_2010_2030_mean)^2))*100,
-                      fNRB_2010_2030_se = fNRB_2010_2030_sd/sqrt(se_ncell100km),
-                      fNRB_2010_2020_mean = NRB_2010_2020_mean / Harv_2010_2020_mean * 100,
-                      fNRB_2010_2020_sd = sqrt(((NRB_2010_2020_sd/NRB_2010_2020_mean)^2) + 
-                                                 ((Harv_2010_2020_sd/Harv_2010_2020_mean)^2))*100,
-                      fNRB_2010_2020_se = fNRB_2010_2020_sd/sqrt(se_ncell100km),
-                      fNRB_2020_2030_mean = NRB_2020_2030_mean / Harv_2020_2030_mean * 100,
-                      fNRB_2020_2030_sd = sqrt(((NRB_2020_2030_sd/NRB_2020_2030_mean)^2) + 
-                                                 ((Harv_2020_2030_sd/Harv_2020_2030_mean)^2))*100,
-                      fNRB_2020_2030_se = fNRB_2020_2030_sd/sqrt(se_ncell100km)) %>%
-        round(.,0)
+      NRBzonfr_statsx <- NRBzonfr_stR
       
       if (MC < mcthreshold) {
         NRBzonfr_stats <- NRBzonfr_statsx %>%
@@ -2501,7 +2272,8 @@ if (fNRB_partition_tables == 1) {
         NRBzonfr_stats <- NRBzonfr_statsx
       }
       
-      NRB_fNRB2_fr <- cbind(NRBzonfr_stats,NRBzon_frlist1MC)
+      NRB_fNRB2_fr <- cbind(NRBzonfr_stats,NRBzon_frlist1MC) %>%
+        round_mc_result_columns(uncertainty_digits)
       NRB_fNRB2_fr
       names(NRB_fNRB2_fr)
       
@@ -2514,8 +2286,9 @@ if (fNRB_partition_tables == 1) {
         write.csv(NRB_fNRB2_frcompl_madm0, "Out/webmofuss_results/summary_adm0_frcompl.csv", row.names=FALSE, quote=FALSE)
         
         NRB_fNRB3_fr_madm0 <- NRB_fNRB2_frcompl_madm0 %>%
-          dplyr::select(-matches("_2010_2030|_2010_2020"), -ends_with("_sd")) %>%
-          dplyr::select(-ends_with("_1MC"))
+          dplyr::select(-matches("_2010_2030|_2010_2020")) %>%
+          dplyr::select(-ends_with("_1MC")) %>%
+          round_mc_result_columns(0)
         write.csv(NRB_fNRB3_fr_madm0, "LULCC/TempTables/summary_adm0_fr.csv", row.names=FALSE, quote=FALSE)
         write.csv(NRB_fNRB3_fr_madm0, "Out/webmofuss_results/summary_adm0_fr.csv", row.names=FALSE, quote=FALSE)
         
@@ -2552,8 +2325,9 @@ if (fNRB_partition_tables == 1) {
         write.csv(NRB_fNRB2_frcompl_madm1, "Out/webmofuss_results/summary_adm1_frcompl.csv", row.names=FALSE, quote=FALSE)
         
         NRB_fNRB3_fr_madm1 <- NRB_fNRB2_frcompl_madm1 %>%
-          dplyr::select(-matches("_2010_2030|_2010_2020"), -ends_with("_sd")) %>%
-          dplyr::select(-ends_with("_1MC"))
+          dplyr::select(-matches("_2010_2030|_2010_2020")) %>%
+          dplyr::select(-ends_with("_1MC")) %>%
+          round_mc_result_columns(0)
         write.csv(NRB_fNRB3_fr_madm1, "LULCC/TempTables/summary_adm1_fr.csv", row.names=FALSE, quote=FALSE)
         write.csv(NRB_fNRB3_fr_madm1, "Out/webmofuss_results/summary_adm1_fr.csv", row.names=FALSE, quote=FALSE)
         
@@ -2578,8 +2352,9 @@ if (fNRB_partition_tables == 1) {
         write.csv(NRB_fNRB2_frcompl_madm2, "Out/webmofuss_results/summary_adm2_frcompl.csv", row.names=FALSE, quote=FALSE)
         
         NRB_fNRB3_fr_madm2 <- NRB_fNRB2_frcompl_madm2 %>%
-          dplyr::select(-matches("_2010_2030|_2010_2020"), -ends_with("_sd")) %>%
-          dplyr::select(-ends_with("_1MC"))
+          dplyr::select(-matches("_2010_2030|_2010_2020")) %>%
+          dplyr::select(-ends_with("_1MC")) %>%
+          round_mc_result_columns(0)
         write.csv(NRB_fNRB3_fr_madm2, "LULCC/TempTables/summary_adm2_fr.csv", row.names=FALSE, quote=FALSE)
         write.csv(NRB_fNRB3_fr_madm2, "Out/webmofuss_results/summary_adm2_fr.csv", row.names=FALSE, quote=FALSE)
         
@@ -2604,8 +2379,9 @@ if (fNRB_partition_tables == 1) {
         write.csv(NRB_fNRB2_frcompl_meco2, "Out/webmofuss_results/summary_ecoregions_frcompl.csv", row.names=FALSE, quote=FALSE)
         
         NRB_fNRB3_fr_meco2 <- NRB_fNRB2_frcompl_meco2 %>%
-          dplyr::select(-matches("_2010_2030|_2010_2020"), -ends_with("_sd")) %>%
-          dplyr::select(-ends_with("_1MC"))
+          dplyr::select(-matches("_2010_2030|_2010_2020")) %>%
+          dplyr::select(-ends_with("_1MC")) %>%
+          round_mc_result_columns(0)
         write.csv(NRB_fNRB3_fr_meco2, "LULCC/TempTables/summary_ecoregions_fr.csv", row.names=FALSE, quote=FALSE)
         write.csv(NRB_fNRB3_fr_meco2, "Out/webmofuss_results/summary_ecoregions_fr.csv", row.names=FALSE, quote=FALSE)
         
@@ -2635,28 +2411,21 @@ if (fNRB_partition_tables == 1) {
                        "Harv_2010_2035", "Harv_2020_2035", "Harv_2010_2020",
                        "fNRB_2010_2035", "fNRB_2020_2035", "fNRB_2010_2020")
       
-      NRBzonfr_st <- NRBzon_frbind %>%
-        group_by(zone) %>%
-        summarise_at(vars(all_of(summarycols)), 
-                     list(mean = mean, 
-                          sd = sd, 
-                          se = ~ sd(.) / sqrt(n()))) %>%
-        round(.,0)
+      NRBzonfr_st <- summarise_mc_uncertainty(
+        NRBzon_frbind, summarycols, expected_runs = MC
+      )
       
       NRBzonfr_stR <- reduce(
         .x = list(
           c('NRB_2010_2035_mean', 'NRB_2010_2035_sd', 'NRB_2010_2035_se'),
           c('NRB_2020_2035_mean', 'NRB_2020_2035_sd', 'NRB_2020_2035_se'),
           c('NRB_2010_2020_mean', 'NRB_2010_2020_sd', 'NRB_2010_2020_se'),
-          c('NRB_2020_2035_mean', 'NRB_2020_2035_sd', 'NRB_2020_2035_se'),
           c('Harv_2010_2035_mean', 'Harv_2010_2035_sd', 'Harv_2010_2035_se'),
           c('Harv_2020_2035_mean', 'Harv_2020_2035_sd', 'Harv_2020_2035_se'),
           c('Harv_2010_2020_mean', 'Harv_2010_2020_sd', 'Harv_2010_2020_se'),
-          c('Harv_2020_2035_mean', 'Harv_2020_2035_sd', 'Harv_2020_2035_se'),
           c('fNRB_2010_2035_mean', 'fNRB_2010_2035_sd', 'fNRB_2010_2035_se'),
           c('fNRB_2020_2035_mean', 'fNRB_2020_2035_sd', 'fNRB_2020_2035_se'),
-          c('fNRB_2010_2020_mean', 'fNRB_2010_2020_sd', 'fNRB_2010_2020_se'),
-          c('fNRB_2020_2035_mean', 'fNRB_2020_2035_sd', 'fNRB_2020_2035_se')
+          c('fNRB_2010_2020_mean', 'fNRB_2010_2020_sd', 'fNRB_2010_2020_se')
         ),
         .f = ~ relocate(.x, .y[2], .after = .y[1]) %>% relocate(.y[3], .after = .y[2]),
         .init = NRBzonfr_st
@@ -2664,28 +2433,7 @@ if (fNRB_partition_tables == 1) {
       NRBzonfr_stR
       names(NRBzonfr_stR)
       
-      # Calculate n assuming a spatial autocorrelation of 100km: 4 pixels in 10,000 kernels
-      # se_ncell100km <- round((ncell(stackG[[1]])/2500),0)
-      se_ncell100km <- MC
-      
-      NRBzonfr_statsx <- NRBzonfr_stR %>%
-        dplyr::mutate(fNRB_2010_2035_mean = NRB_2010_2035_mean / Harv_2010_2035_mean * 100,
-                      fNRB_2010_2035_sd = sqrt(((NRB_2010_2035_sd/NRB_2010_2035_mean)^2) + 
-                                                 ((Harv_2010_2035_sd/Harv_2010_2035_mean)^2))*100,
-                      fNRB_2010_2035_se = fNRB_2010_2035_sd/sqrt(se_ncell100km),
-                      fNRB_2020_2035_mean = NRB_2020_2035_mean / Harv_2020_2035_mean * 100,
-                      fNRB_2020_2035_sd = sqrt(((NRB_2020_2035_sd/NRB_2020_2035_mean)^2) + 
-                                                 ((Harv_2020_2035_sd/Harv_2020_2035_mean)^2))*100,
-                      fNRB_2020_2035_se = fNRB_2020_2035_sd/sqrt(se_ncell100km),
-                      fNRB_2010_2020_mean = NRB_2010_2020_mean / Harv_2010_2020_mean * 100,
-                      fNRB_2010_2020_sd = sqrt(((NRB_2010_2020_sd/NRB_2010_2020_mean)^2) + 
-                                                 ((Harv_2010_2020_sd/Harv_2010_2020_mean)^2))*100,
-                      fNRB_2010_2020_se = fNRB_2010_2020_sd/sqrt(se_ncell100km),
-                      fNRB_2020_2035_mean = NRB_2020_2035_mean / Harv_2020_2035_mean * 100,
-                      fNRB_2020_2035_sd = sqrt(((NRB_2020_2035_sd/NRB_2020_2035_mean)^2) + 
-                                                 ((Harv_2020_2035_sd/Harv_2020_2035_mean)^2))*100,
-                      fNRB_2020_2035_se = fNRB_2020_2035_sd/sqrt(se_ncell100km)) %>%
-        round(.,0)
+      NRBzonfr_statsx <- NRBzonfr_stR
       
       if (MC < mcthreshold) {
         NRBzonfr_stats <- NRBzonfr_statsx %>%
@@ -2694,7 +2442,8 @@ if (fNRB_partition_tables == 1) {
         NRBzonfr_stats <- NRBzonfr_statsx
       }
       
-      NRB_fNRB2_fr <- cbind(NRBzonfr_stats,NRBzon_frlist1MC)
+      NRB_fNRB2_fr <- cbind(NRBzonfr_stats,NRBzon_frlist1MC) %>%
+        round_mc_result_columns(uncertainty_digits)
       NRB_fNRB2_fr
       names(NRB_fNRB2_fr)
       
@@ -2707,10 +2456,11 @@ if (fNRB_partition_tables == 1) {
         write.csv(NRB_fNRB2_frcompl_madm0, "Out/webmofuss_results/summary_adm0_frcompl.csv", row.names=FALSE, quote=FALSE)
         
         NRB_fNRB3_fr_madm0 <- NRB_fNRB2_frcompl_madm0 %>%
-          dplyr::select(-matches("_2010_2035|_2010_2020"), -ends_with("_sd")) %>%
+          dplyr::select(-matches("_2010_2035|_2010_2020")) %>%
           dplyr::relocate(NRB_2020_2035_1MC, .after = zone_1MC) %>%
           dplyr::relocate(Harv_2020_2035_1MC, .after = NRB_2020_2035_1MC) %>%
-          dplyr::select(-ends_with("_1MC"))
+          dplyr::select(-ends_with("_1MC")) %>%
+          round_mc_result_columns(0)
         write.csv(NRB_fNRB3_fr_madm0, "LULCC/TempTables/summary_adm0_fr.csv", row.names=FALSE, quote=FALSE)
         write.csv(NRB_fNRB3_fr_madm0, "Out/webmofuss_results/summary_adm0_fr.csv", row.names=FALSE, quote=FALSE)
         
@@ -2747,10 +2497,11 @@ if (fNRB_partition_tables == 1) {
         write.csv(NRB_fNRB2_frcompl_madm1, "Out/webmofuss_results/summary_adm1_frcompl.csv", row.names=FALSE, quote=FALSE)
         
         NRB_fNRB3_fr_madm1 <- NRB_fNRB2_frcompl_madm1 %>%
-          dplyr::select(-matches("_2010_2035|_2010_2020"), -ends_with("_sd")) %>%
+          dplyr::select(-matches("_2010_2035|_2010_2020")) %>%
           dplyr::relocate(NRB_2020_2035_1MC, .after = zone_1MC) %>%
           dplyr::relocate(Harv_2020_2035_1MC, .after = NRB_2020_2035_1MC) %>%
-          dplyr::select(-ends_with("_1MC"))
+          dplyr::select(-ends_with("_1MC")) %>%
+          round_mc_result_columns(0)
         write.csv(NRB_fNRB3_fr_madm1, "LULCC/TempTables/summary_adm1_fr.csv", row.names=FALSE, quote=FALSE)
         write.csv(NRB_fNRB3_fr_madm1, "Out/webmofuss_results/summary_adm1_fr.csv", row.names=FALSE, quote=FALSE)
         
@@ -2775,10 +2526,11 @@ if (fNRB_partition_tables == 1) {
         write.csv(NRB_fNRB2_frcompl_madm2, "Out/webmofuss_results/summary_adm2_frcompl.csv", row.names=FALSE, quote=FALSE)
         
         NRB_fNRB3_fr_madm2 <- NRB_fNRB2_frcompl_madm2 %>%
-          dplyr::select(-matches("_2010_2035|_2010_2020"), -ends_with("_sd")) %>%
+          dplyr::select(-matches("_2010_2035|_2010_2020")) %>%
           dplyr::relocate(NRB_2020_2035_1MC, .after = zone_1MC) %>%
           dplyr::relocate(Harv_2020_2035_1MC, .after = NRB_2020_2035_1MC) %>%
-          dplyr::select(-ends_with("_1MC"))
+          dplyr::select(-ends_with("_1MC")) %>%
+          round_mc_result_columns(0)
         write.csv(NRB_fNRB3_fr_madm2, "LULCC/TempTables/summary_adm2_fr.csv", row.names=FALSE, quote=FALSE)
         write.csv(NRB_fNRB3_fr_madm2, "Out/webmofuss_results/summary_adm2_fr.csv", row.names=FALSE, quote=FALSE)
         
@@ -2803,10 +2555,11 @@ if (fNRB_partition_tables == 1) {
         write.csv(NRB_fNRB2_frcompl_meco2, "Out/webmofuss_results/summary_ecoregions_frcompl.csv", row.names=FALSE, quote=FALSE)
         
         NRB_fNRB3_fr_meco2 <- NRB_fNRB2_frcompl_meco2 %>%
-          dplyr::select(-matches("_2010_2035|_2010_2020"), -ends_with("_sd")) %>%
+          dplyr::select(-matches("_2010_2035|_2010_2020")) %>%
           dplyr::relocate(NRB_2020_2035_1MC, .after = zone_1MC) %>%
           dplyr::relocate(Harv_2020_2035_1MC, .after = NRB_2020_2035_1MC) %>%
-          dplyr::select(-ends_with("_1MC"))
+          dplyr::select(-ends_with("_1MC")) %>%
+          round_mc_result_columns(0)
         write.csv(NRB_fNRB3_fr_meco2, "LULCC/TempTables/summary_ecoregions_fr.csv", row.names=FALSE, quote=FALSE)
         write.csv(NRB_fNRB3_fr_meco2, "Out/webmofuss_results/summary_ecoregions_fr.csv", row.names=FALSE, quote=FALSE)
         
@@ -2837,13 +2590,9 @@ if (fNRB_partition_tables == 1) {
                        "Harv_2010_2040", "Harv_2020_2040", "Harv_2010_2020", "Harv_2020_2030",  "Harv_2030_2040", 
                        "fNRB_2010_2040", "fNRB_2020_2040", "fNRB_2010_2020", "fNRB_2020_2030", "fNRB_2030_2040")
       
-      NRBzonfr_st <- NRBzon_frbind %>%
-        group_by(zone) %>%
-        summarise_at(vars(all_of(summarycols)), 
-                     list(mean = mean, 
-                          sd = sd, 
-                          se = ~ sd(.) / sqrt(n()))) %>%
-        round(.,0)
+      NRBzonfr_st <- summarise_mc_uncertainty(
+        NRBzon_frbind, summarycols, expected_runs = MC
+      )
       
       NRBzonfr_stR <- reduce(
         .x = list(
@@ -2869,32 +2618,7 @@ if (fNRB_partition_tables == 1) {
       NRBzonfr_stR
       names(NRBzonfr_stR)
       
-      # Calculate n assuming a spatial autocorrelation of 100km: 4 pixels in 10,000 kernels
-      # se_ncell100km <- round((ncell(stackG[[1]])/2500),0)
-      se_ncell100km <- MC
-      
-      NRBzonfr_statsx <- NRBzonfr_stR %>%
-        dplyr::mutate(fNRB_2010_2040_mean = NRB_2010_2040_mean / Harv_2010_2040_mean * 100,
-                      fNRB_2010_2040_sd = sqrt(((NRB_2010_2040_sd/NRB_2010_2040_mean)^2) + 
-                                                 ((Harv_2010_2040_sd/Harv_2010_2040_mean)^2))*100,
-                      fNRB_2010_2040_se = fNRB_2010_2040_sd/sqrt(se_ncell100km),
-                      fNRB_2020_2040_mean = NRB_2020_2040_mean / Harv_2020_2040_mean * 100,
-                      fNRB_2020_2040_sd = sqrt(((NRB_2020_2040_sd/NRB_2020_2040_mean)^2) + 
-                                                 ((Harv_2020_2040_sd/Harv_2020_2040_mean)^2))*100,
-                      fNRB_2020_2040_se = fNRB_2020_2040_sd/sqrt(se_ncell100km),
-                      fNRB_2010_2020_mean = NRB_2010_2020_mean / Harv_2010_2020_mean * 100,
-                      fNRB_2010_2020_sd = sqrt(((NRB_2010_2020_sd/NRB_2010_2020_mean)^2) + 
-                                                 ((Harv_2010_2020_sd/Harv_2010_2020_mean)^2))*100,
-                      fNRB_2010_2020_se = fNRB_2010_2020_sd/sqrt(se_ncell100km),
-                      fNRB_2020_2030_mean = NRB_2020_2030_mean / Harv_2020_2030_mean * 100,
-                      fNRB_2020_2030_sd = sqrt(((NRB_2020_2030_sd/NRB_2020_2030_mean)^2) + 
-                                                 ((Harv_2020_2030_sd/Harv_2020_2030_mean)^2))*100,
-                      fNRB_2020_2030_se = fNRB_2020_2030_sd/sqrt(se_ncell100km),
-                      fNRB_2030_2040_mean = NRB_2030_2040_mean / Harv_2030_2040_mean * 100,
-                      fNRB_2030_2040_sd = sqrt(((NRB_2030_2040_sd/NRB_2030_2040_mean)^2) + 
-                                                 ((Harv_2030_2040_sd/Harv_2030_2040_mean)^2))*100,
-                      fNRB_2030_2040_se = fNRB_2030_2040_sd/sqrt(se_ncell100km)) %>%
-        round(.,0)
+      NRBzonfr_statsx <- NRBzonfr_stR
       
       if (MC < mcthreshold) {
         NRBzonfr_stats <- NRBzonfr_statsx %>%
@@ -2903,7 +2627,8 @@ if (fNRB_partition_tables == 1) {
         NRBzonfr_stats <- NRBzonfr_statsx
       }
       
-      NRB_fNRB2_fr <- cbind(NRBzonfr_stats,NRBzon_frlist1MC)
+      NRB_fNRB2_fr <- cbind(NRBzonfr_stats,NRBzon_frlist1MC) %>%
+        round_mc_result_columns(uncertainty_digits)
       NRB_fNRB2_fr
       names(NRB_fNRB2_fr)
       
@@ -2916,10 +2641,11 @@ if (fNRB_partition_tables == 1) {
         write.csv(NRB_fNRB2_frcompl_madm0, "Out/webmofuss_results/summary_adm0_frcompl.csv", row.names=FALSE, quote=FALSE)
         
         NRB_fNRB3_fr_madm0 <- NRB_fNRB2_frcompl_madm0 %>%
-          dplyr::select(-matches("_2010_2040|_2010_2020"), -ends_with("_sd")) %>%
+          dplyr::select(-matches("_2010_2040|_2010_2020")) %>%
           dplyr::relocate(NRB_2020_2040_1MC, .after = zone_1MC) %>%
           dplyr::relocate(Harv_2020_2040_1MC, .after = NRB_2030_2040_1MC) %>%
-          dplyr::select(-ends_with("_1MC"))
+          dplyr::select(-ends_with("_1MC")) %>%
+          round_mc_result_columns(0)
         write.csv(NRB_fNRB3_fr_madm0, "LULCC/TempTables/summary_adm0_fr.csv", row.names=FALSE, quote=FALSE)
         write.csv(NRB_fNRB3_fr_madm0, "Out/webmofuss_results/summary_adm0_fr.csv", row.names=FALSE, quote=FALSE)
         
@@ -2956,10 +2682,11 @@ if (fNRB_partition_tables == 1) {
         write.csv(NRB_fNRB2_frcompl_madm1, "Out/webmofuss_results/summary_adm1_frcompl.csv", row.names=FALSE, quote=FALSE)
         
         NRB_fNRB3_fr_madm1 <- NRB_fNRB2_frcompl_madm1 %>%
-          dplyr::select(-matches("_2010_2040|_2010_2020"), -ends_with("_sd")) %>%
+          dplyr::select(-matches("_2010_2040|_2010_2020")) %>%
           dplyr::relocate(NRB_2020_2040_1MC, .after = zone_1MC) %>%
           dplyr::relocate(Harv_2020_2040_1MC, .after = NRB_2030_2040_1MC) %>%
-          dplyr::select(-ends_with("_1MC"))
+          dplyr::select(-ends_with("_1MC")) %>%
+          round_mc_result_columns(0)
         write.csv(NRB_fNRB3_fr_madm1, "LULCC/TempTables/summary_adm1_fr.csv", row.names=FALSE, quote=FALSE)
         write.csv(NRB_fNRB3_fr_madm1, "Out/webmofuss_results/summary_adm1_fr.csv", row.names=FALSE, quote=FALSE)
         
@@ -2984,10 +2711,11 @@ if (fNRB_partition_tables == 1) {
         write.csv(NRB_fNRB2_frcompl_madm2, "Out/webmofuss_results/summary_adm2_frcompl.csv", row.names=FALSE, quote=FALSE)
         
         NRB_fNRB3_fr_madm2 <- NRB_fNRB2_frcompl_madm2 %>%
-          dplyr::select(-matches("_2010_2040|_2010_2020"), -ends_with("_sd")) %>%
+          dplyr::select(-matches("_2010_2040|_2010_2020")) %>%
           dplyr::relocate(NRB_2020_2040_1MC, .after = zone_1MC) %>%
           dplyr::relocate(Harv_2020_2040_1MC, .after = NRB_2030_2040_1MC) %>%
-          dplyr::select(-ends_with("_1MC"))
+          dplyr::select(-ends_with("_1MC")) %>%
+          round_mc_result_columns(0)
         write.csv(NRB_fNRB3_fr_madm2, "LULCC/TempTables/summary_adm2_fr.csv", row.names=FALSE, quote=FALSE)
         write.csv(NRB_fNRB3_fr_madm2, "Out/webmofuss_results/summary_adm2_fr.csv", row.names=FALSE, quote=FALSE)
         
@@ -3012,10 +2740,11 @@ if (fNRB_partition_tables == 1) {
         write.csv(NRB_fNRB2_frcompl_meco2, "Out/webmofuss_results/summary_ecoregions_frcompl.csv", row.names=FALSE, quote=FALSE)
         
         NRB_fNRB3_fr_meco2 <- NRB_fNRB2_frcompl_meco2 %>%
-          dplyr::select(-matches("_2010_2040|_2010_2020"), -ends_with("_sd")) %>%
+          dplyr::select(-matches("_2010_2040|_2010_2020")) %>%
           dplyr::relocate(NRB_2020_2040_1MC, .after = zone_1MC) %>%
           dplyr::relocate(Harv_2020_2040_1MC, .after = NRB_2030_2040_1MC) %>%
-          dplyr::select(-ends_with("_1MC"))
+          dplyr::select(-ends_with("_1MC")) %>%
+          round_mc_result_columns(0)
         write.csv(NRB_fNRB3_fr_meco2, "LULCC/TempTables/summary_ecoregions_fr.csv", row.names=FALSE, quote=FALSE)
         write.csv(NRB_fNRB3_fr_meco2, "Out/webmofuss_results/summary_ecoregions_fr.csv", row.names=FALSE, quote=FALSE)
         
@@ -3046,13 +2775,9 @@ if (fNRB_partition_tables == 1) {
                        "Harv_2010_2050", "Harv_2020_2050", "Harv_2010_2020", "Harv_2020_2030",  "Harv_2030_2040", "Harv_2040_2050", 
                        "fNRB_2010_2050", "fNRB_2020_2050", "fNRB_2010_2020", "fNRB_2020_2030", "fNRB_2030_2040", "fNRB_2040_2050")
       
-      NRBzonfr_st <- NRBzon_frbind %>%
-        group_by(zone) %>%
-        summarise_at(vars(all_of(summarycols)), 
-                     list(mean = mean, 
-                          sd = sd, 
-                          se = ~ sd(.) / sqrt(n()))) %>%
-        round(.,0)
+      NRBzonfr_st <- summarise_mc_uncertainty(
+        NRBzon_frbind, summarycols, expected_runs = MC
+      )
       
       NRBzonfr_stR <- reduce(
         .x = list(
@@ -3081,36 +2806,7 @@ if (fNRB_partition_tables == 1) {
       NRBzonfr_stR
       names(NRBzonfr_stR)
       
-      # Calculate n assuming a spatial autocorrelation of 100km: 4 pixels in 10,000 kernels
-      # se_ncell100km <- round((ncell(stackG[[1]])/2500),0)
-      se_ncell100km <- MC
-      
-      NRBzonfr_statsx <- NRBzonfr_stR %>%
-        dplyr::mutate(fNRB_2010_2050_mean = NRB_2010_2050_mean / Harv_2010_2050_mean * 100,
-                      fNRB_2010_2050_sd = sqrt(((NRB_2010_2050_sd/NRB_2010_2050_mean)^2) + 
-                                                 ((Harv_2010_2050_sd/Harv_2010_2050_mean)^2))*100,
-                      fNRB_2010_2050_se = fNRB_2010_2050_sd/sqrt(se_ncell100km),
-                      fNRB_2020_2050_mean = NRB_2020_2050_mean / Harv_2020_2050_mean * 100,
-                      fNRB_2020_2050_sd = sqrt(((NRB_2020_2050_sd/NRB_2020_2050_mean)^2) + 
-                                                 ((Harv_2020_2050_sd/Harv_2020_2050_mean)^2))*100,
-                      fNRB_2020_2050_se = fNRB_2020_2050_sd/sqrt(se_ncell100km),
-                      fNRB_2010_2020_mean = NRB_2010_2020_mean / Harv_2010_2020_mean * 100,
-                      fNRB_2010_2020_sd = sqrt(((NRB_2010_2020_sd/NRB_2010_2020_mean)^2) + 
-                                                 ((Harv_2010_2020_sd/Harv_2010_2020_mean)^2))*100,
-                      fNRB_2010_2020_se = fNRB_2010_2020_sd/sqrt(se_ncell100km),
-                      fNRB_2020_2030_mean = NRB_2020_2030_mean / Harv_2020_2030_mean * 100,
-                      fNRB_2020_2030_sd = sqrt(((NRB_2020_2030_sd/NRB_2020_2030_mean)^2) + 
-                                                 ((Harv_2020_2030_sd/Harv_2020_2030_mean)^2))*100,
-                      fNRB_2020_2030_se = fNRB_2020_2030_sd/sqrt(se_ncell100km),
-                      fNRB_2030_2040_mean = NRB_2030_2040_mean / Harv_2030_2040_mean * 100,
-                      fNRB_2030_2040_sd = sqrt(((NRB_2030_2040_sd/NRB_2030_2040_mean)^2) + 
-                                                 ((Harv_2030_2040_sd/Harv_2030_2040_mean)^2))*100,
-                      fNRB_2030_2040_se = fNRB_2030_2040_sd/sqrt(se_ncell100km),
-                      fNRB_2040_2050_mean = NRB_2040_2050_mean / Harv_2040_2050_mean * 100,
-                      fNRB_2040_2050_sd = sqrt(((NRB_2040_2050_sd/NRB_2040_2050_mean)^2) + 
-                                                 ((Harv_2040_2050_sd/Harv_2040_2050_mean)^2))*100,
-                      fNRB_2040_2050_se = fNRB_2040_2050_sd/sqrt(se_ncell100km)) %>%
-        round(.,0)
+      NRBzonfr_statsx <- NRBzonfr_stR
       names(NRBzonfr_statsx)
       
       if (MC < mcthreshold) {
@@ -3120,7 +2816,8 @@ if (fNRB_partition_tables == 1) {
         NRBzonfr_stats <- NRBzonfr_statsx
       }
       
-      NRB_fNRB2_fr <- cbind(NRBzonfr_stats,NRBzon_frlist1MC)
+      NRB_fNRB2_fr <- cbind(NRBzonfr_stats,NRBzon_frlist1MC) %>%
+        round_mc_result_columns(uncertainty_digits)
       NRB_fNRB2_fr
       names(NRB_fNRB2_fr)
       
@@ -3133,10 +2830,11 @@ if (fNRB_partition_tables == 1) {
         write.csv(NRB_fNRB2_frcompl_madm0, "Out/webmofuss_results/summary_adm0_frcompl.csv", row.names=FALSE, quote=FALSE)
         
         NRB_fNRB3_fr_madm0 <- NRB_fNRB2_frcompl_madm0 %>%
-          dplyr::select(-matches("_2010_2050|_2010_2020"), -ends_with("_sd")) %>%
+          dplyr::select(-matches("_2010_2050|_2010_2020")) %>%
           dplyr::relocate(NRB_2020_2050_1MC, .after = zone_1MC) %>%
           dplyr::relocate(Harv_2020_2050_1MC, .after = NRB_2040_2050_1MC) %>%
-          dplyr::select(-ends_with("_1MC"))
+          dplyr::select(-ends_with("_1MC")) %>%
+          round_mc_result_columns(0)
         write.csv(NRB_fNRB3_fr_madm0, "LULCC/TempTables/summary_adm0_fr.csv", row.names=FALSE, quote=FALSE)
         write.csv(NRB_fNRB3_fr_madm0, "Out/webmofuss_results/summary_adm0_fr.csv", row.names=FALSE, quote=FALSE)
         
@@ -3173,10 +2871,11 @@ if (fNRB_partition_tables == 1) {
         write.csv(NRB_fNRB2_frcompl_madm1, "Out/webmofuss_results/summary_adm1_frcompl.csv", row.names=FALSE, quote=FALSE)
         
         NRB_fNRB3_fr_madm1 <- NRB_fNRB2_frcompl_madm1 %>%
-          dplyr::select(-matches("_2010_2050|_2010_2020"), -ends_with("_sd")) %>%
+          dplyr::select(-matches("_2010_2050|_2010_2020")) %>%
           dplyr::relocate(NRB_2020_2050_1MC, .after = zone_1MC) %>%
           dplyr::relocate(Harv_2020_2050_1MC, .after = NRB_2040_2050_1MC) %>%
-          dplyr::select(-ends_with("_1MC"))
+          dplyr::select(-ends_with("_1MC")) %>%
+          round_mc_result_columns(0)
         write.csv(NRB_fNRB3_fr_madm1, "LULCC/TempTables/summary_adm1_fr.csv", row.names=FALSE, quote=FALSE)
         write.csv(NRB_fNRB3_fr_madm1, "Out/webmofuss_results/summary_adm1_fr.csv", row.names=FALSE, quote=FALSE)
         
@@ -3201,10 +2900,11 @@ if (fNRB_partition_tables == 1) {
         write.csv(NRB_fNRB2_frcompl_madm2, "Out/webmofuss_results/summary_adm2_frcompl.csv", row.names=FALSE, quote=FALSE)
         
         NRB_fNRB3_fr_madm2 <- NRB_fNRB2_frcompl_madm2 %>%
-          dplyr::select(-matches("_2010_2050|_2010_2020"), -ends_with("_sd")) %>%
+          dplyr::select(-matches("_2010_2050|_2010_2020")) %>%
           dplyr::relocate(NRB_2020_2050_1MC, .after = zone_1MC) %>%
           dplyr::relocate(Harv_2020_2050_1MC, .after = NRB_2040_2050_1MC) %>%
-          dplyr::select(-ends_with("_1MC"))
+          dplyr::select(-ends_with("_1MC")) %>%
+          round_mc_result_columns(0)
         write.csv(NRB_fNRB3_fr_madm2, "LULCC/TempTables/summary_adm2_fr.csv", row.names=FALSE, quote=FALSE)
         write.csv(NRB_fNRB3_fr_madm2, "Out/webmofuss_results/summary_adm2_fr.csv", row.names=FALSE, quote=FALSE)
         
@@ -3229,10 +2929,11 @@ if (fNRB_partition_tables == 1) {
         write.csv(NRB_fNRB2_frcompl_meco2, "Out/webmofuss_results/summary_ecoregions_frcompl.csv", row.names=FALSE, quote=FALSE)
 
         NRB_fNRB3_fr_meco2 <- NRB_fNRB2_frcompl_meco2 %>%
-          dplyr::select(-matches("_2010_2050|_2010_2020"), -ends_with("_sd")) %>%
+          dplyr::select(-matches("_2010_2050|_2010_2020")) %>%
           dplyr::relocate(NRB_2020_2050_1MC, .after = zone_1MC) %>%
           dplyr::relocate(Harv_2020_2050_1MC, .after = NRB_2040_2050_1MC) %>%
-          dplyr::select(-ends_with("_1MC"))
+          dplyr::select(-ends_with("_1MC")) %>%
+          round_mc_result_columns(0)
         write.csv(NRB_fNRB3_fr_meco2, "LULCC/TempTables/summary_ecoregions_fr.csv", row.names=FALSE, quote=FALSE)
         write.csv(NRB_fNRB3_fr_meco2, "Out/webmofuss_results/summary_ecoregions_fr.csv", row.names=FALSE, quote=FALSE)
         
