@@ -375,8 +375,6 @@ rBaU<-read.csv("LULCC/TempTables/InputParaBaU.csv")
 
 write.csv(rBaU, "LULCC/TempTables/InputPara.csv", row.names=FALSE, quote=FALSE)
 #write.csv(rBauICS, "LULCC/TempTables/InputPara.csv", row.names=FALSE, quote=FALSE)
-#unlink("LaTeX/InputPara.csv", force=TRUE)
-file.copy("LULCC/TempTables/InputPara.csv", "LaTeX/InputPara.csv")
 # } else { 
 # 	"One out of two scenario table parameters is missing"		
 # }
@@ -1141,11 +1139,10 @@ if (SumTables == 1) {
   }
   
   ## Saves summary tables in .csv for BaU and ICS SCENARIOS ####
+  ## LULCC/TempTables is the canonical location used by the modern PDF report.
   
   writeLines(paste(MC," Monte Carlo runs",sep=""), "LULCC/TempTables/MCruns.txt", useBytes=T)
-  file.copy("LULCC/TempTables/MCruns.txt", "LaTeX/MCruns.txt", overwrite=TRUE)
   writeLines(paste(STdyn," years",sep=""), "LULCC/TempTables/SimLength.txt", useBytes=T)
-  file.copy("LULCC/TempTables/SimLength.txt", "LaTeX/SimLength.txt", overwrite=TRUE)	
   
   cols1 <- c(1:3)
   NRBBaUICS <- NRB_fNRB2[,cols1]
@@ -1167,8 +1164,6 @@ if (SumTables == 1) {
   # } else {
   colnames(NRB_fNRB2)<- c("Name", "NRB","NRBsd","FWuse","FWusesd","FWu2","FWusd2","fNRB","fNRBsd","fNRB2","fNRBsd2")
   write.csv(NRB_fNRB2, "LULCC/TempTables/SumTableBaU.csv", row.names=FALSE, quote=FALSE)
-  unlink("LaTeX/SumTableBaU.csv", force=TRUE)
-  file.copy("LULCC/TempTables/SumTableBaU.csv", "LaTeX/SumTableBaU.csv")
   
   colnames(NRBBaUICS)<- c("Name", "NRB.BaU", "NRB.BaU.sd")
   write.csv(NRBBaUICS, "LULCC/TempTables/NRBBaU.csv", row.names=FALSE, quote=FALSE)
@@ -1194,8 +1189,6 @@ if (SumTables == 1) {
   #	paste("NRB.ICS (n=",MC,")",sep=""),paste("NRB.ICS.sd (n=",MC,")",sep=""))
   write.csv(rNRBBaUt, "LULCC/TempTables/NRBTable.csv", row.names=FALSE, quote=FALSE)
   #write.csv(rNRBBauICSt, "LULCC/TempTables/NRBTable.csv", row.names=FALSE, quote=FALSE)
-  unlink("LaTeX/NRBTable.csv", force=TRUE)
-  file.copy("LULCC/TempTables/NRBTable.csv", "LaTeX/NRBTable.csv")
   # } else {
   # 	"One out of two scenario table parameters is missing"
   # }
@@ -1209,8 +1202,6 @@ if (SumTables == 1) {
   # 		paste("fNRB.ICS (n=",MC,")",sep=""),paste("fNRB.ICS.sd (n=",MC,")",sep=""))
   write.csv(rfNRBBaUt, "LULCC/TempTables/fNRBTable.csv", row.names=FALSE, quote=FALSE)
   # 	write.csv(rfNRBBauICSt, "LULCC/TempTables/fNRBTable.csv", row.names=FALSE, quote=FALSE)
-  unlink("LaTeX/fNRBTable.csv", force=TRUE)
-  file.copy("LULCC/TempTables/fNRBTable.csv", "LaTeX/fNRBTable.csv")
   # } else { 
   # 	"One out of two scenario table parameters is missing"		
   # }
@@ -1221,8 +1212,6 @@ if (SumTables == 1) {
   #rBaUICStt <- merge(rBaUStt,rICSStt,by="Name", sort=FALSE, all.x=TRUE)
   write.csv(rBaUStt, "LULCC/TempTables/SumTable.csv", row.names=FALSE, quote=FALSE)
   #write.csv(rBaUICStt, "LULCC/TempTables/SumTable.csv", row.names=FALSE, quote=FALSE)
-  unlink("LaTeX/SumTable.csv", force=TRUE)
-  file.copy("LULCC/TempTables/SumTable.csv", "LaTeX/SumTable.csv")
   # } else {
   # 	"One out of two scenario table parameters is missing"
   # }
@@ -1257,8 +1246,6 @@ if (SumTables == 1) {
     
     colnames(NRB_fNRB21)<- c("Name", "NRB","NRBsd","FWuse","FWusesd","FWu2","FWusd2","fNRB","fNRBsd","fNRB2","fNRBsd2")
     write.csv(NRB_fNRB21, "LULCC/TempTables/SumTableBaU1.csv", row.names=FALSE, quote=FALSE)
-    unlink("LaTeX/SumTableBaU1.csv", force=TRUE)
-    file.copy("LULCC/TempTables/SumTableBaU1.csv", "LaTeX/SumTableBaU1.csv")
     
     colnames(NRBBaUICS1)<- c("Name", "NRB.BaU", "NRB.BaU.sd")
     write.csv(NRBBaUICS1, "LULCC/TempTables/NRBBaU1.csv", row.names=FALSE, quote=FALSE)
@@ -1289,8 +1276,6 @@ if (SumTables == 1) {
     #	paste("NRB.ICS (n=",MC,")",sep=""),paste("NRB.ICS.sd (n=",MC,")",sep=""))
     write.csv(rNRBBaUt1, "LULCC/TempTables/NRBTable1.csv", row.names=FALSE, quote=FALSE)
     #write.csv(rNRBBauICSt, "LULCC/TempTables/NRBTable.csv", row.names=FALSE, quote=FALSE)
-    unlink("LaTeX/NRBTable1.csv", force=TRUE)
-    file.copy("LULCC/TempTables/NRBTable1.csv", "LaTeX/NRBTable1.csv")
     # } else {
     # 	"One out of two scenario table parameters is missing"
     # }
@@ -1304,8 +1289,6 @@ if (SumTables == 1) {
     # 		paste("fNRB.ICS (n=",MC,")",sep=""),paste("fNRB.ICS.sd (n=",MC,")",sep=""))
     write.csv(rfNRBBaUt1, "LULCC/TempTables/fNRBTable1.csv", row.names=FALSE, quote=FALSE)
     # 	write.csv(rfNRBBauICSt, "LULCC/TempTables/fNRBTable.csv", row.names=FALSE, quote=FALSE)
-    unlink("LaTeX/fNRBTable1.csv", force=TRUE)
-    file.copy("LULCC/TempTables/fNRBTable1.csv", "LaTeX/fNRBTable1.csv")
     # } else { 
     # 	"One out of two scenario table parameters is missing"		
     # }
@@ -1316,8 +1299,6 @@ if (SumTables == 1) {
     #rBaUICStt <- merge(rBaUStt,rICSStt,by="Name", sort=FALSE, all.x=TRUE)
     write.csv(rBaUStt1, "LULCC/TempTables/SumTable1.csv", row.names=FALSE, quote=FALSE)
     #write.csv(rBaUICStt, "LULCC/TempTables/SumTable.csv", row.names=FALSE, quote=FALSE)
-    unlink("LaTeX/SumTable1.csv", force=TRUE)
-    file.copy("LULCC/TempTables/SumTable1.csv", "LaTeX/SumTable1.csv")
     # } else {
     # 	"One out of two scenario table parameters is missing"
     # }
@@ -1341,7 +1322,7 @@ dir.create(paste(OutDir,"/png",sep=""))
 dir.create(paste(OutDir,"/jpg",sep=""))
 
 figlist <- c("Map_AGB", "Area_of_Interest", "Localities_of_Interest",
-             "AGB_NRB_fNRB", "Boxplots")
+             "AGB_NRB_fNRB_+10", "Boxplots_+10")
 for (i in figlist) {
   img1 <- readTIFF(paste(OutDir,"/",i,".tif",sep=""), native=TRUE)
   writeJPEG(img1, target = paste(OutDir,"/jpg/",i,".jpg",sep=""), quality = 1)
@@ -2962,23 +2943,22 @@ if (fNRB_partition_tables == 1) {
   
 } # if (fNRB_partition_tables == 1) {
 
-# Compile LATEX file infot pdf report ####
+# Compile LaTeX file into PDF report ####
 if (compilelatex == 1) {
   
   # ---- Modern summary report (auto-generated; replaces legacy texi2dvi block) ----
   # Reads current MoFuSS outputs, auto-detects available data and figures,
   # compiles the modern template with MiKTeX, and writes:
-  #     Summary_Report/Mofuss_Summary_Report_<SceCode>.pdf
+  #     Summary_Report/MoFuSS_Summary_Report_<scenario>_scenario.pdf
   # The original legacy block is preserved in maps_animations7_backup_premodern.R
   print("Run LaTeX and compile modern summary report (pdf)")
   source(file.path(getwd(), "LaTeX", "generate_modern_report.R"))
-  report_out <- tryCatch(
-    generate_modern_report(base_dir = getwd()),
-    error = function(e) {
-      message("Modern report generation failed: ", conditionMessage(e)); NA_character_
-    }
+  report_out <- generate_modern_report(
+    base_dir = getwd(),
+    output_dir = OutDir,
+    mc_threshold = mcthreshold
   )
-  if (!is.na(report_out)) print(paste("Modern report written:", report_out))
+  print(paste("Modern report written:", report_out))
   
 }
 

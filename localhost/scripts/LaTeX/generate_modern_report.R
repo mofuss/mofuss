@@ -8,15 +8,27 @@
 ##     source(file.path(latex_dir, "generate_modern_report.R"))
 ##     generate_modern_report(base_dir = rootdir)        # rootdir = run folder
 ##
-##  Requires (in <latex_dir>): mofuss_report.tex, title_page.tex
-##  Produces:  <base_dir>/Summary_Report/MoFuSS_Summary_Report_<code>_scenario.pdf
+##  Optional template overrides (in <latex_dir>): mofuss_report.tex,
+##  title_page.tex. Built-in templates are used when these files are absent.
+##  Produces: <base_dir>/Summary_Report/MoFuSS_Summary_Report_<code>_scenario.pdf
+##            <base_dir>/Summary_Report/assets/<code>_Growth_Harvest_*.mp4
 ## ============================================================================
 
 generate_modern_report <- function(base_dir,
                                     latex_dir    = file.path(base_dir, "LaTeX"),
+                                    output_dir   = NULL,
                                     pdflatex     = NULL,
                                     scenario_ver = NULL,
-                                    open_pdf     = FALSE) {
+                                    open_pdf     = FALSE,
+                                    keep_build   = FALSE,
+                                    mc_threshold = 30L) {
+
+  base_dir <- normalizePath(base_dir, winslash = "/", mustWork = TRUE)
+  latex_dir <- normalizePath(latex_dir, winslash = "/", mustWork = FALSE)
+  if (!dir.exists(latex_dir))
+    stop("LaTeX directory not found: ", latex_dir)
+  if (length(mc_threshold) != 1L || is.na(mc_threshold) || mc_threshold < 1)
+    stop("mc_threshold must be one positive number.")
 
   ## ---- locate pdflatex (MiKTeX) ------------------------------------------
   if (is.null(pdflatex)) {
@@ -33,15 +45,46 @@ generate_modern_report <- function(base_dir,
   message("Using pdflatex: ", pdflatex)
 
   ## ---- paths --------------------------------------------------------------
-  TT     <- file.path(base_dir, "LULCC", "TempTables")
-  WIZ    <- file.path(base_dir, "LULCC", "Wizard_imgs")
-  BUILD  <- file.path(latex_dir, "build_modern")
-  ASSETS <- file.path(BUILD, "assets")
-  SR     <- file.path(base_dir, "Summary_Report")
-  outdirs <- c("Out", "OutBaU", "OutICS")
-  outdirs <- outdirs[dir.exists(file.path(base_dir, outdirs))]
-  dir.create(ASSETS, recursive = TRUE, showWarnings = FALSE)
-  dir.create(SR,     recursive = TRUE, showWarnings = FALSE)
+  TT        <- file.path(base_dir, "LULCC", "TempTables")
+  WIZ       <- file.path(base_dir, "LULCC", "Wizard_imgs")
+  BUILD     <- file.path(latex_dir, "build_modern")
+  ASSETS    <- file.path(BUILD, "assets")
+  SR        <- file.path(base_dir, "Summary_Report")
+  SR_ASSETS <- file.path(SR, "assets")
+
+  if (!dir.exists(TT))
+    stop("MoFuSS temporary-table directory not found: ", TT,
+         "\nRun this script from a completed country simulation folder.")
+
+  if (!is.null(output_dir)) {
+    if (length(output_dir) != 1L || is.na(output_dir) || !nzchar(output_dir))
+      stop("output_dir must be one non-empty directory path.")
+    output_path <- as.character(output_dir)
+    if (!grepl("^[A-Za-z]:[/\\\\]|^/", output_path))
+      output_path <- file.path(base_dir, output_path)
+    if (!dir.exists(output_path)) stop("MoFuSS output directory not found: ", output_path)
+    OUT_DIRS <- normalizePath(output_path, winslash = "/", mustWork = TRUE)
+  } else {
+    output_paths <- file.path(base_dir, c("Out", "OutBaU", "OutICS"))
+    output_paths <- output_paths[dir.exists(output_paths)]
+    if (!length(output_paths)) stop("No MoFuSS output directory was found.")
+    OUT_DIRS <- normalizePath(output_paths, winslash = "/", mustWork = TRUE)
+  }
+  message("Using output directory: ", paste(OUT_DIRS, collapse = ", "))
+
+  # build_modern is disposable staging. Recreate it so missing assets or a
+  # failed LaTeX run cannot silently reuse a PDF from a previous scenario.
+  if (dir.exists(BUILD)) unlink(BUILD, recursive = TRUE, force = TRUE)
+  ensure_dir <- function(path) {
+    if (!dir.exists(path)) {
+      created <- suppressWarnings(dir.create(path, recursive = TRUE,
+                                             showWarnings = FALSE))
+      if (!isTRUE(created) && !dir.exists(path))
+        stop("Could not create report directory: ", path)
+    }
+  }
+  ensure_dir(ASSETS)
+  ensure_dir(SR_ASSETS)
 
   ## ---- helpers ------------------------------------------------------------
   latex_escape <- function(s) {
@@ -87,8 +130,10 @@ generate_modern_report <- function(base_dir,
         hit <- fs[tolower(tools::file_path_sans_ext(fs)) == tolower(stem) &
                   tolower(paste0(".", tools::file_ext(fs))) == ext]
         if (length(hit)) {
-          file.copy(file.path(sd, hit[1]), file.path(ASSETS, dest_name),
-                    overwrite = TRUE)
+          copied <- file.copy(file.path(sd, hit[1]), file.path(ASSETS, dest_name),
+                              overwrite = TRUE)
+          if (!isTRUE(copied))
+            stop("Could not stage report asset: ", file.path(sd, hit[1]))
           return(dest_name)
         }
       }
@@ -100,8 +145,10 @@ generate_modern_report <- function(base_dir,
   country  <- read_txt(file.path(TT, "Country.txt"),  "the study area")
   ## ---- display country name(s) from adm0 summary (NAME_0) -----------------
   country_names <- local({
-    f <- file.path(base_dir, "Out", "webmofuss_results", "summary_adm0_fr.csv")
-    if (!file.exists(f)) return("")
+    fs <- file.path(OUT_DIRS, "webmofuss_results", "summary_adm0_fr.csv")
+    fs <- fs[file.exists(fs)]
+    if (!length(fs)) return("")
+    f <- fs[1]
     first <- readLines(f, n = 1, warn = FALSE)
     sep <- if (grepl(";", first) && !grepl(",", first)) ";" else ","
     d <- tryCatch(read.delim(f, sep = sep, stringsAsFactors = FALSE,
@@ -180,7 +227,13 @@ generate_modern_report <- function(base_dir,
     sce_label <- if (grepl("ICS", base_tok, ignore.case = TRUE))
                    "Improved Cookstoves" else "Business as Usual"
   }
-  message("Scenario: ", scenario_ver, "  ->  code=", sce_code, "  label=", sce_label)
+  sce_file_code <- gsub("[^A-Za-z0-9._-]+", "_", sce_code)
+  sce_file_code <- gsub("^_+|_+$", "", sce_file_code)
+  if (!nzchar(sce_file_code)) sce_file_code <- "scenario"
+  scenario_display <- if (is.null(scenario_ver) || !nzchar(scenario_ver))
+    "<not explicitly set>" else scenario_ver
+  message("Scenario: ", scenario_display, "  ->  code=", sce_code,
+          "  label=", sce_label)
   ## ---- credit line from country_parameters (nameuser/ads/ads_ctry) -------
   read_param_value <- function(var, default = "") {
     cc <- file.path(TT, "Country.csv"); cname <- NA_character_
@@ -229,9 +282,16 @@ generate_modern_report <- function(base_dir,
   message("Credit line: ", run_by)
 
   ## ---- input parameters ---------------------------------------------------
-  ip <- read.csv(file.path(TT, "InputPara.csv"), check.names = FALSE,
-                 stringsAsFactors = FALSE, fileEncoding = "UTF-8-BOM")
-  if (!ncol(ip)) ip <- data.frame(Parameter = character(), Value = character())
+  input_para <- file.path(TT, "InputPara.csv")
+  if (!file.exists(input_para))
+    stop("Required report input is missing: ", input_para)
+  ip <- tryCatch(
+    read.csv(input_para, check.names = FALSE, stringsAsFactors = FALSE,
+             fileEncoding = "UTF-8-BOM"),
+    error = function(e) stop("Could not read ", input_para, ": ",
+                             conditionMessage(e), call. = FALSE))
+  if (ncol(ip) < 2L)
+    stop("InputPara.csv must contain at least a Parameter and a Value column.")
   hdr <- colnames(ip)
   params <- ip[nzchar(trimws(ip[[1]])), , drop = FALSE]
   getp <- function(key) {
@@ -243,11 +303,17 @@ generate_modern_report <- function(base_dir,
   mc_runs    <- getp("Number of MC realizations")
   resolution <- getp("Spatial resolution")
   sce_type   <- getp("Type of scenario")
+  parse_first_number <- function(x) {
+    hit <- regmatches(as.character(x), regexpr("[0-9]+", as.character(x)))
+    if (!length(hit) || !nzchar(hit)) return(NA_real_)
+    suppressWarnings(as.numeric(hit))
+  }
+  mc_n <- parse_first_number(mc_runs)
 
   ## ---- summary table (auto-detect) ---------------------------------------
   cands <- c("summary_adm0_fr.csv", "summary_adm0_frcompl.csv",
              "summary_ecoregions_fr.csv")
-  sdirs <- c(file.path(base_dir, "Out", "webmofuss_results"), TT)
+  sdirs <- c(file.path(OUT_DIRS, "webmofuss_results"), TT)
   summ <- NA
   for (sd in sdirs) {
     hit <- cands[file.exists(file.path(sd, cands))]
@@ -259,16 +325,35 @@ generate_modern_report <- function(base_dir,
                   stringsAsFactors = FALSE, fileEncoding = "UTF-8-BOM")
     if (nrow(d)) {
       cn <- colnames(d)
+      if ("MC_n" %in% cn) {
+        summary_mc_n <- suppressWarnings(as.numeric(d[["MC_n"]]))
+        summary_mc_n <- summary_mc_n[is.finite(summary_mc_n)]
+        if (length(summary_mc_n)) mc_n <- min(summary_mc_n)
+      }
       for (c0 in c("NAME_0", "ECO_NAME", "NAME"))
         if (c0 %in% cn) { unit_name <- as.character(d[[c0]][1]); break }
-      pat <- "^(NRB|Harv|fNRB)_([0-9]{4})_([0-9]{4})_mean$"
-      mcols <- cn[grepl(pat, cn)]
+      pat <- "^(NRB|Harv|fNRB)_([0-9]{4})_([0-9]{4})_(mean|sd|se)$"
+      stat_cols <- cn[grepl(pat, cn)]
       per <- list()
-      for (col in mcols) {
+      for (col in stat_cols) {
         mm <- regmatches(col, regexec(pat, col))[[1]]
-        metric <- mm[2]; key <- paste(mm[3], mm[4], sep = "_")
+        metric <- mm[2]; key <- paste(mm[3], mm[4], sep = "_"); stat <- mm[5]
         if (is.null(per[[key]])) per[[key]] <- list()
-        per[[key]][[metric]] <- sum(suppressWarnings(as.numeric(d[[col]])), na.rm = TRUE)
+        values <- suppressWarnings(as.numeric(d[[col]]))
+        values <- values[is.finite(values)]
+        # Means are additive across units. Already-summarized SD/SE values are
+        # used only when the source has one row; otherwise covariance between
+        # units would be required for a correct aggregate uncertainty.
+        value <- if (!length(values)) {
+          NA_real_
+        } else if (stat == "mean") {
+          sum(values)
+        } else if (length(values) == 1L) {
+          values[1]
+        } else {
+          NA_real_
+        }
+        per[[key]][[paste(metric, stat, sep = "_")]] <- value
       }
       if (length(per)) {
         starts <- as.integer(sub("_.*", "", names(per)))
@@ -278,29 +363,56 @@ generate_modern_report <- function(base_dir,
         ord <- c(ord[ord != full_key], if (full_key %in% names(per)) full_key)
         for (k in ord) {
           dd <- per[[k]]; yy <- strsplit(k, "_")[[1]]
-          fnrb_val <- if (nrow(d) > 1 && !is.null(dd[["Harv"]]) && isTRUE(dd[["Harv"]] > 0)) round(dd[["NRB"]] / dd[["Harv"]] * 100) else dd[["fNRB"]]
+          get_stat <- function(metric, stat)
+            dd[[paste(metric, stat, sep = "_")]]
+          nrb_mean <- get_stat("NRB", "mean")
+          harv_mean <- get_stat("Harv", "mean")
+          valid_harv <- length(harv_mean) == 1L && is.finite(harv_mean) &&
+            harv_mean > 0
+          fnrb_mean <- if (nrow(d) > 1 && valid_harv)
+            round(nrb_mean / harv_mean * 100) else get_stat("fNRB", "mean")
+          table_value <- function(x) {
+            if (is.null(x) || !length(x) || !is.finite(x)) return("")
+            thousands(x)
+          }
           nrb_rows[[length(nrb_rows) + 1]] <- list(
             period = paste0(yy[1], "\\textendash{}", yy[2]),
-            nrb  = thousands(dd[["NRB"]]),
-            harv = thousands(dd[["Harv"]]),
-            fnrb = thousands(fnrb_val),
+            nrb     = table_value(nrb_mean),
+            nrb_sd  = table_value(get_stat("NRB", "sd")),
+            nrb_se  = table_value(get_stat("NRB", "se")),
+            harv    = table_value(harv_mean),
+            harv_sd = table_value(get_stat("Harv", "sd")),
+            harv_se = table_value(get_stat("Harv", "se")),
+            fnrb    = table_value(fnrb_mean),
+            fnrb_sd = table_value(get_stat("fNRB", "sd")),
+            fnrb_se = table_value(get_stat("fNRB", "se")),
             full = identical(k, full_key))
         }
       }
     }
   }
+  uncertainty_fields <- c("nrb_sd", "nrb_se", "harv_sd", "harv_se",
+                          "fnrb_sd", "fnrb_se")
+  uncertainty_available <- length(nrb_rows) && all(vapply(
+    nrb_rows, function(row) all(nzchar(unlist(row[uncertainty_fields]))),
+    logical(1)))
+  show_uncertainty <- is.finite(mc_n) && mc_n >= mc_threshold &&
+    uncertainty_available
+  if (is.finite(mc_n) && mc_n >= mc_threshold && !uncertainty_available)
+    warning("MC >= ", mc_threshold,
+            ", but aggregate SD/SE columns were unavailable; Table 2 will show means only.")
 
   ## ---- title-page assets --------------------------------------------------
-  png_dirs <- file.path(base_dir, outdirs, "png")
-  copy_first("Area_of_Interest", "Area_of_Interest.png", png_dirs)
-  copy_first("sponsors_banner",  "sponsors_banner.png",  WIZ)
-  copy_first("UNAM",             "UNAM.png",             WIZ)
-  copy_first("SEI",              "SEI.png",              WIZ)
-  copy_first("mofuss_366",      "mofuss_366.png",      WIZ)
+  png_dirs <- file.path(OUT_DIRS, "png")
+  copy_first("Area_of_Interest", "Area_of_Interest.png", png_dirs, ".png")
+  copy_first("sponsors_banner",  "sponsors_banner.png",  WIZ, ".png")
+  copy_first("UNAM",             "UNAM.png",             WIZ, ".png")
+  copy_first("SEI",              "SEI.png",              WIZ, ".png")
+  copy_first("mofuss_366",       "mofuss_366.png",       WIZ, ".png")
 
   ## ---- body figures (auto-detect, size-aware) ----------------------------
   FIG_SPEC <- list(
-    list("AGB_NRB_fNRB",
+    list("AGB_NRB_fNRB_+10",
       paste("Trajectories of aboveground biomass (AGB), non-renewable biomass",
             "(NRB), fraction of non-renewable biomass (fNRB) and total fuelwood",
             "use over the simulation period. The red line uses mean user-defined",
@@ -312,7 +424,7 @@ generate_modern_report <- function(base_dir,
       "spatial"),
     list("Localities_of_Interest",
       "Sampled localities of interest within the area of analysis.", "spatial"),
-    list("Boxplots",
+    list("Boxplots_+10",
       paste("Box-and-whisker plots of the Monte Carlo distribution for AGB,",
             "NRB, fNRB and total fuelwood use. The dark line marks the median,",
             "the box the inter-quartile range (IQR), whiskers the range, and",
@@ -326,8 +438,10 @@ generate_modern_report <- function(base_dir,
                   tolower(paste0(".", tools::file_ext(fs))) == ext]
         if (length(hit)) {
           dest <- paste0(stem, ext)
-          file.copy(file.path(sd, hit[1]), file.path(ASSETS, dest),
-                    overwrite = TRUE)
+          copied <- file.copy(file.path(sd, hit[1]), file.path(ASSETS, dest),
+                              overwrite = TRUE)
+          if (!isTRUE(copied))
+            stop("Could not stage report figure: ", file.path(sd, hit[1]))
           return(dest)
         }
       }
@@ -353,17 +467,16 @@ generate_modern_report <- function(base_dir,
   }
 
   ## ---- animation (optional) ----------------------------------------------
+  mp4_src <- NULL
   mp4_dest <- NULL
-  mp4_cands <- c(
-    list.files(file.path(base_dir, outdirs),
-               pattern = "^Growth_Harvest_Ani.*\\.mp4$",
-               full.names = TRUE, ignore.case = TRUE),
-    list.files(latex_dir, pattern = "^Growth_Harvest_Ani.*\\.mp4$",
-               full.names = TRUE, ignore.case = TRUE))
+  mp4_cands <- unlist(lapply(OUT_DIRS, function(out_dir) {
+    list.files(out_dir, pattern = "^Growth_Harvest_Ani.*\\.mp4$",
+               full.names = TRUE, ignore.case = TRUE)
+  }), use.names = FALSE)
   mp4_cands <- mp4_cands[file.exists(mp4_cands)]
   if (length(mp4_cands)) {
-    mp4_dest <- basename(mp4_cands[1])
-    file.copy(mp4_cands[1], file.path(ASSETS, mp4_dest), overwrite = TRUE)
+    mp4_src <- mp4_cands[1]
+    mp4_dest <- paste0(sce_file_code, "_", basename(mp4_src))
   }
 
   ## ---- write fragments ----------------------------------------------------
@@ -383,6 +496,7 @@ generate_modern_report <- function(base_dir,
     macro("mfStartYear",   latex_escape(start_year)),
     macro("mfSimLen",      latex_escape(sim_len)),
     macro("mfMCruns",      latex_escape(mc_runs)),
+    macro("mfMCthreshold", latex_escape(mc_threshold)),
     macro("mfResolution",  latex_escape(resolution)),
     macro("mfSceType",     latex_escape(sce_type)),
     macro("mfUnitName",    latex_escape(if (nzchar(country_names)) country_names else if (nzchar(unit_name)) unit_name else country)))
@@ -404,21 +518,54 @@ generate_modern_report <- function(base_dir,
   wf("_params_table.tex", pt)
 
   if (length(nrb_rows)) {
-    nt <- c("\\begin{tabular}{@{}l r r r@{}}", "\\toprule",
-            "\\rowcolor{mfgreen!12}\\textbf{Period} & \\textbf{NRB (t)} & \\textbf{Total harvest (t)} & \\textbf{fNRB (\\%)}\\\\",
-            "\\midrule")
-    for (i in seq_along(nrb_rows)) {
-      r <- nrb_rows[[i]]
-      if (isTRUE(r$full)) {
-        nt <- c(nt, "\\midrule",
-                sprintf("\\rowcolor{mfgreen!18}\\textbf{%s} & \\textbf{%s} & \\textbf{%s} & \\textbf{%s}\\\\",
-                        r$period, r$nrb, r$harv, r$fnrb))
-      } else {
-        sh <- if (i %% 2 == 0) "\\rowcolor{mfgreen!4}" else ""
-        nt <- c(nt, sprintf("%s%s & %s & %s & %s\\\\", sh, r$period, r$nrb, r$harv, r$fnrb))
+    if (show_uncertainty) {
+      nt <- c(
+        "\\resizebox{\\linewidth}{!}{%",
+        "\\begin{tabular}{@{}l r r r r r r r r r@{}}", "\\toprule",
+        paste0("\\rowcolor{mfgreen!12} & ",
+               "\\multicolumn{3}{c}{\\textbf{NRB (t)}} & ",
+               "\\multicolumn{3}{c}{\\textbf{Total harvest (t)}} & ",
+               "\\multicolumn{3}{c}{\\textbf{fNRB (\\%)}}\\\\"),
+        "\\cmidrule(lr){2-4}\\cmidrule(lr){5-7}\\cmidrule(lr){8-10}",
+        paste0("\\rowcolor{mfgreen!12}\\textbf{Period} & ",
+               "\\textbf{Mean} & \\textbf{SD} & \\textbf{SE} & ",
+               "\\textbf{Mean} & \\textbf{SD} & \\textbf{SE} & ",
+               "\\textbf{Mean} & \\textbf{SD} & \\textbf{SE}\\\\"),
+        "\\midrule")
+      for (i in seq_along(nrb_rows)) {
+        r <- nrb_rows[[i]]
+        values <- unlist(r[c("period", "nrb", "nrb_sd", "nrb_se",
+                             "harv", "harv_sd", "harv_se",
+                             "fnrb", "fnrb_sd", "fnrb_se")])
+        if (isTRUE(r$full)) {
+          values <- paste0("\\textbf{", values, "}")
+          if (i > 1L) nt <- c(nt, "\\midrule")
+          nt <- c(nt, paste0("\\rowcolor{mfgreen!18}",
+                             paste(values, collapse = " & "), "\\\\"))
+        } else {
+          sh <- if (i %% 2 == 0) "\\rowcolor{mfgreen!4}" else ""
+          nt <- c(nt, paste0(sh, paste(values, collapse = " & "), "\\\\"))
+        }
       }
+      nt <- c(nt, "\\bottomrule", "\\end{tabular}%", "}")
+    } else {
+      nt <- c("\\begin{tabular}{@{}l r r r@{}}", "\\toprule",
+              "\\rowcolor{mfgreen!12}\\textbf{Period} & \\textbf{NRB (t)} & \\textbf{Total harvest (t)} & \\textbf{fNRB (\\%)}\\\\",
+              "\\midrule")
+      for (i in seq_along(nrb_rows)) {
+        r <- nrb_rows[[i]]
+        if (isTRUE(r$full)) {
+          if (i > 1L) nt <- c(nt, "\\midrule")
+          nt <- c(nt,
+                  sprintf("\\rowcolor{mfgreen!18}\\textbf{%s} & \\textbf{%s} & \\textbf{%s} & \\textbf{%s}\\\\",
+                          r$period, r$nrb, r$harv, r$fnrb))
+        } else {
+          sh <- if (i %% 2 == 0) "\\rowcolor{mfgreen!4}" else ""
+          nt <- c(nt, sprintf("%s%s & %s & %s & %s\\\\", sh, r$period, r$nrb, r$harv, r$fnrb))
+        }
+      }
+      nt <- c(nt, "\\bottomrule", "\\end{tabular}")
     }
-    nt <- c(nt, "\\bottomrule", "\\end{tabular}")
     wf("_nrb_table.tex", nt)
   } else {
     wf("_nrb_table.tex", "\\emph{No summary table was found for this run.}")
@@ -452,23 +599,276 @@ generate_modern_report <- function(base_dir,
     wf("_animation.tex", anim)
   } else wf("_animation.tex", "")
 
-  ## ---- ensure master templates are in the build dir ----------------------
-  for (tf in c("mofuss_report.tex", "title_page.tex")) {
+  ## ---- master templates ---------------------------------------------------
+  ## Keep defaults here so generate_modern_report.R can be deployed on its
+  ## own. A file with the same name in latex_dir remains an optional override.
+  default_master <- r"(
+%==============================================================================
+% MoFuSS modern summary report; content is supplied by generated fragments.
+%==============================================================================
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\IfFileExists{lmodern.sty}{\usepackage{lmodern}}{}
+\usepackage[english]{babel}
+\usepackage[protrusion=true,expansion=false]{microtype}
+\usepackage{xspace}
+
+\usepackage[table,svgnames]{xcolor}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{float}
+\usepackage{placeins}
+\usepackage{enumitem}
+\usepackage{titlesec}
+\usepackage{fancyhdr}
+\usepackage{lastpage}
+\usepackage{ragged2e}
+\usepackage[most]{tcolorbox}
+\usepackage[hidelinks]{hyperref}
+
+\usepackage[inner=2.4cm,outer=2.0cm,top=2.4cm,bottom=2.4cm]{geometry}
+\setlength{\headheight}{22pt}\addtolength{\topmargin}{-10pt}
+
+\definecolor{mfgreen}{HTML}{1F7A5C}
+\definecolor{mfdark}{HTML}{12352A}
+\definecolor{mfaccent}{HTML}{C77F2A}
+\definecolor{mfgrey}{HTML}{5B6770}
+\definecolor{mfrule}{HTML}{D9E2DD}
+
+\hypersetup{colorlinks=true,linkcolor=mfdark,urlcolor=mfgreen,citecolor=mfgreen}
+
+\titleformat{\section}
+  {\normalfont\sffamily\Large\bfseries\color{mfdark}}
+  {\thesection}{0.6em}{}[{\color{mfrule}\titlerule[1pt]}]
+\titleformat{\subsection}
+  {\normalfont\sffamily\large\bfseries\color{mfgreen}}
+  {\thesubsection}{0.6em}{}
+\titlespacing*{\section}{0pt}{2.2ex plus 1ex minus .2ex}{1.2ex plus .2ex}
+
+\pagestyle{fancy}
+\fancyhf{}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\footrulewidth}{0pt}
+\renewcommand{\headrule}{\hbox to\headwidth{\color{mfrule}\leaders\hrule height \headrulewidth\hfill}}
+\fancyhead[L]{\footnotesize\sffamily\color{mfgrey}MoFuSS Summary Report}
+\fancyhead[R]{\footnotesize\sffamily\color{mfgrey}\nouppercase{\leftmark}}
+\fancyfoot[C]{\footnotesize\sffamily\color{mfgrey}\thepage\ / \pageref*{LastPage}}
+\renewcommand{\sectionmark}[1]{\markboth{#1}{}}
+
+\captionsetup{font={small},labelfont={sf,bf,color=mfdark},
+  labelsep=period,justification=justified,singlelinecheck=false,skip=6pt}
+
+\newtcolorbox{mfnote}[1]{enhanced,breakable,
+  colback=mfgreen!5,colframe=mfgreen!55,boxrule=0.4pt,arc=2pt,
+  left=8pt,right=8pt,top=6pt,bottom=6pt,
+  fonttitle=\sffamily\bfseries\color{mfdark},title={#1},
+  attach title to upper=\quad}
+
+\newcommand{\HRule}{{\color{mfrule}\rule{\linewidth}{1pt}}}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.6ex}
+
+\input{_meta.tex}
+
+\begin{document}
+\input{title_page.tex}
+
+\clearpage
+\pagenumbering{roman}
+\renewcommand{\contentsname}{\sffamily\color{mfdark}Contents}
+\tableofcontents
+\clearpage
+\pagenumbering{arabic}
+
+\section{About this report}
+MoFuSS (Modeling Fuelwood Savings Scenarios) is a dynamic, spatially explicit
+model that simulates the effect of fuelwood harvesting on vegetation and
+estimates non-renewable woody biomass (NRB) at landscape level. This report
+summarizes the main outputs of a MoFuSS run for the \textbf{\mfScenario} over
+\textbf{\mfUnitName}, at a spatial resolution of \textbf{\mfResolution},
+starting in \textbf{\mfStartYear} and spanning \textbf{\mfSimLen}, using
+\textbf{\mfMCruns} of the Monte Carlo (MC) module.
+
+\begin{mfnote}{What you will find here}
+A summary of the user-defined parameters, headline NRB / fNRB / harvest figures
+by period, and the temporal, spatial and distributional outputs generated for
+this run. Only outputs available for this run are included.
+\end{mfnote}
+
+\section{Input parameters set by the user}
+The table below lists the basic parameters set through the MoFuSS Wizard for
+this run. It does not include the full set of built-in options.
+
+\begin{table}[H]\centering
+\caption{Input parameters set by the user for the \mfScenario.}
+\input{_params_table.tex}
+\end{table}
+
+\begin{description}[leftmargin=1.2em,style=nextline,font=\sffamily\bfseries\color{mfdark}]
+  \item[Annual fuelwood savings] Fraction of yearly fuelwood use saved in the
+        following year, e.g.\ due to a cookstove or fuel-substitution project.
+  \item[Number of MC realizations] Number of homologous simulations run under
+        randomly varying parameters to account for uncertainty and sensitivity.
+  \item[Accounting for fuelwood from deforestation] Whether forest loss/gain
+        events interacting with fuelwood supply and demand were simulated.
+\end{description}
+
+\clearpage
+\section{NRB, fNRB and harvest summary}
+The headline results below summarize non-renewable biomass (NRB), total
+fuelwood harvest, and the fraction of non-renewable biomass (fNRB) for
+\textbf{\mfUnitName}, broken down by decade and for the full simulation period.
+
+\begin{table}[H]\centering
+\caption{Summary outputs for the \mfScenario over \mfUnitName.}
+\input{_nrb_table.tex}
+\end{table}
+
+\begin{mfnote}{Reading these figures}
+\textbf{NRB} and \textbf{harvest} are expressed in metric tonnes (t) accumulated
+over each period; \textbf{fNRB} is the fraction of harvested fuelwood that is
+non-renewable, expressed as a percentage. Values are means across
+\textbf{\mfMCruns} of the Monte Carlo module. When at least
+\textbf{\mfMCthreshold} realizations are available, the table also reports the
+absolute standard deviation (SD) and standard error
+($\mathrm{SE}=\mathrm{SD}/\sqrt{n}$); SD and SE are omitted below that threshold.
+For each realization, fNRB is calculated as NRB divided by total harvest, and
+its mean, SD and SE are summarized directly from those realization-level ratios.
+\end{mfnote}
+
+\input{_figures.tex}
+\input{_animation.tex}
+
+\section{How to use this report}
+These outputs help identify communities with the highest fuelwood use lying
+within or near high-NRB areas. Selecting key localities that contribute most to
+NRB can be done manually or via an optimization procedure that maximizes NRB
+reductions through targeted intervention in space and time.
+
+\vfill
+\begin{center}\footnotesize\sffamily\color{mfgrey}
+Generated automatically by MoFuSS on \today\ \textemdash{} \mfScenario, \mfUnitName.
+\end{center}
+
+\end{document}
+)"
+
+  default_title <- r"(
+\begin{titlepage}
+\thispagestyle{empty}
+\centering
+
+\IfFileExists{assets/mofuss_366.png}{%
+  \includegraphics[width=0.40\linewidth,keepaspectratio]{assets/mofuss_366.png}
+}{}
+
+\vspace{0.9cm}
+
+{\sffamily\bfseries\color{mfdark}\Huge Summary Report}\\[0.35cm]
+{\sffamily\large\color{mfgrey}\mfScenario}
+
+\vspace{0.5cm}
+
+\begin{minipage}{0.88\linewidth}
+{\small This is an automated report generated by
+\href{https://www.mofuss.unam.mx}{MoFuSS}. It summarizes the main results of the
+model for \mfUnitName. MoFuSS was \mfRunBy\ on \today.}
+\end{minipage}
+
+\vspace{0.5cm}
+\HRule
+\vspace{0.5cm}
+
+\IfFileExists{assets/Area_of_Interest.png}{%
+  \includegraphics[width=0.9\linewidth,height=0.50\textheight,keepaspectratio]{assets/Area_of_Interest.png}
+}{}
+
+\vfill
+
+\IfFileExists{assets/sponsors_banner.png}{%
+  {\footnotesize\sffamily\color{mfgrey}Project funded by:}\\[4pt]
+  \includegraphics[width=0.62\linewidth,keepaspectratio]{assets/sponsors_banner.png}
+}{}
+
+\end{titlepage}
+
+\thispagestyle{empty}
+\begin{flushleft}\small
+A.~Ghilardi, R.~Bailis. \textbf{Summary Report for \mfCountry}
+\textemdash{} Spatiotemporal modeling of fuelwood environmental impacts.
+\the\year. CIGA-UNAM and SEI-US.\par
+\vspace{0.8em}
+
+Centro de Investigaciones en Geograf\'ia Ambiental,
+Universidad Nacional Aut\'onoma de M\'exico.
+Antigua carretera a P\'atzcuaro 8701, Col.\ Exhacienda de San Jos\'e de la
+Huerta, Morelia, Michoac\'an, C.P.\ 58190, Mexico.
+\href{http://www.ciga.unam.mx}{www.ciga.unam.mx}\par
+\vspace{0.6em}
+
+Stockholm Environment Institute -- US Centre.
+11 Curtis Ave, Somerville, MA 02144, United States.
+\href{http://www.sei-us.org}{www.sei-us.org}\par
+\vspace{0.6em}
+
+Author contact: Adrian Ghilardi,
+\href{mailto:aghilardi@ciga.unam.mx}{aghilardi@ciga.unam.mx}.\par
+\vspace{1.2em}
+
+This publication may be reproduced in whole or in part and in any form for
+educational or non-profit purposes, without special permission from the
+copyright holder(s) provided acknowledgement of the source is made. No use of
+this publication may be made for resale or other commercial purpose without
+written permission of the copyright holder(s).\par
+\vspace{0.8em}
+
+Copyright \textcopyright\ \today\enspace by
+Universidad Nacional Aut\'onoma de M\'exico and Stockholm Environment
+Institute -- US Centre.\par
+\vspace{0.8em}
+
+\IfFileExists{assets/UNAM.png}{\includegraphics[height=1.6cm,keepaspectratio]{assets/UNAM.png}\hspace{1.2cm}}{}%
+\IfFileExists{assets/SEI.png}{\raisebox{0.2cm}{\includegraphics[height=1.1cm,keepaspectratio]{assets/SEI.png}}}{}
+\end{flushleft}
+)"
+
+  template_defaults <- list(
+    "mofuss_report.tex" = default_master,
+    "title_page.tex" = default_title)
+  for (tf in names(template_defaults)) {
     src <- file.path(latex_dir, tf)
-    if (file.exists(src)) file.copy(src, file.path(BUILD, tf), overwrite = TRUE)
-    if (!file.exists(file.path(BUILD, tf)))
-      stop("Missing template: ", tf, " (expected in ", latex_dir, ")")
+    dest <- file.path(BUILD, tf)
+    if (file.exists(src)) {
+      if (!isTRUE(file.copy(src, dest, overwrite = TRUE)))
+        stop("Could not copy report template: ", src)
+    } else {
+      writeLines(template_defaults[[tf]], dest, useBytes = TRUE)
+    }
+    if (!file.exists(dest)) stop("Could not create report template: ", dest)
   }
 
-  ## ---- compile (two passes; --enable-installer avoids the 0xC0000409 ------
-  ##      crash when MiKTeX must fetch a package on the fly) -----------------
+  ## ---- compile ------------------------------------------------------------
   oldwd <- getwd(); setwd(BUILD); on.exit(setwd(oldwd), add = TRUE)
+  latex_args <- c("-interaction=nonstopmode", "-halt-on-error",
+                  "-file-line-error")
+  # MiKTeX can install a missing package during a non-interactive build.
+  if (grepl("miktex", pdflatex, ignore.case = TRUE))
+    latex_args <- c(latex_args, "--enable-installer")
   for (pass in 1:2) {
-    out <- system2(pdflatex,
-      args = c("-interaction=nonstopmode", "--enable-installer", "mofuss_report.tex"),
-      stdout = TRUE, stderr = TRUE)
-    if (!any(grepl("Rerun to get", out)) && pass >= 1) {
-      if (pass == 2 || !any(grepl("Rerun to get", out))) {}
+    out <- suppressWarnings(system2(
+      pdflatex, args = c(latex_args, "mofuss_report.tex"),
+      stdout = TRUE, stderr = TRUE))
+    status <- attr(out, "status")
+    if (is.null(status)) status <- 0L
+    if (!identical(as.integer(status), 0L)) {
+      excerpt <- tail(out, 40)
+      stop("LaTeX compilation failed on pass ", pass, " (exit status ",
+           status, ").\n", paste(excerpt, collapse = "\n"), call. = FALSE)
     }
   }
   log <- file.path(BUILD, "mofuss_report.log")
@@ -480,9 +880,34 @@ generate_modern_report <- function(base_dir,
   }
 
   pdf_built <- file.path(BUILD, "mofuss_report.pdf")
-  if (!file.exists(pdf_built)) stop("Compilation failed: no PDF produced.")
-  out_pdf <- file.path(SR, sprintf("MoFuSS_Summary_Report_%s_scenario.pdf", sce_code))
-  file.copy(pdf_built, out_pdf, overwrite = TRUE)
+  if (!file.exists(pdf_built) || file.info(pdf_built)$size <= 0)
+    stop("Compilation failed: no valid PDF was produced.")
+
+  # Update deliverables only after LaTeX succeeds. Keep one scenario-specific
+  # animation beside the PDF so the relative link remains valid.
+  old_scenario_mp4 <- list.files(
+    SR_ASSETS,
+    pattern = paste0("^", sce_file_code, "_Growth_Harvest_Ani.*\\.mp4$"),
+    full.names = TRUE, ignore.case = TRUE)
+  if (!is.null(mp4_src)) {
+    mp4_out <- file.path(SR_ASSETS, mp4_dest)
+    if (!isTRUE(file.copy(mp4_src, mp4_out, overwrite = TRUE)))
+      stop("Could not copy the report animation to: ", mp4_out)
+    old_scenario_mp4 <- setdiff(old_scenario_mp4, mp4_out)
+  }
+  if (length(old_scenario_mp4)) unlink(old_scenario_mp4, force = TRUE)
+
+  out_pdf <- file.path(
+    SR, sprintf("MoFuSS_Summary_Report_%s_scenario.pdf", sce_file_code))
+  if (!isTRUE(file.copy(pdf_built, out_pdf, overwrite = TRUE)))
+    stop("Could not copy the compiled report to: ", out_pdf)
+
+  if (!isTRUE(keep_build)) {
+    setwd(oldwd)
+    cleanup_status <- unlink(BUILD, recursive = TRUE, force = TRUE)
+    if (!identical(as.integer(cleanup_status), 0L))
+      warning("Report succeeded, but staging could not be removed: ", BUILD)
+  }
   message("Report written: ", out_pdf)
   if (isTRUE(open_pdf)) try(utils::browseURL(out_pdf), silent = TRUE)
   invisible(out_pdf)
