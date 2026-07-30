@@ -30,7 +30,7 @@ ui <- fluidPage(
       font-weight: bold;  /* Optional: makes it bold for more emphasis */
     }
   ")),  # Custom CSS for the paragraphs and email highlight
-  titlePanel("Aboveground Biomass Losses vs Woodfuel Demand"),
+  titlePanel("Observed Gross and Net AGB Losses vs Woodfuel Demand"),
   sidebarLayout(
     sidebarPanel(
       selectInput("endyr", "Start Year is 2010. Select End Year:", choices = c(2011:2025)),
@@ -38,14 +38,13 @@ ui <- fluidPage(
       actionButton("clear_selection", "Clear Selection"),  # Add clear selection button
       tags$hr(),
       p(
-        "This tool compares gross aboveground biomass (AGB) losses between two years, 
-  regardless of the driver of change. These losses may therefore include deforestation, 
-  natural and human-induced fires, logging, agricultural expansion, woodfuel harvesting, 
-  and other disturbances. Woodfuel-related biomass losses are included within this total 
-  rather than identified separately. The tool then estimates the fraction of non-renewable 
-  biomass (fNRB) by comparing total gross AGB losses with total baseline woodfuel demand 
-  over the same period. Because only a fraction of all AGB losses are caused by woodfuel 
-  harvesting, the resulting estimate should be interpreted as an upper threshold: ",
+        "This tool compares observed aboveground biomass (AGB) in 2010 with a selected end year. ",
+        strong("Gross NRB"),
+        " is the sum of losses in pixels whose endpoint AGB decreased; gains elsewhere do not offset it. ",
+        strong("Net NRB"),
+        " is the country-level endpoint loss after gains offset losses, and is set to zero when the country has a net AGB gain. ",
+        "Gross and net fNRB are calculated by dividing the corresponding NRB value by cumulative baseline rural/urban fuelwood-plus-charcoal demand from 2010 through the selected end year (inclusive). ",
+        "Observed AGB losses include all drivers, such as deforestation, fires, logging, agricultural expansion, and woodfuel harvesting; they do not attribute losses specifically to woodfuel. Therefore these observed fNRB ratios should be interpreted as diagnostic upper thresholds: ",
         
         span(
           "the true fNRB must be substantially lower.",
