@@ -29,22 +29,24 @@
 
 if (!requireNamespace("terra",   quietly = TRUE)) stop("Please install 'terra':   install.packages('terra')")
 if (!requireNamespace("ggplot2", quietly = TRUE)) stop("Please install 'ggplot2': install.packages('ggplot2')")
-suppressPackageStartupMessages({ library(terra); library(ggplot2) })
+## All terra/ggplot2 calls below are explicitly namespaced. This prevents the
+## `conflicted` package (or an attached raster/dplyr/glue/gdata package) from
+## making function dispatch depend on the user's current RStudio session.
 
 ###############################################################################
 ## 1. CONFIGURATION
 ###############################################################################
 INTERACTIVE <- FALSE          # TRUE = ask via pop-up/menus; FALSE = use paths below
 
-COUNTRY      <- "Malawi"
-CAPPED_DIR   <- "D:/mofuss_amazon/nv3/mwi_bau1_1km_nv3_ng"   # capped   (_ng)
-UNCAPPED_DIR <- "D:/mofuss_amazon/nv3/mwi_bau1_1km_nv3_g"    # uncapped (_g); "" to skip
+COUNTRY      <- "Zambia"
+CAPPED_DIR   <- "D:/mofuss_amazon/nv3/zmb_bau1_1km_nv3_ng"   # capped   (_ng)
+UNCAPPED_DIR <- "D:/mofuss_amazon/nv3/zmb_bau1_1km_nv3_g"    # uncapped (_g); "" to skip
 
 OBS_TYPE     <- "projected"  # "projected" (MgDM/ha, EPSG:3395) or "latlong" (MgCO2/ha, EPSG:4326)
 OBS_PROJ_DIR <- "D:/agb3rdparties/ctrees_dic2025_agb_paras/1km_agco2_2000_2025/agb_projected_ha"
 OBS_LL_DIR   <- "D:/agb3rdparties/ctrees_dic2025_agb_paras/1km_agco2_2000_2025"
 
-OUT_BASE     <- "C:/Users/aghil/Documents/MoFuSS_localhost/calib_valid_agb_new_2000-2025_v1"
+OUT_BASE     <- "C:/Users/aghil/Documents/MoFuSS_localhost/calib_valid_agb_new_2000-2025_verra"
 
 ## Country boundary used to clip the observed maps (and to overlay in the maps).
 ## "" = auto-find at <CAPPED_DIR>/LULCC/TempVector/userarea1.gpkg
@@ -112,8 +114,10 @@ cat("\nCountry      :", COUNTRY,
 ## 3. HELPERS
 ###############################################################################
 pad_ext <- function(e, f = 0.02) {
-  dx <- (xmax(e) - xmin(e)) * f; dy <- (ymax(e) - ymin(e)) * f
-  ext(xmin(e) - dx, xmax(e) + dx, ymin(e) - dy, ymax(e) + dy)
+  dx <- (terra::xmax(e) - terra::xmin(e)) * f
+  dy <- (terra::ymax(e) - terra::ymin(e)) * f
+  terra::ext(terra::xmin(e) - dx, terra::xmax(e) + dx,
+             terra::ymin(e) - dy, terra::ymax(e) + dy)
 }
 list_mc <- function(workdir) {
   if (!dir.exists(workdir)) stop("MoFuSS folder not found: ", workdir)
@@ -141,14 +145,19 @@ ref_sim_file <- function() {
 align_obs <- function(year, ref) {   # -> MgDM/ha SpatRaster on the reference grid
   f <- file.path(OBS_DIR, obs_name(year))
   if (!file.exists(f)) { warning("Missing observed file: ", f); return(NULL) }
-  r <- rast(f); NAflag(r) <- NODATA
-  if (nlyr(r) != 1L) stop("Expected a single-band observed raster: ", f)
-  if (!nzchar(crs(r))) stop("Observed raster has no CRS; refusing to assume one: ", f)
+  r <- terra::rast(f); terra::NAflag(r) <- NODATA
+  if (terra::nlyr(r) != 1L) stop("Expected a single-band observed raster: ", f)
+  if (!nzchar(terra::crs(r))) stop("Observed raster has no CRS; refusing to assume one: ", f)
   if (terra::same.crs(r, ref)) {
-    r <- crop(r, pad_ext(ext(ref), 0.02), snap = "out"); a <- resample(r, ref, method = "bilinear")
+    r <- terra::crop(r, pad_ext(terra::ext(ref), 0.02), snap = "out")
+    a <- terra::resample(r, ref, method = "bilinear")
   } else {
-    box <- project(as.polygons(ext(ref), crs = crs(ref)), crs(r))
-    r   <- crop(r, pad_ext(ext(box), 0.05), snap = "out"); a <- project(r, ref, method = "bilinear")
+    box <- terra::project(
+      terra::as.polygons(terra::ext(ref), crs = terra::crs(ref)),
+      terra::crs(r)
+    )
+    r <- terra::crop(r, pad_ext(terra::ext(box), 0.05), snap = "out")
+    a <- terra::project(r, ref, method = "bilinear")
   }
   if (OBS_TYPE == "latlong") a <- a * CO2_TO_DM
   a[a < 0] <- NA; a
@@ -156,15 +165,15 @@ align_obs <- function(year, ref) {   # -> MgDM/ha SpatRaster on the reference gr
 sim_vec <- function(mc_dir, year) {   # MoFuSS AGB in MgDM per CELL, vector on ref grid
   f <- file.path(mc_dir, sim_file_name(year))
   if (!file.exists(f)) stop("Missing MoFuSS AGB raster: ", f)
-  rr <- rast(f); NAflag(rr) <- NODATA
-  if (nlyr(rr) != 1L) stop("Expected a single-band MoFuSS raster: ", f)
+  rr <- terra::rast(f); terra::NAflag(rr) <- NODATA
+  if (terra::nlyr(rr) != 1L) stop("Expected a single-band MoFuSS raster: ", f)
   if (!terra::compareGeom(rr, ref, stopOnError = FALSE))
     stop("MoFuSS raster geometry differs from the reference grid: ", f,
          "\nMoFuSS AGB is MgDM/cell (extensive), so it must not be resampled silently.")
-  v <- as.numeric(values(rr)); v[v == NODATA | v < 0] <- NA; v
+  v <- as.numeric(terra::values(rr)); v[v == NODATA | v < 0] <- NA; v
 }
 sim_valid_all <- function(mcdirs, sim_years) { # common finite cells across every run/year in a configuration
-  ok <- rep(TRUE, ncell(ref))
+  ok <- rep(TRUE, terra::ncell(ref))
   for (d in mcdirs) for (y in sim_years) ok <- ok & is.finite(sim_vec(d, y))
   ok
 }
@@ -172,35 +181,38 @@ sim_valid_all <- function(mcdirs, sim_years) { # common finite cells across ever
 ###############################################################################
 ## 4. REFERENCE GRID, COUNTRY MASK, OBSERVED SERIES, PER-CONFIG MASKS
 ###############################################################################
-ref <- rast(ref_sim_file()); NAflag(ref) <- NODATA
-if (!nzchar(crs(ref))) stop("Reference MoFuSS raster has no CRS.")
-if (terra::is.lonlat(ref) || !grepl("units=m", crs(ref, proj = TRUE), fixed = TRUE))
+ref <- terra::rast(ref_sim_file()); terra::NAflag(ref) <- NODATA
+if (!nzchar(terra::crs(ref))) stop("Reference MoFuSS raster has no CRS.")
+if (terra::is.lonlat(ref) || !grepl("units=m", terra::crs(ref, proj = TRUE), fixed = TRUE))
   stop("The MoFuSS reference grid must use a projected CRS with metre units.")
 ## MoFuSS converts per-ha inputs to per-cell stocks with xres^2/10,000 (see
 ## rnorm_v3.R), but EPSG:3395 is not equal-area. Recover simulated density with
 ## that model convention, then integrate both simulated and observed density
 ## with each cell's geodesic ground area. NRB CSVs also retain model-native mass
 ## totals so later demand/harvest work can audit the original MoFuSS mass balance.
-model_cell_ha  <- xres(ref)^2 / 1e4
-grid_cell_ha   <- prod(res(ref)) / 1e4
+model_cell_ha  <- terra::xres(ref)^2 / 1e4
+grid_cell_ha   <- prod(terra::res(ref)) / 1e4
 ground_area    <- terra::cellSize(ref, unit = "ha")
-ground_cell_ha <- as.numeric(values(ground_area))
-if (length(ground_cell_ha) != ncell(ref) || any(!is.finite(ground_cell_ha)))
+ground_cell_ha <- as.numeric(terra::values(ground_area))
+if (length(ground_cell_ha) != terra::ncell(ref) || any(!is.finite(ground_cell_ha)))
   stop("Could not calculate a finite geodesic area for every reference-grid cell.")
 ground_stats   <- terra::global(ground_area, c("min", "max", "mean"), na.rm = TRUE)
 years   <- BASE_YEAR:END_YEAR
 cat(sprintf(paste0("Reference grid: %d x %d cells | pixel = %.2f x %.2f m | ",
                    "MoFuSS area convention = %.3f ha/cell\n"),
-            ncol(ref), nrow(ref), res(ref)[1], res(ref)[2], model_cell_ha))
+            ncol(ref), nrow(ref), terra::res(ref)[1], terra::res(ref)[2], model_cell_ha))
 cat(sprintf("  planar x*y area = %.3f ha | geodesic ground area = %.3f-%.3f ha (mean %.3f)\n",
             grid_cell_ha, ground_stats$min, ground_stats$max, ground_stats$mean))
 
 ## country mask (rasterise the boundary onto the reference grid)
-country_vec <- rep(TRUE, ncell(ref))
+country_vec <- rep(TRUE, terra::ncell(ref))
 if (CLIP_OBS_TO_COUNTRY && file.exists(admin_path)) {
-  adm <- terra::vect(admin_path); if (!terra::same.crs(adm, ref)) adm <- terra::project(adm, crs(ref))
+  adm <- terra::vect(admin_path)
+  if (!terra::same.crs(adm, ref)) adm <- terra::project(adm, terra::crs(ref))
   adm$burnval <- 1L
-  country_vec <- !is.na(as.numeric(values(terra::rasterize(adm, ref, field = "burnval", background = NA))))
+  country_vec <- !is.na(as.numeric(terra::values(
+    terra::rasterize(adm, ref, field = "burnval", background = NA)
+  )))
   cat(sprintf("Observed clipped to country outline: %d cells inside (%s)\n", sum(country_vec), basename(admin_path)))
 } else if (CLIP_OBS_TO_COUNTRY) {
   stop("Country boundary not found; national aggregation would be invalid: ", admin_path)
@@ -210,7 +222,7 @@ cat("Loading observed CTrees maps ...\n")
 obs_ha <- list()
 for (y in years) {
   a <- align_obs(y, ref)
-  v <- if (is.null(a)) rep(NA_real_, ncell(ref)) else as.numeric(values(a))
+  v <- if (is.null(a)) rep(NA_real_, terra::ncell(ref)) else as.numeric(terra::values(a))
   if (CLIP_OBS_TO_COUNTRY) v[!country_vec] <- NA
   obs_ha[[as.character(y)]] <- v
 }
@@ -222,7 +234,7 @@ validate_sim_coverage(capMC, years, "Capped")
 if (length(uncMC)) validate_sim_coverage(uncMC, years, "Uncapped")
 
 ## observed validity across all years, and per-config PAIRWISE masks
-obs_valid <- rep(TRUE, ncell(ref)); for (y in years) obs_valid <- obs_valid & is.finite(obs_ha[[as.character(y)]])
+obs_valid <- rep(TRUE, terra::ncell(ref)); for (y in years) obs_valid <- obs_valid & is.finite(obs_ha[[as.character(y)]])
 cat("Building per-configuration (pairwise) masks ...\n")
 mask_cap <- obs_valid & sim_valid_all(capMC, years)
 mask_unc <- if (length(uncMC)) obs_valid & sim_valid_all(uncMC, years) else NULL
@@ -258,9 +270,12 @@ traj <- data.frame(year = years, total_Mt = sapply(years, obs_total, m = mask_ca
                    series = "Observed", config = "Observed", mc = 0L)
 traj <- rbind(traj, build_sim_traj(capMC, "Capped", mask_cap))
 if (length(uncMC)) traj <- rbind(traj, build_sim_traj(uncMC, "Uncapped", mask_unc))
-traj$change_Mt <- ave(traj$total_Mt, interaction(traj$series, traj$config, traj$mc, drop = TRUE),
-                      FUN = function(x) x - x[1])
-write.csv(traj, file.path(OUT_DIR, paste0(COUNTRY, "_national_trajectory_allMC.csv")), row.names = FALSE)
+traj$change_Mt <- stats::ave(
+  traj$total_Mt,
+  interaction(traj$series, traj$config, traj$mc, drop = TRUE),
+  FUN = function(x) x - x[1]
+)
+utils::write.csv(traj, file.path(OUT_DIR, paste0(COUNTRY, "_national_trajectory_allMC.csv")), row.names = FALSE)
 
 ###############################################################################
 ## 6. PIXEL-LEVEL CHANGE (debugging_1) -> per-config stats (pairwise masks)
@@ -291,7 +306,7 @@ pix_stats <- function(sim_change, obs_change, m, label) {
 }
 stats <- pix_stats(dCap, dObs, mask_cap, "capped")
 if (!is.null(dUnc)) stats <- rbind(stats, pix_stats(dUnc, dObs, mask_unc, "uncapped"))
-write.csv(stats, file.path(OUT_DIR, paste0(COUNTRY, "_change_pixelwise_stats.csv")), row.names = FALSE)
+utils::write.csv(stats, file.path(OUT_DIR, paste0(COUNTRY, "_change_pixelwise_stats.csv")), row.names = FALSE)
 print(stats, digits = 3)
 
 ###############################################################################
@@ -411,9 +426,9 @@ summarise_nrb <- function(d) {
 }
 nrb_summary <- summarise_nrb(nrb_all)
 
-write.csv(nrb_all, file.path(OUT_DIR, paste0(COUNTRY, "_NRB_aggregates_allMC.csv")), row.names = FALSE)
-write.csv(nrb_summary, file.path(OUT_DIR, paste0(COUNTRY, "_NRB_aggregates_summary.csv")), row.names = FALSE)
-write.csv(nrb_pairwise, file.path(OUT_DIR, paste0(COUNTRY, "_NRB_aggregates_pairwise_allMC.csv")), row.names = FALSE)
+utils::write.csv(nrb_all, file.path(OUT_DIR, paste0(COUNTRY, "_NRB_aggregates_allMC.csv")), row.names = FALSE)
+utils::write.csv(nrb_summary, file.path(OUT_DIR, paste0(COUNTRY, "_NRB_aggregates_summary.csv")), row.names = FALSE)
+utils::write.csv(nrb_pairwise, file.path(OUT_DIR, paste0(COUNTRY, "_NRB_aggregates_pairwise_allMC.csv")), row.names = FALSE)
 print(nrb_summary, row.names = FALSE, digits = 5)
 
 ###############################################################################
@@ -425,33 +440,36 @@ print(nrb_summary, row.names = FALSE, digits = 5)
 cat("Drawing Figure 1 (relative-change trajectories) ...\n")
 
 ## percent change vs BASE_YEAR, within each series/config/MC
-traj$pct <- ave(traj$total_Mt, interaction(traj$series, traj$config, traj$mc, drop = TRUE),
-                FUN = function(x) 100 * (x - x[1]) / x[1])
+traj$pct <- stats::ave(
+  traj$total_Mt,
+  interaction(traj$series, traj$config, traj$mc, drop = TRUE),
+  FUN = function(x) 100 * (x - x[1]) / x[1]
+)
 
-sim_df <- subset(traj, series == "Simulated"); sim_df$grp <- sim_df$config
-mean_df <- aggregate(pct ~ year + config, data = sim_df, FUN = mean); mean_df$grp <- mean_df$config
-obs_line <- subset(traj, series == "Observed"); obs_line$grp <- "Observed"
+sim_df <- base::subset(traj, series == "Simulated"); sim_df$grp <- sim_df$config
+mean_df <- stats::aggregate(pct ~ year + config, data = sim_df, FUN = mean); mean_df$grp <- mean_df$config
+obs_line <- base::subset(traj, series == "Observed"); obs_line$grp <- "Observed"
 coverage_note <- if (length(uncMC))
   sprintf("observed + capped = %s cells; uncapped = %s cells (own non-NULL footprint)",
           format(sum(mask_cap), big.mark = ",", scientific = FALSE),
           format(sum(mask_unc), big.mark = ",", scientific = FALSE)) else
   sprintf("observed + capped = %s shared cells", format(sum(mask_cap), big.mark = ",", scientific = FALSE))
 
-g1 <- ggplot() +
-  geom_hline(yintercept = 0, colour = "grey70", linewidth = 0.3) +
-  geom_line(data = sim_df,   aes(year, pct, group = interaction(config, mc), colour = grp),
+g1 <- ggplot2::ggplot() +
+  ggplot2::geom_hline(yintercept = 0, colour = "grey70", linewidth = 0.3) +
+  ggplot2::geom_line(data = sim_df,   ggplot2::aes(year, pct, group = interaction(config, mc), colour = grp),
             linewidth = 0.35, alpha = 0.30) +
-  geom_line(data = mean_df,  aes(year, pct, colour = grp), linewidth = 1.3) +
-  geom_line(data = obs_line, aes(year, pct, colour = grp), linewidth = 1.2) +
-  scale_colour_manual(values = c(Observed = COL_OBS, Capped = COL_CAP, Uncapped = COL_UNC), name = NULL) +
-  scale_y_continuous(labels = function(v) paste0(v, "%")) +
-  labs(title = sprintf("%s - aboveground biomass change relative to %d", COUNTRY, BASE_YEAR),
+  ggplot2::geom_line(data = mean_df,  ggplot2::aes(year, pct, colour = grp), linewidth = 1.3) +
+  ggplot2::geom_line(data = obs_line, ggplot2::aes(year, pct, colour = grp), linewidth = 1.2) +
+  ggplot2::scale_colour_manual(values = c(Observed = COL_OBS, Capped = COL_CAP, Uncapped = COL_UNC), name = NULL) +
+  ggplot2::scale_y_continuous(labels = function(v) paste0(v, "%")) +
+  ggplot2::labs(title = sprintf("%s - aboveground biomass change relative to %d", COUNTRY, BASE_YEAR),
        subtitle = paste0(coverage_note, "; thin = MC runs, bold = MC means / observed"),
        x = "Year", y = sprintf("AGB change vs %d", BASE_YEAR)) +
-  theme_bw(base_size = 12) +
-  theme(legend.position = "bottom", plot.title = element_text(size = 12),
-        plot.subtitle = element_text(size = 9))
-ggsave(file.path(OUT_DIR, paste0(COUNTRY, "_fig1_national_trajectory.png")), g1,
+  ggplot2::theme_bw(base_size = 12) +
+  ggplot2::theme(legend.position = "bottom", plot.title = ggplot2::element_text(size = 12),
+        plot.subtitle = ggplot2::element_text(size = 9))
+ggplot2::ggsave(file.path(OUT_DIR, paste0(COUNTRY, "_fig1_national_trajectory.png")), g1,
        width = 8.6, height = 5.2, dpi = 150)
 
 ###############################################################################
@@ -487,28 +505,41 @@ extend_cfg <- function(cfg, mcdirs, m) {
 b_df <- extend_cfg("Capped", capMC, mask_cap)
 if (length(uncMC)) b_df <- rbind(b_df, extend_cfg("Uncapped", uncMC, mask_unc))
 b_df$grp   <- b_df$config
-b_mean     <- aggregate(total_Mt ~ year + config, data = b_df, FUN = mean); b_mean$grp <- b_mean$config
+b_mean     <- stats::aggregate(total_Mt ~ year + config, data = b_df, FUN = mean); b_mean$grp <- b_mean$config
 obs_b      <- traj[traj$series == "Observed", c("year","total_Mt")]; obs_b$grp <- "Observed"
 
-g1b <- ggplot() +
-  geom_line(data = b_df,   aes(year, total_Mt, group = interaction(config, mc), colour = grp), linewidth = 0.35, alpha = 0.30) +
-  geom_line(data = b_mean, aes(year, total_Mt, colour = grp), linewidth = 1.3) +
-  geom_line(data = obs_b,  aes(year, total_Mt, colour = grp), linewidth = 1.2) +
-  geom_vline(xintercept = END_YEAR, linetype = "dotted", colour = "grey55") +
-  scale_colour_manual(values = c(Observed = COL_OBS, Capped = COL_CAP, Uncapped = COL_UNC), name = NULL) +
-  labs(title = sprintf("%s - total aboveground biomass by configuration, %d-%d", COUNTRY, BASE_YEAR, sim_end),
+## `sim_total()` deliberately returns NA when a future raster is incomplete on
+## the fixed validation footprint. Remove those unavailable points explicitly
+## before plotting so ggplot does not emit a generic "Removed rows" warning.
+b_missing <- sum(!is.finite(b_df$total_Mt))
+if (b_missing > 0L)
+  cat(sprintf("   Figure 1b: %d unavailable future MC-year totals omitted (fixed footprint retained).\n",
+              b_missing))
+b_df_plot <- b_df[is.finite(b_df$total_Mt), , drop = FALSE]
+b_mean_plot <- b_mean[is.finite(b_mean$total_Mt), , drop = FALSE]
+obs_b_plot <- obs_b[is.finite(obs_b$total_Mt), , drop = FALSE]
+
+g1b <- ggplot2::ggplot() +
+  ggplot2::geom_line(data = b_df_plot, ggplot2::aes(year, total_Mt, group = interaction(config, mc), colour = grp), linewidth = 0.35, alpha = 0.30) +
+  ggplot2::geom_line(data = b_mean_plot, ggplot2::aes(year, total_Mt, colour = grp), linewidth = 1.3) +
+  ggplot2::geom_line(data = obs_b_plot, ggplot2::aes(year, total_Mt, colour = grp), linewidth = 1.2) +
+  ggplot2::geom_vline(xintercept = END_YEAR, linetype = "dotted", colour = "grey55") +
+  ggplot2::scale_colour_manual(values = c(Observed = COL_OBS, Capped = COL_CAP, Uncapped = COL_UNC), name = NULL) +
+  ggplot2::labs(title = sprintf("%s - total aboveground biomass by configuration, %d-%d", COUNTRY, BASE_YEAR, sim_end),
        subtitle = sprintf("%s; observed ends %d (dotted); thin = MC runs, bold = means",
                           coverage_note, END_YEAR),
        x = "Year", y = "Total AGB (Mt dry matter)") +
-  theme_bw(base_size = 12) +
-  theme(legend.position = "bottom", plot.title = element_text(size = 12), plot.subtitle = element_text(size = 9))
-ggsave(file.path(OUT_DIR, paste0(COUNTRY, "_fig1b_total_AGB.png")), g1b, width = 9, height = 5.4, dpi = 150)
+  ggplot2::theme_bw(base_size = 12) +
+  ggplot2::theme(legend.position = "bottom", plot.title = ggplot2::element_text(size = 12),
+                 plot.subtitle = ggplot2::element_text(size = 9))
+ggplot2::ggsave(file.path(OUT_DIR, paste0(COUNTRY, "_fig1b_total_AGB.png")), g1b,
+                width = 9, height = 5.4, dpi = 150)
 
 ###############################################################################
 ## 8. FIGURE 2 : spatial maps of AGB change (debugging_1), each on its OWN footprint
 ###############################################################################
 cat("Drawing Figure 2 (change maps) ...\n")
-mk   <- function(vec) { r <- rast(ref); values(r) <- vec; r }
+mk   <- function(vec) { r <- terra::rast(ref); terra::values(r) <- vec; r }
 rObs <- mk(dObs); rCap <- mk(dCap); rUnc <- if (!is.null(dUnc)) mk(dUnc) else NULL
 
 nObs   <- sum(is.finite(dObs))
@@ -516,8 +547,10 @@ lblObs <- "Observed (CTrees)"
 lblCap <- sprintf("MoFuSS capped (%.0f%% of obs. area)",   100 * sum(is.finite(dCap)) / nObs)
 lblUnc <- if (!is.null(dUnc)) sprintf("MoFuSS uncapped (%.0f%% of obs. area)", 100 * sum(is.finite(dUnc)) / nObs) else NULL
 
-te   <- ext(trim(rObs))
-rObs <- crop(rObs, te); rCap <- crop(rCap, te); if (!is.null(rUnc)) rUnc <- crop(rUnc, te)
+te   <- terra::ext(terra::trim(rObs))
+rObs <- terra::crop(rObs, te)
+rCap <- terra::crop(rCap, te)
+if (!is.null(rUnc)) rUnc <- terra::crop(rUnc, te)
 to_df <- function(r, nm) { d <- as.data.frame(r, xy = TRUE, na.rm = FALSE); names(d)[3] <- "value"; d$panel <- nm; d }
 map_df <- to_df(rObs, lblObs); map_df <- rbind(map_df, to_df(rCap, lblCap))
 if (!is.null(rUnc)) map_df <- rbind(map_df, to_df(rUnc, lblUnc))
@@ -525,34 +558,41 @@ map_df$panel <- factor(map_df$panel, levels = unique(map_df$panel)); np <- nleve
 
 map_values <- c(dObs[is.finite(dObs)], dCap[is.finite(dCap)])
 if (!is.null(dUnc)) map_values <- c(map_values, dUnc[is.finite(dUnc)])
-vmax <- as.numeric(quantile(abs(map_values), 0.98, na.rm = TRUE))
+vmax <- as.numeric(stats::quantile(abs(map_values), 0.98, na.rm = TRUE))
 if (!is.finite(vmax) || vmax <= 0) vmax <- 1
 map_df$value <- pmax(pmin(map_df$value, vmax), -vmax)
-divpal <- colorRampPalette(c("#a50026","#d73027","#f46d43","#fdae61","#fee08b",
-                             "#ffffbf","#d9ef8b","#a6d96a","#66bd63","#1a9850","#006837"))(100)
+divpal <- grDevices::colorRampPalette(c("#a50026","#d73027","#f46d43","#fdae61","#fee08b",
+                                         "#ffffbf","#d9ef8b","#a6d96a","#66bd63","#1a9850","#006837"))(100)
 
 adm_layer <- NULL
 if (file.exists(admin_path)) {
-  adm2 <- terra::vect(admin_path); if (!terra::same.crs(adm2, ref)) adm2 <- terra::project(adm2, crs(ref))
+  adm2 <- terra::vect(admin_path)
+  if (!terra::same.crs(adm2, ref)) adm2 <- terra::project(adm2, terra::crs(ref))
   gdf  <- as.data.frame(terra::geom(adm2))
-  adm_layer <- geom_polygon(data = gdf, aes(x = x, y = y, group = interaction(geom, part)),
-                            inherit.aes = FALSE, fill = NA, colour = "grey20", linewidth = 0.18)
+  adm_layer <- ggplot2::geom_polygon(
+    data = gdf, ggplot2::aes(x = x, y = y, group = interaction(geom, part)),
+    inherit.aes = FALSE, fill = NA, colour = "grey20", linewidth = 0.18
+  )
 }
-asp <- as.numeric((xmax(te) - xmin(te)) / (ymax(te) - ymin(te))); maph <- 4.4
+asp <- as.numeric(
+  (terra::xmax(te) - terra::xmin(te)) / (terra::ymax(te) - terra::ymin(te))
+)
+maph <- 4.4
 
-g2 <- ggplot(map_df, aes(x, y, fill = value)) +
-  geom_raster() + adm_layer + facet_wrap(~ panel, nrow = 1) +
-  scale_fill_gradientn(colours = divpal, limits = c(-vmax, vmax), na.value = "grey85", name = "AGB change\n(MgDM/ha)") +
-  coord_equal(xlim = c(xmin(te), xmax(te)), ylim = c(ymin(te), ymax(te)), expand = FALSE) +
-  labs(title = sprintf("%s - aboveground biomass change (%d vs %d)", COUNTRY, BASE_YEAR, END_YEAR),
+g2 <- ggplot2::ggplot(map_df, ggplot2::aes(x, y, fill = value)) +
+  ggplot2::geom_raster() + adm_layer + ggplot2::facet_wrap(~ panel, nrow = 1) +
+  ggplot2::scale_fill_gradientn(colours = divpal, limits = c(-vmax, vmax), na.value = "grey85", name = "AGB change\n(MgDM/ha)") +
+  ggplot2::coord_equal(xlim = c(terra::xmin(te), terra::xmax(te)),
+                       ylim = c(terra::ymin(te), terra::ymax(te)), expand = FALSE) +
+  ggplot2::labs(title = sprintf("%s - aboveground biomass change (%d vs %d)", COUNTRY, BASE_YEAR, END_YEAR),
        subtitle = "each panel shows its own data coverage; grey = no data", x = NULL, y = NULL) +
-  guides(fill = guide_colourbar(barheight = grid::unit(3.2, "cm"), title.position = "top")) +
-  theme_minimal(base_size = 12) +
-  theme(axis.text = element_blank(), axis.ticks = element_blank(), panel.grid = element_blank(),
-        panel.background = element_rect(fill = "grey85", colour = NA), panel.spacing = grid::unit(3, "pt"),
-        plot.title = element_text(face = "bold", size = 12), strip.text = element_text(size = 10),
-        legend.title = element_text(size = 9))
-ggsave(file.path(OUT_DIR, paste0(COUNTRY, "_fig2_change_maps.png")), g2,
+  ggplot2::guides(fill = ggplot2::guide_colourbar(barheight = grid::unit(3.2, "cm"), title.position = "top")) +
+  ggplot2::theme_minimal(base_size = 12) +
+  ggplot2::theme(axis.text = ggplot2::element_blank(), axis.ticks = ggplot2::element_blank(), panel.grid = ggplot2::element_blank(),
+        panel.background = ggplot2::element_rect(fill = "grey85", colour = NA), panel.spacing = grid::unit(3, "pt"),
+        plot.title = ggplot2::element_text(face = "bold", size = 12), strip.text = ggplot2::element_text(size = 10),
+        legend.title = ggplot2::element_text(size = 9))
+ggplot2::ggsave(file.path(OUT_DIR, paste0(COUNTRY, "_fig2_change_maps.png")), g2,
        width = np * maph * asp + 1.7, height = maph + 1.1, dpi = 150)
 cat("   Figure 2 saved.\n")
 
@@ -566,16 +606,18 @@ sc_df <- mksc(dCap, mask_cap, "MoFuSS - capped regrowth")
 if (!is.null(dUnc)) sc_df <- rbind(sc_df, mksc(dUnc, mask_unc, "MoFuSS - uncapped regrowth"))
 lim <- range(c(sc_df$obs, sc_df$sim), finite = TRUE)
 
-g3 <- ggplot(sc_df, aes(obs, sim)) +
-  geom_bin2d(bins = 120) + scale_fill_viridis_c(trans = "log10", name = "pixel count") +
-  geom_abline(slope = 1, intercept = 0, linetype = "dashed", colour = "grey25") +
-  geom_smooth(method = "lm", se = FALSE, colour = "black", linewidth = 0.7, formula = y ~ x) +
-  coord_equal(xlim = lim, ylim = lim) + facet_wrap(~ config) +
-  labs(title = sprintf("%s - pixel-level simulated vs observed AGB change %d-%d (debugging_1; dashed = 1:1)",
+g3 <- ggplot2::ggplot(sc_df, ggplot2::aes(obs, sim)) +
+  ggplot2::geom_bin2d(bins = 120) + ggplot2::scale_fill_viridis_c(trans = "log10", name = "pixel count") +
+  ggplot2::geom_abline(slope = 1, intercept = 0, linetype = "dashed", colour = "grey25") +
+  ggplot2::geom_smooth(method = "lm", se = FALSE, colour = "black", linewidth = 0.7, formula = y ~ x) +
+  ggplot2::coord_equal(xlim = lim, ylim = lim) + ggplot2::facet_wrap(~ config) +
+  ggplot2::labs(title = sprintf("%s - pixel-level simulated vs observed AGB change %d-%d (debugging_1; dashed = 1:1)",
                        COUNTRY, BASE_YEAR, END_YEAR),
        x = "Observed dAGB (MgDM/ha)", y = "Simulated dAGB (MgDM/ha)") +
-  theme_bw(base_size = 12) + theme(plot.title = element_text(size = 11))
-ggsave(file.path(OUT_DIR, paste0(COUNTRY, "_fig3_pixel_scatter.png")), g3, width = 11, height = 5.2, dpi = 150)
+  ggplot2::theme_bw(base_size = 12) +
+  ggplot2::theme(plot.title = ggplot2::element_text(size = 11))
+ggplot2::ggsave(file.path(OUT_DIR, paste0(COUNTRY, "_fig3_pixel_scatter.png")), g3,
+                width = 11, height = 5.2, dpi = 150)
 
 ###############################################################################
 ## 10. SUMMARY (one observed series; configuration-specific endpoint footprints)
@@ -583,7 +625,7 @@ ggsave(file.path(OUT_DIR, paste0(COUNTRY, "_fig3_pixel_scatter.png")), g3, width
 pct_change <- function(a, b) if (length(a) && is.finite(a) && a != 0) 100 * (b - a) / a else NA_real_
 summ_row <- function(cfg, ser, cells) {
   d <- traj[traj$config == cfg & traj$series == ser, ]
-  a <- aggregate(total_Mt ~ year, d, mean)
+  a <- stats::aggregate(total_Mt ~ year, d, mean)
   y0 <- a$total_Mt[a$year == BASE_YEAR]; y1 <- a$total_Mt[a$year == END_YEAR]
   data.frame(config = cfg, series = ser, cells = cells, start_year = BASE_YEAR,
              end_year = END_YEAR, AGB_start_Mt = y0, AGB_end_Mt = y1,
@@ -592,7 +634,7 @@ summ_row <- function(cfg, ser, cells) {
 summ <- rbind(summ_row("Observed", "Observed", sum(mask_cap)),
               summ_row("Capped", "Simulated", sum(mask_cap)))
 if (length(uncMC)) summ <- rbind(summ, summ_row("Uncapped", "Simulated", sum(mask_unc)))
-write.csv(summ, file.path(OUT_DIR, paste0(COUNTRY, "_national_summary.csv")), row.names = FALSE)
+utils::write.csv(summ, file.path(OUT_DIR, paste0(COUNTRY, "_national_summary.csv")), row.names = FALSE)
 
 cat("\n================  SUMMARY  (", COUNTRY, ", ", BASE_YEAR, "-", END_YEAR, ")  ================\n", sep = "")
 print(summ, row.names = FALSE)

@@ -74,7 +74,7 @@ library(leaflet.extras) # rectangle draw toolbar
 # =============================================================================
 
 # --- 1a. Country ------------------------------------------------------------
-country_iso3 <- "MWI"      # matches GID_0 in mofuss_regions0.gpkg
+country_iso3 <- "ZMB"      # matches GID_0 in mofuss_regions0.gpkg
 
 # --- 1b. Resolution switch --------------------------------------------------
 # "1km"  -> use the 1 km MoFuSS output and 1 km CTrees maps (this dataset).
@@ -85,7 +85,7 @@ resolution <- "1km"        # "1km" or "100m"
 
 res_cfg <- list(
   "1km" = list(
-    mofuss_dir  = "D:/mofuss_amazon/nv3/mwi_bau1_1km_nv3_ng",
+    mofuss_dir  = "D:/mofuss_amazon/nv3/zmb_bau1_1km_nv3_g",
     ctrees_dir  = "G:/Mi unidad/webpages/2026_MoFuSSGlobal_Datasets/fnrb_obs_data/1km_agco2_2000_2025",
     agg_factor  = 1        # 1 = no aggregation
   ),
