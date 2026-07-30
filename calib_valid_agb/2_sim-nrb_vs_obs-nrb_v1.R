@@ -30,7 +30,8 @@
 #      3. OBSERVED  - observed AGB loss as a DENSITY (Mg/ha), reprojected
 #      4. AOI       - draw a box on a Leaflet map (returns automatically)
 #      5. ALIGN     - resample density to MoFuSS grid, then -> Mg/pixel;
-#                     keep only the common (both-valid) footprint
+#                     retain source footprints for maps and a common footprint
+#                     for pixel-by-pixel diagnostics
 #      6. METRICS   - magnitude (r/RMSE/MAE, co-detected) + loss/no-loss
 #                     agreement (POD/FAR/CSI) + gross/net NRB + three fNRBs
 #      7. OUTPUTS   - summary CSV + 4-panel PNG + 4 GeoTIFFs in the MoFuSS Out*
@@ -72,7 +73,10 @@ library(leaflet.extras) # rectangle draw toolbar
 # 1. CONFIG  -  the only block you normally need to edit
 # =============================================================================
 
-# --- 1a. Resolution switch --------------------------------------------------
+# --- 1a. Country ------------------------------------------------------------
+country_iso3 <- "MWI"      # matches GID_0 in mofuss_regions0.gpkg
+
+# --- 1b. Resolution switch --------------------------------------------------
 # "1km"  -> use the 1 km MoFuSS output and 1 km CTrees maps (this dataset).
 # "100m" -> use a genuine 100 m MoFuSS output + 100 m CTrees maps (if you have
 #            them). `agg_factor` can then coarsen 100 m -> 1 km before comparing
@@ -81,7 +85,7 @@ resolution <- "1km"        # "1km" or "100m"
 
 res_cfg <- list(
   "1km" = list(
-    mofuss_dir  = "C:/Users/aghil/Documents/MoFuSS_localhost/webmofuss_nv3_tests_g",
+    mofuss_dir  = "D:/mofuss_amazon/nv3/mwi_bau1_1km_nv3_ng",
     ctrees_dir  = "G:/Mi unidad/webpages/2026_MoFuSSGlobal_Datasets/fnrb_obs_data/1km_agco2_2000_2025",
     agg_factor  = 1        # 1 = no aggregation
   ),
@@ -96,9 +100,6 @@ mofuss_dir       <- res_cfg$mofuss_dir
 ctrees_dir       <- res_cfg$ctrees_dir
 agg_factor       <- res_cfg$agg_factor
 mofuss_regionsdir <- "C:/Users/aghil/Documents/MoFuSS_localhost/admin_regions/regions_adm0"
-
-# --- 1b. Country ------------------------------------------------------------
-country_iso3 <- "KEN"      # matches GID_0 in mofuss_regions0.gpkg
 
 # --- 1c. Comparison period (fixed common window) ---------------------------
 START_YEAR    <- 2010L
@@ -435,6 +436,21 @@ if (agg_factor > 1) {
   nrb_ctrees_c <- terra::aggregate(nrb_ctrees_c, fact = agg_factor, fun = "sum", na.rm = TRUE)
 }
 
+# --- Source-specific display/output layers ---------------------------------
+# Do NOT clip CTrees maps to the MoFuSS valid-cell footprint. CTrees is one
+# fixed observed dataset, so its mapped gross losses and gains must be the same
+# for every MoFuSS configuration. Likewise, display each MoFuSS result over its
+# own available footprint. The common footprint below is used only for the
+# pixel-by-pixel comparison diagnostics.
+nrb_ctrees_plot <- round(terra::ifel(nrb_ctrees_c >= nrb_threshold,
+                                     nrb_ctrees_c, NA))
+gains_ctrees_plot <- round(
+  terra::ifel(nrb_ctrees_c <= -nrb_threshold, abs(nrb_ctrees_c), NA)
+)
+nrb_mofuss_plot <- round(terra::ifel(nrb_mofuss_c >= nrb_threshold,
+                                     nrb_mofuss_c, NA))
+harv_mofuss_plot <- round(harv_mofuss_c)
+
 # --- Common valid footprint -------------------------------------------------
 # Keep ONLY cells where observed change, MoFuSS endpoint NRB, and MoFuSS harvest
 # are all defined for the pixel-comparison diagnostics. Aggregate fNRB totals
@@ -443,21 +459,15 @@ both_valid <- terra::ifel(!is.na(nrb_mofuss_c) & !is.na(nrb_ctrees_c) &
                             !is.na(harv_mofuss_c), 1, NA)
 nrb_mofuss_m  <- terra::mask(nrb_mofuss_c,  both_valid)
 nrb_ctrees_m  <- terra::mask(nrb_ctrees_c,  both_valid)
-harv_mofuss_m <- terra::mask(harv_mofuss_c, both_valid)
 
 # --- Comparison layers ------------------------------------------------------
-# NRB comparison layers are thresholded only for maps/pixel diagnostics.
-# The fNRB numerators and denominator above are never thresholded.
+# Common-footprint NRB layers are thresholded only for pixel diagnostics.
+# Source-specific map/output layers were made above. The fNRB numerators and
+# denominator are never thresholded.
 nrb_mofuss_cmp <- round(terra::ifel(nrb_mofuss_m >= nrb_threshold,
                                     nrb_mofuss_m, NA))
 nrb_ctrees_cmp <- round(terra::ifel(nrb_ctrees_m >= nrb_threshold,
                                     nrb_ctrees_m, NA))
-harv_cmp       <- round(harv_mofuss_m)
-
-# observed AGB GAINS (negative side of observed NRB, made positive)
-gains_ctrees_cmp <- round(
-  terra::ifel(nrb_ctrees_m <= -nrb_threshold, abs(nrb_ctrees_m), NA)
-)
 
 
 # =============================================================================
@@ -575,16 +585,17 @@ plot(v_obs[ok], v_mof[ok],
 abline(0, 1, col = "red")
 
 # --- 8b. 4-panel map --------------------------------------------------------
-# The two NRB panels share ONE scale so they are directly comparable. Harvest
+# The two NRB panels share ONE scale anchored to the fixed observed CTrees map.
+# This makes the observed panel (including its palette) identical across MoFuSS
+# configurations and preserves direct visual comparison with the model. Harvest
 # is a different quantity (a gross flux, not a net loss), so it gets its own
 # scale and its own colour ramp (green) to make that clear at a glance.
 nrb_colors  <- colorRampPalette(c("white", "orange", "red"))(100)
 harv_colors <- colorRampPalette(c("white", "yellowgreen", "darkgreen"))(100)
 
-rng_nrb <- range(c(terra::minmax(nrb_ctrees_cmp),
-                   terra::minmax(nrb_mofuss_cmp)), na.rm = TRUE)
+rng_nrb <- range(terra::minmax(nrb_ctrees_plot), na.rm = TRUE)
 
-ctry_r <- terra::project(ctry_sel, nrb_ctrees_cmp)   # country outline in map CRS
+ctry_r <- terra::project(ctry_sel, nrb_ctrees_plot)   # country outline in map CRS
 
 # terra's vector overlay can silently replace par("usr") with the full vector
 # extent. Preserve the raster panel coordinates so AOI-relative annotations do
@@ -611,25 +622,25 @@ png_path <- file.path(
 png(png_path, width = 10, height = 10, units = "in", res = 300, type = "cairo")
 op <- par(mfrow = c(2, 2))
 
-plot(nrb_ctrees_cmp, main = "Observed gross NRB",
+plot(nrb_ctrees_plot, main = "Observed gross NRB",
      col = nrb_colors, range = rng_nrb)
 add_country_outline()
 add_metric_box(c(period_text,
                  paste("Regional gross fNRB:", percent_text(fnrb_ctrees_gross_pct))))
 
-plot(nrb_mofuss_cmp, main = "MoFuSS MC1 NRB",
+plot(nrb_mofuss_plot, main = "MoFuSS MC1 NRB",
      col = nrb_colors, range = rng_nrb)
 add_country_outline()
 add_metric_box(c(period_text,
                  paste("MoFuSS fNRB:", percent_text(fnrb_mofuss_pct))))
 
-plot(gains_ctrees_cmp, main = "Observed AGB gains")
+plot(gains_ctrees_plot, main = "Observed AGB gains")
 add_country_outline()
 add_metric_box(c(period_text,
                  paste("Regional net fNRB:", percent_text(fnrb_ctrees_net_pct))))
 
 # harvest: its own auto-scale (no shared range) and its own palette
-plot(harv_cmp, main = "MoFuSS MC1 harvest", col = harv_colors)
+plot(harv_mofuss_plot, main = "MoFuSS MC1 harvest", col = harv_colors)
 add_country_outline()
 add_metric_box(c(period_text, "Shared demand denominator:",
                  paste0(formatC(mofuss_harvest / 1e6, format = "f", digits = 1), " million Mg")))
@@ -642,10 +653,10 @@ tif <- function(r, name)
   terra::writeRaster(r, file.path(out_dir, name), overwrite = TRUE,
                      wopt = list(gdal = "COMPRESS=LZW"))
 
-tif(nrb_ctrees_cmp,   sprintf("Observed_NRB_%s_%s.tif",       ctrees_year1, ctrees_year2))
-tif(nrb_mofuss_cmp,   sprintf("Modeled_MC1_NRB_%s_%s.tif",    ctrees_year1, ctrees_year2))
-tif(gains_ctrees_cmp, sprintf("Observed_AGB_Gains_%s_%s.tif", ctrees_year1, ctrees_year2))
-tif(harv_cmp,         sprintf("Modeled_MC1_Harvest_%s_%s.tif", ctrees_year1, ctrees_year2))
+tif(nrb_ctrees_plot,   sprintf("Observed_NRB_%s_%s.tif",       ctrees_year1, ctrees_year2))
+tif(nrb_mofuss_plot,   sprintf("Modeled_MC1_NRB_%s_%s.tif",    ctrees_year1, ctrees_year2))
+tif(gains_ctrees_plot, sprintf("Observed_AGB_Gains_%s_%s.tif", ctrees_year1, ctrees_year2))
+tif(harv_mofuss_plot,  sprintf("Modeled_MC1_Harvest_%s_%s.tif", ctrees_year1, ctrees_year2))
 
 cat("Wrote outputs to:", out_dir, "\n")
 cat("  -", basename(png_path), "\n")

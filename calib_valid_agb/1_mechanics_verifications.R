@@ -14,7 +14,7 @@
 suppressPackageStartupMessages({ library(terra); library(data.table); library(ggplot2) })
 
 cfg <- list(
-  working_dir   = "C:/Users/aghil/Documents/MoFuSS_localhost/webmofuss_nv3_tests_ng",
+  working_dir   = "C:/Users/aghil/Documents/MoFuSS_localhost/webmofuss_nv3_tests_g",
   mc            = 1,
   growth_model  = "auto",   # "auto" | "chapman-richards" | "logistic"
   growth_table  = "LULCC/TempTables/growth_parameters_v3_modis.csv",

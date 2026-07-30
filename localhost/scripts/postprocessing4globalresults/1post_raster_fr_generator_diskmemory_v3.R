@@ -21,7 +21,7 @@
 # Internal parameters ----
 temdirdefined <- 1
 fixdir <-  0
-string_pattern_yes <- "webmofuss_nv3_tests_g" # String pattern to be searched when selecting folders for the rasters' geocomputation
+string_pattern_yes <- "mwi_bau1_1km_nv3_" # String pattern to be searched when selecting folders for the rasters' geocomputation
 string_pattern_no <- "idw" # String pattern to be searched when selecting folders for the rasters' geocomputation
  
 # Load packages ----
@@ -71,7 +71,7 @@ if (fixdir == 1){
 
 # Loop through each adm0 directory----
 for (dir in adm0_dirs) {
-  # dir = "D:/_zambia/zmb_bau_1km_subcX"
+  # dir = "D:/mofuss_amazon/nv3/mwi_bau1_1km_nv3_g"
   print(paste("Processing directory:", dir))
   setwd(dir)
   getwd()

@@ -36,9 +36,9 @@ suppressPackageStartupMessages({ library(terra); library(ggplot2) })
 ###############################################################################
 INTERACTIVE <- FALSE          # TRUE = ask via pop-up/menus; FALSE = use paths below
 
-COUNTRY      <- "Kenya"
-CAPPED_DIR   <- "C:/Users/aghil/Documents/MoFuSS_localhost/webmofuss_nv3_tests_ng"   # capped   (_ng)
-UNCAPPED_DIR <- "C:/Users/aghil/Documents/MoFuSS_localhost/webmofuss_nv3_tests_g"    # uncapped (_g); "" to skip
+COUNTRY      <- "Malawi"
+CAPPED_DIR   <- "D:/mofuss_amazon/nv3/mwi_bau1_1km_nv3_ng"   # capped   (_ng)
+UNCAPPED_DIR <- "D:/mofuss_amazon/nv3/mwi_bau1_1km_nv3_g"    # uncapped (_g); "" to skip
 
 OBS_TYPE     <- "projected"  # "projected" (MgDM/ha, EPSG:3395) or "latlong" (MgCO2/ha, EPSG:4326)
 OBS_PROJ_DIR <- "D:/agb3rdparties/ctrees_dic2025_agb_paras/1km_agco2_2000_2025/agb_projected_ha"
