@@ -21,8 +21,8 @@
 ##   - Gross NRB is sum(max(AGB_start - AGB_end, 0)) by pixel. Net NRB is
 ##     max(0, sum(AGB_start - AGB_end)) over the requested national footprint.
 ##     Intermediate years do not enter either calculation.
-##   - Figure 2 masks simulated change over HydroLAKES for display only. This
-##     cosmetic mask does not alter trajectories, NRB totals, or validation stats.
+##   - HydroLAKES cells are excluded from the validation domain for all sources.
+##     This affects maps, trajectories, NRB totals, and pixel statistics equally.
 ##   - Physical totals use cell-specific geodesic hectares from terra::cellSize;
 ##     CSVs also retain MoFuSS's xres^2-area totals for internal mass-balance use.
 ##
@@ -55,10 +55,11 @@ OUT_BASE     <- "C:/Users/aghil/Documents/MoFuSS_localhost/calib_valid_agb_new_2
 CLIP_OBS_TO_COUNTRY <- TRUE
 ADMIN_VECTOR        <- ""
 
-## Cosmetic Figure 2 mask only. "" auto-finds hydrolakes_pcs.tif under the
-## capped working folder (then the uncapped folder as a fallback).
-MASK_SIM_MAPS_BY_WATER <- TRUE
-HYDROLAKES_RASTER      <- ""
+## Validation-domain water mask. "" auto-finds hydrolakes_pcs.tif under the
+## capped working folder (then the uncapped folder as a fallback). Applying the
+## mask remains safe after upstream rasters are corrected because it is idempotent.
+EXCLUDE_HYDROLAKES <- TRUE
+HYDROLAKES_RASTER  <- ""
 
 BASE_YEAR <- 2000
 END_YEAR  <- 2025
@@ -117,7 +118,7 @@ hydrolakes_candidates <- unique(c(
   if (nzchar(UNCAPPED_DIR)) file.path(UNCAPPED_DIR, hydrolakes_rel) else character(0)
 ))
 hydrolakes_path <- hydrolakes_candidates[file.exists(hydrolakes_candidates)][1]
-if (MASK_SIM_MAPS_BY_WATER && (length(hydrolakes_path) == 0L || is.na(hydrolakes_path)))
+if (EXCLUDE_HYDROLAKES && (length(hydrolakes_path) == 0L || is.na(hydrolakes_path)))
   stop("HydroLAKES display mask not found. Checked:\n  ",
        paste(hydrolakes_candidates, collapse = "\n  "))
 
@@ -126,7 +127,7 @@ cat("\nCountry      :", COUNTRY,
     "\nUncapped dir :", if (nzchar(UNCAPPED_DIR)) UNCAPPED_DIR else "(none)",
     "\nObserved     :", OBS_TYPE, "->", OBS_DIR,
     "\nBoundary     :", admin_path,
-    "\nWater mask  :", if (MASK_SIM_MAPS_BY_WATER) hydrolakes_path else "(disabled)",
+    "\nWater mask  :", if (EXCLUDE_HYDROLAKES) hydrolakes_path else "(disabled)",
     "\nOutput       :", OUT_DIR, "\n\n")
 
 ###############################################################################
@@ -255,12 +256,21 @@ if (CLIP_OBS_TO_COUNTRY && file.exists(admin_path)) {
   stop("Country boundary not found; national aggregation would be invalid: ", admin_path)
 }
 
+## One common land domain for observed and every simulation configuration.
+## Keeping country_vec separate preserves the true administrative footprint for
+## diagnostics; validation_domain_vec additionally removes HydroLAKES cells.
+water_vec <- rep(FALSE, terra::ncell(ref))
+if (EXCLUDE_HYDROLAKES) water_vec <- water_mask_vec(hydrolakes_path, ref)
+validation_domain_vec <- country_vec & !water_vec
+cat(sprintf("HydroLAKES excluded from validation: %s cells inside country\n",
+            format(sum(country_vec & water_vec), big.mark = ",", scientific = FALSE)))
+
 cat("Loading observed CTrees maps ...\n")
 obs_ha <- list()
 for (y in years) {
   a <- align_obs(y, ref)
   v <- if (is.null(a)) rep(NA_real_, terra::ncell(ref)) else as.numeric(terra::values(a))
-  if (CLIP_OBS_TO_COUNTRY) v[!country_vec] <- NA
+  v[!validation_domain_vec] <- NA
   obs_ha[[as.character(y)]] <- v
 }
 
@@ -325,9 +335,9 @@ uncd1_end   <- if (length(uncMC)) sim_vec(uncMC[1], END_YEAR)  / model_cell_ha e
 dObs <- obs_end - obs_start
 dCap <- capd1_end - capd1_start
 dUnc <- if (!is.null(uncd1_end)) uncd1_end - uncd1_start else NULL
-## Maps use each model's own endpoint footprint, but never include cells outside the country.
-dObs[!country_vec] <- NA; dCap[!country_vec] <- NA
-if (!is.null(dUnc)) dUnc[!country_vec] <- NA
+## Maps use each model's own endpoint footprint within the common land domain.
+dObs[!validation_domain_vec] <- NA; dCap[!validation_domain_vec] <- NA
+if (!is.null(dUnc)) dUnc[!validation_domain_vec] <- NA
 
 pix_stats <- function(sim_change, obs_change, m, label) {
   o <- obs_change[m]; s <- sim_change[m]; keep <- is.finite(o) & is.finite(s)
@@ -406,12 +416,12 @@ nrb_metrics <- function(start, end, domain, source, config, scope, mc, value_uni
 ## MoFuSS configuration on its own valid model domain. These are the values to
 ## retain for later demand comparisons (demand must use the same scope and an
 ## explicitly chosen geodesic-vs-model-native accounting convention).
-nrb_all <- nrb_metrics(obs_start, obs_end, country_vec, "Observed", "Country",
+nrb_all <- nrb_metrics(obs_start, obs_end, validation_domain_vec, "Observed", "Country",
                        "country_endpoint", 0L, "MgDM_ha")
 append_model_nrb <- function(out, mcdirs, cfg) {
   for (i in seq_along(mcdirs)) {
     s0 <- sim_vec(mcdirs[i], BASE_YEAR); s1 <- sim_vec(mcdirs[i], END_YEAR)
-    out <- rbind(out, nrb_metrics(s0, s1, country_vec, "MoFuSS", cfg,
+    out <- rbind(out, nrb_metrics(s0, s1, validation_domain_vec, "MoFuSS", cfg,
                                   "configuration_endpoint", i, "MgDM_cell"))
   }
   out
@@ -426,7 +436,7 @@ nrb_pairwise <- NULL
 append_pairwise_nrb <- function(out, mcdirs, cfg) {
   for (i in seq_along(mcdirs)) {
     s0 <- sim_vec(mcdirs[i], BASE_YEAR); s1 <- sim_vec(mcdirs[i], END_YEAR)
-    common <- country_vec & is.finite(obs_start) & is.finite(obs_end) & is.finite(s0) & is.finite(s1)
+    common <- validation_domain_vec & is.finite(obs_start) & is.finite(obs_end) & is.finite(s0) & is.finite(s1)
     out <- rbind(out,
                  nrb_metrics(obs_start, obs_end, common, "Observed", cfg,
                              "pairwise_common_endpoint", i, "MgDM_ha"),
@@ -576,32 +586,13 @@ ggplot2::ggsave(file.path(OUT_DIR, paste0(COUNTRY, "_fig1b_total_AGB.png")), g1b
 ## 8. FIGURE 2 : spatial maps of AGB change (debugging_1), each on its OWN footprint
 ###############################################################################
 cat("Drawing Figure 2 (change maps) ...\n")
-## Keep the analytical vectors untouched: the HydroLAKES exclusion is cosmetic
-## and applies only to the simulated rasters shown in this figure.
-dCap_map <- dCap
-dUnc_map <- dUnc
-if (MASK_SIM_MAPS_BY_WATER) {
-  water_vec <- water_mask_vec(hydrolakes_path, ref) & country_vec
-  cap_water_n <- sum(water_vec & is.finite(dCap_map))
-  dCap_map[water_vec] <- NA
-  if (!is.null(dUnc_map)) {
-    unc_water_n <- sum(water_vec & is.finite(dUnc_map))
-    dUnc_map[water_vec] <- NA
-  } else {
-    unc_water_n <- 0L
-  }
-  cat(sprintf("   HydroLAKES display mask: %s water cells; removed %s capped and %s uncapped map cells.\n",
-              format(sum(water_vec), big.mark = ",", scientific = FALSE),
-              format(cap_water_n, big.mark = ",", scientific = FALSE),
-              format(unc_water_n, big.mark = ",", scientific = FALSE)))
-}
 mk   <- function(vec) { r <- terra::rast(ref); terra::values(r) <- vec; r }
-rObs <- mk(dObs); rCap <- mk(dCap_map); rUnc <- if (!is.null(dUnc_map)) mk(dUnc_map) else NULL
+rObs <- mk(dObs); rCap <- mk(dCap); rUnc <- if (!is.null(dUnc)) mk(dUnc) else NULL
 
 nObs   <- sum(is.finite(dObs))
 lblObs <- "Observed (CTrees)"
-lblCap <- sprintf("MoFuSS capped (%.0f%% of obs. area)",   100 * sum(is.finite(dCap_map)) / nObs)
-lblUnc <- if (!is.null(dUnc_map)) sprintf("MoFuSS uncapped (%.0f%% of obs. area)", 100 * sum(is.finite(dUnc_map)) / nObs) else NULL
+lblCap <- sprintf("MoFuSS capped (%.0f%% of obs. area)",   100 * sum(is.finite(dCap)) / nObs)
+lblUnc <- if (!is.null(dUnc)) sprintf("MoFuSS uncapped (%.0f%% of obs. area)", 100 * sum(is.finite(dUnc)) / nObs) else NULL
 
 te   <- terra::ext(terra::trim(rObs))
 rObs <- terra::crop(rObs, te)
@@ -612,8 +603,8 @@ map_df <- to_df(rObs, lblObs); map_df <- rbind(map_df, to_df(rCap, lblCap))
 if (!is.null(rUnc)) map_df <- rbind(map_df, to_df(rUnc, lblUnc))
 map_df$panel <- factor(map_df$panel, levels = unique(map_df$panel)); np <- nlevels(map_df$panel)
 
-map_values <- c(dObs[is.finite(dObs)], dCap_map[is.finite(dCap_map)])
-if (!is.null(dUnc_map)) map_values <- c(map_values, dUnc_map[is.finite(dUnc_map)])
+map_values <- c(dObs[is.finite(dObs)], dCap[is.finite(dCap)])
+if (!is.null(dUnc)) map_values <- c(map_values, dUnc[is.finite(dUnc)])
 vmax <- as.numeric(stats::quantile(abs(map_values), 0.98, na.rm = TRUE))
 if (!is.finite(vmax) || vmax <= 0) vmax <- 1
 map_df$value <- pmax(pmin(map_df$value, vmax), -vmax)
@@ -641,7 +632,7 @@ g2 <- ggplot2::ggplot(map_df, ggplot2::aes(x, y, fill = value)) +
   ggplot2::coord_equal(xlim = c(terra::xmin(te), terra::xmax(te)),
                        ylim = c(terra::ymin(te), terra::ymax(te)), expand = FALSE) +
   ggplot2::labs(title = sprintf("%s - aboveground biomass change (%d vs %d)", COUNTRY, BASE_YEAR, END_YEAR),
-       subtitle = "each panel shows its own data coverage; grey = no data; MoFuSS panels mask HydroLAKES", x = NULL, y = NULL) +
+       subtitle = "each panel shows its own data coverage; grey = no data or HydroLAKES water", x = NULL, y = NULL) +
   ggplot2::guides(fill = ggplot2::guide_colourbar(barheight = grid::unit(3.2, "cm"), title.position = "top")) +
   ggplot2::theme_minimal(base_size = 12) +
   ggplot2::theme(axis.text = ggplot2::element_blank(), axis.ticks = ggplot2::element_blank(), panel.grid = ggplot2::element_blank(),
