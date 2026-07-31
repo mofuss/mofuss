@@ -74,7 +74,7 @@ library(leaflet.extras) # rectangle draw toolbar
 # =============================================================================
 
 # --- 1a. Country ------------------------------------------------------------
-country_iso3 <- "ZMB"      # matches GID_0 in mofuss_regions0.gpkg
+country_iso3 <- "MWI"      # matches GID_0 in mofuss_regions0.gpkg
 
 # --- 1b. Resolution switch --------------------------------------------------
 # "1km"  -> use the 1 km MoFuSS output and 1 km CTrees maps (this dataset).
@@ -85,7 +85,7 @@ resolution <- "1km"        # "1km" or "100m"
 
 res_cfg <- list(
   "1km" = list(
-    mofuss_dir  = "D:/mofuss_amazon/nv3/zmb_bau1_1km_nv3_g",
+    mofuss_dir  = "C:/Users/aghil/Documents/MoFuSS_localhost/x_mwi_nv3_tests_g",
     ctrees_dir  = "G:/Mi unidad/webpages/2026_MoFuSSGlobal_Datasets/fnrb_obs_data/1km_agco2_2000_2025",
     agg_factor  = 1        # 1 = no aggregation
   ),
@@ -597,22 +597,52 @@ rng_nrb <- range(terra::minmax(nrb_ctrees_plot), na.rm = TRUE)
 
 ctry_r <- terra::project(ctry_sel, nrb_ctrees_plot)   # country outline in map CRS
 
-# terra's vector overlay can silently replace par("usr") with the full vector
-# extent. Preserve the raster panel coordinates so AOI-relative annotations do
-# not move outside a drawn/cropped map.
+# Draw the boundary as lines rather than calling plot(..., add = TRUE). The
+# latter can reset the raster panel's graphics transform for tall countries,
+# making correctly computed annotation coordinates appear outside the panel.
 add_country_outline <- function() {
-  panel_usr <- par("usr")
-  plot(ctry_r, add = TRUE, border = "black", lwd = 1)
-  par(usr = panel_usr)
+  terra::lines(ctry_r, col = "black", lwd = 1)
 }
 
 period_text <- sprintf("%d-%d", START_YEAR, END_YEAR)
 percent_text <- function(x) paste0(format(round(x), big.mark = ",", scientific = FALSE), "%")
-add_metric_box <- function(lines) {
-  legend("topleft", legend = lines, inset = 0.02,
-         bty = "o", bg = grDevices::adjustcolor("white", alpha.f = 0.90),
-         box.col = "grey35", text.col = "black", cex = 0.82,
-         x.intersp = 0.4, y.intersp = 0.95)
+add_metric_box <- function(lines, panel_lim, cex = 0.82, inset = 0.035) {
+  # Build the annotation from the active raster panel coordinates. A base-R
+  # legend can become wider than the plotting region for tall, narrow countries
+  # (for example Malawi), which clips its left-hand text. Shrink only when
+  # necessary and keep the complete rectangle inside par("usr").
+  u <- unname(panel_lim[c("xmin", "xmax", "ymin", "ymax")])
+  panel_w <- u[2] - u[1]
+  panel_h <- u[4] - u[3]
+  max_box_w <- panel_w * (1 - 2 * inset)
+
+  cex_use <- cex
+  repeat {
+    char_w <- strwidth("M", cex = cex_use, units = "user")
+    text_w <- max(strwidth(lines, cex = cex_use, units = "user"))
+    box_w <- text_w + 1.4 * char_w
+    if (box_w <= max_box_w || cex_use <= 0.50) break
+    cex_use <- cex_use * 0.90
+  }
+
+  line_h <- strheight("Mg", cex = cex_use, units = "user")
+  pad_x <- 0.7 * char_w
+  pad_y <- 0.55 * line_h
+  line_step <- 1.15 * line_h
+  box_h <- 2 * pad_y + length(lines) * line_step
+
+  xleft <- u[1] + inset * panel_w
+  xright <- min(xleft + box_w, u[2] - inset * panel_w)
+  ytop <- u[4] - inset * panel_h
+  ybottom <- ytop - box_h
+
+  rect(xleft, ybottom, xright, ytop,
+       col = grDevices::adjustcolor("white", alpha.f = 0.90),
+       border = "grey35", xpd = FALSE)
+  ytext <- ytop - pad_y - (seq_along(lines) - 0.5) * line_step
+  graphics::text(xleft + pad_x, ytext, labels = lines,
+                 pos = 4, offset = 0, col = "black",
+                 cex = cex_use, xpd = FALSE)
 }
 
 png_path <- file.path(
@@ -622,28 +652,32 @@ png_path <- file.path(
 png(png_path, width = 10, height = 10, units = "in", res = 300, type = "cairo")
 op <- par(mfrow = c(2, 2))
 
-plot(nrb_ctrees_plot, main = "Observed gross NRB",
-     col = nrb_colors, range = rng_nrb)
+pinfo <- plot(nrb_ctrees_plot, main = "Observed gross NRB",
+              col = nrb_colors, range = rng_nrb)
 add_country_outline()
 add_metric_box(c(period_text,
-                 paste("Regional gross fNRB:", percent_text(fnrb_ctrees_gross_pct))))
+                 paste("Regional gross fNRB:", percent_text(fnrb_ctrees_gross_pct))),
+               pinfo$lim)
 
-plot(nrb_mofuss_plot, main = "MoFuSS MC1 NRB",
-     col = nrb_colors, range = rng_nrb)
+pinfo <- plot(nrb_mofuss_plot, main = "MoFuSS MC1 NRB",
+              col = nrb_colors, range = rng_nrb)
 add_country_outline()
 add_metric_box(c(period_text,
-                 paste("MoFuSS fNRB:", percent_text(fnrb_mofuss_pct))))
+                 paste("MoFuSS fNRB:", percent_text(fnrb_mofuss_pct))),
+               pinfo$lim)
 
-plot(gains_ctrees_plot, main = "Observed AGB gains")
+pinfo <- plot(gains_ctrees_plot, main = "Observed AGB gains")
 add_country_outline()
 add_metric_box(c(period_text,
-                 paste("Regional net fNRB:", percent_text(fnrb_ctrees_net_pct))))
+                 paste("Regional net fNRB:", percent_text(fnrb_ctrees_net_pct))),
+               pinfo$lim)
 
 # harvest: its own auto-scale (no shared range) and its own palette
-plot(harv_mofuss_plot, main = "MoFuSS MC1 harvest", col = harv_colors)
+pinfo <- plot(harv_mofuss_plot, main = "MoFuSS MC1 harvest", col = harv_colors)
 add_country_outline()
 add_metric_box(c(period_text, "Shared demand denominator:",
-                 paste0(formatC(mofuss_harvest / 1e6, format = "f", digits = 1), " million Mg")))
+                 paste0(formatC(mofuss_harvest / 1e6, format = "f", digits = 1), " million Mg")),
+               pinfo$lim)
 
 par(op)
 dev.off()

@@ -7,20 +7,23 @@
 #   "logistic"        (*_ng):  grow(B)=B + r*B*(1-B/K), K=agb3_c (AGB at t=0)
 #                              r='rmax' from the growth table keyed by LULCt1_c.tif
 #                              -> growth-only (no harvest) is a FLAT line at K
-#   both:  B_{t+1} = grow(B_t) - Harvest_{t+1}   (forest, TOF mask==0)
+#   both:  out_{t+1} = grow(B_t) - Harvest_{t+1}  (forest, TOF mask==0)
+#          B_{t+1} = 2 Mg/pixel when out_{t+1} is depleted; otherwise out_{t+1}
 #          TOF (mask==1): constant residue, held = observed.
 # USAGE: edit CONFIG, then  Rscript mechanics_verifications.R  [optional working_dir]
 # ==============================================================================
 suppressPackageStartupMessages({ library(terra); library(data.table); library(ggplot2) })
 
 cfg <- list(
-  working_dir   = "C:/Users/aghil/Documents/MoFuSS_localhost/webmofuss_nv3_tests_g",
+  working_dir   = "C:/Users/aghil/Documents/MoFuSS_localhost/x_mwi_nv3_tests_ng",
   mc            = 1,
   growth_model  = "auto",   # "auto" | "chapman-richards" | "logistic"
   growth_table  = "LULCC/TempTables/growth_parameters_v3_modis.csv",
   lulc_cat_rast = "LULCC/TempRaster/LULCt1_c.tif",
   key_col       = "Key*",
   r_col         = "rmax",
+  depleted_reset_Mg = 2,      # MoFuSS feedback stock after a pixel reaches zero
+  zero_tol_Mg       = 1e-3,   # float32-safe depletion tolerance (Mg/pixel)
   n_pixels_plot = 14, seed = 42
 )
 args <- commandArgs(trailingOnly = TRUE); if (length(args) >= 1) cfg$working_dir <- args[[1]]
@@ -65,6 +68,17 @@ if (tbl_ok) {
 grow_cr  <- function(B, idx) CR(invCR(B, Av[idx], kv[idx], mv[idx]) + 1, Av[idx], kv[idx], mv[idx])
 grow_log <- function(B, idx) { K <- a3[idx]; B + rpix[idx] * B * (1 - B / K) }
 
+# MoFuSS reports zero AGB in the depletion year, but feeds 2 Mg/pixel into the
+# next iteration so that regrowth can restart. Keep output and feedback separate.
+finish_step <- function(post) {
+  depleted <- is.finite(post) & post <= cfg$zero_tol_Mg
+  output <- post
+  output[depleted] <- 0
+  state <- output
+  state[depleted] <- cfg$depleted_reset_Mg
+  list(output = output, state = state)
+}
+
 base <- is.finite(a3) & a3 > 0 & is.finite(tv)
 for (t in seq_len(N)) base <- base & is.finite(GL[, t])
 forest <- base & tv == 0
@@ -74,7 +88,12 @@ log_param <- is.finite(rpix)
 onestep_median <- function(grow_fun, vidx) {
   if (!length(vidx)) return(Inf)
   prev <- a3[vidx]; e <- numeric(N)
-  for (t in seq_len(N)) { pred <- grow_fun(prev, vidx) - H[vidx, t]; e[t] <- median(abs(pred - GL[vidx, t])); prev <- GL[vidx, t] }
+  for (t in seq_len(N)) {
+    step <- finish_step(grow_fun(prev, vidx) - H[vidx, t])
+    e[t] <- median(abs(step$output - GL[vidx, t]))
+    prev <- GL[vidx, t]
+    prev[is.finite(prev) & prev <= cfg$zero_tol_Mg] <- cfg$depleted_reset_Mg
+  }
   median(e)
 }
 
@@ -89,12 +108,18 @@ grow <- cand[[mech]]$grow; vi <- cand[[mech]]$vidx
 message("mechanic one-step median |err|: ", paste(sprintf("%s=%.4g", names(errs), errs), collapse = " | "), "  -> ", mech)
 
 a3i <- a3[vi]; GLi <- GL[vi, , drop = FALSE]; Hi <- H[vi, , drop = FALSE]
-onestep <- numeric(N); prev <- a3i; recon <- a3i
+onestep <- numeric(N); prev <- a3i; recon_state <- a3i; recon_out <- a3i
 for (t in seq_len(N)) {
-  onestep[t] <- median(abs((grow(prev, vi) - Hi[, t]) - GLi[, t]))
-  recon <- grow(recon, vi) - Hi[, t]; prev <- GLi[, t]
+  one <- finish_step(grow(prev, vi) - Hi[, t])
+  onestep[t] <- median(abs(one$output - GLi[, t]))
+  prev <- GLi[, t]
+  prev[is.finite(prev) & prev <= cfg$zero_tol_Mg] <- cfg$depleted_reset_Mg
+
+  fwd <- finish_step(grow(recon_state, vi) - Hi[, t])
+  recon_out <- fwd$output
+  recon_state <- fwd$state
 }
-cer <- abs(recon - GLi[, N])
+cer <- abs(recon_out - GLi[, N])
 tofm <- base & tv == 1
 tof_sd_med <- if (any(tofm)) median(apply(GL[tofm, , drop = FALSE], 1, sd)) else NA_real_
 
@@ -127,8 +152,19 @@ traj <- rbindlist(lapply(seq_along(c(selF, selT)), function(j) {
   cell <- if (isF) vi[vpos] else vpos
   row <- ((cell - 1L) %/% ncw) + 1L; col <- ((cell - 1L) %% ncw) + 1L
   obs <- GL[cell, ] / area_ha; harv <- H[cell, ] / area_ha
-  B <- a3[cell]; g <- a3[cell]; rec <- numeric(N); gro <- numeric(N)
-  for (t in seq_len(N)) { if (isF) { B <- grow1(B, cell) - H[cell, t]; g <- grow1(g, cell) } else { B <- GL[cell, t]; g <- NA_real_ }; rec[t] <- B / area_ha; gro[t] <- g / area_ha }
+  Bstate <- a3[cell]; g <- a3[cell]; rec <- numeric(N); gro <- numeric(N)
+  for (t in seq_len(N)) {
+    if (isF) {
+      step <- finish_step(grow1(Bstate, cell) - H[cell, t])
+      rec[t] <- step$output / area_ha
+      Bstate <- step$state
+      g <- grow1(g, cell)
+    } else {
+      rec[t] <- GL[cell, t] / area_ha
+      g <- NA_real_
+    }
+    gro[t] <- g / area_ha
+  }
   ktxt <- if (isF && mech == "logistic") sprintf("r=%.3f K=AGB0=%.1f", rpix[cell], a3[cell] / area_ha) else if (isF) sprintf("A=%.0f k=%.3f m=%.2f", Av[cell] / area_ha, kv[cell], mv[cell]) else "TOF residue"
   data.table(panel = sprintf("px(%d,%d) TOF=%d | %s\nAGB0=%.1f  max|err|=%.2g", row, col, as.integer(!isF), ktxt, obs[1], max(abs(rec - obs))),
              year = Y0:(Y0 + N - 1L), observed = obs, reconstructed = rec, growth_only = gro, harvest = harv)
