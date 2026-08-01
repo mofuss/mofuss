@@ -53,10 +53,10 @@ plantations = 1 # REPLACE IN PARAMETERS TABLE CSV
 temdirdefined = 1
 # Attraction buffer zones (in linear meters)
 w0 = 0 
-w1 = 50000 #250000
-w2 = 100000 #500000
-w3 = 150000 #750000
-w4 = 200000 #1000000
+w1 = 25000 #250000
+w2 = 50000 #500000
+w3 = 75000 #750000
+w4 = 100000 #1000000
 
 # # Select MoFuSS platform:
 # webmofuss = 1 # "1" is  web-MoFuSS running in our Ubuntu server, "0" is localcal host (Windows or Linux)
@@ -948,17 +948,93 @@ if (aoi_poly == 1) {
 }
 # AoI SELECTION **ENDS** ----
 
-# Create a raster mask of a certain size size, extent, resolution and projection as a provided raster template for the following operations. ####
+# Create the authoritative analysis grid. All vector and raster inputs are
+# transformed/aligned to this grid before rasterization or masking. ----
+analysis_crs <- paste0("EPSG:", epsg_pcs)
 
-# Convert vector to SpatRaster with specified resolution
-userarea_ras <- rast(userarea, resolution = resolution)
+if (terra::is.lonlat(analysis_crs)) {
+  stop("epsg_pcs must identify a projected CRS because resolution is in metres.")
+}
+analysis_crs_info <- sf::st_crs(analysis_crs)
+analysis_units <- tolower(analysis_crs_info$units_gdal)
+if (
+  is.na(analysis_crs_info) ||
+  length(analysis_units) != 1L ||
+  is.na(analysis_units) ||
+  !analysis_units %in% c("m", "meter", "meters", "metre", "metres")
+) {
+  stop("epsg_pcs must use metres as its projected linear unit.")
+}
+if (length(resolution) != 1L || !is.finite(resolution) || resolution <= 0) {
+  stop("GEE_scale must be one positive resolution in metres.")
+}
+
+as_analysis_vector <- function(x, object_name) {
+  if (!inherits(x, "SpatVector")) {
+    x <- terra::vect(x)
+  }
+  x_crs <- terra::crs(x)
+
+  if (is.na(x_crs) || !nzchar(x_crs)) {
+    stop(object_name, " has no CRS; it cannot be aligned safely.")
+  }
+
+  x <- terra::makeValid(x)
+  if (!terra::same.crs(x, analysis_crs)) {
+    x <- terra::project(x, analysis_crs)
+  }
+
+  x
+}
+
+userarea_v <- as_analysis_vector(userarea, "userarea")
+mask_v <- as_analysis_vector(mask, "mask")
+ecoregions_v <- as_analysis_vector(ecoregions0, "ecoregions")
+
+if (aoi_poly != 1) {
+  userarea1_v <- as_analysis_vector(userarea1, "userarea1")
+  userarea2_v <- as_analysis_vector(userarea2, "userarea2")
+  mask1_v <- as_analysis_vector(mask1, "mask1")
+  mask2_v <- as_analysis_vector(mask2, "mask2")
+}
+
+# Anchor the grid to the DEM origin when it already uses the analysis CRS.
+# The preprocessed global inputs share this grid, so this avoids unnecessary
+# interpolation caused by an AOI-dependent raster origin. Fall back to (0, 0)
+# when the DEM is not yet available or is stored in another CRS.
+grid_reference_name <- country_parameters %>%
+  dplyr::filter(Var == "DTEM_name") %>%
+  pull(ParCHR)
+grid_reference_path <- file.path(
+  "LULCC/DownloadedDatasets/SourceDataGlobal/InRaster",
+  grid_reference_name
+)
+grid_origin <- c(0, 0)
+
+if (length(grid_reference_name) == 1L && file.exists(grid_reference_path)) {
+  grid_reference <- terra::rast(grid_reference_path)
+  if (terra::same.crs(grid_reference, analysis_crs)) {
+    grid_origin <- terra::origin(grid_reference)
+  }
+}
+
+userarea_extent <- terra::ext(userarea_v)
+aligned_extent <- terra::ext(
+  grid_origin[[1]] + floor((userarea_extent$xmin - grid_origin[[1]]) / resolution) * resolution,
+  grid_origin[[1]] + ceiling((userarea_extent$xmax - grid_origin[[1]]) / resolution) * resolution,
+  grid_origin[[2]] + floor((userarea_extent$ymin - grid_origin[[2]]) / resolution) * resolution,
+  grid_origin[[2]] + ceiling((userarea_extent$ymax - grid_origin[[2]]) / resolution) * resolution
+)
+
+# Convert vector to SpatRaster with the configured projected resolution.
+userarea_ras <- rast(aligned_extent, resolution = resolution, crs = analysis_crs)
 
 # # Ensure the correct CRS is assigned
 # crs(userarea_ras) <- paste0("+",proj_pcs)
 
 # Rasterize the userarea using the specified field
 userarea_ras <- rasterize(
-  userarea,
+  userarea_v,
   userarea_ras,
   field = country_parameters %>%
     dplyr::filter (Var == "ext_analysis_ID") %>%
@@ -966,7 +1042,7 @@ userarea_ras <- rasterize(
 )
 
 # Crop and mask the raster
-userarea_r_m <- mask(crop(userarea_ras, mask), mask)
+userarea_r_m <- mask(crop(userarea_ras, mask_v), mask_v)
 
 # # Ensure the CRS is maintained
 # crs(userarea_r_m) <- paste0("+",proj_pcs)
@@ -983,7 +1059,7 @@ writeRaster(userarea_r, filename="LULCC/TempRaster/mask_c.tif",
 
 # Ensure mask is a SpatRaster and userarea_r is properly defined
 mask_r <- rasterize(
-  mask, userarea_r,
+  mask_v, userarea_r,
   field = country_parameters %>%
     dplyr::filter (Var == "ext_analysis_ID") %>%
     pull(ParCHR)
@@ -1005,7 +1081,7 @@ writeRaster(mask_r_m, filename = "LULCC/TempRaster/admin_c.tif",
 
 # Rasterize the ecoregions using the specified field
 ecoregions_ras <- rasterize(
-  ecoregions0,
+  ecoregions_v,
   userarea_ras,
   field = country_parameters %>%
     dplyr::filter (Var == "ecoregions_ID") %>%
@@ -1029,20 +1105,20 @@ if (aoi_poly != 1) {
   
   # Process userarea1
   userarea_ras1 <- rasterize(
-    userarea1, userarea_ras,
+    userarea1_v, userarea_ras,
     field = country_parameters %>%
       dplyr::filter (Var == "ext_analysis_ID_1") %>%
       pull(ParCHR)
   )
   
-  userarea_r_m1 <- mask(crop(userarea_ras1, mask), mask)
+  userarea_r_m1 <- mask(crop(userarea_ras1, mask_v), mask_v)
   userarea_r1 <- (userarea_r_m1 * 0) + 1
 
   writeRaster(userarea_r1, filename = "LULCC/TempRaster/mask_c1.tif", 
               datatype = "INT2S", overwrite = TRUE)
   
   mask_r1 <- rasterize(
-    mask1, userarea_r1,
+    mask1_v, userarea_r1,
     field = country_parameters %>%
       dplyr::filter (Var == "ext_analysis_ID_1") %>%
       pull(ParCHR)
@@ -1055,20 +1131,20 @@ if (aoi_poly != 1) {
   
   # Process userarea2
   userarea_ras2 <- rasterize(
-    userarea2, userarea_ras,
+    userarea2_v, userarea_ras,
     field = country_parameters %>%
       dplyr::filter (Var == "ext_analysis_ID_2") %>%
       pull(ParCHR)
   )
 
-  userarea_r_m2 <- mask(crop(userarea_ras2, mask), mask)
+  userarea_r_m2 <- mask(crop(userarea_ras2, mask_v), mask_v)
   userarea_r2 <- (userarea_r_m2 * 0) + 1
 
   writeRaster(userarea_r2, filename = "LULCC/TempRaster/mask_c2.tif", 
               datatype = "INT2S", overwrite = TRUE)
   
   mask_r2 <- rasterize(
-    mask2, userarea_r2,
+    mask2_v, userarea_r2,
     field = country_parameters %>%
       dplyr::filter (Var == "ext_analysis_ID_2") %>%
       pull(ParCHR)
@@ -1080,15 +1156,108 @@ if (aoi_poly != 1) {
               datatype = "INT2S", overwrite = TRUE)
 }
 
+# CRS-aware raster alignment helpers ----
+# `project()` is used only when CRSs differ; `resample()` is used only to
+# align grids in the same CRS. Supplying `userarea_r` as the template makes
+# every output share exactly the same extent, origin, resolution, and CRS.
+align_raster_to_template <- function(x, template, method, mask_output = TRUE) {
+  if (!inherits(x, "SpatRaster")) {
+    x <- terra::rast(x)
+  }
+  x_crs <- terra::crs(x)
+  template_crs <- terra::crs(template)
+
+  if (is.na(x_crs) || !nzchar(x_crs)) {
+    stop("Input raster has no CRS; it cannot be aligned safely.")
+  }
+  if (is.na(template_crs) || !nzchar(template_crs)) {
+    stop("Analysis template has no CRS; inputs cannot be aligned safely.")
+  }
+
+  if (!terra::same.crs(x, template)) {
+    # Do not crop with the target extent before reprojection: its coordinates
+    # belong to a different CRS. GDAL selects the required source window.
+    project_method <- if (identical(method, "modal")) "mode" else method
+    out <- terra::project(
+      x,
+      template,
+      method = project_method,
+      threads = TRUE
+    )
+  } else if (terra::compareGeom(x, template, stopOnError = FALSE)) {
+    out <- x
+  } else {
+    # Cropping is safe here because both extents use the same CRS. `snap="out"`
+    # retains all source cells that can contribute to the target grid.
+    x <- terra::crop(x, terra::ext(template), snap = "out")
+    if (terra::compareGeom(x, template, stopOnError = FALSE)) {
+      # Common case for the preprocessed global rasters: a pure crop on the
+      # shared DEM grid needs no interpolation at all.
+      out <- x
+    } else {
+      resample_method <- if (identical(method, "mode")) "modal" else method
+      out <- terra::resample(
+        x,
+        template,
+        method = resample_method,
+        threads = TRUE
+      )
+    }
+  }
+
+  if (mask_output) {
+    out <- terra::mask(out, template)
+  }
+
+  out
+}
+
+# Compute ellipsoidal/geodesic cell areas even when the analysis grid uses a
+# non-equal-area CRS such as EPSG:3395. Raising `rcx` to the raster dimensions
+# avoids terra's coarse area-grid interpolation.
+accurate_cell_area <- function(x, unit = "ha") {
+  terra::cellSize(
+    x,
+    mask = TRUE,
+    unit = unit,
+    transform = TRUE,
+    rcx = max(terra::nrow(x), terra::ncol(x))
+  )
+}
+
+# Convert a density raster (for example Mg/ha) to a cell-total raster before
+# warping. A weighted-sum warp is conservative and avoids the mass bias caused
+# by interpolating density first and multiplying by target-cell area afterward.
+density_to_cell_total <- function(x, template) {
+  if (!inherits(x, "SpatRaster")) {
+    x <- terra::rast(x)
+  }
+
+  if (!terra::same.crs(x, template)) {
+    footprint <- terra::as.polygons(
+      terra::ext(template),
+      crs = terra::crs(template)
+    )
+    footprint <- terra::project(footprint, terra::crs(x))
+    x <- terra::crop(x, footprint, snap = "out")
+  } else {
+    x <- terra::crop(x, terra::ext(template), snap = "out")
+  }
+
+  source_total <- x * accurate_cell_area(x, unit = "ha")
+  align_raster_to_template(source_total, template, method = "sum")
+}
+
 # DEM ----
 country_parameters %>%
   dplyr::filter(Var == "DTEM_name") %>%
   pull(ParCHR) -> DTEM_name
 dtem <- rast(paste0("LULCC/DownloadedDatasets/SourceDataGlobal/InRaster/",DTEM_name))
-DEM_r_m <- dtem %>%
-  terra::crop(terra::ext(userarea_r)) %>%
-  terra::resample(userarea_r, method = "bilinear") %>%
-  terra::mask(userarea_r)
+DEM_r_m <- align_raster_to_template(
+  dtem,
+  userarea_r,
+  method = "bilinear"
+)
 names(DEM_r_m) <- "layer_0"
 writeRaster(DEM_r_m, filename="LULCC/TempRaster/DEM_c.tif", datatype="INT2S", overwrite=TRUE)
 
@@ -1096,30 +1265,33 @@ writeRaster(DEM_r_m, filename="LULCC/TempRaster/DEM_c.tif", datatype="INT2S", ov
 country_parameters %>%
   dplyr::filter(Var == "treecover_name") %>%
   pull(ParCHR) -> treecover_name
-tc2000_r_m <- rast(paste0("LULCC/DownloadedDatasets/SourceDataGlobal/InRaster/",treecover_name)) %>%
-  terra::crop(terra::ext(userarea_r)) %>%
-  terra::resample(userarea_r, method = "bilinear") %>%
-  terra::mask(userarea_r)
+tc2000_r_m <- align_raster_to_template(
+  rast(paste0("LULCC/DownloadedDatasets/SourceDataGlobal/InRaster/", treecover_name)),
+  userarea_r,
+  method = "mean"
+)
 names(tc2000_r_m) <- "layer_0"
 writeRaster(tc2000_r_m, filename="LULCC/TempRaster/tc2000_c.tif", datatype="INT2S", overwrite=TRUE)
 
 country_parameters %>% # Something weird here, it takes too long
   dplyr::filter(Var == "gain_name") %>%
   pull(ParCHR) -> gain_name
-gain_r_m <- rast(paste0("LULCC/DownloadedDatasets/SourceDataGlobal/InRaster/",gain_name)) %>%
-  terra::crop(terra::ext(userarea_r)) %>%
-  terra::resample(userarea_r, method = "near") %>%
-  terra::mask(userarea_r)
+gain_r_m <- align_raster_to_template(
+  rast(paste0("LULCC/DownloadedDatasets/SourceDataGlobal/InRaster/", gain_name)),
+  userarea_r,
+  method = "near"
+)
 names(gain_r_m) <- "layer_0"
 writeRaster(gain_r_m, filename="LULCC/TempRaster/gain_c.tif", datatype="INT2S", overwrite=TRUE)
 
 country_parameters %>%
   dplyr::filter(Var == "lossyear_name") %>%
   pull(ParCHR) -> lossyear_name
-lossyear_r_m <- rast(paste0("LULCC/DownloadedDatasets/SourceDataGlobal/InRaster/",lossyear_name)) %>%
-  terra::crop(terra::ext(userarea_r)) %>%
-  terra::resample(userarea_r, method = "near") %>%
-  terra::mask(userarea_r)
+lossyear_r_m <- align_raster_to_template(
+  rast(paste0("LULCC/DownloadedDatasets/SourceDataGlobal/InRaster/", lossyear_name)),
+  userarea_r,
+  method = "near"
+)
 names(lossyear_r_m) <- "layer_0"
 writeRaster(lossyear_r_m, filename="LULCC/TempRaster/lossyear_c.tif", datatype="INT2S", overwrite=TRUE)
 
@@ -1165,12 +1337,13 @@ country_parameters %>%
 if (identical(LULCt1map, NA_character_)) {
   print("No LULCt1 map available")
   } else if (LULCt1map == "YES"){
-    LULCt1_r_m <- rast(paste0("LULCC/DownloadedDatasets/SourceDataGlobal/InRaster/",country_parameters %>% # NAME IS HARDWIRED! ONE YEAR ONLY
+    LULCt1_r_m <- align_raster_to_template(
+      rast(paste0("LULCC/DownloadedDatasets/SourceDataGlobal/InRaster/", country_parameters %>%
                     dplyr::filter(Var == "LULCt1map_name") %>%
-                    pull(ParCHR))) %>%
-      terra::crop(ext(userarea_r)) %>%
-      terra::resample(userarea_r, "near") %>%
-      terra::mask(userarea_r)
+                    pull(ParCHR))),
+      userarea_r,
+      method = "near"
+    )
     names(LULCt1_r_m) <- "layer_0"
     writeRaster(LULCt1_r_m, filename="LULCC/TempRaster/LULCt1_c.tif", datatype="INT2S", overwrite=TRUE)
     } else {
@@ -1183,12 +1356,13 @@ country_parameters %>%
 if (identical(LULCt2map, NA_character_)) {
   print("No LULCt2 map available")
 } else if (LULCt2map == "YES"){
-  LULCt2_r_m <- rast(paste0("LULCC/DownloadedDatasets/SourceDataGlobal/InRaster/",country_parameters %>% # NAME IS HARDWIRED! ONE YEAR ONLY
-                              dplyr::filter(Var == "LULCt2map_name") %>%
-                              pull(ParCHR))) %>%
-    terra::crop(ext(userarea_r)) %>%
-    terra::resample(userarea_r, "near") %>%
-    terra::mask(userarea_r)
+  LULCt2_r_m <- align_raster_to_template(
+    rast(paste0("LULCC/DownloadedDatasets/SourceDataGlobal/InRaster/", country_parameters %>%
+                  dplyr::filter(Var == "LULCt2map_name") %>%
+                  pull(ParCHR))),
+    userarea_r,
+    method = "near"
+  )
   names(LULCt2_r_m) <- "layer_0"
   writeRaster(LULCt2_r_m, filename="LULCC/TempRaster/LULCt2_c.tif", datatype="INT2S", overwrite=TRUE)
 } else {
@@ -1201,12 +1375,13 @@ country_parameters %>%
 if (identical(LULCt3map, NA_character_)) {
   print("No LULCt3 map available")
 } else if (LULCt3map == "YES"){
-  LULCt3_r_m <- rast(paste0("LULCC/DownloadedDatasets/SourceDataGlobal/InRaster/",country_parameters %>% # NAME IS HARDWIRED! ONE YEAR ONLY
-                              dplyr::filter(Var == "LULCt3map_name") %>%
-                              pull(ParCHR))) %>%
-    terra::crop(ext(userarea_r)) %>%
-    terra::resample(userarea_r, "near") %>%
-    terra::mask(userarea_r)
+  LULCt3_r_m <- align_raster_to_template(
+    rast(paste0("LULCC/DownloadedDatasets/SourceDataGlobal/InRaster/", country_parameters %>%
+                  dplyr::filter(Var == "LULCt3map_name") %>%
+                  pull(ParCHR))),
+    userarea_r,
+    method = "near"
+  )
   names(LULCt3_r_m) <- "layer_0"
   writeRaster(LULCt3_r_m, filename="LULCC/TempRaster/LULCt3_c.tif", datatype="INT2S", overwrite=TRUE)
 } else {
@@ -1270,24 +1445,15 @@ for (k in 1:3) {
   in_file  <- file.path("LULCC/DownloadedDatasets/SourceDataGlobal/InRaster", map_name)
   out_file <- sprintf("LULCC/TempRaster/agb%d_c.tif", k)
   
-  # Actual cell area in hectares for the target grid
-  # This is important because World Mercator is not equal-area
-  area_ha <- terra::cellSize(userarea_r, unit = "ha")
-  
   # Read input biomass density raster
   in_r <- terra::rast(in_file)
   
   # Negative values to zero before resampling
   in_r <- ifel(in_r < 0, 0, in_r)
   
-  # Resample biomass density to the target grid, then mask
-  agb_density <- in_r |>
-    terra::crop(ext(userarea_r)) |>
-    terra::resample(userarea_r, method = "bilinear") |>
-    terra::mask(userarea_r)
-  
-  # Convert density to biomass per pixel
-  outagb <- agb_density * area_ha
+  # Convert density to source-cell biomass first, then use a conservative
+  # weighted-sum warp. This preserves biomass across CRS/grid changes.
+  outagb <- density_to_cell_total(in_r, userarea_r)
   
   # Optional: if you want integer output
   outagb <- round(outagb)
@@ -1332,9 +1498,6 @@ for (v in growth_vars) {
     next
   }
   
-  # Actual cell area in hectares of target grid
-  area_ha <- terra::cellSize(userarea_r, unit = "ha")
-  
   # Input raster
   in_r <- terra::rast(in_file)
   
@@ -1344,15 +1507,17 @@ for (v in growth_vars) {
     in_r <- terra::ifel(in_r < 0, 0, in_r)
   }
   
-  # Resample to target grid
-  outmap <- in_r |>
-    terra::crop(terra::ext(userarea_r)) |>
-    terra::resample(userarea_r, method = "bilinear") |>
-    terra::mask(userarea_r)
-  
-  # ONLY scale A from Mg/ha to Mg/pixel
+  # A is a density (Mg/ha), so warp it conservatively as a cell total.
+  # k and m are continuous intensive parameters, so use an overlap-weighted
+  # mean rather than categorical nearest-neighbour resampling.
   if (v == "A_mofuss") {
-    outmap <- outmap * area_ha
+    outmap <- density_to_cell_total(in_r, userarea_r)
+  } else {
+    outmap <- align_raster_to_template(
+      in_r,
+      userarea_r,
+      method = "mean"
+    )
   }
   
   # Clean NaN values
@@ -1403,21 +1568,23 @@ npa_raster_param <- get_raster_flag("npa_raster")
 
 if (!identical(npa_raster_param, "YES")) {
   tic()
-  # Read the vector file
-  npa <- st_read(paste0("LULCC/DownloadedDatasets/SourceDataGlobal/InVector/", country_parameters %>%
-                          dplyr::filter (Var == "npa_name") %>%
-                          pull(ParCHR)))
+  # Read, validate, and project the vector before rasterization.
+  npa <- as_analysis_vector(
+    paste0("LULCC/DownloadedDatasets/SourceDataGlobal/InVector/", country_parameters %>%
+             dplyr::filter(Var == "npa_name") %>%
+             pull(ParCHR)),
+    "protected areas"
+  )
   # Rasterize using the specified field
   npa_r <- rasterize(npa, userarea_r, field = country_parameters %>%
                        dplyr::filter (Var == "npa_fieldname") %>%
                        pull(ParCHR))
-  # Multiply raster by userarea_r
-  npa_c <- npa_r * userarea_r
+  npa_c <- terra::mask(npa_r, userarea_r)
   # Assign layer name
   names(npa_c) <- "layer_0"
   # Write raster to file
   writeRaster(npa_c, filename = "LULCC/TempRaster/npa_c.tif", 
-              datatype = "INT2S", overwrite = TRUE)
+              datatype = "INT4S", overwrite = TRUE)
   toc()
 } else {
   print("Processing protected areas from raster format")
@@ -1426,13 +1593,11 @@ if (!identical(npa_raster_param, "YES")) {
                               dplyr::filter (Var == "npa_name_r") %>%
                               pull(ParCHR)))
   
-  #Crop, resample, and mask
-  npa_c <- terra::mask(
-    terra::resample(
-      terra::crop(npa_raster, userarea_r), 
-      userarea_r, method = "near"  # valid only if you're using terra >= 1.7
-    ), 
-    userarea_r
+  # Protected-area IDs are categorical; nearest neighbour preserves IDs.
+  npa_c <- align_raster_to_template(
+    npa_raster,
+    userarea_r,
+    method = "near"
   )
   # Assign layer name
   names(npa_c) <- "layer_0"
@@ -1447,18 +1612,21 @@ rivers_raster_param <- get_raster_flag("rivers_raster")
 
 if (!identical(rivers_raster_param, "YES")) {
   tic()
-  rivers <- st_read(paste0("LULCC/DownloadedDatasets/SourceDataGlobal/InVector/", country_parameters %>%
-                             dplyr::filter (Var == "rivers_name") %>%
-                             pull(ParCHR)))
+  rivers <- as_analysis_vector(
+    paste0("LULCC/DownloadedDatasets/SourceDataGlobal/InVector/", country_parameters %>%
+             dplyr::filter(Var == "rivers_name") %>%
+             pull(ParCHR)),
+    "rivers"
+  )
   
   rivers_r <- rasterize(rivers, userarea_r, field = country_parameters %>%
                           dplyr::filter (Var == "rivers_fieldname") %>%
                           pull(ParCHR))
   
-  rivers_c <- rivers_r * userarea_r
+  rivers_c <- terra::mask(rivers_r, userarea_r)
   
   writeRaster(rivers_c, filename = "LULCC/TempRaster/rivers_c.tif", 
-              datatype = "INT2S", overwrite = TRUE)
+              datatype = "INT4S", overwrite = TRUE)
   
   toc()
   
@@ -1469,12 +1637,10 @@ if (!identical(rivers_raster_param, "YES")) {
                                  dplyr::filter (Var == "rivers_name_r") %>%
                                  pull(ParCHR)))
   
-  rivers_c <- terra::mask(
-    terra::resample(
-      terra::crop(rivers_raster, userarea_r), 
-      userarea_r, method = "near"
-    ), 
-    userarea_r
+  rivers_c <- align_raster_to_template(
+    rivers_raster,
+    userarea_r,
+    method = "near"
   )
   
   writeRaster(rivers_c, filename = "LULCC/TempRaster/rivers_c.tif", 
@@ -1489,18 +1655,21 @@ lakes_raster_param <- get_raster_flag("lakes_raster")
 
 if (!identical(lakes_raster_param, "YES")) {
   tic()
-  lakes <- st_read(paste0("LULCC/DownloadedDatasets/SourceDataGlobal/InVector/", country_parameters %>%
-                            dplyr::filter (Var == "lakes_name") %>%
-                            pull(ParCHR)))
+  lakes <- as_analysis_vector(
+    paste0("LULCC/DownloadedDatasets/SourceDataGlobal/InVector/", country_parameters %>%
+             dplyr::filter(Var == "lakes_name") %>%
+             pull(ParCHR)),
+    "lakes"
+  )
   
   lakes_r <- rasterize(lakes, userarea_r, field = country_parameters %>%
                          dplyr::filter (Var == "lakes_fieldname") %>%
                          pull(ParCHR))
   
-  lakes_c <- lakes_r * userarea_r
+  lakes_c <- terra::mask(lakes_r, userarea_r)
   
   writeRaster(lakes_c, filename = "LULCC/TempRaster/lakes_c.tif", 
-              datatype = "INT2S", overwrite = TRUE)
+              datatype = "INT4S", overwrite = TRUE)
   
   toc()
   
@@ -1511,12 +1680,10 @@ if (!identical(lakes_raster_param, "YES")) {
                                 dplyr::filter (Var == "lakes_name_r") %>%
                                 pull(ParCHR)))
   
-  lakes_c <- terra::mask(
-    terra::resample(
-      terra::crop(lakes_raster, userarea_r), 
-      userarea_r, method = "near"
-    ), 
-    userarea_r
+  lakes_c <- align_raster_to_template(
+    lakes_raster,
+    userarea_r,
+    method = "near"
   )
   
   writeRaster(lakes_c, filename = "LULCC/TempRaster/lakes_c.tif", 
@@ -1531,18 +1698,21 @@ roads_raster_param <- get_raster_flag("roads_raster")
 
 if (!identical(roads_raster_param, "YES")) {
   tic()
-  roads <- st_read(paste0("LULCC/DownloadedDatasets/SourceDataGlobal/InVector/", country_parameters %>%
-                            dplyr::filter (Var == "roads_name") %>%
-                            pull(ParCHR)))
+  roads <- as_analysis_vector(
+    paste0("LULCC/DownloadedDatasets/SourceDataGlobal/InVector/", country_parameters %>%
+             dplyr::filter(Var == "roads_name") %>%
+             pull(ParCHR)),
+    "roads"
+  )
   
   roads_r <- rasterize(roads, userarea_r, field = country_parameters %>%
                          dplyr::filter (Var == "roads_fieldname") %>%
                          pull(ParCHR))
   
-  roads_c <- roads_r * userarea_r
+  roads_c <- terra::mask(roads_r, userarea_r)
   
   writeRaster(roads_c, filename = "LULCC/TempRaster/roads_c.tif", 
-              datatype = "INT2S", overwrite = TRUE)
+              datatype = "INT4S", overwrite = TRUE)
   
   toc()
   
@@ -1553,12 +1723,10 @@ if (!identical(roads_raster_param, "YES")) {
                                 dplyr::filter (Var == "roads_name_r") %>%
                                 pull(ParCHR)))
   
-  roads_c <- terra::mask(
-    terra::resample(
-      terra::crop(roads_raster, userarea_r), 
-      userarea_r, method = "near"
-    ), 
-    userarea_r
+  roads_c <- align_raster_to_template(
+    roads_raster,
+    userarea_r,
+    method = "near"
   )
   
   writeRaster(roads_c, filename = "LULCC/TempRaster/roads_c.tif", 
@@ -1572,18 +1740,21 @@ borders_raster_param <- get_raster_flag("borders_raster")
 
 if (!identical(borders_raster_param, "YES")) {
   tic()
-  borders <- st_read(paste0("LULCC/DownloadedDatasets/SourceDataGlobal/InVector/", country_parameters %>%
-                              dplyr::filter (Var == "borders_name") %>%
-                              pull(ParCHR)))
+  borders <- as_analysis_vector(
+    paste0("LULCC/DownloadedDatasets/SourceDataGlobal/InVector/", country_parameters %>%
+             dplyr::filter(Var == "borders_name") %>%
+             pull(ParCHR)),
+    "borders"
+  )
   
   borders_r <- rasterize(borders, userarea_r, field = country_parameters %>%
                            dplyr::filter (Var == "borders_fieldname") %>%
                            pull(ParCHR))
   
-  borders_c <- borders_r * userarea_r
+  borders_c <- terra::mask(borders_r, userarea_r)
   
   writeRaster(borders_c, filename = "LULCC/TempRaster/borders_c.tif", 
-              datatype = "INT2S", overwrite = TRUE)
+              datatype = "INT4S", overwrite = TRUE)
   
   toc()
   
@@ -1594,12 +1765,10 @@ if (!identical(borders_raster_param, "YES")) {
                                   dplyr::filter (Var == "borders_name_r") %>%
                                   pull(ParCHR)))
   
-  borders_c <- terra::mask(
-    terra::resample(
-      terra::crop(borders_raster, userarea_r), 
-      userarea_r, method = "near"
-    ), 
-    userarea_r
+  borders_c <- align_raster_to_template(
+    borders_raster,
+    userarea_r,
+    method = "near"
   )
   
   writeRaster(borders_c, filename = "LULCC/TempRaster/borders_c.tif", 
@@ -1607,66 +1776,239 @@ if (!identical(borders_raster_param, "YES")) {
   
 }
 
-#################################TERRA#####################################
-##### VOY POR ACÁ!! Pasar a a Terra
 # Maritime routes ----
-if (identical(country_parameters %>%
-              dplyr::filter(Var == "maritime_lyr") %>%
-              pull(ParCHR), NA_character_)) { # variable exists with no value
-  print ("No Maritime layer") 
-} else if (identical(country_parameters %>%
-                     dplyr::filter(Var == "maritime_lyr") %>%
-                     pull(ParCHR), "YES")) {
-  
-  maritime<-st_read(paste0("LULCC/DownloadedDatasets/SourceDataGlobal/InVector/", country_parameters %>%
-                             dplyr::filter(Var == "maritime_name") %>%
-                             pull(ParCHR)))
-  maritime_r <- rasterize(maritime, userarea_r, country_parameters %>%
-                            dplyr::filter(Var == "maritime_name_ID") %>%
-                            pull(ParCHR))
-  maritime_c<-maritime_r*userarea_r
-  writeRaster(maritime_c, filename="LULCC/TempRaster/maritime_c.tif", datatype="INT2S", overwrite=TRUE)
-  
+maritime_flag <- get_raster_flag("maritime_lyr")
+
+if (identical(maritime_flag, "YES")) {
+  maritime <- as_analysis_vector(
+    paste0("LULCC/DownloadedDatasets/SourceDataGlobal/InVector/", country_parameters %>%
+             dplyr::filter(Var == "maritime_name") %>%
+             pull(ParCHR)),
+    "maritime routes"
+  )
+  maritime_r <- rasterize(
+    maritime,
+    userarea_r,
+    field = country_parameters %>%
+      dplyr::filter(Var == "maritime_name_ID") %>%
+      pull(ParCHR)
+  )
+  maritime_c <- terra::mask(maritime_r, userarea_r)
+  writeRaster(
+    maritime_c,
+    filename = "LULCC/TempRaster/maritime_c.tif",
+    datatype = "INT4S",
+    overwrite = TRUE
+  )
 } else {
-  "Do nothing"
+  print("No Maritime layer")
 }
 
-# Attraction routes ---- 
-if (identical(country_parameters %>%
-              dplyr::filter(Var == "attraction_lyr") %>%
-              pull(ParCHR), NA_character_)) { # variable exists with no value
-  print ("No Attraction layer") 
-} else if (identical(country_parameters %>%
-                     dplyr::filter(Var == "attraction_lyr") %>%
-                     pull(ParCHR), "YES")) {
-  attraction <- st_read(paste0("LULCC/DownloadedDatasets/SourceDataGlobal/InVector/", country_parameters %>%
-                               dplyr::filter(Var == "attraction_name") %>%
-                               pull(ParCHR))) %>%
-    st_make_valid()
-  attractionshpcrop<-st_intersection(attraction, userarea)
-  # width <- c(0,10000,20000,50000,100000) # Adjusted for East Africa 10 to 1000 km
-  widthnames <- c("b0","b1","b2","b3","b4")
-  for (wn in widthnames){
-    if (wn == "b0") { w = w0 
-    } else if (wn == "b1") { w = w1
-    } else if (wn == "b2") { w = w2
-    } else if (wn == "b3") { w = w3
-    }  else if (wn == "b4") { w = w4
-    } else { print("error") }
-    
-    if (nrow(attractionshpcrop)==0) {
-      attraction_c1<-rasterize(st_zm(attraction), userarea_r, country_parameters %>%
-                                 dplyr::filter(Var == "attraction_name_ID") %>%
-                                 pull(ParCHR))
+# Attractors: user polygon or natural protected areas ----
+attraction_flag <- get_raster_flag("attraction_lyr")
+
+if (identical(attraction_flag, "YES")) {
+  attraction_by_npa <- get_raster_flag("attraction_by_npa")
+  if (is.na(attraction_by_npa)) {
+    attraction_by_npa <- "NO"
+  }
+  if (!attraction_by_npa %in% c("YES", "NO")) {
+    stop("Parameter 'attraction_by_npa' must be YES or NO.")
+  }
+
+  # terra buffers longitude/latitude vectors geodesically in metres. This
+  # avoids the latitude-dependent distance distortion of EPSG:3395 buffers.
+  geographic_crs <- paste0("EPSG:", epsg_gcs)
+  if (!isTRUE(terra::is.lonlat(geographic_crs))) {
+    stop("epsg_gcs must identify a longitude/latitude CRS for geodesic buffers.")
+  }
+  userarea_gcs <- terra::project(userarea_v, geographic_crs)
+  attraction_widths <- c(b0 = w0, b1 = w1, b2 = w2, b3 = w3, b4 = w4)
+
+  if (any(!is.finite(attraction_widths)) || any(attraction_widths < 0)) {
+    stop("Attractor buffer widths must be finite, non-negative metres.")
+  }
+  if (is.unsorted(attraction_widths, strictly = FALSE)) {
+    stop("Attractor buffer widths must be ordered from smallest to largest.")
+  }
+
+  # Limit large/global sources to features capable of reaching the AOI.
+  max_width <- max(attraction_widths)
+  search_area <- if (max_width > 0) {
+    terra::buffer(userarea_gcs, width = max_width)
+  } else {
+    userarea_gcs
+  }
+
+  # Follow the NPA input-format parameter. Raster NPA data are polygonized only
+  # for nearby non-zero cells, preserving their actual footprint without
+  # requiring a companion vector file.
+  use_npa_raster <- (
+    attraction_by_npa == "YES" &&
+    identical(npa_raster_param, "YES")
+  )
+  attraction_nearby <- NULL
+  attraction_zero_buffer <- NULL
+
+  if (use_npa_raster) {
+    source_parameter <- "npa_name_r"
+    source_description <- "natural protected areas raster"
+    attraction_name <- get_par_chr(country_parameters, source_parameter)
+    attraction_directory <- "LULCC/DownloadedDatasets/SourceDataGlobal/InRaster"
+  } else {
+    source_parameter <- if (attraction_by_npa == "YES") {
+      "npa_name"
     } else {
-      attractionshpcrop_b<-st_buffer(attractionshpcrop, dist=w, nQuadSegs=100)
-      attraction_c1<-rasterize(attractionshpcrop_b, userarea_r)
+      "attraction_name"
     }
-    attraction_c<-attraction_c1*userarea_r
-    writeRaster(attraction_c, filename=paste0("LULCC/TempRaster/attraction_c",wn,".tif"), datatype="INT2S", overwrite=TRUE)
+    source_description <- if (attraction_by_npa == "YES") {
+      "natural protected areas vector"
+    } else {
+      "user attractor polygon"
+    }
+    attraction_name <- get_par_chr(country_parameters, source_parameter)
+    attraction_directory <- "LULCC/DownloadedDatasets/SourceDataGlobal/InVector"
+  }
+
+  if (is.na(attraction_name) || !nzchar(trimws(attraction_name))) {
+    stop(
+      "Parameter '", source_parameter, "' is required when using ",
+      source_description, " as attractors."
+    )
+  }
+  attraction_name <- trimws(attraction_name)
+  attraction_path <- file.path(attraction_directory, attraction_name)
+
+  if (!file.exists(attraction_path)) {
+    stop("Attractor source does not exist: ", attraction_path)
+  }
+
+  if (use_npa_raster) {
+    attraction_raster <- terra::rast(attraction_path)
+    attraction_crs <- terra::crs(attraction_raster)
+    if (is.na(attraction_crs) || !nzchar(attraction_crs)) {
+      stop("Attractor raster has no CRS: ", attraction_path)
+    }
+
+    search_area_native <- if (terra::same.crs(search_area, attraction_raster)) {
+      search_area
+    } else {
+      terra::project(search_area, terra::crs(attraction_raster))
+    }
+    attraction_raster <- terra::crop(
+      attraction_raster,
+      search_area_native,
+      snap = "out"
+    )
+    attraction_presence <- terra::ifel(
+      is.na(attraction_raster) | attraction_raster == 0,
+      NA,
+      1
+    )
+    presence_count <- terra::global(
+      attraction_presence,
+      "sum",
+      na.rm = TRUE
+    )[1, 1]
+
+    if (is.finite(presence_count) && presence_count > 0) {
+      attraction_nearby <- terra::as.polygons(
+        attraction_presence,
+        aggregate = TRUE,
+        values = FALSE,
+        na.rm = TRUE
+      )
+      attraction_nearby <- terra::makeValid(attraction_nearby)
+      if (!terra::same.crs(attraction_nearby, geographic_crs)) {
+        attraction_nearby <- terra::project(attraction_nearby, geographic_crs)
+      }
+    }
+
+    # Preserve the already-harmonized NPA footprint exactly for b0.
+    attraction_zero_buffer <- terra::ifel(
+      is.na(npa_c) | npa_c == 0,
+      NA,
+      1
+    )
+  } else {
+    attraction <- terra::vect(attraction_path)
+    attraction_crs <- terra::crs(attraction)
+    if (is.na(attraction_crs) || !nzchar(attraction_crs)) {
+      stop("Attractor vector has no CRS: ", attraction_path)
+    }
+    attraction <- terra::makeValid(attraction)
+    if (
+      attraction_by_npa == "NO" &&
+      !grepl("polygon", terra::geomtype(attraction), ignore.case = TRUE)
+    ) {
+      stop("The user attractor layer must contain polygon geometries: ", attraction_path)
+    }
+
+    # Crop in the source CRS before transforming. This is materially faster
+    # for a global vector and avoids reprojecting irrelevant features.
+    search_area_native <- if (terra::same.crs(search_area, attraction)) {
+      search_area
+    } else {
+      terra::project(search_area, terra::crs(attraction))
+    }
+    attraction_nearby <- terra::crop(attraction, search_area_native)
+    if (
+      nrow(attraction_nearby) > 0L &&
+      !terra::same.crs(attraction_nearby, geographic_crs)
+    ) {
+      attraction_nearby <- terra::project(attraction_nearby, geographic_crs)
+    }
+  }
+
+  has_attraction_features <- (
+    !is.null(attraction_nearby) &&
+    nrow(attraction_nearby) > 0L
+  )
+
+  if (!has_attraction_features) {
+    warning("No ", source_description, " occur within the largest attractor buffer.")
+  } else {
+    message("Using ", source_description, " from: ", attraction_path)
+  }
+
+  for (wn in names(attraction_widths)) {
+    w <- unname(attraction_widths[[wn]])
+
+    if (!has_attraction_features) {
+      # Downstream code uses !is.na() to identify attractor cells.
+      attraction_c <- userarea_r * NA
+    } else if (use_npa_raster && w == 0) {
+      attraction_c <- attraction_zero_buffer
+    } else {
+      attraction_buffer_gcs <- if (w == 0) {
+        attraction_nearby
+      } else {
+        terra::buffer(attraction_nearby, width = w)
+      }
+      attraction_buffer <- as_analysis_vector(
+        attraction_buffer_gcs,
+        paste0(source_description, " buffer ", wn)
+      )
+      attraction_c <- terra::rasterize(
+        attraction_buffer,
+        userarea_r,
+        field = 1,
+        background = NA,
+        touches = TRUE
+      )
+      attraction_c <- terra::mask(attraction_c, userarea_r)
+    }
+
+    names(attraction_c) <- "layer_0"
+    writeRaster(
+      attraction_c,
+      filename = paste0("LULCC/TempRaster/attraction_c", wn, ".tif"),
+      datatype = "INT2S",
+      overwrite = TRUE
+    )
   }
 } else {
-  "Do nothing"
+  print("No Attraction layer")
 }
 
 # Demand modeling ---- 
@@ -1676,11 +2018,12 @@ tic("Using terra")
 # Read the raster files using terra
 locs_name_r_w <- terra::rast("In/DemandScenarios/locs_raster_w.tif")
 
-# Crop, resample, and mask using terra functions
-locs_name_r_w <- locs_name_r_w %>%
-  terra::crop(userarea_r) %>%
-  terra::resample(userarea_r, method = "near") %>%
-  terra::mask(userarea_r)
+# Location rasters are categorical/identifiers; preserve their integer values.
+locs_name_r_w <- align_raster_to_template(
+  locs_name_r_w,
+  userarea_r,
+  method = "near"
+)
 
 # Write the processed raster to a file
 writeRaster(locs_name_r_w, filename = "LULCC/TempRaster/locs_c_w.tif", datatype = "INT4S", overwrite = TRUE)
@@ -1693,10 +2036,11 @@ file.copy(from = "LULCC/TempRaster/locs_c_w.tif",
 # Repeat the process for the second raster
 locs_name_r_v <- rast("In/DemandScenarios/locs_raster_v.tif")
 
-locs_name_r_v <- locs_name_r_v %>%
-  terra::crop(userarea_r) %>%
-  terra::resample(userarea_r, method = "near") %>%
-  terra::mask(userarea_r)
+locs_name_r_v <- align_raster_to_template(
+  locs_name_r_v,
+  userarea_r,
+  method = "near"
+)
 
 writeRaster(locs_name_r_v, filename = "LULCC/TempRaster/locs_c_v.tif", datatype = "INT4S", overwrite = TRUE)
 

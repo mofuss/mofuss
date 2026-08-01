@@ -21,7 +21,7 @@
 # Internal parameters ----
 temdirdefined <- 1
 fixdir <-  0
-string_pattern_yes <- "x_" # String pattern to be searched when selecting folders for the rasters' geocomputation
+string_pattern_yes <- "x_mwi_nv3_tests_g" # String pattern to be searched when selecting folders for the rasters' geocomputation
 string_pattern_no <- "idw" # String pattern to be searched when selecting folders for the rasters' geocomputation
  
 # Load packages ----

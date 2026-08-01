@@ -85,7 +85,7 @@ resolution <- "1km"        # "1km" or "100m"
 
 res_cfg <- list(
   "1km" = list(
-    mofuss_dir  = "C:/Users/aghil/Documents/MoFuSS_localhost/x_mwi_nv3_tests_g",
+    mofuss_dir  = "C:/Users/aghil/Documents/MoFuSS_localhost/x_mwi_nv3_tests_ng",
     ctrees_dir  = "G:/Mi unidad/webpages/2026_MoFuSSGlobal_Datasets/fnrb_obs_data/1km_agco2_2000_2025",
     agg_factor  = 1        # 1 = no aggregation
   ),
