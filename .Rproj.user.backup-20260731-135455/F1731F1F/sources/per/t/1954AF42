@@ -1,0 +1,24 @@
+{
+    "id": "1954AF42",
+    "path": "~/Documents/mofuss/localhost/scripts/postprocessing4globalresults/4post_agb_decomposition_v1.R",
+    "project_path": "localhost/scripts/postprocessing4globalresults/4post_agb_decomposition_v1.R",
+    "type": "r_source",
+    "hash": "2748085086",
+    "contents": "",
+    "dirty": false,
+    "created": 1782486730585.0,
+    "source_on_save": false,
+    "relative_order": 22,
+    "properties": {
+        "source_window_id": "",
+        "Source": "Source"
+    },
+    "folds": "",
+    "lastKnownWriteTime": 1781539433,
+    "encoding": "UTF-8",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1781539433,
+    "read_only": false,
+    "read_only_alternatives": []
+}

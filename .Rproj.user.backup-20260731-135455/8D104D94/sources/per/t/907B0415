@@ -1,0 +1,24 @@
+{
+    "id": "907B0415",
+    "path": "~/Documents/mofuss/localhost/scripts/6c_demand_maps_v2_fix.R",
+    "project_path": "localhost/scripts/6c_demand_maps_v2_fix.R",
+    "type": "r_source",
+    "hash": "737477952",
+    "contents": "",
+    "dirty": false,
+    "created": 1785525672124.0,
+    "source_on_save": false,
+    "relative_order": 15,
+    "properties": {
+        "source_window_id": "",
+        "Source": "Source"
+    },
+    "folds": "",
+    "lastKnownWriteTime": 1774956718,
+    "encoding": "UTF-8",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1774956718,
+    "read_only": false,
+    "read_only_alternatives": []
+}
