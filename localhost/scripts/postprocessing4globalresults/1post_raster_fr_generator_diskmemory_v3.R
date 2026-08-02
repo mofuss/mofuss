@@ -1,4 +1,4 @@
-# Copyright 2025 Stockholm Environment Institute ----
+# Copyright 2027 Stockholm Environment Institute ----
 
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -21,7 +21,7 @@
 # Internal parameters ----
 temdirdefined <- 1
 fixdir <-  0
-string_pattern_yes <- "x_mwi_nv3_tests_g" # String pattern to be searched when selecting folders for the rasters' geocomputation
+string_pattern_yes <- "x_mwi_nv3_tests_" # String pattern to be searched when selecting folders for the rasters' geocomputation
 string_pattern_no <- "idw" # String pattern to be searched when selecting folders for the rasters' geocomputation
  
 # Load packages ----

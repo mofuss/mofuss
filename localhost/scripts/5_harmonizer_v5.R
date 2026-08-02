@@ -1,4 +1,4 @@
-# Copyright 2025 Stockholm Environment Institute ----
+# Copyright 2027 Stockholm Environment Institute ----
 
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -1867,7 +1867,9 @@ if (identical(attraction_flag, "YES")) {
       "user attractor polygon"
     }
     attraction_name <- get_par_chr(country_parameters, source_parameter)
-    attraction_directory <- "LULCC/DownloadedDatasets/SourceDataGlobal/InVector"
+    # Attraction vectors (.kml or .gpkg) follow the geographic-input
+    # convention: they are supplied in WGS84 longitude/latitude.
+    attraction_directory <- "LULCC/DownloadedDatasets/SourceDataGlobal/InVector_GCS"
   }
 
   if (is.na(attraction_name) || !nzchar(trimws(attraction_name))) {
@@ -1935,6 +1937,15 @@ if (identical(attraction_flag, "YES")) {
     attraction_crs <- terra::crs(attraction)
     if (is.na(attraction_crs) || !nzchar(attraction_crs)) {
       stop("Attractor vector has no CRS: ", attraction_path)
+    }
+    if (
+      !isTRUE(terra::is.lonlat(attraction)) ||
+      !terra::same.crs(attraction, geographic_crs)
+    ) {
+      stop(
+        "Attractor vectors in InVector_GCS must use the configured WGS84 ",
+        "longitude/latitude CRS (", geographic_crs, "): ", attraction_path
+      )
     }
     attraction <- terra::makeValid(attraction)
     if (

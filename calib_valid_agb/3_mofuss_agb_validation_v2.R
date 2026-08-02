@@ -42,7 +42,7 @@ INTERACTIVE <- FALSE          # TRUE = ask via pop-up/menus; FALSE = use paths b
 
 COUNTRY      <- "Malawi"
 CAPPED_DIR   <- "C:/Users/aghil/Documents/MoFuSS_localhost/x_mwi_nv3_tests_ng"   # capped   (_ng)
-UNCAPPED_DIR <- "" #C:/Users/aghil/Documents/MoFuSS_localhost/x_mwi_nv3_tests_g"    # uncapped (_g); "" to skip
+UNCAPPED_DIR <- "C:/Users/aghil/Documents/MoFuSS_localhost/x_mwi_nv3_tests_g"    # uncapped (_g); "" to skip
 
 OBS_TYPE     <- "projected"  # "projected" (MgDM/ha, EPSG:3395) or "latlong" (MgCO2/ha, EPSG:4326)
 OBS_PROJ_DIR <- "D:/agb3rdparties/ctrees_dic2025_agb_paras/1km_agco2_2000_2025/agb_projected_ha"
