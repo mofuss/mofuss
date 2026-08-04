@@ -41,7 +41,7 @@ if (!requireNamespace("ggplot2", quietly = TRUE)) stop("Please install 'ggplot2'
 INTERACTIVE <- FALSE          # TRUE = ask via pop-up/menus; FALSE = use paths below
 
 COUNTRY      <- "Zambia"
-CAPPED_DIR   <- "D:/mofuss_amazon/nv3/zmb_bau1_1km_nv3_ng"   # capped   (_ng)
+CAPPED_DIR   <- "D:/mofuss_amazon/nv3/zmb_bau1_1km_nv3_ng"    # capped   (_ng)
 UNCAPPED_DIR <- "D:/mofuss_amazon/nv3/zmb_bau1_1km_nv3_g"    # uncapped (_g); "" to skip
 
 OBS_TYPE     <- "projected"  # "projected" (MgDM/ha, EPSG:3395) or "latlong" (MgCO2/ha, EPSG:4326)
@@ -589,19 +589,16 @@ cat("Drawing Figure 2 (change maps) ...\n")
 mk   <- function(vec) { r <- terra::rast(ref); terra::values(r) <- vec; r }
 rObs <- mk(dObs); rCap <- mk(dCap); rUnc <- if (!is.null(dUnc)) mk(dUnc) else NULL
 
-nObs   <- sum(is.finite(dObs))
-lblObs <- "Observed (CTrees)"
-lblCap <- sprintf("MoFuSS capped (%.0f%% of obs. area)",   100 * sum(is.finite(dCap)) / nObs)
-lblUnc <- if (!is.null(dUnc)) sprintf("MoFuSS uncapped (%.0f%% of obs. area)", 100 * sum(is.finite(dUnc)) / nObs) else NULL
+panel_ids <- c("A", "B", "C")[seq_len(2L + !is.null(dUnc))]
 
 te   <- terra::ext(terra::trim(rObs))
 rObs <- terra::crop(rObs, te)
 rCap <- terra::crop(rCap, te)
 if (!is.null(rUnc)) rUnc <- terra::crop(rUnc, te)
-to_df <- function(r, nm) { d <- as.data.frame(r, xy = TRUE, na.rm = FALSE); names(d)[3] <- "value"; d$panel <- nm; d }
-map_df <- to_df(rObs, lblObs); map_df <- rbind(map_df, to_df(rCap, lblCap))
-if (!is.null(rUnc)) map_df <- rbind(map_df, to_df(rUnc, lblUnc))
-map_df$panel <- factor(map_df$panel, levels = unique(map_df$panel)); np <- nlevels(map_df$panel)
+to_df <- function(r, panel_id) { d <- as.data.frame(r, xy = TRUE, na.rm = FALSE); names(d)[3] <- "value"; d$panel <- panel_id; d }
+map_df <- to_df(rObs, panel_ids[1]); map_df <- rbind(map_df, to_df(rCap, panel_ids[2]))
+if (!is.null(rUnc)) map_df <- rbind(map_df, to_df(rUnc, panel_ids[3]))
+map_df$panel <- factor(map_df$panel, levels = panel_ids); np <- nlevels(map_df$panel)
 
 map_values <- c(dObs[is.finite(dObs)], dCap[is.finite(dCap)])
 if (!is.null(dUnc)) map_values <- c(map_values, dUnc[is.finite(dUnc)])
@@ -625,22 +622,32 @@ asp <- as.numeric(
   (terra::xmax(te) - terra::xmin(te)) / (terra::ymax(te) - terra::ymin(te))
 )
 maph <- 4.4
+panel_labels <- data.frame(
+  panel = factor(panel_ids, levels = panel_ids),
+  x = terra::xmin(te) + 0.025 * (terra::xmax(te) - terra::xmin(te)),
+  y = terra::ymax(te) - 0.025 * (terra::ymax(te) - terra::ymin(te))
+)
 
 g2 <- ggplot2::ggplot(map_df, ggplot2::aes(x, y, fill = value)) +
   ggplot2::geom_raster() + adm_layer + ggplot2::facet_wrap(~ panel, nrow = 1) +
+  ggplot2::geom_label(
+    data = panel_labels, ggplot2::aes(x = x, y = y, label = panel),
+    inherit.aes = FALSE, hjust = 0, vjust = 1, fontface = "bold", size = 5,
+    fill = "white", colour = "black", linewidth = 0.2,
+    label.padding = grid::unit(0.18, "lines")
+  ) +
   ggplot2::scale_fill_gradientn(colours = divpal, limits = c(-vmax, vmax), na.value = "grey85", name = "AGB change\n(MgDM/ha)") +
   ggplot2::coord_equal(xlim = c(terra::xmin(te), terra::xmax(te)),
                        ylim = c(terra::ymin(te), terra::ymax(te)), expand = FALSE) +
-  ggplot2::labs(title = sprintf("%s - aboveground biomass change (%d vs %d)", COUNTRY, BASE_YEAR, END_YEAR),
-       subtitle = "each panel shows its own data coverage; grey = no data or HydroLAKES water", x = NULL, y = NULL) +
+  ggplot2::labs(x = NULL, y = NULL) +
   ggplot2::guides(fill = ggplot2::guide_colourbar(barheight = grid::unit(3.2, "cm"), title.position = "top")) +
   ggplot2::theme_minimal(base_size = 12) +
   ggplot2::theme(axis.text = ggplot2::element_blank(), axis.ticks = ggplot2::element_blank(), panel.grid = ggplot2::element_blank(),
         panel.background = ggplot2::element_rect(fill = "grey85", colour = NA), panel.spacing = grid::unit(3, "pt"),
-        plot.title = ggplot2::element_text(face = "bold", size = 12), strip.text = ggplot2::element_text(size = 10),
+        strip.text = ggplot2::element_blank(), strip.background = ggplot2::element_blank(),
         legend.title = ggplot2::element_text(size = 9))
 ggplot2::ggsave(file.path(OUT_DIR, paste0(COUNTRY, "_fig2_change_maps.png")), g2,
-       width = np * maph * asp + 1.7, height = maph + 1.1, dpi = 150)
+       width = np * maph * asp + 1.7, height = maph + 0.3, dpi = 150)
 cat("   Figure 2 saved.\n")
 
 ###############################################################################
