@@ -1,0 +1,415 @@
+# MoFuSS
+# Version 2
+# Date: Apr 2026
+
+# 2dolist ----
+
+# Internal parameters ----
+runGADM <- 0
+runplantations <- 0
+telegram_msgs <- 1
+personal_demand <- 1
+
+start_time <- Sys.time()
+
+# Load libraries ----
+library(rprojroot)
+library(rstudioapi)
+library(telegram.bot)
+
+# Get system information
+computer_name <- Sys.info()[["nodename"]] # Gets the hostname of the computer
+os_name <- Sys.info()[["sysname"]]       # Gets the operating system name
+
+# Determine the script directory
+scriptsmofuss <- dirname(rstudioapi::getSourceEditorContext()$path)
+cat("scriptsmofuss set to:", scriptsmofuss, "\n")
+
+# Load machine-local secrets. Process-level variables (for example, CI or
+# scheduler-injected secrets) take precedence over values in the local .env.
+env_file <- file.path(scriptsmofuss, ".env")
+telegram_env_names <- c(
+  "MOFUSS_TELEGRAM_BOT_TOKEN",
+  "MOFUSS_TELEGRAM_CHAT_ID"
+)
+telegram_process_values <- Sys.getenv(
+  telegram_env_names,
+  unset = NA_character_
+)
+
+if (file.exists(env_file)) {
+  readRenviron(env_file)
+}
+
+for (i in seq_along(telegram_env_names)) {
+  if (!is.na(telegram_process_values[[i]])) {
+    do.call(
+      Sys.setenv,
+      setNames(
+        list(telegram_process_values[[i]]),
+        telegram_env_names[[i]]
+      )
+    )
+  }
+}
+
+# Telegram Bot Setup ----
+telegram_token <- Sys.getenv("MOFUSS_TELEGRAM_BOT_TOKEN", unset = "")
+chat_id <- Sys.getenv("MOFUSS_TELEGRAM_CHAT_ID", unset = "")
+telegram_credentials_present <- nzchar(telegram_token) && nzchar(chat_id)
+
+bot <- NULL
+if (telegram_msgs == 1 && telegram_credentials_present) {
+  bot <- tryCatch(
+    Bot(token = telegram_token),
+    error = function(e) {
+      message("Telegram setup failed; notifications disabled: ", conditionMessage(e))
+      NULL
+    }
+  )
+} else if (telegram_msgs == 1) {
+  message(
+    "Telegram notifications disabled: set MOFUSS_TELEGRAM_BOT_TOKEN ",
+    "and MOFUSS_TELEGRAM_CHAT_ID in the local .env or process environment."
+  )
+}
+
+send_telegram_message <- function(message) {
+  if (telegram_msgs != 1 || is.null(bot)) {
+    return(invisible(FALSE))
+  }
+
+  tryCatch(
+    {
+      bot$sendMessage(chat_id = chat_id, text = message)
+      invisible(TRUE)
+    },
+    error = function(e) {
+      message("Telegram notification failed; continuing: ", conditionMessage(e))
+      invisible(FALSE)
+    }
+  )
+}
+
+# Function to source scripts with progress notifications
+source_script <- function(script_path, script_name) {
+  tryCatch({
+    # Notify script start
+    cat("Starting", script_name, "...\n")
+    if (telegram_msgs == 1) {
+    # send_telegram_message(paste("Starting", script_name, "⏳"))
+    send_telegram_message(paste("Starting", script_name, "⏳ -- running on", computer_name, "(", os_name,")"))    
+    }
+    # Run the script
+    source(script_path)
+    
+    # Notify script success
+    cat(script_name, "sourced successfully.\n")
+    if (telegram_msgs == 1) {
+    send_telegram_message(paste(script_name, "ran successfully! ✅" , "-- running on", computer_name, "(", os_name,")"))   
+    }
+    TRUE
+  }, error = function(e) {
+    # Notify script error
+    cat("Error in", script_name, ":", e$message, "\n")
+    if (telegram_msgs == 1) {
+    send_telegram_message(paste("Error in script:", script_name, "\nMessage ❌", e$message, "-- running on", computer_name, "(", os_name,")"))
+    }
+    FALSE
+  })
+}
+
+copy_personal_demand_csv <- function() {
+  if (personal_demand != 1) {
+    return(invisible(NULL))
+  }
+
+  required_parameter_columns <- c("Var", "ParCHR")
+  demand_parameters <- NULL
+
+  # The preceding setup/copy scripts already parse parameters.csv with readr.
+  # Reuse that table so irregular non-scenario rows cannot prevent the demand
+  # file chooser from opening.
+  if (exists("country_parameters", inherits = TRUE)) {
+    parsed_parameters <- get("country_parameters", inherits = TRUE)
+
+    if (
+      is.data.frame(parsed_parameters) &&
+        all(required_parameter_columns %in% names(parsed_parameters))
+    ) {
+      demand_parameters <- parsed_parameters
+    }
+  }
+
+  # Fallback for calling this function independently of the normal script loop.
+  if (is.null(demand_parameters)) {
+    parameters_path <- file.path(
+      countrydir,
+      "LULCC",
+      "DownloadedDatasets",
+      "SourceDataGlobal",
+      "parameters.csv"
+    )
+
+    if (!file.exists(parameters_path)) {
+      configured_parameters_path <- if (
+        exists("parameters_file_path", inherits = TRUE)
+      ) {
+        get("parameters_file_path", inherits = TRUE)
+      } else {
+        character(0)
+      }
+
+      configured_parameters_path <- configured_parameters_path[
+        !is.na(configured_parameters_path) &
+          nzchar(configured_parameters_path) &
+          file.exists(configured_parameters_path)
+      ]
+
+      if (length(configured_parameters_path) == 0) {
+        stop("Could not find parameters.csv to determine scenario_ver.")
+      }
+
+      parameters_path <- configured_parameters_path[[1]]
+    }
+
+    first_line <- readLines(parameters_path, n = 1, warn = FALSE)
+    parameters_delimiter <- if (
+      grepl(";", first_line, fixed = TRUE)
+    ) {
+      ";"
+    } else {
+      ","
+    }
+    demand_parameters <- readr::read_delim(
+      parameters_path,
+      delim = parameters_delimiter,
+      show_col_types = FALSE,
+      progress = FALSE,
+      trim_ws = TRUE
+    )
+  }
+
+  missing_parameter_columns <- setdiff(
+    required_parameter_columns,
+    names(demand_parameters)
+  )
+
+  if (length(missing_parameter_columns) > 0) {
+    stop(
+      "parameters.csv is missing required column(s): ",
+      paste(missing_parameter_columns, collapse = ", ")
+    )
+  }
+
+  scenario_values <- unique(trimws(as.character(
+    demand_parameters$ParCHR[demand_parameters$Var == "scenario_ver"]
+  )))
+  scenario_values <- scenario_values[!is.na(scenario_values) & nzchar(scenario_values)]
+
+  if (length(scenario_values) != 1) {
+    stop("parameters.csv must contain exactly one non-empty scenario_ver value.")
+  }
+
+  selected_scenario <- scenario_values[[1]]
+  ics_scenarios <- c("ICS1_v2", "ICS2_v2", "ICS3_v2")
+  bau_scenarios <- c("BaU1_v2", "BaU2_v2", "BaU3_v2")
+
+  if (!selected_scenario %in% c(bau_scenarios, ics_scenarios)) {
+    stop("Invalid scenario_ver in parameters.csv: ", selected_scenario)
+  }
+
+  choose_demand_csv <- function(caption) {
+    cat(paste0("\033[32m", caption, "\033[0m\n"))
+
+    selected_file <- utils::choose.files(
+      caption = caption,
+      multi = FALSE,
+      filters = matrix(
+        c("CSV Files", "*.csv"),
+        ncol = 2,
+        byrow = TRUE
+      )
+    )
+
+    if (
+      length(selected_file) == 0 ||
+        is.na(selected_file[[1]]) ||
+        !nzchar(selected_file[[1]])
+    ) {
+      stop("Demand table selection was cancelled.")
+    }
+
+    selected_file <- selected_file[[1]]
+
+    if (!grepl("\\.csv$", selected_file, ignore.case = TRUE)) {
+      stop("Selected file is not a .csv file: ", selected_file)
+    }
+
+    selected_file
+  }
+
+  is_ics_scenario <- selected_scenario %in% ics_scenarios
+
+  if (telegram_msgs == 1) {
+    upload_message <- if (is_ics_scenario) {
+      paste(
+        "You now need to upload two demand tables: BaU and",
+        selected_scenario, "📂"
+      )
+    } else {
+      "You now need to upload the demand table 📂"
+    }
+
+    send_telegram_message(
+      paste(
+        upload_message,
+        "-- running on", computer_name, "(", os_name, ")"
+      )
+    )
+  }
+
+  if (is_ics_scenario) {
+    bau_input_csv <- choose_demand_csv(
+      "Please choose the Business as Usual demand table (.csv)"
+    )
+    ics_input_csv <- choose_demand_csv(
+      paste0("Please choose the ", selected_scenario, " demand table (.csv)")
+    )
+
+    if (identical(
+      normalizePath(bau_input_csv, winslash = "/", mustWork = TRUE),
+      normalizePath(ics_input_csv, winslash = "/", mustWork = TRUE)
+    )) {
+      stop("The BaU and ICS demand tables must be different files.")
+    }
+
+    uploads <- list(
+      list(
+        input = bau_input_csv,
+        output_name = "demand_bau1_v2.csv"
+      ),
+      list(
+        input = ics_input_csv,
+        output_name = paste0("demand_", tolower(selected_scenario), ".csv")
+      )
+    )
+  } else {
+    input_csv <- choose_demand_csv(
+      "Please choose the demand table (.csv)"
+    )
+    uploads <- list(
+      list(
+        input = input_csv,
+        output_name = basename(input_csv)
+      )
+    )
+  }
+
+  demand_dir <- file.path(
+    countrydir,
+    "LULCC",
+    "DownloadedDatasets",
+    "SourceDataGlobal",
+    "demand",
+    "demand_in"
+  )
+
+  if (!dir.exists(demand_dir)) {
+    dir.create(demand_dir, recursive = TRUE)
+  }
+
+  if (!dir.exists(demand_dir)) {
+    stop("Could not create the demand input directory: ", demand_dir)
+  }
+
+  copied_files <- character(0)
+
+  for (upload in uploads) {
+    output_path <- file.path(demand_dir, upload$output_name)
+    copy_succeeded <- file.copy(
+      from = upload$input,
+      to = output_path,
+      overwrite = TRUE
+    )
+
+    if (!isTRUE(copy_succeeded)) {
+      stop("Could not copy the demand table to: ", output_path)
+    }
+
+    copied_files <- c(copied_files, upload$output_name)
+    cat(
+      paste0(
+        "\033[32mPersonal demand CSV copied successfully as: ",
+        upload$output_name,
+        "\033[0m\n"
+      )
+    )
+  }
+
+  if (telegram_msgs == 1) {
+    send_telegram_message(
+      paste(
+        "Personal demand table upload completed successfully ✅",
+        "\nFile(s):", paste(copied_files, collapse = ", "),
+        "-- running on", computer_name, "(", os_name, ")"
+      )
+    )
+  }
+
+  invisible(file.path(demand_dir, copied_files))
+}
+
+# Source files ----
+scripts <- list(
+  "00_webmofuss.R",
+  "0_set_directories_and_region_v3.R",
+  if (runGADM == 1) "preprocessing4globaldatasets/0apre_GADM_admin_wp_v8.R",
+  "1_erase_all_v1.R",
+  "2_copy_files_v1.R",
+  # "2a_ics_constructor_v7.R",
+  if (personal_demand != 1) "2b_oneschema_fix_v5.R",
+  "2c_demand_tables_v5.R",
+  "3_demand4IDW_v8.R",
+  "4_produce_growth_and_stock_csv_v1.R",
+  "5_harmonizer_v5.R",
+  "6a_scenarios.R",
+  # if (runplantations == 1) "6b_plantations_v0.R",
+  # "6c_demand_maps_v1.R"
+  "6d_parameters_dinamica_v1.R"
+)
+
+all_successful <- TRUE
+
+for (script in scripts) {
+  
+  if (!is.null(script)) {
+    
+    script_path <- file.path(scriptsmofuss, script)
+    successful <- source_script(script_path, script)
+    
+    if (!successful) {
+      all_successful <- FALSE
+      break
+    }
+    
+    # After copying files, ask user for personal demand CSV
+    if (script == "2_copy_files_v1.R") {
+      copy_personal_demand_csv()
+    }
+  }
+}
+
+# Notify overall completion
+if (telegram_msgs == 1) {
+  if (all_successful) {
+    send_telegram_message(paste("All scripts ran successfully ✅," ,"-- running on", computer_name, "(", os_name,"). We now need you to log back into your MoFuSS account 💻  "))
+    cat("All scripts ran successfully! ✅\n")
+  } else {
+    send_telegram_message(paste("One or more scripts encountered errors ❌","-- runnning on", computer_name, "(", os_name,")"))
+    cat("One or more scripts encountered errors. ❌\n")
+  }  
+}
+
+end_time <- Sys.time()
+end_time - start_time

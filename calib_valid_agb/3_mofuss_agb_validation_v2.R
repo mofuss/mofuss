@@ -21,6 +21,8 @@
 ##   - Gross NRB is sum(max(AGB_start - AGB_end, 0)) by pixel. Net NRB is
 ##     max(0, sum(AGB_start - AGB_end)) over the requested national footprint.
 ##     Intermediate years do not enter either calculation.
+##   - HydroLAKES cells are excluded from the validation domain for all sources.
+##     This affects maps, trajectories, NRB totals, and pixel statistics equally.
 ##   - Physical totals use cell-specific geodesic hectares from terra::cellSize;
 ##     CSVs also retain MoFuSS's xres^2-area totals for internal mass-balance use.
 ##
@@ -55,6 +57,12 @@ OUT_BASE     <- "C:/Users/aghil/Documents/calib_valid_agb_new_2000-2025_verra"
 ## "" = auto-find at <CAPPED_DIR>/LULCC/TempVector/userarea1.gpkg
 CLIP_OBS_TO_COUNTRY <- TRUE
 ADMIN_VECTOR        <- ""
+
+## Validation-domain water mask. "" auto-finds hydrolakes_pcs.tif under the
+## capped working folder (then the uncapped folder as a fallback). Applying the
+## mask remains safe after upstream rasters are corrected because it is idempotent.
+EXCLUDE_HYDROLAKES <- TRUE
+HYDROLAKES_RASTER  <- ""
 
 BASE_YEAR <- 2000
 END_YEAR  <- 2025
@@ -105,12 +113,24 @@ obs_name <- if (OBS_TYPE == "latlong") obs_ll_name else obs_proj_name
 OUT_DIR  <- file.path(OUT_BASE, paste0(tolower(gsub("[^A-Za-z0-9]", "_", COUNTRY)), "_R"))
 dir.create(OUT_DIR, showWarnings = FALSE, recursive = TRUE)
 admin_path <- if (nzchar(ADMIN_VECTOR)) ADMIN_VECTOR else file.path(CAPPED_DIR, "LULCC", "TempVector", "userarea1.gpkg")
+hydrolakes_rel <- file.path("LULCC", "DownloadedDatasets", "SourceDataGlobal",
+                            "InRaster", "hydrolakes_pcs.tif")
+hydrolakes_candidates <- unique(c(
+  if (nzchar(HYDROLAKES_RASTER)) HYDROLAKES_RASTER else character(0),
+  file.path(CAPPED_DIR, hydrolakes_rel),
+  if (nzchar(UNCAPPED_DIR)) file.path(UNCAPPED_DIR, hydrolakes_rel) else character(0)
+))
+hydrolakes_path <- hydrolakes_candidates[file.exists(hydrolakes_candidates)][1]
+if (EXCLUDE_HYDROLAKES && (length(hydrolakes_path) == 0L || is.na(hydrolakes_path)))
+  stop("HydroLAKES display mask not found. Checked:\n  ",
+       paste(hydrolakes_candidates, collapse = "\n  "))
 
 cat("\nCountry      :", COUNTRY,
     "\nCapped dir   :", CAPPED_DIR,
     "\nUncapped dir :", if (nzchar(UNCAPPED_DIR)) UNCAPPED_DIR else "(none)",
     "\nObserved     :", OBS_TYPE, "->", OBS_DIR,
     "\nBoundary     :", admin_path,
+    "\nWater mask  :", if (EXCLUDE_HYDROLAKES) hydrolakes_path else "(disabled)",
     "\nOutput       :", OUT_DIR, "\n\n")
 
 ###############################################################################
@@ -164,6 +184,24 @@ align_obs <- function(year, ref) {   # -> MgDM/ha SpatRaster on the reference gr
   }
   if (OBS_TYPE == "latlong") a <- a * CO2_TO_DM
   a[a < 0] <- NA; a
+}
+water_mask_vec <- function(path, ref) { # TRUE for HydroLAKES cells on ref grid
+  r <- terra::rast(path)
+  if (terra::nlyr(r) != 1L) stop("Expected a single-band HydroLAKES raster: ", path)
+  if (!nzchar(terra::crs(r))) stop("HydroLAKES raster has no CRS: ", path)
+  if (terra::same.crs(r, ref)) {
+    r <- terra::crop(r, pad_ext(terra::ext(ref), 0.02), snap = "out")
+    a <- terra::resample(r, ref, method = "near")
+  } else {
+    box <- terra::project(
+      terra::as.polygons(terra::ext(ref), crs = terra::crs(ref)),
+      terra::crs(r)
+    )
+    r <- terra::crop(r, pad_ext(terra::ext(box), 0.05), snap = "out")
+    a <- terra::project(r, ref, method = "near")
+  }
+  v <- as.numeric(terra::values(a))
+  is.finite(v) & v > 0
 }
 sim_vec <- function(mc_dir, year) {   # MoFuSS AGB in MgDM per CELL, vector on ref grid
   f <- file.path(mc_dir, sim_file_name(year))
@@ -221,12 +259,21 @@ if (CLIP_OBS_TO_COUNTRY && file.exists(admin_path)) {
   stop("Country boundary not found; national aggregation would be invalid: ", admin_path)
 }
 
+## One common land domain for observed and every simulation configuration.
+## Keeping country_vec separate preserves the true administrative footprint for
+## diagnostics; validation_domain_vec additionally removes HydroLAKES cells.
+water_vec <- rep(FALSE, terra::ncell(ref))
+if (EXCLUDE_HYDROLAKES) water_vec <- water_mask_vec(hydrolakes_path, ref)
+validation_domain_vec <- country_vec & !water_vec
+cat(sprintf("HydroLAKES excluded from validation: %s cells inside country\n",
+            format(sum(country_vec & water_vec), big.mark = ",", scientific = FALSE)))
+
 cat("Loading observed CTrees maps ...\n")
 obs_ha <- list()
 for (y in years) {
   a <- align_obs(y, ref)
   v <- if (is.null(a)) rep(NA_real_, terra::ncell(ref)) else as.numeric(terra::values(a))
-  if (CLIP_OBS_TO_COUNTRY) v[!country_vec] <- NA
+  v[!validation_domain_vec] <- NA
   obs_ha[[as.character(y)]] <- v
 }
 
@@ -291,9 +338,9 @@ uncd1_end   <- if (length(uncMC)) sim_vec(uncMC[1], END_YEAR)  / model_cell_ha e
 dObs <- obs_end - obs_start
 dCap <- capd1_end - capd1_start
 dUnc <- if (!is.null(uncd1_end)) uncd1_end - uncd1_start else NULL
-## Maps use each model's own endpoint footprint, but never include cells outside the country.
-dObs[!country_vec] <- NA; dCap[!country_vec] <- NA
-if (!is.null(dUnc)) dUnc[!country_vec] <- NA
+## Maps use each model's own endpoint footprint within the common land domain.
+dObs[!validation_domain_vec] <- NA; dCap[!validation_domain_vec] <- NA
+if (!is.null(dUnc)) dUnc[!validation_domain_vec] <- NA
 
 pix_stats <- function(sim_change, obs_change, m, label) {
   o <- obs_change[m]; s <- sim_change[m]; keep <- is.finite(o) & is.finite(s)
@@ -372,12 +419,12 @@ nrb_metrics <- function(start, end, domain, source, config, scope, mc, value_uni
 ## MoFuSS configuration on its own valid model domain. These are the values to
 ## retain for later demand comparisons (demand must use the same scope and an
 ## explicitly chosen geodesic-vs-model-native accounting convention).
-nrb_all <- nrb_metrics(obs_start, obs_end, country_vec, "Observed", "Country",
+nrb_all <- nrb_metrics(obs_start, obs_end, validation_domain_vec, "Observed", "Country",
                        "country_endpoint", 0L, "MgDM_ha")
 append_model_nrb <- function(out, mcdirs, cfg) {
   for (i in seq_along(mcdirs)) {
     s0 <- sim_vec(mcdirs[i], BASE_YEAR); s1 <- sim_vec(mcdirs[i], END_YEAR)
-    out <- rbind(out, nrb_metrics(s0, s1, country_vec, "MoFuSS", cfg,
+    out <- rbind(out, nrb_metrics(s0, s1, validation_domain_vec, "MoFuSS", cfg,
                                   "configuration_endpoint", i, "MgDM_cell"))
   }
   out
@@ -392,7 +439,7 @@ nrb_pairwise <- NULL
 append_pairwise_nrb <- function(out, mcdirs, cfg) {
   for (i in seq_along(mcdirs)) {
     s0 <- sim_vec(mcdirs[i], BASE_YEAR); s1 <- sim_vec(mcdirs[i], END_YEAR)
-    common <- country_vec & is.finite(obs_start) & is.finite(obs_end) & is.finite(s0) & is.finite(s1)
+    common <- validation_domain_vec & is.finite(obs_start) & is.finite(obs_end) & is.finite(s0) & is.finite(s1)
     out <- rbind(out,
                  nrb_metrics(obs_start, obs_end, common, "Observed", cfg,
                              "pairwise_common_endpoint", i, "MgDM_ha"),
@@ -545,19 +592,16 @@ cat("Drawing Figure 2 (change maps) ...\n")
 mk   <- function(vec) { r <- terra::rast(ref); terra::values(r) <- vec; r }
 rObs <- mk(dObs); rCap <- mk(dCap); rUnc <- if (!is.null(dUnc)) mk(dUnc) else NULL
 
-nObs   <- sum(is.finite(dObs))
-lblObs <- "Observed (CTrees)"
-lblCap <- sprintf("MoFuSS capped (%.0f%% of obs. area)",   100 * sum(is.finite(dCap)) / nObs)
-lblUnc <- if (!is.null(dUnc)) sprintf("MoFuSS uncapped (%.0f%% of obs. area)", 100 * sum(is.finite(dUnc)) / nObs) else NULL
+panel_ids <- c("A", "B", "C")[seq_len(2L + !is.null(dUnc))]
 
 te   <- terra::ext(terra::trim(rObs))
 rObs <- terra::crop(rObs, te)
 rCap <- terra::crop(rCap, te)
 if (!is.null(rUnc)) rUnc <- terra::crop(rUnc, te)
-to_df <- function(r, nm) { d <- as.data.frame(r, xy = TRUE, na.rm = FALSE); names(d)[3] <- "value"; d$panel <- nm; d }
-map_df <- to_df(rObs, lblObs); map_df <- rbind(map_df, to_df(rCap, lblCap))
-if (!is.null(rUnc)) map_df <- rbind(map_df, to_df(rUnc, lblUnc))
-map_df$panel <- factor(map_df$panel, levels = unique(map_df$panel)); np <- nlevels(map_df$panel)
+to_df <- function(r, panel_id) { d <- as.data.frame(r, xy = TRUE, na.rm = FALSE); names(d)[3] <- "value"; d$panel <- panel_id; d }
+map_df <- to_df(rObs, panel_ids[1]); map_df <- rbind(map_df, to_df(rCap, panel_ids[2]))
+if (!is.null(rUnc)) map_df <- rbind(map_df, to_df(rUnc, panel_ids[3]))
+map_df$panel <- factor(map_df$panel, levels = panel_ids); np <- nlevels(map_df$panel)
 
 map_values <- c(dObs[is.finite(dObs)], dCap[is.finite(dCap)])
 if (!is.null(dUnc)) map_values <- c(map_values, dUnc[is.finite(dUnc)])
@@ -581,22 +625,32 @@ asp <- as.numeric(
   (terra::xmax(te) - terra::xmin(te)) / (terra::ymax(te) - terra::ymin(te))
 )
 maph <- 4.4
+panel_labels <- data.frame(
+  panel = factor(panel_ids, levels = panel_ids),
+  x = terra::xmin(te) + 0.025 * (terra::xmax(te) - terra::xmin(te)),
+  y = terra::ymax(te) - 0.025 * (terra::ymax(te) - terra::ymin(te))
+)
 
 g2 <- ggplot2::ggplot(map_df, ggplot2::aes(x, y, fill = value)) +
   ggplot2::geom_raster() + adm_layer + ggplot2::facet_wrap(~ panel, nrow = 1) +
+  ggplot2::geom_label(
+    data = panel_labels, ggplot2::aes(x = x, y = y, label = panel),
+    inherit.aes = FALSE, hjust = 0, vjust = 1, fontface = "bold", size = 5,
+    fill = "white", colour = "black", linewidth = 0.2,
+    label.padding = grid::unit(0.18, "lines")
+  ) +
   ggplot2::scale_fill_gradientn(colours = divpal, limits = c(-vmax, vmax), na.value = "grey85", name = "AGB change\n(MgDM/ha)") +
   ggplot2::coord_equal(xlim = c(terra::xmin(te), terra::xmax(te)),
                        ylim = c(terra::ymin(te), terra::ymax(te)), expand = FALSE) +
-  ggplot2::labs(title = sprintf("%s - aboveground biomass change (%d vs %d)", COUNTRY, BASE_YEAR, END_YEAR),
-       subtitle = "each panel shows its own data coverage; grey = no data", x = NULL, y = NULL) +
+  ggplot2::labs(x = NULL, y = NULL) +
   ggplot2::guides(fill = ggplot2::guide_colourbar(barheight = grid::unit(3.2, "cm"), title.position = "top")) +
   ggplot2::theme_minimal(base_size = 12) +
   ggplot2::theme(axis.text = ggplot2::element_blank(), axis.ticks = ggplot2::element_blank(), panel.grid = ggplot2::element_blank(),
         panel.background = ggplot2::element_rect(fill = "grey85", colour = NA), panel.spacing = grid::unit(3, "pt"),
-        plot.title = ggplot2::element_text(face = "bold", size = 12), strip.text = ggplot2::element_text(size = 10),
+        strip.text = ggplot2::element_blank(), strip.background = ggplot2::element_blank(),
         legend.title = ggplot2::element_text(size = 9))
 ggplot2::ggsave(file.path(OUT_DIR, paste0(COUNTRY, "_fig2_change_maps.png")), g2,
-       width = np * maph * asp + 1.7, height = maph + 1.1, dpi = 150)
+       width = np * maph * asp + 1.7, height = maph + 0.3, dpi = 150)
 cat("   Figure 2 saved.\n")
 
 ###############################################################################

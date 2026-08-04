@@ -22,7 +22,7 @@
 # Line 183: BaU vs ICS
 
 # Internal parameters ----
-attdecay = 1.15  # decay rate of attraction kernels
+attdecay = 1.40  # decay rate of attraction kernels
 # # Select MoFuSS platform:
 # webmofuss = 1 # "1" is  web-MoFuSS running in our Ubuntu server, "0" is localcal host (Windows or Linux)
 # source(paste0(scriptsmofuss,"00_webmofuss.R"))
@@ -470,7 +470,13 @@ if (friction == "R"){
     cb3 <- raster("LULCC/TempRaster/attraction_cb3.tif")
     cb4 <- raster("LULCC/TempRaster/attraction_cb4.tif")
     
-    fun_att <- function(x,y) {ifelse(!is.na(x), y/attdecay, y)} # Adjusted for East Africa 10 to 1000 km
+    # Apply attraction only to traversable cells. A friction value of 999999
+    # represents an inviolable barrier and must remain unchanged.
+    fun_att <- function(x, y) {
+      ifelse(!is.na(x) & !is.na(y) & y != 999999,
+             y / attdecay,
+             y)
+    }
     
     fricc_v10000 <- overlay(cb0, fricc_vv,
                             fun = fun_att) %>%
