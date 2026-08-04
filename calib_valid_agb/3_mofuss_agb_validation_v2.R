@@ -38,15 +38,18 @@ if (!requireNamespace("ggplot2", quietly = TRUE)) stop("Please install 'ggplot2'
 ###############################################################################
 INTERACTIVE <- FALSE          # TRUE = ask via pop-up/menus; FALSE = use paths below
 
-COUNTRY      <- "Zambia"
-CAPPED_DIR   <- "D:/mofuss_amazon/nv3/zmb_bau1_1km_nv3_ng"   # capped   (_ng)
-UNCAPPED_DIR <- "D:/mofuss_amazon/nv3/zmb_bau1_1km_nv3_g"    # uncapped (_g); "" to skip
+COUNTRY      <- "Mozambique"
+CAPPED_DIR   <- "E:/moz_bau1_1km_nv3_ng"   # capped   (_ng)
+UNCAPPED_DIR <- "E:/moz_bau1_1km_nv3_g"    # uncapped (_g); "" to skip
 
 OBS_TYPE     <- "projected"  # "projected" (MgDM/ha, EPSG:3395) or "latlong" (MgCO2/ha, EPSG:4326)
-OBS_PROJ_DIR <- "D:/agb3rdparties/ctrees_dic2025_agb_paras/1km_agco2_2000_2025/agb_projected_ha"
-OBS_LL_DIR   <- "D:/agb3rdparties/ctrees_dic2025_agb_paras/1km_agco2_2000_2025"
+# OBS_PROJ_DIR <- "D:/agb3rdparties/ctrees_dic2025_agb_paras/1km_agco2_2000_2025/agb_projected_ha"
+OBS_PROJ_DIR <- "G:/My Drive/webpages/2026_MoFuSSGlobal_Datasets/ctrees_dic2025_agb_cr/1km_agco2_2000_2025/agb_projected_ha"
+# OBS_LL_DIR   <- "D:/agb3rdparties/ctrees_dic2025_agb_paras/1km_agco2_2000_2025"
+OBS_LL_DIR   <- "G:/My Drive/webpages/2026_MoFuSSGlobal_Datasets/ctrees_dic2025_agb_cr/1km_agco2_2000_2025/"
 
-OUT_BASE     <- "C:/Users/aghil/Documents/MoFuSS_localhost/calib_valid_agb_new_2000-2025_verra"
+# OUT_BASE     <- "C:/Users/aghil/Documents/MoFuSS_localhost/calib_valid_agb_new_2000-2025_verra"
+OUT_BASE     <- "C:/Users/aghil/Documents/calib_valid_agb_new_2000-2025_verra"
 
 ## Country boundary used to clip the observed maps (and to overlay in the maps).
 ## "" = auto-find at <CAPPED_DIR>/LULCC/TempVector/userarea1.gpkg
