@@ -11,16 +11,59 @@
 # limitations under the License.
 
 # MoFuSS global LULC growth-parameter preprocessing
-# Version 5
+# Version 6
 # Date: Aug 2026
 
-# References for IPCC values, to be reconsidered eventually
+# References for forest growth, agroforestry accumulation and TOF definitions
 # https://www.ipcc-nggip.iges.or.jp/public/2019rf/index.html
 # https://www.ipcc-nggip.iges.or.jp/public/2019rf/pdf/4_Volume4/19R_V4_Ch04_Forest%20Land.pdf
+# https://www.ipcc-nggip.iges.or.jp/public/2019rf/pdf/4_Volume4/19R_V4_Ch05_Cropland.pdf
+# https://www.fao.org/4/J1549E/J1549E00.pdf
 
 # Internal parameters
 if (!exists("plot_curves", inherits = FALSE)) plot_curves <- 1
 if (!exists("publish_lulcc_outputs", inherits = FALSE)) publish_lulcc_outputs <- TRUE
+
+# TOF annual renewable fuelwood controls (Mg dry matter ha-1 yr-1) ----
+# Urban and water are fixed policy assumptions. Other conservative TOF classes
+# use p95 only as an upper cutoff: their standing stock is the mean of all AGB
+# values at or below p95, including valid zero-AGB cells. That mean is then
+# multiplied by an annual climate-specific renewable fraction. The uncertainty
+# CV applies only to those AGB-derived TOF flows. Urban and water use their
+# directly assigned annual K and KSD values without applying a climate rate.
+if (!exists("tof_urban_supply", inherits = FALSE)) tof_urban_supply <- 2
+if (!exists("tof_water_supply", inherits = FALSE)) tof_water_supply <- 10
+if (!exists("tof_agb_percentile", inherits = FALSE)) tof_agb_percentile <- 0.95
+if (!exists("tof_uncertainty_cv", inherits = FALSE)) tof_uncertainty_cv <- 0.50
+if (!exists("tof_parameter_digits", inherits = FALSE)) tof_parameter_digits <- 4L
+if (!exists("tof_tropical_rate", inherits = FALSE)) tof_tropical_rate <- 0.025
+if (!exists("tof_subtropical_rate", inherits = FALSE)) tof_subtropical_rate <- 0.020
+if (!exists("tof_temperate_boreal_rate", inherits = FALSE)) {
+  tof_temperate_boreal_rate <- 0.0165
+}
+if (!exists("tof_default_rate", inherits = FALSE)) tof_default_rate <- 0.020
+
+tof_controls <- c(
+  tof_urban_supply = tof_urban_supply,
+  tof_water_supply = tof_water_supply,
+  tof_uncertainty_cv = tof_uncertainty_cv,
+  tof_tropical_rate = tof_tropical_rate,
+  tof_subtropical_rate = tof_subtropical_rate,
+  tof_temperate_boreal_rate = tof_temperate_boreal_rate,
+  tof_default_rate = tof_default_rate
+)
+if (any(!is.finite(tof_controls)) || any(tof_controls < 0)) {
+  stop("All TOF controls must be finite, non-negative numbers.")
+}
+if (tof_agb_percentile <= 0 || tof_agb_percentile >= 1) {
+  stop("tof_agb_percentile must be strictly between zero and one.")
+}
+if (
+  length(tof_parameter_digits) != 1 || !is.finite(tof_parameter_digits) ||
+    tof_parameter_digits < 0 || tof_parameter_digits != as.integer(tof_parameter_digits)
+) {
+  stop("tof_parameter_digits must be one non-negative integer.")
+}
 
 # AGB input: 1 = NASA/ORNL, 2 = ESA CCI, 3 = CTrees.
 agb_map_id <- 3L
@@ -35,7 +78,7 @@ agb_map_id <- as.integer(agb_map_id)
 # Plot controls: edit these values before running the full script, or assign
 # them immediately before rerunning only the final plotting block.
 plot_dataset <- "MODIS" # MODIS or COPERNICUS
-plot_region <- "ASIA"    # GLOBAL, LATAM, ASIA, SSA or OCEANIA
+plot_region <- "SSA"    # GLOBAL, LATAM, ASIA, SSA or OCEANIA
 plot_seed <- 155L        # Reproducible curve selection and simulations
 plot_dataset <- toupper(trimws(plot_dataset))
 plot_region <- toupper(trimws(plot_region))
@@ -77,51 +120,84 @@ weighted_order_stat <- function(value, count, rank) {
   value[which(cumsum(count) >= rank)[1L]]
 }
 
+weighted_quantile_type7 <- function(value, count, p) {
+  n <- sum(count)
+  if (n <= 0) return(NA_real_)
+  h <- (n - 1) * p + 1
+  j <- floor(h)
+  g <- h - j
+  (1 - g) * weighted_order_stat(value, count, j) +
+    g * weighted_order_stat(value, count, ceiling(h))
+}
+
 weighted_sample_sd <- function(value, count, mean_value) {
   n <- sum(count)
   if (n < 2) return(NA_real_)
   sqrt(sum(count * (value - mean_value)^2) / (n - 1))
 }
 
-summarise_agb_histogram_group <- function(value, count, p) {
-  keep <- is.finite(value) & is.finite(count) & count > 0
+summarise_agb_histogram_group <- function(value, count, p, tof_p) {
+  keep <- is.finite(value) & value >= 0 & is.finite(count) & count > 0
   value <- value[keep]
   count <- count[keep]
   ord <- order(value)
   value <- value[ord]
   count <- count[ord]
-  n <- sum(count)
 
-  # Equivalent to stats::quantile(..., type = 7), R's default.
-  h <- (n - 1) * p + 1
-  j <- floor(h)
-  g <- h - j
-  q_value <-
-    (1 - g) * weighted_order_stat(value, count, j) +
-    g * weighted_order_stat(value, count, ceiling(h))
+  valid_n <- sum(count)
+  # TOF statistic: p95 is an outlier cutoff, not the TOF stock estimate.
+  # The estimate is the mean of every valid value at or below that cutoff.
+  q_all <- weighted_quantile_type7(value, count, tof_p)
+  below <- value <= q_all
+  below_n <- sum(count[below])
+  below_mean_raw <- weighted.mean(value[below], count[below])
+  below_sd_raw <- weighted_sample_sd(
+    value[below], count[below], below_mean_raw
+  )
 
-  upper <- value >= q_value
-  upper_n <- sum(count[upper])
-  upper_mean_raw <- sum(value[upper] * count[upper]) / upper_n
-  mean_raw <- sum(value * count) / n
+  positive <- value > 0
+  positive_n <- sum(count[positive])
+  if (positive_n > 0) {
+    positive_value <- value[positive]
+    positive_count <- count[positive]
+    q_positive <- weighted_quantile_type7(positive_value, positive_count, p)
+    upper <- positive_value >= q_positive
+    upper_n <- sum(positive_count[upper])
+    upper_mean_raw <- weighted.mean(positive_value[upper], positive_count[upper])
+    upper_sd_raw <- weighted_sample_sd(
+      positive_value[upper], positive_count[upper], upper_mean_raw
+    )
+    positive_mean_raw <- weighted.mean(positive_value, positive_count)
+    positive_sd_raw <- weighted_sample_sd(
+      positive_value, positive_count, positive_mean_raw
+    )
+  } else {
+    q_positive <- NA_real_
+    upper_n <- 0
+    upper_sd_raw <- NA_real_
+    positive_mean_raw <- NA_real_
+    positive_sd_raw <- NA_real_
+  }
 
   data.frame(
-    # K uses the percentile itself. Averaging the values above the percentile
-    # would make K sensitive to the extreme upper tail that p is intended to
-    # exclude. Keep the historical column name for downstream compatibility.
-    agb_mean_Tdecil = round(q_value, 0),
-    agb_sd_Tdecil = round(weighted_sample_sd(
-      value[upper], count[upper], upper_mean_raw
-    ), 0),
+    # Non-TOF K uses the configured percentile value itself (p95 in the global
+    # workflow). The historical column name is retained for compatibility.
+    agb_mean_Tdecil = round(q_positive, 0),
+    agb_sd_Tdecil = round(upper_sd_raw, 0),
     agb_n_Tdecil = upper_n,
-    agb_n = n,
-    agb_mean = round(mean_raw, 0),
-    agb_sd = round(weighted_sample_sd(value, count, mean_raw), 0),
+    agb_n = positive_n,
+    agb_mean = round(positive_mean_raw, 0),
+    agb_sd = round(positive_sd_raw, 0),
+    agb_q_all = q_all,
+    agb_mean_below_p = below_mean_raw,
+    agb_sd_below_p = below_sd_raw,
+    agb_n_below_p = below_n,
+    agb_n_valid = valid_n,
     agb_max = max(value)
   )
 }
 
-summarise_agb_by_zone <- function(zone_raster, agb_raster, p) {
+summarise_agb_by_zone <- function(zone_raster, agb_raster, p, tof_p) {
   if (!isTRUE(terra::compareGeom(
     zone_raster, agb_raster,
     crs = TRUE, ext = TRUE, rowcol = TRUE, res = TRUE,
@@ -141,17 +217,17 @@ summarise_agb_by_zone <- function(zone_raster, agb_raster, p) {
     useNA = FALSE
   )
   histogram <- histogram[
-    is.finite(histogram$agb) & histogram$agb > 0 & histogram$n > 0,
+    is.finite(histogram$agb) & histogram$agb >= 0 & histogram$n > 0,
   ]
   if (nrow(histogram) == 0) {
-    stop("No positive AGB cells overlap the LULC-zone raster.")
+    stop("No finite, non-negative AGB cells overlap the LULC-zone raster.")
   }
 
   groups <- split(histogram, histogram$IDorig)
   rows <- lapply(groups, function(x) {
     cbind(
       IDorig = x$IDorig[1],
-      summarise_agb_histogram_group(x$agb, x$n, p)
+      summarise_agb_histogram_group(x$agb, x$n, p, tof_p)
     )
   })
   result <- do.call(rbind, rows)
@@ -172,6 +248,69 @@ max_ica_with_matched_sd <- function(data) {
   icamax[all_missing] <- NA_real_
   icamax_sd[all_missing] <- NA_real_
   data.frame(icamax = icamax, icamaxSD = icamax_sd)
+}
+
+# Conservative TOF classification at global model resolution ----
+# Only unequivocally non-forest land-cover classes are TOF. Cropland,
+# grassland, shrubland, wetlands and all forest classes remain non-TOF even
+# when an IPCC ecozone row was historically marked as TOF.
+conservative_tof_flag <- function(dataset, luc_code) {
+  dataset <- tolower(dataset)
+  luc_code <- as.integer(luc_code)
+  tof_codes <- switch(
+    dataset,
+    modis = c(13L, 15L, 16L, 17L),       # urban, snow/ice, barren, water
+    copernicus = c(4L, 5L, 6L, 7L, 22L), # urban, bare, snow/ice, water, ocean
+    stop("Unsupported LULC dataset: ", dataset)
+  )
+  as.integer(luc_code %in% tof_codes)
+}
+
+tof_supply_source <- function(dataset, luc_code) {
+  dataset <- tolower(dataset)
+  luc_code <- as.integer(luc_code)
+  urban_codes <- switch(
+    dataset,
+    modis = 13L,
+    copernicus = 4L,
+    stop("Unsupported LULC dataset: ", dataset)
+  )
+  water_codes <- switch(
+    dataset,
+    modis = 17L,
+    copernicus = c(7L, 22L),
+    stop("Unsupported LULC dataset: ", dataset)
+  )
+  tof <- conservative_tof_flag(dataset, luc_code)
+  dplyr::case_when(
+    luc_code == 0L ~ "excluded_no_data",
+    luc_code %in% urban_codes ~ "fixed_urban",
+    luc_code %in% water_codes ~ "fixed_water",
+    tof == 1L ~ "agb_below_p",
+    TRUE ~ "not_tof"
+  )
+}
+
+climate_rate_from_ecozone <- function(gez_name) {
+  dplyr::case_when(
+    grepl("subtropical", gez_name, ignore.case = TRUE) ~
+      tof_subtropical_rate,
+    grepl("tropical", gez_name, ignore.case = TRUE) ~
+      tof_tropical_rate,
+    grepl("temperate|boreal", gez_name, ignore.case = TRUE) ~
+      tof_temperate_boreal_rate,
+    TRUE ~ tof_default_rate
+  )
+}
+
+climate_rate_basis <- function(gez_name) {
+  dplyr::case_when(
+    grepl("subtropical", gez_name, ignore.case = TRUE) ~ "subtropical",
+    grepl("tropical", gez_name, ignore.case = TRUE) ~ "tropical",
+    grepl("temperate|boreal", gez_name, ignore.case = TRUE) ~
+      "temperate_boreal",
+    TRUE ~ "default"
+  )
 }
 
 validate_two_digit_code <- function(x, label) {
@@ -277,6 +416,11 @@ country_parameters %>%
 if (length(pdecil) != 1 || !is.finite(pdecil) || pdecil < 0 || pdecil > 1) {
   stop("pdecil must be one finite probability between 0 and 1.")
 }
+if (!isTRUE(all.equal(pdecil, 0.95, tolerance = sqrt(.Machine$double.eps)))) {
+  stop(
+    "Version 6 requires pdecil = 0.95 because non-TOF K is the AGB p95 value."
+  )
+}
 
 # Select one of AGB1map, AGB2map or AGB3map for all growth calculations.
 selected_agb_prefix <- paste0("AGB", agb_map_id, "map")
@@ -335,13 +479,16 @@ temp_dir <- file.path(lulccfiles, "temp")
 out_gcs_dir <- file.path(lulccfiles, "out_gcs")
 out_pcs_dir <- file.path(lulccfiles, "out_pcs")
 out_figure_dir <- file.path(lulccfiles, "out_figures")
+out_diagnostics_dir <- file.path(lulccfiles, "out_diagnostics")
 unlink(temp_dir, recursive = TRUE)
 unlink(out_gcs_dir, recursive = TRUE)
 unlink(out_pcs_dir, recursive = TRUE)
+unlink(out_diagnostics_dir, recursive = TRUE)
 dir.create(temp_dir, recursive = TRUE, showWarnings = FALSE)
 dir.create(out_gcs_dir, recursive = TRUE, showWarnings = FALSE)
 dir.create(out_pcs_dir, recursive = TRUE, showWarnings = FALSE)
 dir.create(out_figure_dir, recursive = TRUE, showWarnings = FALSE)
+dir.create(out_diagnostics_dir, recursive = TRUE, showWarnings = FALSE)
 setwd(lulccfiles)
 
 agb4stats_rcr <- NULL
@@ -410,7 +557,14 @@ for (lucinputdataset in lucavailablemaps) {
   if (lucinputdataset == "modis") {
     
     ## MODIS: MCD12Q1.061 MODIS Land Cover Type Yearly Global 500m ----
-    lucmodis_cat <- read_csv(paste0(countrydir,"/LULCC/DownloadedDatasets/SourceData",country_name,"/InTables/luc_modis_categories.csv"))
+    lucmodis_cat <- read_csv(paste0(countrydir,"/LULCC/DownloadedDatasets/SourceData",country_name,"/InTables/luc_modis_categories.csv")) %>%
+      dplyr::select(luc_code, luc_cat, TOF_luc) %>%
+      dplyr::mutate(
+        TOF_luc_input = TOF_luc,
+        TOF_luc = conservative_tof_flag(lucinputdataset, luc_code),
+        TOF_supply_source = tof_supply_source(lucinputdataset, luc_code)
+      ) %>%
+      dplyr::filter(luc_code != 0L)
     validate_two_digit_code(lucmodis_cat$luc_code, "MODIS luc_code")
     
     country_parameters %>%
@@ -430,12 +584,22 @@ for (lucinputdataset in lucavailablemaps) {
       countrydir, "/LULCC/DownloadedDatasets/SourceData", country_name,
       "/InRaster/pre", modis_base_year, "_", LULCt1map_name
     ))
+    # Category zero is No Data, not a fuelwood-supply land-cover class.
+    lucmodis_baseline <- terra::ifel(
+      lucmodis_baseline == 0, NA, lucmodis_baseline
+    )
     
   } else if (lucinputdataset == "copernicus") {
     ## Copernicus CGLS-LC100 ----
     luccopernicus_cat_vx <- read_csv(paste0(countrydir,"/LULCC/DownloadedDatasets/SourceData",country_name,"/InTables/luc_copernicus_categories.csv"))
     luccopernicus_cat <- luccopernicus_cat_vx %>%
-      dplyr::select(luc_code, luc_cat, TOF_luc)
+      dplyr::select(luc_code, luc_cat, TOF_luc) %>%
+      dplyr::mutate(
+        TOF_luc_input = TOF_luc,
+        TOF_luc = conservative_tof_flag(lucinputdataset, luc_code),
+        TOF_supply_source = tof_supply_source(lucinputdataset, luc_code)
+      ) %>%
+      dplyr::filter(luc_code != 0L)
     validate_two_digit_code(luccopernicus_cat$luc_code, "Copernicus luc_code")
     
     country_parameters %>%
@@ -493,8 +657,13 @@ for (lucinputdataset in lucavailablemaps) {
       unname() %>%
       as.matrix()
     luccopernicus_baseline_rcr <- classify(
-      luccopernicus_baseline[[1]], rclmat_cop, include.lowest = TRUE
+      luccopernicus_baseline[[1]], rclmat_cop,
+      include.lowest = TRUE, others = NA
     ) # First band only as Copernicus might have many after Diana's change
+    # Category zero is No Data, not a fuelwood-supply land-cover class.
+    luccopernicus_baseline_rcr <- terra::ifel(
+      luccopernicus_baseline_rcr == 0, NA, luccopernicus_baseline_rcr
+    )
     
     luccopernicus_merge <- regionsr_p_scale + gezr_p_scale + luccopernicus_baseline_rcr
     terra::writeRaster(luccopernicus_merge, paste0(
@@ -537,7 +706,8 @@ for (lucinputdataset in lucavailablemaps) {
   agb_stats <- summarise_agb_by_zone(
     luc_zone_raster,
     agb4stats_rcr,
-    p = pdecil
+    p = pdecil,
+    tof_p = tof_agb_percentile
   )
 
   if (anyDuplicated(growth_para_v1$IDorig)) {
@@ -549,22 +719,22 @@ for (lucinputdataset in lucavailablemaps) {
     dplyr::mutate(
       agb_n_Tdecil = dplyr::coalesce(agb_n_Tdecil, 0),
       agb_n = dplyr::coalesce(agb_n, 0),
-      agb_mean_Tdecil = dplyr::coalesce(agb_mean_Tdecil, 1),
-      agb_sd_Tdecil = dplyr::coalesce(agb_sd_Tdecil, 1),
-      agb_mean = dplyr::coalesce(agb_mean, 1),
-      agb_sd = dplyr::coalesce(agb_sd, 1),
-      agb_max = dplyr::coalesce(agb_max, 1)
+      agb_n_below_p = dplyr::coalesce(agb_n_below_p, 0),
+      agb_n_valid = dplyr::coalesce(agb_n_valid, 0)
     )
 
   # Join with IPCC values and derive growth rates ----
   ipcc_growth_and_stock_2019 <- read_excel(paste0(countrydir,"/LULCC/DownloadedDatasets/SourceData",country_name,"/InTables/ipcc_growth_and_stock_2019.xlsx")) %>% # Eventually read from excel
-    dplyr::select(-obs)
+    dplyr::select(-obs) %>%
+    dplyr::mutate(.ipcc_row_found = TRUE)
   
   growth_parameters_joined <- growth_parameters_v0 %>%
     dplyr::left_join(ipcc_growth_and_stock_2019, by = "reg_gez")
 
   missing_ipcc <- unique(
-    growth_parameters_joined$reg_gez[is.na(growth_parameters_joined$TOF_gez)]
+    growth_parameters_joined$reg_gez[
+      is.na(growth_parameters_joined$.ipcc_row_found)
+    ]
   )
   if (length(missing_ipcc) > 0) {
     stop(
@@ -579,35 +749,77 @@ for (lucinputdataset in lucavailablemaps) {
     matched_ica
   ) %>%
     dplyr::mutate(
-      # A rounded biomass statistic equal to 1 is a valid value, not a
-      # missing-data flag. Only a zero cell count triggers the fallback.
-      TOF = dplyr::case_when(
-        agb_n_Tdecil == 0 ~ 1,
-        TRUE ~ pmax(TOF_luc, TOF_gez)
+      # TOF_gez is retained in diagnostics only. It no longer promotes broad
+      # ecozones, forest, cropland, grassland or wetlands to TOF.
+      TOF = as.integer(TOF_luc),
+      climate_rate = climate_rate_from_ecozone(gez_name),
+      climate_rate_basis = climate_rate_basis(gez_name),
+      parameter_status = dplyr::case_when(
+        TOF == 1L & TOF_supply_source %in%
+          c("fixed_urban", "fixed_water") ~ "included",
+        TOF == 1L & TOF_supply_source == "agb_below_p" &
+          agb_n_valid > 0 & is.finite(agb_mean_below_p) ~ "included",
+        TOF == 1L ~ "excluded_no_valid_agb",
+        TOF == 0L & agb_n > 0 & is.finite(agb_mean_Tdecil) &
+          agb_mean_Tdecil > 0 ~ "included",
+        TRUE ~ "excluded_no_positive_agb"
       ),
-      icamax = dplyr::if_else(TOF == 0, icamax, NA_real_),
-      icamaxSD = dplyr::if_else(TOF == 0, icamaxSD, NA_real_),
-      r = dplyr::if_else(
-        TOF == 0,
-        round(icamax * 4 / agb_mean_Tdecil, 2),
-        0
+      growth_parameter_source = dplyr::case_when(
+        parameter_status != "included" ~ "excluded",
+        TOF == 1L ~ "TOF annual supply",
+        is.finite(icamax) ~ "IPCC",
+        TRUE ~ "climate-rate fallback"
       ),
-      rSD = dplyr::if_else(
-        TOF == 0,
-        round(icamaxSD * 4 / agb_mean_Tdecil, 2),
-        0
+      icamax = dplyr::if_else(TOF == 0L, icamax, NA_real_),
+      icamaxSD = dplyr::if_else(TOF == 0L, icamaxSD, NA_real_),
+      K = dplyr::case_when(
+        parameter_status != "included" ~ NA_real_,
+        TOF_supply_source == "fixed_urban" ~ tof_urban_supply,
+        TOF_supply_source == "fixed_water" ~ tof_water_supply,
+        TOF == 1L ~ round(
+          agb_mean_below_p * climate_rate, tof_parameter_digits
+        ),
+        TRUE ~ agb_mean_Tdecil
       ),
-      K = dplyr::if_else(TOF == 0, agb_mean_Tdecil, agb_mean),
-      KSD = dplyr::if_else(TOF == 0, agb_sd_Tdecil, agb_sd)
+      KSD = dplyr::case_when(
+        parameter_status != "included" ~ NA_real_,
+        TOF_supply_source == "fixed_urban" ~ tof_urban_supply,
+        TOF_supply_source == "fixed_water" ~ tof_water_supply,
+        TOF == 1L ~ round(K * tof_uncertainty_cv, tof_parameter_digits),
+        TRUE ~ dplyr::coalesce(agb_sd_Tdecil, 0)
+      ),
+      r = dplyr::case_when(
+        parameter_status != "included" ~ NA_real_,
+        TOF == 1L ~ 0,
+        is.finite(icamax) ~ round(icamax * 4 / K, 2),
+        TRUE ~ round(climate_rate, 4)
+      ),
+      rSD = dplyr::case_when(
+        parameter_status != "included" ~ NA_real_,
+        TOF == 1L ~ 0,
+        is.finite(icamax) ~ round(
+          dplyr::coalesce(icamaxSD, 0) * 4 / K, 2
+        ),
+        TRUE ~ round(r * tof_uncertainty_cv, 4)
+      )
     ) %>%
     dplyr::relocate(TOF, .after = KSD) %>%
     dplyr::arrange(IDorig) %>%
     as.data.frame()
 
-  invalid_growth <- growth_parameters_v1 %>%
+  growth_parameters_included <- growth_parameters_v1 %>%
+    dplyr::filter(parameter_status == "included")
+  if (nrow(growth_parameters_included) == 0) {
+    stop("No valid growth-parameter rows were generated for ", lucinputdataset, ".")
+  }
+
+  invalid_growth <- growth_parameters_included %>%
     dplyr::filter(
       !is.finite(r) | !is.finite(rSD) | !is.finite(K) | !is.finite(KSD) |
-        K <= 0 | KSD < 0
+        r < 0 | rSD < 0 | KSD < 0 |
+        (TOF == 0L & K <= 0) | (TOF == 1L & K < 0) |
+        !TOF %in% c(0L, 1L) |
+        (TOF == 1L & (r != 0 | rSD != 0))
     )
   if (nrow(invalid_growth) > 0) {
     stop(
@@ -616,14 +828,44 @@ for (lucinputdataset in lucavailablemaps) {
     )
   }
 
-  growth_parameters_by_dataset[[lucinputdataset]] <- growth_parameters_v1
+  growth_parameters_by_dataset[[lucinputdataset]] <- growth_parameters_included
   curve_start_year_by_dataset[[lucinputdataset]] <- if (
     lucinputdataset == "modis"
   ) modis_base_year else copernicus_base_year
   
-  growth_parameters_v2 <- growth_parameters_v1 %>%
+  growth_parameters_v2 <- growth_parameters_included %>%
     dplyr::mutate(Key = row_number()) %>%
     dplyr::relocate(Key, .before = IDorig)
+
+  tof_diagnostics <- growth_parameters_v1 %>%
+    dplyr::left_join(
+      growth_parameters_v2 %>% dplyr::select(IDorig, Key),
+      by = "IDorig"
+    ) %>%
+    dplyr::mutate(
+      dataset = toupper(lucinputdataset),
+      non_tof_K_percentile = pdecil,
+      tof_mean_upper_cutoff_percentile = tof_agb_percentile,
+      .before = 1
+    ) %>%
+    dplyr::select(
+      dataset, non_tof_K_percentile, tof_mean_upper_cutoff_percentile,
+      Key, IDorig, reg_chr, gez_name, luc_code, luc_cat,
+      reg_gez_luc, TOF_luc_input, TOF_luc, TOF_gez, TOF,
+      TOF_supply_source, climate_rate, climate_rate_basis,
+      agb_q_all, agb_mean_below_p, agb_sd_below_p, agb_n_below_p,
+      agb_n_valid, agb_mean_Tdecil, agb_sd_Tdecil, agb_n_Tdecil,
+      agb_n, icamax, icamaxSD, r, rSD, K, KSD,
+      growth_parameter_source, parameter_status
+    )
+  write.csv(
+    tof_diagnostics,
+    file.path(
+      out_diagnostics_dir,
+      paste0("tof_diagnostics_v6_", lucinputdataset, ".csv")
+    ),
+    row.names = FALSE, quote = FALSE
+  )
   
   if (lucinputdataset == "modis") {
     
@@ -636,7 +878,9 @@ for (lucinputdataset in lucavailablemaps) {
       unname()
     
     lucmodis_merge_rcl <- lucmodis_merge %>%
-      terra::classify(rcl_modis, include.lowest = FALSE, right = NA)
+      terra::classify(
+        rcl_modis, include.lowest = FALSE, right = NA, others = NA
+      )
     terra::writeRaster(
       lucmodis_merge_rcl,
       paste0("out_pcs/pre", modis_base_year, "_v1_", LULCt1map_name),
@@ -660,7 +904,9 @@ for (lucinputdataset in lucavailablemaps) {
     
     
     luccopernicus_merge_rcl <- luccopernicus_merge %>%
-      terra::classify(rcl_copernicus, include.lowest = FALSE, right = NA)
+      terra::classify(
+        rcl_copernicus, include.lowest = FALSE, right = NA, others = NA
+      )
     terra::writeRaster(
       luccopernicus_merge_rcl,
       paste0("out_pcs/pre", copernicus_base_year, "_v1_", LULCt2map_name),

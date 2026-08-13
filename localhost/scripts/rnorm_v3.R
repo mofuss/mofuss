@@ -14,6 +14,22 @@ library(readxl)
 library(readr)
 library(tibble)
 
+# A zero standard deviation represents a fixed parameter. msm::rtnorm() is not
+# defined for sd = 0, so return the fixed value instead of generating NaNs.
+draw_truncated_or_fixed <- function(
+  n, mean_value, sd_value, lower = -Inf, upper = Inf
+) {
+  if (!is.finite(mean_value) || !is.finite(sd_value) || sd_value < 0) {
+    stop("Monte Carlo means/SDs must be finite and SDs non-negative.")
+  }
+  if (sd_value == 0) {
+    return(rep(min(max(mean_value, lower), upper), n))
+  }
+  msm::rtnorm(
+    n, mean = mean_value, sd = sd_value, lower = lower, upper = upper
+  )
+}
+
 # Get list of directories starting with 'debugging_'
 debugging_to_remove <- list.files(path = ".", pattern = "^debugging_", full.names = TRUE, recursive = FALSE)
 # Remove each found directory
@@ -445,7 +461,10 @@ if (max_FOR!=0) {
         r1max<-data_FOR[i,3]
         r1maxsd<-data_FOR[i,4]*rmax_MC
         LULC_ID_FOR<-data_FOR[i,1]
-        r1<-rtnorm(MC,mean=r1max,sd=r1maxsd,lower=r1max/10)
+        r1 <- draw_truncated_or_fixed(
+          MC, mean_value = r1max, sd_value = r1maxsd,
+          lower = r1max / 10
+        )
         r1[1]<-r1max 
         
         # Adjust the font size for the histogram titles
@@ -488,7 +507,9 @@ if (max_FOR!=0) {
         k1max<-data_FOR[i,5]
         k1maxsd<-data_FOR[i,6]*K_MC
         LULC_ID_FOR<-data_FOR[i,1]
-        k1<-rtnorm(MC,mean=k1max,sd=k1maxsd,lower=0)
+        k1 <- draw_truncated_or_fixed(
+          MC, mean_value = k1max, sd_value = k1maxsd, lower = 0
+        )
         k1[1]<-k1max
         
         # Adjust the font size for the histogram titles
@@ -530,7 +551,9 @@ if (max_FOR!=0) {
         inst1<-data_FOR[i,5]*Ini_st.factor
         inst1sd<-data_FOR[i,6]*Ini_st.factor*Ini_st_MC
         LULC_ID_FOR<-data_FOR[i,1]
-        st1<-rtnorm(MC,mean=inst1,sd=inst1sd,lower=0)
+        st1 <- draw_truncated_or_fixed(
+          MC, mean_value = inst1, sd_value = inst1sd, lower = 0
+        )
         st1[1]<-inst1
         
         # Adjust the font size for the histogram titles
@@ -594,7 +617,9 @@ if (max_TOF!=0) {
       kTOFmax<-data_TOF[i,5]
       kTOFmaxsd<-data_TOF[i,6]*TOF_MC
       LULC_ID_TOF<-data_TOF[i,1]
-      kTOF<-rtnorm(MC,mean=kTOFmax,sd=kTOFmaxsd,lower=0)
+      kTOF <- draw_truncated_or_fixed(
+        MC, mean_value = kTOFmax, sd_value = kTOFmaxsd, lower = 0
+      )
       kTOF[1]<-kTOFmax
       
       # Adjust the font size for the histogram titles
