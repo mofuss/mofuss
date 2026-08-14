@@ -25,18 +25,17 @@ idw_debug,NO
 friction,R
 SIMULATION LENGTH,
 start_year,2000
-end_year,2050
+end_year,2040
 DINAMICA EGO,
-monte_carlo_runs,2
+monte_carlo_runs,30
 uncapped_regrowth,0
-npa_ease,10
-instant_demand,0
+npa_ease,100
 REGION TO BE PROCESSED,
 byregion,Country
 region2BprocessedCont,SSA
 region2BprocessedReg,SSA_adm0_congo_basin
-region2BprocessedCtry,Kenya
-region2BprocessedCtry_iso,KEN
+region2BprocessedCtry,Malawi
+region2BprocessedCtry_iso,MWI
 subcountry,0
 AREA OF INTEREST,
 aoi_poly,0
@@ -126,8 +125,9 @@ maritime_lyr,NO
 maritime_name,maritime2.gpkg
 maritime_name_ID,OBJECTID
 CHARCOAL ATTRACTORS,
-attraction_lyr,NO
-attraction_name,attraction.gpkg
+attraction_lyr,YES
+attraction_by_npa,NO
+attraction_name,attraction_mwi.kml
 attraction_name_ID,OBJECTID
 GLOBAL ECOLOGICAL ZONES,
 gez_raster,YES
