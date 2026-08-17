@@ -1,4 +1,4 @@
-# Copyright 2025 Stockholm Environment Institute ----
+# Copyright 2027 Stockholm Environment Institute ----
 
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -25,14 +25,14 @@ if (!exists("plot_curves", inherits = FALSE)) plot_curves <- 1
 if (!exists("publish_lulcc_outputs", inherits = FALSE)) publish_lulcc_outputs <- TRUE
 
 # TOF annual renewable fuelwood controls (Mg dry matter ha-1 yr-1) ----
-# Urban and water are fixed policy assumptions. Other conservative TOF classes
-# use p95 only as an upper cutoff: their standing stock is the mean of all AGB
-# values at or below p95, including valid zero-AGB cells. That mean is then
-# multiplied by an annual climate-specific renewable fraction. The uncertainty
-# CV applies only to those AGB-derived TOF flows. Urban and water use their
-# directly assigned annual K and KSD values without applying a climate rate.
-if (!exists("tof_urban_supply", inherits = FALSE)) tof_urban_supply <- 2
-if (!exists("tof_water_supply", inherits = FALSE)) tof_water_supply <- 10
+# Every conservative TOF class, including Urban and Water, follows the same
+# dimensional rule. p95 is only an upper cutoff: standing stock is the mean of
+# all valid AGB values at or below p95, including valid zero-AGB cells. Annual
+# renewable supply is that mean multiplied by the ecozone prunable fraction,
+# and KSD is the configured CV of that annual supply.
+# Water can therefore retain non-zero supply where the first row of water-edge
+# pixels contains harvestable riparian/shoreline biomass; it is not interpreted
+# as biomass distributed across open water.
 if (!exists("tof_agb_percentile", inherits = FALSE)) tof_agb_percentile <- 0.95
 if (!exists("tof_uncertainty_cv", inherits = FALSE)) tof_uncertainty_cv <- 0.50
 if (!exists("tof_parameter_digits", inherits = FALSE)) tof_parameter_digits <- 4L
@@ -44,8 +44,6 @@ if (!exists("tof_temperate_boreal_rate", inherits = FALSE)) {
 if (!exists("tof_default_rate", inherits = FALSE)) tof_default_rate <- 0.020
 
 tof_controls <- c(
-  tof_urban_supply = tof_urban_supply,
-  tof_water_supply = tof_water_supply,
   tof_uncertainty_cv = tof_uncertainty_cv,
   tof_tropical_rate = tof_tropical_rate,
   tof_subtropical_rate = tof_subtropical_rate,
@@ -267,25 +265,10 @@ conservative_tof_flag <- function(dataset, luc_code) {
 }
 
 tof_supply_source <- function(dataset, luc_code) {
-  dataset <- tolower(dataset)
   luc_code <- as.integer(luc_code)
-  urban_codes <- switch(
-    dataset,
-    modis = 13L,
-    copernicus = 4L,
-    stop("Unsupported LULC dataset: ", dataset)
-  )
-  water_codes <- switch(
-    dataset,
-    modis = 17L,
-    copernicus = c(7L, 22L),
-    stop("Unsupported LULC dataset: ", dataset)
-  )
   tof <- conservative_tof_flag(dataset, luc_code)
   dplyr::case_when(
     luc_code == 0L ~ "excluded_no_data",
-    luc_code %in% urban_codes ~ "fixed_urban",
-    luc_code %in% water_codes ~ "fixed_water",
     tof == 1L ~ "agb_below_p",
     TRUE ~ "not_tof"
   )
@@ -755,17 +738,20 @@ for (lucinputdataset in lucavailablemaps) {
       climate_rate = climate_rate_from_ecozone(gez_name),
       climate_rate_basis = climate_rate_basis(gez_name),
       parameter_status = dplyr::case_when(
-        TOF == 1L & TOF_supply_source %in%
-          c("fixed_urban", "fixed_water") ~ "included",
         TOF == 1L & TOF_supply_source == "agb_below_p" &
           agb_n_valid > 0 & is.finite(agb_mean_below_p) ~ "included",
-        TOF == 1L ~ "excluded_no_valid_agb",
+        # Retain the LULC key when AGB is entirely unavailable. A zero-supply
+        # TOF preserves the spatial domain without inventing a stock estimate.
+        TOF == 1L ~ "included_zero_no_valid_agb",
         TOF == 0L & agb_n > 0 & is.finite(agb_mean_Tdecil) &
           agb_mean_Tdecil > 0 ~ "included",
         TRUE ~ "excluded_no_positive_agb"
       ),
+      parameter_included = startsWith(parameter_status, "included"),
       growth_parameter_source = dplyr::case_when(
-        parameter_status != "included" ~ "excluded",
+        !parameter_included ~ "excluded",
+        parameter_status == "included_zero_no_valid_agb" ~
+          "TOF zero fallback: no valid AGB",
         TOF == 1L ~ "TOF annual supply",
         is.finite(icamax) ~ "IPCC",
         TRUE ~ "climate-rate fallback"
@@ -773,29 +759,27 @@ for (lucinputdataset in lucavailablemaps) {
       icamax = dplyr::if_else(TOF == 0L, icamax, NA_real_),
       icamaxSD = dplyr::if_else(TOF == 0L, icamaxSD, NA_real_),
       K = dplyr::case_when(
-        parameter_status != "included" ~ NA_real_,
-        TOF_supply_source == "fixed_urban" ~ tof_urban_supply,
-        TOF_supply_source == "fixed_water" ~ tof_water_supply,
+        !parameter_included ~ NA_real_,
+        parameter_status == "included_zero_no_valid_agb" ~ 0,
         TOF == 1L ~ round(
           agb_mean_below_p * climate_rate, tof_parameter_digits
         ),
         TRUE ~ agb_mean_Tdecil
       ),
       KSD = dplyr::case_when(
-        parameter_status != "included" ~ NA_real_,
-        TOF_supply_source == "fixed_urban" ~ tof_urban_supply,
-        TOF_supply_source == "fixed_water" ~ tof_water_supply,
+        !parameter_included ~ NA_real_,
+        parameter_status == "included_zero_no_valid_agb" ~ 0,
         TOF == 1L ~ round(K * tof_uncertainty_cv, tof_parameter_digits),
         TRUE ~ dplyr::coalesce(agb_sd_Tdecil, 0)
       ),
       r = dplyr::case_when(
-        parameter_status != "included" ~ NA_real_,
+        !parameter_included ~ NA_real_,
         TOF == 1L ~ 0,
         is.finite(icamax) ~ round(icamax * 4 / K, 2),
         TRUE ~ round(climate_rate, 4)
       ),
       rSD = dplyr::case_when(
-        parameter_status != "included" ~ NA_real_,
+        !parameter_included ~ NA_real_,
         TOF == 1L ~ 0,
         is.finite(icamax) ~ round(
           dplyr::coalesce(icamaxSD, 0) * 4 / K, 2
@@ -808,7 +792,7 @@ for (lucinputdataset in lucavailablemaps) {
     as.data.frame()
 
   growth_parameters_included <- growth_parameters_v1 %>%
-    dplyr::filter(parameter_status == "included")
+    dplyr::filter(parameter_included)
   if (nrow(growth_parameters_included) == 0) {
     stop("No valid growth-parameter rows were generated for ", lucinputdataset, ".")
   }

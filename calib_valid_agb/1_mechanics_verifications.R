@@ -28,7 +28,7 @@ suppressPackageStartupMessages({
 })
 
 cfg <- list(
-  working_dir = "D:/ken_1km_bau1_2030_NEWgrowthandTOF_g",
+  working_dir = "D:/ken_1km_bau1_2030_v3_ng",
   growth_model = "auto",       # auto | logistic | chapman-richards
   depleted_reset_Mg_cell = 2,  # EGO feedback stock after depleted forest
   float_tolerance_Mg_cell = 0.01,
@@ -575,7 +575,26 @@ for (mc in mc_ids) {
   sel <- unique(sel, by = "cell")
   if (nrow(sel)) {
     xy <- xyFromCell(template, sel$cell)
-    sel[, `:=`(x = xy[, 1], y = xy[, 2], tof = as.integer(tof[cell]), K_Mg_cell = K[cell])]
+    sel_cells <- sel$cell
+    sel_tof <- as.integer(tof[sel_cells])
+    capacity_label <- ifelse(
+      sel_tof == 1L,
+      "annual TOF K",
+      if (model == "chapman-richards") "A" else "K"
+    )
+    capacity_value <- ifelse(
+      sel_tof == 1L,
+      K[sel_cells],
+      if (model == "chapman-richards") A_cr[sel_cells] else K[sel_cells]
+    )
+    sel[, `:=`(
+      x = xy[, 1], y = xy[, 2], tof = sel_tof,
+      capacity_label = capacity_label,
+      capacity_Mg_cell = capacity_value,
+      rmax_per_iteration = rmax[sel_cells],
+      cr_k = k_cr[sel_cells],
+      cr_m = m_cr[sel_cells]
+    )]
   }
 
   feedback <- initial
@@ -761,7 +780,12 @@ for (mc in mc_ids) {
     if (nrow(sel)) {
       trajectory_rows[[j]] <- data.table(
         mc = mc, year = year, cell = sel$cell, group = sel$group,
-        x = sel$x, y = sel$y, tof = sel$tof, K_Mg_cell = sel$K_Mg_cell,
+        growth_model = model,
+        x = sel$x, y = sel$y, tof = sel$tof,
+        capacity_label = sel$capacity_label,
+        capacity_Mg_cell = sel$capacity_Mg_cell,
+        rmax_per_iteration = sel$rmax_per_iteration,
+        cr_k = sel$cr_k, cr_m = sel$cr_m,
         predicted_growth_Mg_cell = prediction[sel$cell],
         observed_growth_Mg_cell = growth[sel$cell],
         expected_harvest_Mg_cell = if (exact_expected) expected[sel$cell] else NA_real_,
@@ -1072,20 +1096,35 @@ mechanics_summary[, critical_mechanics_failure :=
   over_zero(final_cap_identity_active_missing_cells)]
 mechanics_summary[, tof_state_failure :=
   over_zero(max_tof_post_stock_NULL_cells) | over_zero(max_tof_zero_K_reset_to_2_cells)]
-mechanics_summary[, audit_incomplete :=
+mechanics_summary[, mechanics_diagnostics_incomplete :=
   stage_A_status == "NOT AUDITED" |
   stage_B_full_run_aggregate_status == "NOT AUDITED" |
-  stage_B_annual_spatial_status == "NOT AUDITED" |
+  stage_B_annual_spatial_status == "NOT AUDITED"]
+mechanics_summary[, demand_reconciliation_incomplete :=
   is.na(raw_demand_years_complete) | !raw_demand_years_complete |
   is.na(assigned_demand_years_complete) | !assigned_demand_years_complete]
+mechanics_summary[, audit_incomplete :=
+  mechanics_diagnostics_incomplete | demand_reconciliation_incomplete]
+mechanics_summary[, state_parameter_warning :=
+  over_zero(forest_invalid_K_cells) | over_zero(total_forest_growth_above_K_pixel_years)]
 mechanics_summary[, verdict := fifelse(
   critical_mechanics_failure | tof_state_failure |
     stage_A_status == "FAIL" | stage_B_full_run_aggregate_status == "FAIL" |
     stage_B_annual_spatial_status == "FAIL",
   "FAIL - inspect mechanics/state findings",
-  fifelse(audit_incomplete, "INCOMPLETE - required verification inputs were unavailable",
-          fifelse(over_zero(forest_invalid_K_cells) | over_zero(total_forest_growth_above_K_pixel_years),
-                  "PASS WITH STATE/PARAMETER WARNINGS", "PASS"))
+  fifelse(
+    mechanics_diagnostics_incomplete,
+    "INCOMPLETE - required mechanics diagnostics were unavailable",
+    fifelse(
+      demand_reconciliation_incomplete,
+      fifelse(
+        state_parameter_warning,
+        "PASS MECHANICS WITH WARNINGS / INCOMPLETE DEMAND RECONCILIATION",
+        "PASS MECHANICS / INCOMPLETE DEMAND RECONCILIATION"
+      ),
+      fifelse(state_parameter_warning, "PASS WITH STATE/PARAMETER WARNINGS", "PASS")
+    )
+  )
 )]
 fwrite(mechanics_summary, file.path(out_dir, "mechanics_summary.csv"))
 
@@ -1157,60 +1196,121 @@ if (length(trajectory_all)) {
   for (mc_name in names(trajectory_all)) {
     tr <- trajectory_all[[mc_name]]
     if (!nrow(tr)) next
-    tr[, panel := sprintf("%s | cell %d | TOF=%d\nK=%.1f Mg/cell", group, cell, tof, K_Mg_cell)]
+    tr[, parameter_text := fcase(
+      tof == 1L,
+      sprintf("annual TOF K=%.1f Mg/cell", capacity_Mg_cell),
+      growth_model == "chapman-richards",
+      sprintf("A=%.1f Mg/cell; k=%.4f; m=%.3f", capacity_Mg_cell, cr_k, cr_m),
+      default = sprintf("K=%.1f Mg/cell; r=%.4f", capacity_Mg_cell, rmax_per_iteration)
+    )]
+    tr[, panel := sprintf("%s | cell %d | TOF=%d\n%s", group, cell, tof, parameter_text)]
     tr[, panel := factor(panel, levels = unique(panel))]
-    line_data <- melt(
+
+    harvest_data <- melt(
       tr,
       id.vars = c("panel", "year"),
-      measure.vars = c(
-        "predicted_growth_Mg_cell", "observed_growth_Mg_cell",
-        "expected_harvest_Mg_cell", "actual_harvest_Mg_cell",
-        "post_harvest_stock_Mg_cell"
-      ),
-      variable.name = "series", value.name = "Mg_cell"
+      measure.vars = c("expected_harvest_Mg_cell", "actual_harvest_Mg_cell"),
+      variable.name = "harvest_series", value.name = "Mg_cell"
     )
-    labels_series <- c(
-      predicted_growth_Mg_cell = "predicted pre-harvest stock",
-      observed_growth_Mg_cell = "observed pre-harvest stock",
-      expected_harvest_Mg_cell = "expected harvest map",
-      actual_harvest_Mg_cell = "realized harvest",
-      post_harvest_stock_Mg_cell = "post-harvest stock"
+    harvest_labels <- c(
+      expected_harvest_Mg_cell = "assigned/expected harvest map",
+      actual_harvest_Mg_cell = "realized harvest"
     )
-    line_data[, series := factor(labels_series[as.character(series)], levels = labels_series)]
-    # Avoid one-observation warnings for series that become NULL immediately.
-    line_data <- line_data[, if (sum(is.finite(Mg_cell)) >= 2L) .SD else NULL,
-                           by = .(panel, series)]
-    colours <- c(
-      "predicted pre-harvest stock" = "#D55E00",
+    harvest_data[, harvest_series := factor(
+      harvest_labels[as.character(harvest_series)],
+      levels = unname(harvest_labels)
+    )]
+    harvest_data <- harvest_data[is.finite(Mg_cell)]
+
+    line_ready <- function(column) {
+      tr[, if (sum(is.finite(get(column))) >= 2L) .SD else NULL, by = panel]
+    }
+    post_line <- line_ready("post_harvest_stock_Mg_cell")
+    observed_line <- line_ready("observed_growth_Mg_cell")
+    predicted_line <- line_ready("predicted_growth_Mg_cell")
+
+    harvest_fills <- c(
+      "assigned/expected harvest map" = "#CC79A7",
+      "realized harvest" = "#E69F00"
+    )
+    stock_colours <- c(
+      "post-harvest stock" = "#009E73",
       "observed pre-harvest stock" = "#0072B2",
-      "expected harvest map" = "#CC79A7",
-      "realized harvest" = "#E69F00",
-      "post-harvest stock" = "#009E73"
+      "predicted pre-harvest stock" = "#D55E00"
     )
-    linetypes <- c(
-      "predicted pre-harvest stock" = "dashed",
+    stock_linetypes <- c(
+      "post-harvest stock" = "solid",
       "observed pre-harvest stock" = "solid",
-      "expected harvest map" = "dotted",
-      "realized harvest" = "solid",
-      "post-harvest stock" = "solid"
+      "predicted pre-harvest stock" = "dotted"
     )
-    p <- ggplot(line_data, aes(year, Mg_cell, colour = series, linetype = series)) +
-      geom_line(linewidth = 0.65, na.rm = TRUE) +
+
+    p <- ggplot() +
+      # Establish every facet and anchor its free y-scale at zero.  Harvest is
+      # drawn first as two thin side-by-side flows, never connected as lines.
+      geom_blank(data = tr, aes(year, 0)) +
+      geom_col(
+        data = harvest_data,
+        aes(year, Mg_cell, fill = harvest_series),
+        position = position_dodge2(width = 0.60, preserve = "single", padding = 0.25),
+        width = 0.60, alpha = 0.55, colour = NA, na.rm = TRUE
+      ) +
+      # Explicit layer order matters: the prediction is last so exact matches
+      # remain visible as red dots over the solid observed line.
+      geom_line(
+        data = post_line,
+        aes(year, post_harvest_stock_Mg_cell,
+            colour = "post-harvest stock", linetype = "post-harvest stock"),
+        linewidth = 0.65, na.rm = TRUE
+      ) +
+      geom_line(
+        data = observed_line,
+        aes(year, observed_growth_Mg_cell,
+            colour = "observed pre-harvest stock", linetype = "observed pre-harvest stock"),
+        linewidth = 0.72, na.rm = TRUE
+      ) +
+      geom_line(
+        data = predicted_line,
+        aes(year, predicted_growth_Mg_cell,
+            colour = "predicted pre-harvest stock", linetype = "predicted pre-harvest stock"),
+        linewidth = 0.82, lineend = "round", na.rm = TRUE
+      ) +
       facet_wrap(~panel, scales = "free_y", ncol = 2) +
-      scale_colour_manual(values = colours, name = NULL, drop = FALSE) +
-      scale_linetype_manual(values = linetypes, name = NULL, drop = FALSE) +
+      scale_fill_manual(
+        values = harvest_fills, limits = names(harvest_fills),
+        name = NULL, drop = FALSE
+      ) +
+      scale_colour_manual(
+        values = stock_colours, limits = names(stock_colours),
+        name = NULL, drop = FALSE
+      ) +
+      scale_linetype_manual(
+        values = stock_linetypes, limits = names(stock_linetypes),
+        name = NULL, drop = FALSE
+      ) +
       labs(
-        x = "Year", y = "MgDM per grid cell",
-        title = sprintf("MoFuSS mechanics diagnostic - MC%s", mc_name),
-        subtitle = "Native pixel totals; gaps indicate NULL cells. Expected harvest is shown only when an exact per-MC raster is available."
+        x = "Year", y = "Stock or harvest (MgDM per grid cell)",
+        title = sprintf(
+          "MoFuSS pixel mechanics - MC%s (%s)",
+          mc_name, unique(tr$growth_model)[[1L]]
+        ),
+        subtitle = paste(
+          "Thin bars: assigned/expected and realized harvest.",
+          "Lines: post-harvest, observed pre-harvest, then dotted prediction on top.",
+          "Each panel includes zero; gaps indicate NULL cells."
+        )
       ) +
       theme_bw(base_size = 9) +
       theme(
         legend.position = "top", legend.text = element_text(size = 7.5),
+        legend.box = "vertical",
         strip.background = element_blank(), strip.text = element_text(size = 7),
         plot.title = element_text(face = "bold")
       ) +
-      guides(colour = guide_legend(nrow = 2, byrow = TRUE), linetype = guide_legend(nrow = 2, byrow = TRUE))
+      guides(
+        fill = guide_legend(order = 1, nrow = 1, byrow = TRUE),
+        colour = guide_legend(order = 2, nrow = 1, byrow = TRUE),
+        linetype = guide_legend(order = 2, nrow = 1, byrow = TRUE)
+      )
     plot_height <- max(7.5, 2.4 * ceiling(uniqueN(tr$panel) / 2))
     ggsave(
       file.path(out_dir, sprintf("pixel_trajectories_MC%s.png", mc_name)),
@@ -1220,15 +1320,97 @@ if (length(trajectory_all)) {
   }
 }
 
+# ---- Evidence provenance -----------------------------------------------------
+# Pass/fail is derived from raster replay.  Root log/debug files are recorded so
+# stale or mismatched engine references cannot be mistaken for mechanics proof.
+mechanics_evidence_files <- unlist(lapply(mc_ids, function(mc) {
+  dbg <- file.path(wd, sprintf("debugging_%d", mc))
+  unlist(lapply(
+    c("Growth", "Harvest_tot", "Growth_less_harv"),
+    function(prefix) file.path(dbg, paste0(prefix, suffixes, ".tif"))
+  ), use.names = FALSE)
+}), use.names = FALSE)
+mechanics_evidence_info <- file.info(mechanics_evidence_files)
+mechanics_mtimes <- mechanics_evidence_info$mtime[!is.na(mechanics_evidence_info$mtime)]
+raster_mtime_first <- if (length(mechanics_mtimes)) min(mechanics_mtimes) else as.POSIXct(NA)
+raster_mtime_last <- if (length(mechanics_mtimes)) max(mechanics_mtimes) else as.POSIXct(NA)
+format_timestamp <- function(x) {
+  if (length(x) && !is.na(x[[1L]])) {
+    format(x[[1L]], "%Y-%m-%d %H:%M:%S %Z")
+  } else NA_character_
+}
+
+auxiliary_provenance <- function(filename, inspect_engine_reference = FALSE) {
+  path <- file.path(wd, filename)
+  exists <- file.exists(path)
+  mtime <- if (exists) file.info(path)$mtime[[1L]] else as.POSIXct(NA)
+  older_than_rasters <- exists && !is.na(raster_mtime_first) &&
+    !is.na(mtime) && mtime < raster_mtime_first
+  engine_reference <- NA_character_
+  version_mismatch <- FALSE
+  if (exists && inspect_engine_reference) {
+    text <- readLines(path, warn = FALSE)
+    reference_lines <- trimws(grep("\\.egoml", text, value = TRUE, ignore.case = TRUE))
+    if (length(reference_lines)) {
+      engine_reference <- substr(paste(head(reference_lines, 3L), collapse = " | "), 1L, 1000L)
+      version_mismatch <- any(grepl("v5\\.egoml", reference_lines, ignore.case = TRUE))
+    }
+  }
+  flags <- c(
+    if (older_than_rasters) "STALE",
+    if (version_mismatch) "VERSION-MISMATCH"
+  )
+  status <- if (!exists) {
+    "NOT PRESENT / NOT USED"
+  } else if (length(flags)) {
+    paste0(paste(flags, collapse = " + "), " / NOT USED")
+  } else "INFORMATIONAL ONLY / NOT USED"
+  detail <- if (!is.na(engine_reference) && nzchar(engine_reference)) {
+    paste0("Engine reference: ", engine_reference)
+  } else {
+    "Excluded from mechanics and engine-version evidence; raster replay is authoritative."
+  }
+  data.table(
+    source = filename, exists = exists,
+    first_modified = format_timestamp(mtime), last_modified = format_timestamp(mtime),
+    status = status, used_for_verdict = FALSE, detail = detail
+  )
+}
+
+detected_models <- paste(sort(unique(model_detection$selected_model)), collapse = ", ")
+verification_provenance <- rbindlist(list(
+  data.table(
+    source = "annual mechanics raster replay", exists = TRUE,
+    first_modified = format_timestamp(raster_mtime_first),
+    last_modified = format_timestamp(raster_mtime_last),
+    status = "AUTHORITATIVE FOR THIS VERIFICATION", used_for_verdict = TRUE,
+    detail = sprintf(
+      "All model-domain pixels; MC=%s; years=%d-%d; raster-detected model(s)=%s",
+      paste(mc_ids, collapse = ","), start_year, end_year, detected_models
+    )
+  ),
+  auxiliary_provenance("log.txt", inspect_engine_reference = TRUE),
+  auxiliary_provenance("debug.txt")
+), fill = TRUE)
+fwrite(verification_provenance, file.path(out_dir, "verification_provenance.csv"))
+
 # ---- Human-readable report ---------------------------------------------------
 overall_fail <- any(grepl("^FAIL", mechanics_summary$verdict), na.rm = TRUE)
-overall_incomplete <- any(is.na(mechanics_summary$audit_incomplete)) ||
-  any(mechanics_summary$audit_incomplete, na.rm = TRUE)
-overall_warning <- any(grepl("WARNING", mechanics_summary$verdict), na.rm = TRUE)
+overall_mechanics_incomplete <-
+  any(is.na(mechanics_summary$mechanics_diagnostics_incomplete)) ||
+  any(mechanics_summary$mechanics_diagnostics_incomplete, na.rm = TRUE)
+overall_demand_incomplete <-
+  any(is.na(mechanics_summary$demand_reconciliation_incomplete)) ||
+  any(mechanics_summary$demand_reconciliation_incomplete, na.rm = TRUE)
+overall_warning <- any(mechanics_summary$state_parameter_warning, na.rm = TRUE)
 overall_verdict <- if (overall_fail) {
   "FAIL - localized state/mechanics defects were detected"
-} else if (overall_incomplete) {
-  "INCOMPLETE - required verification inputs were unavailable"
+} else if (overall_mechanics_incomplete) {
+  "INCOMPLETE - required mechanics diagnostics were unavailable"
+} else if (overall_demand_incomplete && overall_warning) {
+  "PASS MECHANICS WITH WARNINGS / INCOMPLETE DEMAND RECONCILIATION"
+} else if (overall_demand_incomplete) {
+  "PASS MECHANICS / INCOMPLETE DEMAND RECONCILIATION"
 } else if (overall_warning) {
   "PASS WITH STATE/PARAMETER WARNINGS"
 } else "PASS"
@@ -1252,11 +1434,13 @@ missing_raw_years <- demand_by_year[!raw_demand_complete, year]
 missing_assigned_years <- demand_by_year[!assigned_demand_complete, year]
 
 completeness_lines <- "Verification-input completeness:"
-if (!length(c(missing_stage_a, missing_stage_b_full, missing_stage_b_annual,
-              missing_raw_years, missing_assigned_years))) {
+if (!length(c(missing_stage_a, missing_stage_b_full, missing_stage_b_annual))) {
   completeness_lines <- c(
     completeness_lines,
-    "  All per-MC Stage A, Stage B annual, Stage B cumulative, and demand inputs were available; no additional verifier diagnostics need to be saved."
+    sprintf(
+      "  All per-MC mechanics diagnostics are complete for %s: Stage A, Stage B annual pixel maps, and Stage B cumulative rasters; no additional verifier diagnostics need to be saved.",
+      format_mc_list(mc_ids)
+    )
   )
 } else {
   if (length(missing_stage_a) || length(missing_stage_b_annual)) {
@@ -1283,18 +1467,24 @@ if (!length(c(missing_stage_a, missing_stage_b_full, missing_stage_b_annual,
       format_mc_list(missing_stage_b_full)
     ))
   }
-  if (length(missing_raw_years)) {
-    completeness_lines <- c(completeness_lines, sprintf(
-      "  Raw-demand source rasters were unavailable or invalid for: %s.",
-      paste(missing_raw_years, collapse = ", ")
-    ))
-  }
-  if (length(missing_assigned_years)) {
-    completeness_lines <- c(completeness_lines, sprintf(
-      "  Assigned W/V demand tables were unavailable or invalid for: %s.",
-      paste(missing_assigned_years, collapse = ", ")
-    ))
-  }
+}
+if (!length(c(missing_raw_years, missing_assigned_years))) {
+  completeness_lines <- c(
+    completeness_lines,
+    "  Raw-demand rasters and assigned W/V demand tables are complete for every reporting year."
+  )
+}
+if (length(missing_raw_years)) {
+  completeness_lines <- c(completeness_lines, sprintf(
+    "  Raw-demand source rasters were unavailable or invalid for: %s.",
+    paste(missing_raw_years, collapse = ", ")
+  ))
+}
+if (length(missing_assigned_years)) {
+  completeness_lines <- c(completeness_lines, sprintf(
+    "  Assigned W/V demand tables were unavailable or invalid for: %s.",
+    paste(missing_assigned_years, collapse = ", ")
+  ))
 }
 
 scaling_conclusion_lines <- if (core_unit_reconciled) {
@@ -1323,6 +1513,27 @@ area_conclusion_line <- sprintf(
   }
 )
 
+raster_provenance <- verification_provenance[source == "annual mechanics raster replay"][1L]
+log_provenance <- verification_provenance[source == "log.txt"][1L]
+debug_provenance <- verification_provenance[source == "debug.txt"][1L]
+provenance_lines <- c(
+  "Evidence provenance:",
+  sprintf("  Raster replay: %s. %s.", raster_provenance$status, raster_provenance$detail),
+  "  Every model-domain pixel contributes to the mechanics verdict; sampled cells are used only in the trajectory figures.",
+  sprintf(
+    "  log.txt: %s; modified=%s. %s",
+    log_provenance$status,
+    ifelse(is.na(log_provenance$first_modified), "not available", log_provenance$first_modified),
+    log_provenance$detail
+  ),
+  sprintf(
+    "  debug.txt: %s; modified=%s. %s",
+    debug_provenance$status,
+    ifelse(is.na(debug_provenance$first_modified), "not available", debug_provenance$first_modified),
+    debug_provenance$detail
+  )
+)
+
 report_lines <- c(
   "MoFuSS mechanics verification",
   "==============================",
@@ -1331,6 +1542,8 @@ report_lines <- c(
   sprintf("Native units: Mg dry matter per grid cell; nominal area %.3f ha/cell", nominal_area_ha),
   sprintf("Float32 tolerance: %.4f Mg/cell", tol),
   sprintf("OVERALL VERDICT: %s", overall_verdict),
+  "",
+  provenance_lines,
   "",
   "Interpretation of the two harvest constraints:",
   "  Stage A - TOF annual-supply constraint: Non_harv_AGR is the preliminary TOF request above annual TOF K. It is redistributed to forests and is not unmet demand.",
@@ -1357,8 +1570,8 @@ report_lines <- c(report_lines, "", "Verification coverage:")
 for (i in seq_len(nrow(mechanics_summary))) {
   x <- mechanics_summary[i]
   report_lines <- c(report_lines, sprintf(
-    "  MC%d: Stage A=%s; Stage B full-run aggregate=%s; Stage B annual spatial=%s; raw demand=%s; assigned demand=%s; MC verdict=%s",
-    x$mc, x$stage_A_status, x$stage_B_full_run_aggregate_status,
+    "  MC%d: raster-detected model=%s; Stage A=%s; Stage B full-run aggregate=%s; Stage B annual spatial=%s; raw demand=%s; assigned demand=%s; MC verdict=%s",
+    x$mc, x$growth_model, x$stage_A_status, x$stage_B_full_run_aggregate_status,
     x$stage_B_annual_spatial_status,
     if (isTRUE(x$raw_demand_years_complete)) "PASS" else "NOT AUDITED",
     if (isTRUE(x$assigned_demand_years_complete)) "PASS" else "NOT AUDITED",

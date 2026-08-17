@@ -30,13 +30,15 @@ library(conflicted)
 library(terra)
 # terraOptions(steps = 55)
 if (temdirdefined == 1) {
-  terraOptions(tempdir = rTempdir)
+  # Leave memory headroom for later scripts sourced into this same R session.
+  # A 0.9 fraction persisted globally and made the harmonizer materialize
+  # multi-GB raster intermediates in memory.
+  terraOptions(tempdir = rTempdir, memfrac = 0.5)
   # List all files and directories inside the folder
   contents <- list.files(rTempdir, full.names = TRUE, recursive = TRUE)
   # Delete the contents but keep the folder
   unlink(contents, recursive = TRUE, force = TRUE)
 }
-# terraOptions(memfrac=0.9)
 # terraOptions(progress=0)
 library(dplyr)
 library(gdata)
@@ -820,7 +822,6 @@ for (i in adm0_reg$GID_0) { # Start of outer region (i) loop ----
     # j=2000
     
     gc()
-    terraOptions(memfrac=0.9)
     print(j)
     
     if (subcountry != 1) {

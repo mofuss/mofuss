@@ -279,6 +279,29 @@ if (scenario_ver %in% bau_scenarios) {
 
 # Function: take an anchor scenario number (1/2/3) and return the
 # ics_no_overall tibble that the trailing rebuild needs.
+standardize_anchor_shares <- function(anchors_user) {
+  if (!"share_user" %in% names(anchors_user)) {
+    stop("The anchor table must contain a share_user column.")
+  }
+
+  share_values <- anchors_user$share_user
+  if (!is.numeric(share_values)) {
+    stop("The anchor-table share_user column must be numeric.")
+  }
+  if (!length(share_values) || anyNA(share_values) ||
+      any(!is.finite(share_values))) {
+    stop("The anchor-table share_user column cannot be empty, NA, NaN, or infinite.")
+  }
+
+  # This is a table-level unit choice, so use a scalar if statement rather
+  # than recycling a scalar case_when() condition over a vector RHS.
+  if (max(share_values) > 1) {
+    anchors_user$share_user <- share_values / 100
+  }
+
+  anchors_user
+}
+
 run_ics_pipeline <- function(anchor_num) {
   
   cat(sprintf("\n\033[36m=== Running ICS pipeline for anchor_points%d.csv ===\033[0m\n",
@@ -295,13 +318,7 @@ run_ics_pipeline <- function(anchor_num) {
   
   ## 4) STANDARDIZE USER VALUES TO 0-1 ----
   #    If entered as percentages (0-100), convert to 0-1
-  anchors_user <- anchors_user %>%
-    mutate(
-      share_user = case_when(
-        max(share_user, na.rm = TRUE) > 1 ~ share_user / 100,
-        TRUE ~ share_user
-      )
-    )
+  anchors_user <- standardize_anchor_shares(anchors_user)
   
   ## 5) VALIDATE USER ANCHOR TABLE ----
   # 5a) Allowed years

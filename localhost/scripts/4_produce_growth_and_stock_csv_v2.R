@@ -20,8 +20,7 @@
 
 # Internal parameters ----
 temdirdefined = 1
-forced_urban_supply <- 2
-forced_urban_supply_sd <- forced_urban_supply
+forced_urban_parameter_digits <- 4L
 # # Select MoFuSS platform:
 # webmofuss = 1 # "1" is  web-MoFuSS running in our Ubuntu server, "0" is localcal host (Windows or Linux)
 
@@ -34,13 +33,14 @@ library(conflicted)
 library(terra)
 # terraOptions(steps = 55)
 if (temdirdefined == 1) {
-  terraOptions(tempdir = rTempdir)
+  # This script and the harmonizer are sourced into one R session. Keep
+  # headroom for GDAL and for objects created by the preceding demand scripts.
+  terraOptions(tempdir = rTempdir, memfrac = 0.5)
   # List all files and directories inside the folder
   contents <- list.files(rTempdir, full.names = TRUE, recursive = TRUE)
   # Delete the contents but keep the folder
   unlink(contents, recursive = TRUE, force = TRUE)
 }
-# terraOptions(memfrac=0.9)
 # terraOptions(progress=0)
 library(dplyr)
 library(readr)
@@ -61,6 +61,10 @@ validate_growth_parameters <- function(data, label) {
   if (length(non_numeric) > 0) {
     stop(label, " has non-numeric columns: ", paste(non_numeric, collapse = ", "))
   }
+  key_values <- data[["Key*"]]
+  invalid_keys <- anyNA(key_values) || any(!is.finite(key_values)) ||
+    any(key_values < 1) || any(key_values > .Machine$integer.max) ||
+    any(key_values != floor(key_values))
   invalid <- data %>%
     dplyr::filter(
       !is.finite(`Key*`) | !is.finite(rmax) | !is.finite(rmaxSD) |
@@ -70,12 +74,146 @@ validate_growth_parameters <- function(data, label) {
         (TOF == 0 & K <= 0) | (TOF == 1 & K < 0) |
         (TOF == 1 & (rmax != 0 | rmaxSD != 0))
     )
-  if (anyDuplicated(data$`Key*`) || nrow(invalid) > 0) {
+  if (invalid_keys || anyDuplicated(data$`Key*`) || nrow(invalid) > 0) {
     stop(
       label, " contains duplicate keys or invalid growth/TOF parameters."
     )
   }
   invisible(data)
+}
+
+native_urban_label <- function(dataset) {
+  switch(
+    tolower(dataset),
+    modis = "Urban and Built-up Lands",
+    copernicus = "Urban built up",
+    stop("Unsupported LULC dataset: ", dataset)
+  )
+}
+
+assert_current_tof_policy <- function(data, dataset) {
+  urban_suffix <- paste0("_", native_urban_label(dataset))
+  urban <- data[endsWith(as.character(data$LULC), urban_suffix), ]
+  water_pattern <- switch(
+    tolower(dataset),
+    modis = "_Water Bodies$",
+    copernicus = "_(Permanent water bodies|Oceans seas)$"
+  )
+  water <- data[grepl(water_pattern, as.character(data$LULC)), ]
+  legacy_urban <- nrow(urban) > 0 && all(
+    abs(urban$K - 2) < 1e-12 & abs(urban$KSD - 2) < 1e-12
+  )
+  legacy_water <- nrow(water) > 0 && all(
+    abs(water$K - 10) < 1e-12 & abs(water$KSD - 10) < 1e-12
+  )
+  if (legacy_urban || legacy_water) {
+    stop(
+      toupper(dataset),
+      " growth parameters still use the legacy fixed Urban/Water TOF policy. ",
+      "Regenerate the growth table and its matching classified raster with ",
+      "7pre_lulcc_v6.R before running the country pipeline."
+    )
+  }
+  invisible(data)
+}
+
+derive_forced_urban_parameters <- function(
+  growth_parameters, base_key_raster, forced_urban_mask, dataset
+) {
+  urban_suffix <- paste0("_", native_urban_label(dataset))
+  parameter_rows <- growth_parameters %>%
+    dplyr::transmute(
+      base_key = as.numeric(`Key*`),
+      zone = sub("_[^_]+$", "", as.character(LULC)),
+      K = as.numeric(K), KSD = as.numeric(KSD), TOF = as.numeric(TOF),
+      is_native_urban = endsWith(as.character(LULC), urban_suffix)
+    )
+  urban_rows <- parameter_rows %>%
+    dplyr::filter(is_native_urban, TOF == 1, is.finite(K), is.finite(KSD)) %>%
+    dplyr::select(zone, urban_K = K, urban_KSD = KSD)
+  if (!nrow(urban_rows) || anyDuplicated(urban_rows$zone)) {
+    stop(
+      toupper(dataset),
+      " needs exactly one valid native Urban parameter row per represented zone."
+    )
+  }
+
+  positive_cv <- with(
+    urban_rows[urban_rows$urban_K > 0, ],
+    urban_KSD / urban_K
+  )
+  positive_cv <- positive_cv[is.finite(positive_cv) & positive_cv >= 0]
+  if (length(positive_cv)) {
+    urban_cv <- stats::median(positive_cv)
+  } else if (all(urban_rows$urban_K == 0 & urban_rows$urban_KSD == 0)) {
+    urban_cv <- 0
+  } else {
+    stop(toupper(dataset), " native Urban rows do not define a usable TOF CV.")
+  }
+
+  forced_keys <- terra::ifel(forced_urban_mask, base_key_raster, NA)
+  forced_frequency <- as.data.frame(terra::freq(forced_keys))
+  if (!nrow(forced_frequency)) {
+    fallback_K <- mean(urban_rows$urban_K)
+    message(
+      toupper(dataset),
+      ": no forced-urban pixels were present; Urban_Forced uses the unweighted ",
+      "mean of native Urban annual supplies."
+    )
+    return(list(
+      K = round(fallback_K, forced_urban_parameter_digits),
+      KSD = round(fallback_K * urban_cv, forced_urban_parameter_digits),
+      matched_fraction = NA_real_
+    ))
+  }
+  if (!all(c("value", "count") %in% names(forced_frequency))) {
+    names(forced_frequency)[(ncol(forced_frequency) - 1L):ncol(forced_frequency)] <-
+      c("value", "count")
+  }
+
+  forced_by_zone <- forced_frequency %>%
+    dplyr::transmute(
+      base_key = as.numeric(value), pixel_count = as.numeric(count)
+    ) %>%
+    dplyr::left_join(
+      parameter_rows %>% dplyr::select(base_key, zone),
+      by = "base_key"
+    ) %>%
+    dplyr::left_join(urban_rows, by = "zone")
+  if (any(!is.finite(forced_by_zone$pixel_count)) ||
+      sum(forced_by_zone$pixel_count) <= 0) {
+    stop(toupper(dataset), " forced-urban footprint has invalid pixel counts.")
+  }
+
+  matched <- is.finite(forced_by_zone$urban_K)
+  matched_fraction <- sum(forced_by_zone$pixel_count[matched]) /
+    sum(forced_by_zone$pixel_count)
+  if (any(matched)) {
+    fallback_K <- weighted.mean(
+      forced_by_zone$urban_K[matched], forced_by_zone$pixel_count[matched]
+    )
+  } else {
+    fallback_K <- mean(urban_rows$urban_K)
+  }
+  if (any(!matched)) {
+    warning(
+      sprintf(
+        "%s: %.2f%% of forced-urban pixels lack a native Urban row for their zone; using the matched-footprint mean for those pixels.",
+        toupper(dataset), 100 * (1 - matched_fraction)
+      ),
+      call. = FALSE
+    )
+    forced_by_zone$urban_K[!matched] <- fallback_K
+  }
+
+  forced_K <- weighted.mean(
+    forced_by_zone$urban_K, forced_by_zone$pixel_count
+  )
+  list(
+    K = round(forced_K, forced_urban_parameter_digits),
+    KSD = round(forced_K * urban_cv, forced_urban_parameter_digits),
+    matched_fraction = matched_fraction
+  )
 }
 
 setwd(countrydir)
@@ -231,8 +369,9 @@ if (lucinputdataset == "modis") {
   validate_growth_parameters(
     growth_parameters_v3_modis, "MODIS growth-parameter table"
   )
+  assert_current_tof_policy(growth_parameters_v3_modis, "modis")
   
-  lastid <- nrow(growth_parameters_v3_modis)+1
+  lastid <- max(as.integer(growth_parameters_v3_modis[["Key*"]])) + 1L
   rururb_rcl <- data.frame(c(1,2),c(NA,lastid)) %>%
     as.matrix(.,nrow = 2, ncol = 2) %>%
     unname()
@@ -242,6 +381,12 @@ if (lucinputdataset == "modis") {
     #                  filetype = "GTiff", overwrite = TRUE)
   
   mask_urbanforced <- !is.na(rururb_pcs_rcl)
+  forced_urban_parameters <- derive_forced_urban_parameters(
+    growth_parameters_v3_modis,
+    lucmodis_2001_merge_rcl,
+    mask_urbanforced,
+    "modis"
+  )
   lucmodis_2001_final <- ifel(mask_urbanforced, rururb_pcs_rcl, lucmodis_2001_merge_rcl)
   
   # terra::writeRaster(lucmodis_2010_final, paste0(lulccfiles,"/out_pcs/rururb_rcl2.tif"),
@@ -252,12 +397,24 @@ if (lucinputdataset == "modis") {
   growth_parameters_v4 <- growth_parameters_v3_modis %>%
     add_row(tibble_row(
       `Key*` = lastid, LULC = "Urban_Forced", rmax = 0, rmaxSD = 0,
-      K = forced_urban_supply, KSD = forced_urban_supply_sd, TOF = 1
+      K = forced_urban_parameters$K,
+      KSD = forced_urban_parameters$KSD,
+      TOF = 1
     ))
+  validate_growth_parameters(growth_parameters_v4, "Final MODIS growth-parameter table")
   str(growth_parameters_v4)
   write.csv(growth_parameters_v4, paste0(countrydir,"/LULCC/DownloadedDatasets/SourceDataGlobal/InTables/growth_parameters1.csv"), row.names=FALSE, quote=FALSE)
   write.csv(growth_parameters_v4, paste0(countrydir,"/LULCC/TempTables/growth_parameters1.csv"), row.names=FALSE, quote=FALSE)
   tail(growth_parameters_v4)
+
+  # These rasters use the 453-million-cell global grid and are not consumed as
+  # live objects downstream; the harmonizer reopens the written products.
+  # Release them now instead of carrying several GB into AGB processing.
+  rm(
+    lucmodis_2001_merge_rcl, rururb_gcs, rururb_pcs, rururb_pcs_rcl,
+    mask_urbanforced, lucmodis_2001_final
+  )
+  invisible(gc())
   
   } else if (lucinputdataset == "copernicus") {
     
@@ -290,8 +447,9 @@ if (lucinputdataset == "modis") {
   validate_growth_parameters(
     growth_parameters_v3_copernicus, "Copernicus growth-parameter table"
   )
+  assert_current_tof_policy(growth_parameters_v3_copernicus, "copernicus")
   
-  lastid <- nrow(growth_parameters_v3_copernicus)+1
+  lastid <- max(as.integer(growth_parameters_v3_copernicus[["Key*"]])) + 1L
   rururb_rcl <- data.frame(c(1,2),c(NA,lastid)) %>%
     as.matrix(.,nrow = 2, ncol = 2) %>%
     unname()
@@ -301,6 +459,12 @@ if (lucinputdataset == "modis") {
   #                    filetype = "GTiff", overwrite = TRUE)
   
   mask_urbanforced <- !is.na(rururb_pcs_rcl)
+  forced_urban_parameters <- derive_forced_urban_parameters(
+    growth_parameters_v3_copernicus,
+    luccopernicus_2015_merge_rcl,
+    mask_urbanforced,
+    "copernicus"
+  )
   luccopernicus_2015_final <- ifel(mask_urbanforced, rururb_pcs_rcl, luccopernicus_2015_merge_rcl)
   
   # terra::writeRaster(luccopernicus_2010_final, paste0(lulccfiles,"/out_pcs/rururb_rcl2.tif"),
@@ -311,12 +475,23 @@ if (lucinputdataset == "modis") {
   growth_parameters_v4 <- growth_parameters_v3_copernicus %>%
     add_row(tibble_row(
       `Key*` = lastid, LULC = "Urban_Forced", rmax = 0, rmaxSD = 0,
-      K = forced_urban_supply, KSD = forced_urban_supply_sd, TOF = 1
+      K = forced_urban_parameters$K,
+      KSD = forced_urban_parameters$KSD,
+      TOF = 1
     ))
+  validate_growth_parameters(
+    growth_parameters_v4, "Final Copernicus growth-parameter table"
+  )
   str(growth_parameters_v4)
   write.csv(growth_parameters_v4, paste0(countrydir,"/LULCC/DownloadedDatasets/SourceDataGlobal/InTables/growth_parameters2.csv"), row.names=FALSE, quote=FALSE)
   write.csv(growth_parameters_v4, paste0(countrydir,"/LULCC/TempTables/growth_parameters2.csv"), row.names=FALSE, quote=FALSE)
   tail(growth_parameters_v4)
+
+  rm(
+    luccopernicus_2015_merge_rcl, rururb_gcs, rururb_pcs, rururb_pcs_rcl,
+    mask_urbanforced, luccopernicus_2015_final
+  )
+  invisible(gc())
   
   }
 

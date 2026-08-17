@@ -270,9 +270,33 @@ for (j in (c("v","w"))) {
   Sys.sleep(10)
 }
 
+make_tof_key_table <- function(data, label) {
+  required <- c("Key*", "TOF")
+  missing <- setdiff(required, names(data))
+  if (length(missing)) {
+    stop(label, " is missing columns: ", paste(missing, collapse = ", "))
+  }
+  key_values <- suppressWarnings(as.numeric(data[["Key*"]]))
+  tof_values <- suppressWarnings(as.numeric(data[["TOF"]]))
+  invalid_keys <- anyNA(key_values) || any(!is.finite(key_values)) ||
+    any(key_values < 1) || any(key_values > .Machine$integer.max) ||
+    any(key_values != floor(key_values))
+  invalid_tof <- anyNA(tof_values) || any(!is.finite(tof_values)) ||
+    any(!tof_values %in% c(0, 1))
+  if (invalid_keys || invalid_tof) {
+    stop(label, " contains invalid/duplicate keys or non-binary TOF values.")
+  }
+  keys <- as.integer(key_values)
+  tof <- as.integer(tof_values)
+  if (anyDuplicated(keys)) {
+    stop(label, " contains invalid/duplicate keys or non-binary TOF values.")
+  }
+  data.frame(Key = keys, x = tof)
+}
+
 if (file.exists("LULCC/TempTables/growth_parameters1.csv") == TRUE) {
-  data_semicolon<-read.csv("LULCC/TempTables/growth_parameters1.csv", sep=";", header=T)
-  data_comma<-read.csv("LULCC/TempTables/growth_parameters1.csv", sep=",", header=T)
+  data_semicolon<-read.csv("LULCC/TempTables/growth_parameters1.csv", sep=";", header=T, check.names=FALSE)
+  data_comma<-read.csv("LULCC/TempTables/growth_parameters1.csv", sep=",", header=T, check.names=FALSE)
   if (is.null(data_semicolon$TOF[1])) { 
     data_all1<-data_comma
   } else {
@@ -281,17 +305,13 @@ if (file.exists("LULCC/TempTables/growth_parameters1.csv") == TRUE) {
   # Produce TOF vs FOR categories ####
   data_FOR1<-subset(data_all1, data_all1$TOF==0)
   data_TOF1<-subset(data_all1, data_all1$TOF==1)
-  max_tot1<-nrow(data_all1)
-  
-  dataTOFvsFOR1<-as.data.frame(data_all1[ ,7])
-  colnames(dataTOFvsFOR1)<-("x")
-  dataTOFvsFOR1=data.frame(Key=c(1:max_tot1),dataTOFvsFOR1)
+  dataTOFvsFOR1 <- make_tof_key_table(data_all1, "growth_parameters1.csv")
   write.csv(dataTOFvsFOR1,"LULCC/TempTables//TOFvsFOR_Categories1.csv",row.names = FALSE)
 }
 
 if (file.exists("LULCC/TempTables/growth_parameters2.csv") == TRUE) {
-  data_semicolon<-read.csv("LULCC/TempTables/growth_parameters2.csv", sep=";", header=T)
-  data_comma<-read.csv("LULCC/TempTables/growth_parameters2.csv", sep=",", header=T)
+  data_semicolon<-read.csv("LULCC/TempTables/growth_parameters2.csv", sep=";", header=T, check.names=FALSE)
+  data_comma<-read.csv("LULCC/TempTables/growth_parameters2.csv", sep=",", header=T, check.names=FALSE)
   if (is.null(data_semicolon$TOF[1])) { 
     data_all2<-data_comma
   } else {
@@ -300,30 +320,22 @@ if (file.exists("LULCC/TempTables/growth_parameters2.csv") == TRUE) {
   # Produce TOF vs FOR categories ####
   data_FOR2<-subset(data_all2, data_all2$TOF==0)
   data_TOF2<-subset(data_all2, data_all2$TOF==1)
-  max_tot2<-nrow(data_all2)
-  
-  dataTOFvsFOR2<-as.data.frame(data_all2[ ,7])
-  colnames(dataTOFvsFOR2)<-("x")
-  dataTOFvsFOR2=data.frame(Key=c(1:max_tot2),dataTOFvsFOR2)
+  dataTOFvsFOR2 <- make_tof_key_table(data_all2, "growth_parameters2.csv")
   write.csv(dataTOFvsFOR2,"LULCC/TempTables//TOFvsFOR_Categories2.csv",row.names = FALSE)
 }
 
 if (file.exists("LULCC/TempTables/growth_parameters3.csv") == TRUE) {
-  data_semicolon<-read.csv("LULCC/TempTables/growth_parameters3.csv", sep=";", header=T)
-  data_comma<-read.csv("LULCC/TempTables/growth_parameters3.csv", sep=",", header=T)
+  data_semicolon<-read.csv("LULCC/TempTables/growth_parameters3.csv", sep=";", header=T, check.names=FALSE)
+  data_comma<-read.csv("LULCC/TempTables/growth_parameters3.csv", sep=",", header=T, check.names=FALSE)
   if (is.null(data_semicolon$TOF[1])) { 
     data_all3<-data_comma
   } else {
     data_all3<-data_semicolon
   }
   # Produce TOF vs FOR categories ####
-  data_FOR3<-subset(data_all3, data_all1$TOF==0)
-  data_TOF3<-subset(data_all3, data_all1$TOF==1)
-  max_tot3<-nrow(data_all3)
-  
-  dataTOFvsFOR3<-as.data.frame(data_all3[ ,7])
-  colnames(dataTOFvsFOR3)<-("x")
-  dataTOFvsFOR3=data.frame(Key=c(1:max_tot3),dataTOFvsFOR3)
+  data_FOR3<-subset(data_all3, data_all3$TOF==0)
+  data_TOF3<-subset(data_all3, data_all3$TOF==1)
+  dataTOFvsFOR3 <- make_tof_key_table(data_all3, "growth_parameters3.csv")
   write.csv(dataTOFvsFOR3,"LULCC/TempTables//TOFvsFOR_Categories3.csv",row.names = FALSE)
 }
 

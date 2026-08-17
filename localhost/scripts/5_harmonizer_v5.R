@@ -68,13 +68,34 @@ library(conflicted)
 library(terra)
 # terraOptions(steps = 55)
 if (temdirdefined == 1) {
-  terraOptions(tempdir = rTempdir)
+  if (!dir.exists(rTempdir)) {
+    dir.create(rTempdir, recursive = TRUE, showWarnings = FALSE)
+  }
+  if (!dir.exists(rTempdir) || file.access(rTempdir, 2) != 0) {
+    stop("Terra temporary directory is missing or not writable: ", rTempdir)
+  }
+  # Do not inherit the aggressive memfrac=0.9 used by demand preprocessing.
+  # Harmonization handles several global rasters in one sourced R session, so
+  # the default 0.5 fraction leaves headroom for GDAL and existing R objects.
+  terraOptions(tempdir = rTempdir, memfrac = 0.5)
   # List all files and directories inside the folder
-  contents <- list.files(rTempdir, full.names = TRUE, recursive = TRUE)
+  contents <- list.files(
+    rTempdir, full.names = TRUE,
+    all.files = TRUE, no.. = TRUE
+  )
   # Delete the contents but keep the folder
-  unlink(contents, recursive = TRUE, force = TRUE)
+  if (length(contents)) {
+    unlink(contents, recursive = TRUE, force = TRUE)
+    remaining <- contents[file.exists(contents) | dir.exists(contents)]
+    if (length(remaining)) {
+      stop(
+        "Could not clear Terra temporary content before harmonization: ",
+        paste(remaining, collapse = ", ")
+      )
+    }
+  }
 }
-# terraOptions(memfrac=0.9)
+invisible(gc())
 # terraOptions(progress=0)
 library(dplyr)
 library(fasterize)
@@ -386,7 +407,18 @@ walk(dirs_to_check, ~ if (dir.exists(.x)) unlink(.x, recursive = TRUE, force = T
 Country <- readLines("LULCC/TempTables/Country.txt")
 
 flist <- list.files("LULCC/DownloadedDatasets/SourceDataGlobal/InTables")
-file.copy(paste0("LULCC/DownloadedDatasets/SourceDataGlobal/InTables/",flist), "LULCC/TempTables")
+table_sources <- file.path(
+  "LULCC/DownloadedDatasets/SourceDataGlobal/InTables", flist
+)
+table_copy_ok <- file.copy(
+  table_sources, "LULCC/TempTables", overwrite = TRUE
+)
+if (length(table_copy_ok) && any(!table_copy_ok)) {
+  stop(
+    "Could not refresh harmonizer input table(s): ",
+    paste(basename(table_sources[!table_copy_ok]), collapse = ", ")
+  )
+}
 
 ## Read supply parameters table, checking if its delimiter is comma or semicolon ####
 
@@ -1153,7 +1185,7 @@ if (aoi_poly != 1) {
   mask_r_m2 <- mask(crop(mask_r2, userarea_r2), userarea_r2)
 
   writeRaster(mask_r_m2, filename = "LULCC/TempRaster/admin_c2.tif", 
-              datatype = "INT2S", overwrite = TRUE)
+              datatype = "INT4S", overwrite = TRUE)
 }
 
 # CRS-aware raster alignment helpers ----
@@ -1218,7 +1250,9 @@ align_raster_to_template <- function(x, template, method, mask_output = TRUE) {
 accurate_cell_area <- function(x, unit = "ha") {
   terra::cellSize(
     x,
-    mask = TRUE,
+    # Multiplication by x propagates its NA mask. Avoid scanning x once here
+    # merely to reproduce the same mask in the area raster.
+    mask = FALSE,
     unit = unit,
     transform = TRUE,
     rcx = max(terra::nrow(x), terra::ncol(x))
@@ -1228,7 +1262,7 @@ accurate_cell_area <- function(x, unit = "ha") {
 # Convert a density raster (for example Mg/ha) to a cell-total raster before
 # warping. A weighted-sum warp is conservative and avoids the mass bias caused
 # by interpolating density first and multiplying by target-cell area afterward.
-density_to_cell_total <- function(x, template) {
+density_to_cell_total <- function(x, template, clamp_negative = FALSE) {
   if (!inherits(x, "SpatRaster")) {
     x <- terra::rast(x)
   }
@@ -1242,6 +1276,13 @@ density_to_cell_total <- function(x, template) {
     x <- terra::crop(x, footprint, snap = "out")
   } else {
     x <- terra::crop(x, terra::ext(template), snap = "out")
+  }
+
+  # Apply cell-wise transformations only after cropping. The global source
+  # rasters contain about 453 million cells, whereas a country AOI is normally
+  # below one million; clamping first can materialize a multi-GB temporary file.
+  if (isTRUE(clamp_negative)) {
+    x <- terra::ifel(x < 0, 0, x)
   }
 
   source_total <- x * accurate_cell_area(x, unit = "ha")
@@ -1429,7 +1470,14 @@ get_par_chr <- function(df, var) {
   x[[1]]
 }
 
-for (k in 1:3) {
+process_agb_map <- function(k) {
+  on.exit({
+    raster_objects <- terra::intersect(c("in_r", "outagb"), ls())
+    if (length(raster_objects)) {
+      rm(list = raster_objects, envir = environment())
+    }
+    invisible(gc())
+  }, add = TRUE)
   
   flag_var <- paste0("AGB", k, "map")
   name_var <- paste0("AGB", k, "map_name")
@@ -1439,26 +1487,35 @@ for (k in 1:3) {
   
   if (is.na(AGBxmap) || toupper(AGBxmap) != "YES") {
     message(sprintf("%s = %s -> skipping", flag_var, AGBxmap))
-    next
+    return(invisible(FALSE))
   }
-  
+
+  if (is.na(map_name) || !nzchar(trimws(map_name))) {
+    stop(name_var, " is missing even though ", flag_var, " is YES.")
+  }
   in_file  <- file.path("LULCC/DownloadedDatasets/SourceDataGlobal/InRaster", map_name)
   out_file <- sprintf("LULCC/TempRaster/agb%d_c.tif", k)
+  if (!file.exists(in_file)) {
+    stop("Missing AGB input for ", flag_var, ": ", in_file)
+  }
   
   # Read input biomass density raster
   in_r <- terra::rast(in_file)
-  
-  # Negative values to zero before resampling
-  in_r <- ifel(in_r < 0, 0, in_r)
+  if (terra::nlyr(in_r) != 1L) {
+    stop("AGB input must have exactly one layer: ", in_file)
+  }
   
   # Convert density to source-cell biomass first, then use a conservative
-  # weighted-sum warp. This preserves biomass across CRS/grid changes.
-  outagb <- density_to_cell_total(in_r, userarea_r)
+  # weighted-sum warp. The helper crops before clamping negative values so a
+  # country run never materializes the full global raster.
+  outagb <- density_to_cell_total(
+    in_r, userarea_r, clamp_negative = TRUE
+  )
   
   # Optional: if you want integer output
   outagb <- round(outagb)
   
-  writeRaster(
+  terra::writeRaster(
     outagb,
     out_file,
     datatype = "INT4S",
@@ -1466,6 +1523,11 @@ for (k in 1:3) {
   )
   
   message(sprintf("Wrote: %s", out_file))
+  invisible(TRUE)
+}
+
+for (k in seq_len(3L)) {
+  process_agb_map(k)
 }
 
 # Growth parameter maps (A/k/m) ----
@@ -1478,13 +1540,20 @@ get_par_chr <- function(df, var) {
 
 growth_vars <- c("A_mofuss", "k_mofuss", "m_mofuss")
 
-for (v in growth_vars) {
+process_growth_parameter_map <- function(v) {
+  on.exit({
+    raster_objects <- terra::intersect(c("in_r", "outmap"), ls())
+    if (length(raster_objects)) {
+      rm(list = raster_objects, envir = environment())
+    }
+    invisible(gc())
+  }, add = TRUE)
   
   map_name <- get_par_chr(country_parameters, v)
   
   if (is.na(map_name) || !nzchar(map_name)) {
     message(sprintf("%s map_name is NA/empty -> skipping", v))
-    next
+    return(invisible(FALSE))
   }
   
   in_file  <- file.path("LULCC/DownloadedDatasets/SourceDataGlobal/InRaster", map_name)
@@ -1495,23 +1564,24 @@ for (v in growth_vars) {
   
   if (!file.exists(in_file)) {
     message(sprintf("Missing input: %s -> skipping", in_file))
-    next
+    return(invisible(FALSE))
   }
   
   # Input raster
   in_r <- terra::rast(in_file)
-  
-  # For A, negative values should not exist, so force them to zero
-  # For k and m, do not touch values unless you are fully sure negatives are invalid
-  if (v == "A_mofuss") {
-    in_r <- terra::ifel(in_r < 0, 0, in_r)
+  if (terra::nlyr(in_r) != 1L) {
+    stop(v, " input must have exactly one layer: ", in_file)
   }
   
   # A is a density (Mg/ha), so warp it conservatively as a cell total.
   # k and m are continuous intensive parameters, so use an overlap-weighted
   # mean rather than categorical nearest-neighbour resampling.
   if (v == "A_mofuss") {
-    outmap <- density_to_cell_total(in_r, userarea_r)
+    # Crop before clamping so the global A raster is never materialized merely
+    # to create a country-sized output.
+    outmap <- density_to_cell_total(
+      in_r, userarea_r, clamp_negative = TRUE
+    )
   } else {
     outmap <- align_raster_to_template(
       in_r,
@@ -1533,6 +1603,11 @@ for (v in growth_vars) {
   )
   
   message(sprintf("Wrote: %s", out_file))
+  invisible(TRUE)
+}
+
+for (v in growth_vars) {
+  process_growth_parameter_map(v)
 }
 
 # Normalize optional raster/vector flags. Missing, blank, NA, and values other
@@ -2040,9 +2115,13 @@ locs_name_r_w <- align_raster_to_template(
 writeRaster(locs_name_r_w, filename = "LULCC/TempRaster/locs_c_w.tif", datatype = "INT4S", overwrite = TRUE)
 
 # Copy the file to the "In" folder
-file.copy(from = "LULCC/TempRaster/locs_c_w.tif",
-          to = "In",
-          overwrite = TRUE)
+if (!isTRUE(file.copy(
+  from = "LULCC/TempRaster/locs_c_w.tif",
+  to = "In",
+  overwrite = TRUE
+))) {
+  stop("Could not copy locs_c_w.tif into the model In directory.")
+}
 
 # Repeat the process for the second raster
 locs_name_r_v <- rast("In/DemandScenarios/locs_raster_v.tif")
@@ -2055,9 +2134,13 @@ locs_name_r_v <- align_raster_to_template(
 
 writeRaster(locs_name_r_v, filename = "LULCC/TempRaster/locs_c_v.tif", datatype = "INT4S", overwrite = TRUE)
 
-file.copy(from = "LULCC/TempRaster/locs_c_v.tif",
-          to = "In",
-          overwrite = TRUE)
+if (!isTRUE(file.copy(
+  from = "LULCC/TempRaster/locs_c_v.tif",
+  to = "In",
+  overwrite = TRUE
+))) {
+  stop("Could not copy locs_c_v.tif into the model In directory.")
+}
 toc()
 
 # Land Use Land Cover Module ####
@@ -2181,7 +2264,7 @@ if (os == "Windows") {
 
 }
 
-if (plantations == 1){
+if (plantations == 1 && identical(toupper(trimws(LULCt1map)), "YES")) {
   lulc_og <- rast(paste0(countrydir,"/LULCC/TempRaster/LULCt1_c.tif"))  # already cropped to Zambia, 1 km, World Mercator
   npa_og <- rast(paste0(countrydir,"/LULCC/TempRaster/npa_c.tif"))
   roads_og <- rast(paste0(countrydir,"/LULCC/TempRaster/roads_c.tif"))
@@ -2206,7 +2289,8 @@ if (plantations == 1){
     datatype = "INT2U",
     wopt = list(gdal = "COMPRESS=LZW")
   )
-  
+} else if (plantations == 1) {
+  message("Plantation backup rasters skipped because LULCt1map is not enabled.")
 }
 
 # End of script ----
