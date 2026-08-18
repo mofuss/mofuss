@@ -28,7 +28,7 @@ suppressPackageStartupMessages({
 })
 
 cfg <- list(
-  working_dir = "D:/ken_1km_bau1_2030_v3_ng",
+  working_dir = "D:/ken_1km_ics3_2030_v3_g",
   growth_model = "auto",       # auto | logistic | chapman-richards
   depleted_reset_Mg_cell = 2,  # EGO feedback stock after depleted forest
   float_tolerance_Mg_cell = 0.01,
@@ -43,6 +43,15 @@ if (length(args) > 1L) {
 }
 
 stopf <- function(...) stop(sprintf(...), call. = FALSE)
+assert_data_table <- function(x, label) {
+  if (!data.table::is.data.table(x)) {
+    stopf(
+      "Internal verifier object '%s' lost its data.table class (class: %s)",
+      label, paste(class(x), collapse = "/")
+    )
+  }
+  invisible(TRUE)
+}
 wd <- normalizePath(cfg$working_dir, winslash = "/", mustWork = TRUE)
 
 temp_dir <- file.path(wd, "Temp")
@@ -573,6 +582,7 @@ for (mc in mc_ids) {
     sel_group(which(tof == 1 & is.finite(initial) & is.finite(gl1) & K > 0), "TOF: valid control")
   ), fill = TRUE)
   sel <- unique(sel, by = "cell")
+  assert_data_table(sel, sprintf("MC%d trajectory selection", mc))
   if (nrow(sel)) {
     xy <- xyFromCell(template, sel$cell)
     sel_cells <- sel$cell
@@ -587,14 +597,17 @@ for (mc in mc_ids) {
       K[sel_cells],
       if (model == "chapman-richards") A_cr[sel_cells] else K[sel_cells]
     )
-    sel[, `:=`(
-      x = xy[, 1], y = xy[, 2], tof = sel_tof,
-      capacity_label = capacity_label,
-      capacity_Mg_cell = capacity_value,
-      rmax_per_iteration = rmax[sel_cells],
-      cr_k = k_cr[sel_cells],
-      cr_m = m_cr[sel_cells]
-    )]
+    data.table::set(
+      sel,
+      j = c(
+        "x", "y", "tof", "capacity_label", "capacity_Mg_cell",
+        "rmax_per_iteration", "cr_k", "cr_m"
+      ),
+      value = list(
+        xy[, 1], xy[, 2], sel_tof, capacity_label, capacity_value,
+        rmax[sel_cells], k_cr[sel_cells], m_cr[sel_cells]
+      )
+    )
   }
 
   feedback <- initial
@@ -615,15 +628,51 @@ for (mc in mc_ids) {
 
     forest_domain <- is.finite(tof) & tof == 0
     forest_growth_stats <- error_stats(growth, prediction, forest_domain)
+    # Separate missing selected-model inputs from mechanics failures.  A pixel
+    # with finite stock but missing inputs is coverage-only when both the engine
+    # and replay return NULL.  Once all selected-model inputs exist, however,
+    # both growth values are required and any missing output is a true failure.
+    forest_growth_required <- forest_domain & is.finite(feedback)
+    forest_selected_model_parameter_missing <- if (model == "logistic") {
+      forest_growth_required &
+        (!is.finite(K) | (K > 0 & !is.finite(rmax)))
+    } else {
+      forest_growth_required &
+        (!is.finite(A_cr) | A_cr <= 0 |
+           !is.finite(k_cr) | k_cr <= 0 |
+           !is.finite(m_cr) | m_cr <= 0)
+    }
+    forest_growth_input_covered <- forest_growth_required &
+      !forest_selected_model_parameter_missing
+    forest_growth_covered_missing_output <- forest_growth_input_covered &
+      (!is.finite(growth) | !is.finite(prediction))
 
     forest_balance_domain <- is.finite(tof) & tof == 0
-    forest_balance_stats <- error_stats(post, growth - actual, forest_balance_domain)
+    forest_balance_prediction <- growth
+    finite_actual <- is.finite(actual)
+    forest_balance_prediction[finite_actual] <-
+      growth[finite_actual] - actual[finite_actual]
+    forest_balance_stats <- error_stats(
+      post, forest_balance_prediction, forest_balance_domain
+    )
+    forest_balance_finite_pattern_mismatch <- forest_balance_domain &
+      xor(is.finite(post), is.finite(forest_balance_prediction))
+    # The engine falls back to the finite pre-harvest stock when no finite
+    # forest harvest is applied, so finite growth must always yield finite post.
+    forest_balance_required_missing <- forest_balance_domain &
+      is.finite(growth) & !is.finite(post)
 
-    expected0 <- expected
-    expected0[!is.finite(expected0)] <- 0
-    tof_balance_prediction <- if (exact_expected) growth + expected0 - actual else growth
+    # EGOML v6 preserves TOF stock after pruning: TOF is nondegradable, so its
+    # post-harvest identity is simply post = growth.  Expected-versus-realized
+    # harvest is checked independently by the Stage-B final-cap identity.
+    tof_balance_prediction <- growth
     tof_balance_domain <- is.finite(tof) & tof == 1
     tof_balance_stats <- error_stats(post, tof_balance_prediction, tof_balance_domain)
+    tof_balance_finite_pattern_mismatch <- tof_balance_domain &
+      xor(is.finite(post), is.finite(tof_balance_prediction))
+    # TOF post-stock is likewise required wherever its growth stock is finite.
+    tof_balance_required_missing <- tof_balance_domain &
+      is.finite(growth) & !is.finite(post)
 
     final_cap_stats <- data.table(
       domain_cells = NA_integer_, compared_cells = NA_integer_,
@@ -657,6 +706,14 @@ for (mc in mc_ids) {
       forest_growth_finite_pattern_mismatch_cells = sum(
         forest_domain & xor(is.finite(growth), is.finite(prediction))
       ),
+      forest_growth_required_cells = sum(forest_growth_required),
+      forest_growth_input_covered_cells = sum(forest_growth_input_covered),
+      forest_growth_covered_missing_output_cells = sum(
+        forest_growth_covered_missing_output
+      ),
+      forest_selected_model_parameter_missing_cells = sum(
+        forest_selected_model_parameter_missing
+      ),
       forest_growth_mean_abs_error_Mg_cell = forest_growth_stats$mean_abs_error_Mg_cell,
       forest_growth_max_abs_error_Mg_cell = forest_growth_stats$max_abs_error_Mg_cell,
       forest_growth_cells_over_tolerance = forest_growth_stats$cells_over_tolerance,
@@ -664,12 +721,20 @@ for (mc in mc_ids) {
       forest_balance_compared_cells = forest_balance_stats$compared_cells,
       forest_balance_missing_cells = forest_balance_stats$missing_observed_cells,
       forest_balance_missing_prediction_cells = forest_balance_stats$missing_predicted_cells,
+      forest_balance_finite_pattern_mismatch_cells = sum(
+        forest_balance_finite_pattern_mismatch
+      ),
+      forest_balance_required_missing_cells = sum(forest_balance_required_missing),
       forest_balance_max_abs_error_Mg_cell = forest_balance_stats$max_abs_error_Mg_cell,
       forest_balance_cells_over_tolerance = forest_balance_stats$cells_over_tolerance,
-      tof_balance_equation = if (exact_expected) "post = growth + assigned_TOF - actual" else "post = growth (diagnostic; expected map unavailable)",
+      tof_balance_equation = "post = growth (TOF nondegradable)",
       tof_balance_compared_cells = tof_balance_stats$compared_cells,
       tof_balance_missing_cells = tof_balance_stats$missing_observed_cells,
       tof_balance_missing_prediction_cells = tof_balance_stats$missing_predicted_cells,
+      tof_balance_finite_pattern_mismatch_cells = sum(
+        tof_balance_finite_pattern_mismatch
+      ),
+      tof_balance_required_missing_cells = sum(tof_balance_required_missing),
       tof_balance_max_abs_error_Mg_cell = tof_balance_stats$max_abs_error_Mg_cell,
       tof_balance_cells_over_tolerance = tof_balance_stats$cells_over_tolerance,
       tof_actual_harvest_Mg = sum0(actual[tof == 1]),
@@ -686,9 +751,9 @@ for (mc in mc_ids) {
 
     tof_initial_domain <- tof == 1 & is.finite(initial)
     # Effective K constrains only the capped logistic branch. Chapman-Richards
-    # uses A/k/m and intentionally retains NULL where those layers are NULL.
+    # uses A/k/m; with finite prior stock, matching NULL growth is recorded as
+    # missing-data coverage when any selected Chapman-Richards input is absent.
     forest_zero_K <- model == "logistic" & is.finite(tof) & tof == 0 & is.finite(K) & K <= 0
-    forest_invalid_K <- model == "logistic" & is.finite(tof) & tof == 0 & (!is.finite(K) | K <= 0)
     tof_zero_K <- is.finite(tof) & tof == 1 & is.finite(K) & K <= 0
     overshoot <- model == "logistic" & is.finite(tof) & tof == 0 &
       is.finite(growth) & is.finite(K) & K > 0 & growth > K + tol
@@ -704,8 +769,6 @@ for (mc in mc_ids) {
       tof_zero_K_reset_to_2_cells = sum(tof_zero_K & is.finite(growth) & abs(growth - cfg$depleted_reset_Mg_cell) <= tol),
       forest_zero_K_cells = sum(forest_zero_K),
       forest_zero_K_NULL_growth_cells = sum(forest_zero_K & !is.finite(growth)),
-      forest_invalid_K_cells = sum(forest_invalid_K),
-      forest_invalid_K_NULL_growth_cells = sum(forest_invalid_K & !is.finite(growth)),
       forest_growth_above_K_cells = sum(overshoot),
       forest_growth_excess_above_K_Mg = sum0((growth - K)[overshoot]),
       forest_max_growth_to_K_ratio = max_safe((growth / K)[overshoot])
@@ -911,14 +974,19 @@ raw_demand_assignment_realization <- rbindlist(lapply(mc_ids, function(mc) {
     realized_harvest_Mg = actual_Mg
   )]
   ans <- merge(demand_by_year, stage_b, by = "year", all.x = TRUE)
-  ans[, `:=`(
-    mc = mc,
-    final_stock_capped_Mg = stage_B_expected_harvest_Mg - realized_harvest_Mg,
-    final_stock_capped_percent = pct(
-      stage_B_expected_harvest_Mg - realized_harvest_Mg,
-      stage_B_expected_harvest_Mg
+  assert_data_table(ans, sprintf("MC%d annual reconciliation", mc))
+  data.table::set(
+    ans,
+    j = c("mc", "final_stock_capped_Mg", "final_stock_capped_percent"),
+    value = list(
+      rep.int(mc, nrow(ans)),
+      ans$stage_B_expected_harvest_Mg - ans$realized_harvest_Mg,
+      pct(
+        ans$stage_B_expected_harvest_Mg - ans$realized_harvest_Mg,
+        ans$stage_B_expected_harvest_Mg
+      )
     )
-  )]
+  )
   setcolorder(ans, c("mc", setdiff(names(ans), "mc")))
   ans
 }))
@@ -953,34 +1021,99 @@ authoritative_cumulative <- full_period_capping_by_tof_class[tof_class == "ALL",
   cumulative_expected_Mg = expected_Mg,
   cumulative_realized_Mg = actual_Mg,
   cumulative_final_stock_capped_Mg = capped_Mg,
-  cumulative_final_stock_capped_percent = capped_percent
+  cumulative_final_stock_capped_percent = capped_percent,
+  cumulative_expected_missing_model_cells = expected_missing_model_cells,
+  cumulative_actual_missing_model_cells = actual_missing_model_cells
 )]
 aggregate_reconciliation <- merge(annual_reconciliation, authoritative_cumulative, by = "mc", all = TRUE)
-aggregate_reconciliation[, `:=`(
-  authoritative_stage_B_source = fifelse(
-    is.finite(cumulative_expected_Mg),
+assert_data_table(aggregate_reconciliation, "aggregate reconciliation")
+cumulative_spatial_complete <- with(
+  aggregate_reconciliation,
+  is.finite(cumulative_expected_Mg) & is.finite(cumulative_realized_Mg) &
+    is.finite(cumulative_expected_missing_model_cells) &
+    cumulative_expected_missing_model_cells == 0 &
+    is.finite(cumulative_actual_missing_model_cells) &
+    cumulative_actual_missing_model_cells == 0
+)
+data.table::set(
+  aggregate_reconciliation,
+  j = "cumulative_spatial_complete",
+  value = cumulative_spatial_complete
+)
+data.table::set(
+  aggregate_reconciliation,
+  j = c(
+    "authoritative_stage_B_source", "assigned_expected_Mg",
+    "stage_B_expected_harvest_Mg", "realized_harvest_Mg",
+    "final_stock_capped_Mg", "final_stock_capped_percent",
+    "cumulative_minus_annual_expected_Mg",
+    "cumulative_minus_assigned_demand_Mg",
+    "cumulative_minus_annual_realized_Mg"
+  ),
+  value = list(
+  data.table::fifelse(
+    cumulative_spatial_complete,
     "Temp cumulative per-MC rasters",
-    annual_stage_B_expected_source
+    data.table::fifelse(
+      is.finite(aggregate_reconciliation$cumulative_expected_missing_model_cells) |
+        is.finite(aggregate_reconciliation$cumulative_actual_missing_model_cells),
+      paste0(
+        aggregate_reconciliation$annual_stage_B_expected_source,
+        " (cumulative rasters incomplete; partial totals not used)"
+      ),
+      aggregate_reconciliation$annual_stage_B_expected_source
+    )
   ),
-  assigned_expected_Mg = annual_proxy_assigned_expected_Mg,
-  stage_B_expected_harvest_Mg = fifelse(
-    is.finite(cumulative_expected_Mg),
-    cumulative_expected_Mg,
-    annual_stage_B_expected_harvest_Mg
+  aggregate_reconciliation$annual_proxy_assigned_expected_Mg,
+  data.table::fifelse(
+    cumulative_spatial_complete,
+    aggregate_reconciliation$cumulative_expected_Mg,
+    aggregate_reconciliation$annual_stage_B_expected_harvest_Mg
   ),
-  realized_harvest_Mg = fifelse(is.finite(cumulative_realized_Mg), cumulative_realized_Mg, annual_realized_harvest_Mg),
-  final_stock_capped_Mg = fifelse(is.finite(cumulative_final_stock_capped_Mg), cumulative_final_stock_capped_Mg, annual_stage_B_final_stock_capped_Mg),
-  final_stock_capped_percent = fifelse(
-    is.finite(cumulative_final_stock_capped_percent),
-    cumulative_final_stock_capped_percent,
-    pct(annual_stage_B_final_stock_capped_Mg, annual_stage_B_expected_harvest_Mg)
+  data.table::fifelse(
+    cumulative_spatial_complete,
+    aggregate_reconciliation$cumulative_realized_Mg,
+    aggregate_reconciliation$annual_realized_harvest_Mg
   ),
-  cumulative_minus_annual_expected_Mg = cumulative_expected_Mg - annual_stage_B_expected_harvest_Mg,
-  cumulative_minus_assigned_demand_Mg = cumulative_expected_Mg - annual_proxy_assigned_expected_Mg,
-  cumulative_minus_annual_realized_Mg = cumulative_realized_Mg - annual_realized_harvest_Mg
-)]
-aggregate_reconciliation[, stage_B_expected_minus_assigned_Mg :=
-  stage_B_expected_harvest_Mg - annual_proxy_assigned_expected_Mg]
+  data.table::fifelse(
+    cumulative_spatial_complete,
+    aggregate_reconciliation$cumulative_final_stock_capped_Mg,
+    aggregate_reconciliation$annual_stage_B_final_stock_capped_Mg
+  ),
+  data.table::fifelse(
+    cumulative_spatial_complete,
+    aggregate_reconciliation$cumulative_final_stock_capped_percent,
+    pct(
+      aggregate_reconciliation$annual_stage_B_final_stock_capped_Mg,
+      aggregate_reconciliation$annual_stage_B_expected_harvest_Mg
+    )
+  ),
+  data.table::fifelse(
+    cumulative_spatial_complete,
+    aggregate_reconciliation$cumulative_expected_Mg -
+      aggregate_reconciliation$annual_stage_B_expected_harvest_Mg,
+    NA_real_
+  ),
+  data.table::fifelse(
+    cumulative_spatial_complete,
+    aggregate_reconciliation$cumulative_expected_Mg -
+      aggregate_reconciliation$annual_proxy_assigned_expected_Mg,
+    NA_real_
+  ),
+  data.table::fifelse(
+    cumulative_spatial_complete,
+    aggregate_reconciliation$cumulative_realized_Mg -
+      aggregate_reconciliation$annual_realized_harvest_Mg,
+    NA_real_
+  )
+  )
+)
+data.table::set(
+  aggregate_reconciliation,
+  j = "stage_B_expected_minus_assigned_Mg",
+  value = aggregate_reconciliation$stage_B_expected_harvest_Mg -
+    aggregate_reconciliation$annual_proxy_assigned_expected_Mg
+)
 fwrite(aggregate_reconciliation, file.path(out_dir, "aggregate_reconciliation.csv"))
 
 # ---- State and mechanics summaries / verdict --------------------------------
@@ -994,8 +1127,6 @@ state_integrity_summary <- state_integrity_annual[, .(
   max_tof_zero_K_reset_to_2_cells = max(tof_zero_K_reset_to_2_cells),
   forest_zero_K_cells = max(forest_zero_K_cells),
   max_forest_zero_K_NULL_growth_cells = max(forest_zero_K_NULL_growth_cells),
-  forest_invalid_K_cells = max(forest_invalid_K_cells),
-  max_forest_invalid_K_NULL_growth_cells = max(forest_invalid_K_NULL_growth_cells),
   total_forest_growth_above_K_pixel_years = sum(forest_growth_above_K_cells),
   total_forest_growth_excess_above_K_Mg = sum(forest_growth_excess_above_K_Mg),
   max_forest_growth_to_K_ratio = max_safe(forest_max_growth_to_K_ratio)
@@ -1010,14 +1141,39 @@ mechanics_summary <- mechanics_annual[, .(
   forest_growth_finite_pattern_mismatch_cells = sum(
     forest_growth_finite_pattern_mismatch_cells, na.rm = TRUE
   ),
+  max_forest_growth_required_cells = max(forest_growth_required_cells),
+  max_forest_growth_input_covered_cells = max(forest_growth_input_covered_cells),
+  max_forest_growth_covered_missing_output_cells = max(
+    forest_growth_covered_missing_output_cells
+  ),
+  total_forest_growth_covered_missing_output_pixel_years = sum(
+    forest_growth_covered_missing_output_cells, na.rm = TRUE
+  ),
+  max_forest_selected_model_parameter_missing_cells = max(
+    forest_selected_model_parameter_missing_cells
+  ),
   forest_growth_cells_over_tolerance = sum(forest_growth_cells_over_tolerance, na.rm = TRUE),
   max_forest_balance_error_Mg_cell = max_safe(forest_balance_max_abs_error_Mg_cell),
   forest_balance_missing_cells = sum(forest_balance_missing_cells, na.rm = TRUE),
   forest_balance_missing_prediction_cells = sum(forest_balance_missing_prediction_cells, na.rm = TRUE),
+  forest_balance_finite_pattern_mismatch_cells = sum(
+    forest_balance_finite_pattern_mismatch_cells, na.rm = TRUE
+  ),
+  max_forest_balance_required_missing_cells = max(forest_balance_required_missing_cells),
+  total_forest_balance_required_missing_pixel_years = sum(
+    forest_balance_required_missing_cells, na.rm = TRUE
+  ),
   forest_balance_cells_over_tolerance = sum(forest_balance_cells_over_tolerance, na.rm = TRUE),
   max_tof_balance_error_Mg_cell = max_safe(tof_balance_max_abs_error_Mg_cell),
   tof_balance_missing_cells = sum(tof_balance_missing_cells, na.rm = TRUE),
   tof_balance_missing_prediction_cells = sum(tof_balance_missing_prediction_cells, na.rm = TRUE),
+  tof_balance_finite_pattern_mismatch_cells = sum(
+    tof_balance_finite_pattern_mismatch_cells, na.rm = TRUE
+  ),
+  max_tof_balance_required_missing_cells = max(tof_balance_required_missing_cells),
+  total_tof_balance_required_missing_pixel_years = sum(
+    tof_balance_required_missing_cells, na.rm = TRUE
+  ),
   tof_balance_cells_over_tolerance = sum(tof_balance_cells_over_tolerance, na.rm = TRUE),
   max_final_cap_identity_error_Mg_cell = max_safe(final_cap_identity_max_abs_error_Mg_cell),
   final_cap_identity_missing_actual_cells = sum_complete(final_cap_identity_missing_actual_cells),
@@ -1056,76 +1212,149 @@ stage_a_summary <- rbindlist(lapply(mc_ids, function(mc_i) {
 stage_b_summary <- rbindlist(lapply(mc_ids, function(mc_i) {
   cumulative_row <- full_period_capping_by_tof_class[mc == mc_i & tof_class == "ALL"]
   have_cumulative <- nrow(cumulative_row) == 1L
+  cumulative_expected_missing <- if (have_cumulative) {
+    cumulative_row$expected_missing_model_cells[[1L]]
+  } else NA_real_
+  cumulative_actual_missing <- if (have_cumulative) {
+    cumulative_row$actual_missing_model_cells[[1L]]
+  } else NA_real_
   cumulative_status <- if (!have_cumulative) {
     "NOT AUDITED"
-  } else if (isTRUE(cumulative_row$active_expected_with_missing_actual_cells > 0) ||
+  } else if (isTRUE(cumulative_expected_missing > 0) ||
+             isTRUE(cumulative_actual_missing > 0) ||
+             isTRUE(cumulative_row$active_expected_with_missing_actual_cells > 0) ||
              isTRUE(cumulative_row$capped_Mg < -tol)) {
     "FAIL"
   } else "PASS"
   have_annual_spatial <- isTRUE(expected_provenance[mc == mc_i, annual_pixel_detail][[1L]])
+  annual_rows <- harvest_capping_annual[mc == mc_i & tof_class == "ALL"]
+  annual_expected_missing <- if (have_annual_spatial) {
+    sum_complete(annual_rows$expected_missing_model_cells)
+  } else NA_real_
+  annual_actual_missing <- sum_complete(annual_rows$actual_missing_model_cells)
   m <- mechanics_summary[mc == mc_i]
   annual_status <- if (!have_annual_spatial) {
     "NOT AUDITED"
   } else if (any(c(
+    annual_expected_missing > 0,
+    annual_actual_missing > 0,
     m$max_final_cap_identity_error_Mg_cell > tol,
     m$final_cap_identity_cells_over_tolerance > 0,
-    m$final_cap_identity_active_missing_cells > 0
+    m$final_cap_identity_missing_actual_cells > 0
   ), na.rm = TRUE)) {
     "FAIL"
   } else "PASS"
   data.table(
     mc = mc_i,
     stage_B_full_run_aggregate_status = cumulative_status,
-    stage_B_annual_spatial_status = annual_status
+    stage_B_annual_spatial_status = annual_status,
+    stage_B_cumulative_expected_missing_model_cells = cumulative_expected_missing,
+    stage_B_cumulative_actual_missing_model_cells = cumulative_actual_missing,
+    stage_B_annual_expected_missing_model_cell_years = annual_expected_missing,
+    stage_B_annual_actual_missing_model_cell_years = annual_actual_missing
   )
 }))
 
 mechanics_summary <- merge(mechanics_summary, stage_a_summary, by = "mc", all = TRUE)
 mechanics_summary <- merge(mechanics_summary, stage_b_summary, by = "mc", all = TRUE)
+assert_data_table(mechanics_summary, "mechanics summary")
 over_tolerance <- function(x) is.finite(x) & x > tol
 over_zero <- function(x) is.finite(x) & x > 0
-mechanics_summary[, critical_mechanics_failure :=
-  over_tolerance(max_forest_growth_error_Mg_cell) |
-  over_zero(forest_growth_finite_pattern_mismatch_cells) |
-  over_tolerance(max_forest_balance_error_Mg_cell) |
-  over_tolerance(max_tof_balance_error_Mg_cell) |
-  over_tolerance(max_tof_K_minus_rmax_difference_Mg_cell) |
-  over_tolerance(max_tof_actual_above_supply_Mg_cell) |
-  over_tolerance(max_tof_expected_above_supply_Mg_cell) |
-  over_tolerance(max_final_cap_identity_error_Mg_cell) |
-  over_zero(final_cap_identity_active_missing_cells)]
-mechanics_summary[, tof_state_failure :=
-  over_zero(max_tof_post_stock_NULL_cells) | over_zero(max_tof_zero_K_reset_to_2_cells)]
-mechanics_summary[, mechanics_diagnostics_incomplete :=
-  stage_A_status == "NOT AUDITED" |
-  stage_B_full_run_aggregate_status == "NOT AUDITED" |
-  stage_B_annual_spatial_status == "NOT AUDITED"]
-mechanics_summary[, demand_reconciliation_incomplete :=
-  is.na(raw_demand_years_complete) | !raw_demand_years_complete |
-  is.na(assigned_demand_years_complete) | !assigned_demand_years_complete]
-mechanics_summary[, audit_incomplete :=
-  mechanics_diagnostics_incomplete | demand_reconciliation_incomplete]
-mechanics_summary[, state_parameter_warning :=
-  over_zero(forest_invalid_K_cells) | over_zero(total_forest_growth_above_K_pixel_years)]
-mechanics_summary[, verdict := fifelse(
-  critical_mechanics_failure | tof_state_failure |
-    stage_A_status == "FAIL" | stage_B_full_run_aggregate_status == "FAIL" |
-    stage_B_annual_spatial_status == "FAIL",
-  "FAIL - inspect mechanics/state findings",
-  fifelse(
-    mechanics_diagnostics_incomplete,
-    "INCOMPLETE - required mechanics diagnostics were unavailable",
-    fifelse(
-      demand_reconciliation_incomplete,
-      fifelse(
-        state_parameter_warning,
-        "PASS MECHANICS WITH WARNINGS / INCOMPLETE DEMAND RECONCILIATION",
-        "PASS MECHANICS / INCOMPLETE DEMAND RECONCILIATION"
-      ),
-      fifelse(state_parameter_warning, "PASS WITH STATE/PARAMETER WARNINGS", "PASS")
-    )
+data.table::set(
+  mechanics_summary,
+  j = "critical_mechanics_failure",
+  value = with(
+    mechanics_summary,
+    over_tolerance(max_forest_growth_error_Mg_cell) |
+      over_zero(forest_growth_finite_pattern_mismatch_cells) |
+      over_zero(total_forest_growth_covered_missing_output_pixel_years) |
+      over_tolerance(max_forest_balance_error_Mg_cell) |
+      over_zero(forest_balance_finite_pattern_mismatch_cells) |
+      over_zero(total_forest_balance_required_missing_pixel_years) |
+      over_tolerance(max_tof_balance_error_Mg_cell) |
+      over_zero(tof_balance_finite_pattern_mismatch_cells) |
+      over_zero(total_tof_balance_required_missing_pixel_years) |
+      over_tolerance(max_tof_K_minus_rmax_difference_Mg_cell) |
+      over_tolerance(max_tof_actual_above_supply_Mg_cell) |
+      over_tolerance(max_tof_expected_above_supply_Mg_cell) |
+      over_tolerance(max_final_cap_identity_error_Mg_cell) |
+      over_zero(stage_B_annual_actual_missing_model_cell_years) |
+      over_zero(final_cap_identity_active_missing_cells)
   )
-)]
+)
+data.table::set(
+  mechanics_summary,
+  j = "tof_state_failure",
+  value = with(
+    mechanics_summary,
+    over_zero(max_tof_post_stock_NULL_cells) |
+      over_zero(max_tof_zero_K_reset_to_2_cells)
+  )
+)
+data.table::set(
+  mechanics_summary,
+  j = "mechanics_diagnostics_incomplete",
+  value = with(
+    mechanics_summary,
+    stage_A_status == "NOT AUDITED" |
+      stage_B_full_run_aggregate_status == "NOT AUDITED" |
+      stage_B_annual_spatial_status == "NOT AUDITED"
+  )
+)
+data.table::set(
+  mechanics_summary,
+  j = "demand_reconciliation_incomplete",
+  value = with(
+    mechanics_summary,
+    is.na(raw_demand_years_complete) | !raw_demand_years_complete |
+      is.na(assigned_demand_years_complete) | !assigned_demand_years_complete
+  )
+)
+data.table::set(
+  mechanics_summary,
+  j = "audit_incomplete",
+  value = mechanics_summary$mechanics_diagnostics_incomplete |
+    mechanics_summary$demand_reconciliation_incomplete
+)
+data.table::set(
+  mechanics_summary,
+  j = "parameter_coverage_missing_data",
+  value = over_zero(
+    mechanics_summary$max_forest_selected_model_parameter_missing_cells
+  )
+)
+data.table::set(
+  mechanics_summary,
+  j = "state_parameter_warning",
+  value = with(
+    mechanics_summary,
+    over_zero(forest_zero_K_cells) |
+      over_zero(total_forest_growth_above_K_pixel_years)
+  )
+)
+data.table::set(
+  mechanics_summary,
+  j = "verdict",
+  value = with(mechanics_summary, data.table::fifelse(
+    critical_mechanics_failure | tof_state_failure |
+      stage_A_status == "FAIL" | stage_B_full_run_aggregate_status == "FAIL" |
+      stage_B_annual_spatial_status == "FAIL",
+    "FAIL - inspect mechanics/state findings",
+    data.table::fifelse(
+      mechanics_diagnostics_incomplete,
+      "INCOMPLETE - required mechanics diagnostics were unavailable",
+      data.table::fifelse(
+        demand_reconciliation_incomplete,
+        data.table::fifelse(
+          state_parameter_warning,
+          "PASS MECHANICS WITH WARNINGS / INCOMPLETE DEMAND RECONCILIATION",
+          "PASS MECHANICS / INCOMPLETE DEMAND RECONCILIATION"
+        ),
+        data.table::fifelse(state_parameter_warning, "PASS WITH STATE/PARAMETER WARNINGS", "PASS")
+      )
+    )
+  ))
+)
 fwrite(mechanics_summary, file.path(out_dir, "mechanics_summary.csv"))
 
 verification_coverage <- rbindlist(list(
@@ -1134,11 +1363,19 @@ verification_coverage <- rbindlist(list(
   stage_b_summary[, .(mc, check = "Stage B: annual pixel-level capping", status = stage_B_annual_spatial_status)],
   mechanics_summary[, .(
     mc, check = "Raw-demand coverage",
-    status = fifelse(!is.na(raw_demand_years_complete) & raw_demand_years_complete, "PASS", "NOT AUDITED")
+    status = data.table::fifelse(!is.na(raw_demand_years_complete) & raw_demand_years_complete, "PASS", "NOT AUDITED")
   )],
   mechanics_summary[, .(
     mc, check = "Assigned-demand table coverage",
-    status = fifelse(!is.na(assigned_demand_years_complete) & assigned_demand_years_complete, "PASS", "NOT AUDITED")
+    status = data.table::fifelse(!is.na(assigned_demand_years_complete) & assigned_demand_years_complete, "PASS", "NOT AUDITED")
+  )],
+  mechanics_summary[, .(
+    mc, check = "Selected growth-model input coverage",
+    status = data.table::fifelse(
+      parameter_coverage_missing_data,
+      "MISSING DATA (not a mechanics failure)",
+      "COMPLETE"
+    )
   )]
 ))
 fwrite(stage_a_summary, file.path(out_dir, "stage_A_verification_summary.csv"))
@@ -1196,15 +1433,39 @@ if (length(trajectory_all)) {
   for (mc_name in names(trajectory_all)) {
     tr <- trajectory_all[[mc_name]]
     if (!nrow(tr)) next
-    tr[, parameter_text := fcase(
-      tof == 1L,
-      sprintf("annual TOF K=%.1f Mg/cell", capacity_Mg_cell),
-      growth_model == "chapman-richards",
-      sprintf("A=%.1f Mg/cell; k=%.4f; m=%.3f", capacity_Mg_cell, cr_k, cr_m),
-      default = sprintf("K=%.1f Mg/cell; r=%.4f", capacity_Mg_cell, rmax_per_iteration)
-    )]
-    tr[, panel := sprintf("%s | cell %d | TOF=%d\n%s", group, cell, tof, parameter_text)]
-    tr[, panel := factor(panel, levels = unique(panel))]
+    assert_data_table(tr, sprintf("MC%s trajectory plot data", mc_name))
+    data.table::set(
+      tr,
+      j = "parameter_text",
+      value = with(tr, data.table::fcase(
+        tof == 1L,
+        sprintf("annual TOF K=%.1f Mg/cell", capacity_Mg_cell),
+        growth_model == "chapman-richards" &
+          (!is.finite(capacity_Mg_cell) | capacity_Mg_cell <= 0 |
+             !is.finite(cr_k) | cr_k <= 0 | !is.finite(cr_m) | cr_m <= 0),
+        "Chapman-Richards inputs missing (coverage only)",
+        growth_model == "chapman-richards",
+        sprintf("A=%.1f Mg/cell; k=%.4f; m=%.3f", capacity_Mg_cell, cr_k, cr_m),
+        growth_model == "logistic" &
+          (!is.finite(capacity_Mg_cell) |
+             (capacity_Mg_cell > 0 & !is.finite(rmax_per_iteration))),
+        "Logistic inputs missing (coverage only)",
+        default = sprintf("K=%.1f Mg/cell; r=%.4f", capacity_Mg_cell, rmax_per_iteration)
+      ))
+    )
+    data.table::set(
+      tr,
+      j = "panel",
+      value = with(
+        tr,
+        sprintf("%s | cell %d | TOF=%d\n%s", group, cell, tof, parameter_text)
+      )
+    )
+    data.table::set(
+      tr,
+      j = "panel",
+      value = factor(tr$panel, levels = unique(tr$panel))
+    )
 
     harvest_data <- melt(
       tr,
@@ -1212,14 +1473,19 @@ if (length(trajectory_all)) {
       measure.vars = c("expected_harvest_Mg_cell", "actual_harvest_Mg_cell"),
       variable.name = "harvest_series", value.name = "Mg_cell"
     )
+    assert_data_table(harvest_data, sprintf("MC%s harvest plot data", mc_name))
     harvest_labels <- c(
       expected_harvest_Mg_cell = "assigned/expected harvest map",
       actual_harvest_Mg_cell = "realized harvest"
     )
-    harvest_data[, harvest_series := factor(
-      harvest_labels[as.character(harvest_series)],
-      levels = unname(harvest_labels)
-    )]
+    data.table::set(
+      harvest_data,
+      j = "harvest_series",
+      value = factor(
+        harvest_labels[as.character(harvest_data$harvest_series)],
+        levels = unname(harvest_labels)
+      )
+    )
     harvest_data <- harvest_data[is.finite(Mg_cell)]
 
     line_ready <- function(column) {
@@ -1403,6 +1669,9 @@ overall_demand_incomplete <-
   any(is.na(mechanics_summary$demand_reconciliation_incomplete)) ||
   any(mechanics_summary$demand_reconciliation_incomplete, na.rm = TRUE)
 overall_warning <- any(mechanics_summary$state_parameter_warning, na.rm = TRUE)
+overall_parameter_missing_data <- any(
+  mechanics_summary$parameter_coverage_missing_data, na.rm = TRUE
+)
 overall_verdict <- if (overall_fail) {
   "FAIL - localized state/mechanics defects were detected"
 } else if (overall_mechanics_incomplete) {
@@ -1414,6 +1683,11 @@ overall_verdict <- if (overall_fail) {
 } else if (overall_warning) {
   "PASS WITH STATE/PARAMETER WARNINGS"
 } else "PASS"
+parameter_coverage_line <- if (overall_parameter_missing_data) {
+  "PARAMETER COVERAGE: MISSING DATA PRESENT (reported separately; not a mechanics failure)"
+} else {
+  "PARAMETER COVERAGE: COMPLETE for all finite-stock model-domain pixels"
+}
 
 fmt_number <- function(x, digits = 3L) {
   if (length(x) && is.finite(x[[1L]])) {
@@ -1542,6 +1816,7 @@ report_lines <- c(
   sprintf("Native units: Mg dry matter per grid cell; nominal area %.3f ha/cell", nominal_area_ha),
   sprintf("Float32 tolerance: %.4f Mg/cell", tol),
   sprintf("OVERALL VERDICT: %s", overall_verdict),
+  parameter_coverage_line,
   "",
   provenance_lines,
   "",
@@ -1578,13 +1853,54 @@ for (i in seq_len(nrow(mechanics_summary))) {
     x$verdict
   ))
 }
+report_lines <- c(report_lines, "", "Growth mechanics and selected-model input coverage:")
+for (i in seq_len(nrow(mechanics_summary))) {
+  x <- mechanics_summary[i]
+  report_lines <- c(report_lines, sprintf(
+    paste0(
+      "  MC%d: maximum annual finite-stock forest cells=%.0f; ",
+      "selected-model inputs available=%.0f; missing inputs=%.0f ",
+      "(MISSING DATA, not a mechanics failure); covered cells with missing ",
+      "growth output=%.0f; unexpected finite/NULL mismatches=%.0f; ",
+      "max numerical growth error=%s Mg/cell."
+    ),
+    x$mc, x$max_forest_growth_required_cells,
+    x$max_forest_growth_input_covered_cells,
+    x$max_forest_selected_model_parameter_missing_cells,
+    x$max_forest_growth_covered_missing_output_cells,
+    x$forest_growth_finite_pattern_mismatch_cells,
+    fmt_number(x$max_forest_growth_error_Mg_cell, 6L)
+  ))
+}
+report_lines <- c(report_lines, "", "Post-harvest output completeness:")
+for (i in seq_len(nrow(mechanics_summary))) {
+  x <- mechanics_summary[i]
+  report_lines <- c(report_lines, sprintf(
+    paste0(
+      "  MC%d: max finite-growth forest cells missing post-stock=%.0f; ",
+      "max finite-growth TOF cells missing post-stock=%.0f; ",
+      "unexpected forest/TOF post-stock finite-pattern mismatches=%.0f/%.0f; ",
+      "annual expected-map missing model-cell-years=%s; ",
+      "model-domain Harvest_tot missing pixel-years=%s; ",
+      "cumulative expected/actual missing model cells=%s/%s."
+    ),
+    x$mc, x$max_forest_balance_required_missing_cells,
+    x$max_tof_balance_required_missing_cells,
+    x$forest_balance_finite_pattern_mismatch_cells,
+    x$tof_balance_finite_pattern_mismatch_cells,
+    fmt_number(x$stage_B_annual_expected_missing_model_cell_years, 0L),
+    fmt_number(x$stage_B_annual_actual_missing_model_cell_years, 0L),
+    fmt_number(x$stage_B_cumulative_expected_missing_model_cells, 0L),
+    fmt_number(x$stage_B_cumulative_actual_missing_model_cells, 0L)
+  ))
+}
 report_lines <- c(report_lines, "", "State-integrity findings:")
 for (i in seq_len(nrow(state_integrity_summary))) {
   x <- state_integrity_summary[i]
   report_lines <- c(report_lines, sprintf(
-    "  MC%d: max missing TOF post-stock cells=%d; first-step TOF stock lost=%.3f Mg; K=0 TOFs reset to 2=%d; forest invalid-K cells=%d; growth-above-K pixel-years=%.0f.",
+    "  MC%d: max missing TOF post-stock cells=%d; first-step TOF stock lost=%.3f Mg; K=0 TOFs reset to 2=%d; finite forest K<=0 cells=%d; growth-above-K pixel-years=%.0f.",
     x$mc, x$max_tof_post_stock_NULL_cells, x$first_step_tof_stock_lost_to_NULL_Mg,
-    x$max_tof_zero_K_reset_to_2_cells, x$forest_invalid_K_cells,
+    x$max_tof_zero_K_reset_to_2_cells, x$forest_zero_K_cells,
     x$total_forest_growth_above_K_pixel_years
   ))
 }
