@@ -1,0 +1,9 @@
+[@00000213CBD7DDD0] Dinamica EGO 64, 2.4.1.20140602 (Awesometastic) [build 1401730828]
+Copyright(c) 1998-2014 Centro de Sensoriamento Remoto /
+Universidade Federal de Minas Gerais - Brazil.
+All Rights Reserved.
+No warranty whatsoever is provided.
+[INFO @00000213CBD7DDD0] Reading model script "C:/Users/UNAM/Documents/mofuss/localhost/scripts/7_dyn_Sc17_webmofuss_ctrees_g_v8.egoml" ...
+[WARNING @00000213CBD7DDD0] C:/Users/UNAM/Documents/mofuss/localhost/scripts/7_dyn_Sc17_webmofuss_ctrees_g_v8.egoml(line 1545, column 21): Redefinition of property "dff.container.collapsed".
+[WARNING @00000213CBD7DDD0] C:/Users/UNAM/Documents/mofuss/localhost/scripts/7_dyn_Sc17_webmofuss_ctrees_g_v8.egoml(line 1558, column 21): Redefinition of property "dff.container.collapsed".
+[INFO @00000213CBD7DDD0] Model script read successfully.

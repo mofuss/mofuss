@@ -229,22 +229,57 @@ lapply(file.names.DS, function(RO.DS) {
 })
 
 # Copy additional files ----
-# keep your manual list
+# V7 and V8 are deliberately deployed as two self-contained, version-locked
+# bundles. Do not point either EGOML back to an unsuffixed/shared R script: that
+# would make a later fix to one version silently change the other version.
+v7_egoml <- "7_dyn_Sc17_webmofuss_ctrees_g_v7.egoml"
+v8_egoml <- "7_dyn_Sc17_webmofuss_ctrees_g_v8.egoml"
+
+v7_r_dependencies <- c(
+  "rnorm_v7.R",
+  "NRB_graphs_datasets_v7.R",
+  "maps_animations_v7.R",
+  "finalogs_v7.R",
+  "bypassMC_v7.R",
+  "bypass_maps_animations_v7.R"
+)
+
+v8_r_dependencies <- c(
+  "rnorm_v8.R",
+  "NRB_graphs_datasets_v8.R",
+  "maps_animations_v8.R",
+  "finalogs_v8.R",
+  "bypassMC_v8.R",
+  "bypass_maps_animations_v8.R"
+)
+
+# These transitive R dependencies are copied with the complete LaTeX folder.
+latex_r_dependencies <- c(
+  "LaTeX/generate_modern_report_v7.R",
+  "LaTeX/generate_modern_report_v8.R"
+)
+
+bundle_files <- c(
+  v7_egoml, v8_egoml,
+  v7_r_dependencies, v8_r_dependencies,
+  latex_r_dependencies
+)
+bundle_sources <- file.path(
+  githubdir, "localhost", "scripts", bundle_files
+)
+missing_bundle_files <- bundle_files[!file.exists(bundle_sources)]
+if (length(missing_bundle_files) > 0L) {
+  stop(
+    "Cannot deploy the V7/V8 EGOML bundles; missing repository file(s): ",
+    paste(missing_bundle_files, collapse = ", ")
+  )
+}
+
 files2copy <- c(
-  "ffmpeg32/", "ffmpeg64/", "LaTeX/", 
-  "rnorm_v3.R", "NRB_graphs_datasets2.R", "maps_animations7.R", 
-  "finalogs.R", "bypassMC.R", "bypass_maps_animations.R"
+  "ffmpeg32/", "ffmpeg64/", "LaTeX/",
+  v7_egoml, v8_egoml,
+  v7_r_dependencies, v8_r_dependencies
 )
-
-# get any .egoml there (filenames only)
-egoml_files <- list.files(
-  path       = paste0(githubdir, "/localhost/scripts/"),
-  pattern    = "\\.egoml$",
-  full.names = FALSE
-)
-
-# merge + dedupe
-files2copy <- unique(c(files2copy, egoml_files))
 
 
 lapply(files2copy, function(f) {
