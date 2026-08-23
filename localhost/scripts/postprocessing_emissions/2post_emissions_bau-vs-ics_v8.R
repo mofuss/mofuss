@@ -42,7 +42,7 @@
 # fixdir = 1 # WARNING: Check when 0 how paths are determined, mostly for the emissions folder
 
 # Internal parameters ----
-fixdir = 0 # WARNING: Check when fixdir = 0 how paths are determined, mostly for the emissions folder
+fixdir = 1 # MC1 audit: non-interactive explicit paths from command-line arguments
 # bau_dir <- "C:/Users/aghil/Documents/MoFuSS_FAO_localhost/ken_bau_1km_nv2_ng"
 # bau_dir <- "D:/ken_fafe/nv2/ken_bau_1km_nv2_g"
 # ics_dir <- "C:/Users/aghil/Documents/MoFuSS_FAO_localhost/ken_ics_1km_nv2_ng"
@@ -57,6 +57,7 @@ first_yr <- 11 # 11=2010 # 21=2020
 last_yr <- 31 # 31 = 2030 36=2035 51=2050
 co2_factor <- 0.47 * (44/12) # Factor: biomass → C (0.47), then C → CO2 (44/12) # 1 for debugging
 min_runs_for_mean_se <- 30 # We'll compute mean/SE whenever we have at least n runs
+selected_run_ids <- 1L     # This audit intentionally processes nominal/mean MC1 only
 # output_dir <- paste0(output_dir2,"_",stringr::str_extract(ics_dir, "ics\\d+"))
 # output_dir <- paste0(output_dir2, "_", gid0)
 
@@ -92,17 +93,45 @@ pick_dir <- function(caption = "Select a folder") {
 
 cat("Please select the folders explicitly (BAU → ICS → OUTPUT).\n")
 
-if (fixdir != 1L) {
+if (fixdir == 1L) {
+  cli <- commandArgs(trailingOnly = TRUE)
+  arg_value <- function(name, required = TRUE, default = NULL) {
+    hit <- grep(paste0("^--", name, "="), cli, value = TRUE)
+    if (length(hit) > 1L) stop("Duplicate --", name, " argument.")
+    if (!length(hit)) {
+      if (required) stop("Missing required --", name, "=PATH argument.")
+      return(default)
+    }
+    sub(paste0("^--", name, "="), "", hit[[1]])
+  }
+  bau_dir <- normalizePath(arg_value("bau-dir"), winslash = "/", mustWork = TRUE)
+  ics_dir <- normalizePath(arg_value("ics-dir"), winslash = "/", mustWork = TRUE)
+  output_dir <- normalizePath(
+    arg_value("output-dir"), winslash = "/", mustWork = FALSE
+  )
+  rTempdir <- normalizePath(
+    arg_value("temp-dir", required = FALSE, default = tempdir()),
+    winslash = "/", mustWork = TRUE
+  )
+  overwrite_output <- tolower(arg_value(
+    "overwrite", required = FALSE, default = "false"
+  )) %in% c("true", "t", "1", "yes")
+} else {
   bau_dir    <- pick_dir("Select BAU scenario folder")
   ics_dir    <- pick_dir("Select ICS scenario folder")
   output_dir2 <- pick_dir("Select OUTPUT folder (results will be written here)")
   output_dir <- paste0(output_dir2,"_",stringr::str_extract(ics_dir, "ics\\d+"))
   rTempdir   <- pick_dir("Select your Rtemp folder")
+  overwrite_output <- FALSE
 }
-# Respect previous scenarios?
-unlink(paste0(output_dir2,"/"), recursive = TRUE)
-unlink(paste0(output_dir,"/"), recursive = TRUE)
-Sys.sleep(5)
+
+# Never delete a parent tree. A repeat run must explicitly authorize overwriting
+# known files inside this exact output directory.
+if (dir.exists(output_dir) && length(list.files(output_dir, all.files = TRUE, no.. = TRUE)) &&
+    !overwrite_output) {
+  stop("Output directory is not empty; use --overwrite=true only for this exact MC1 output: ",
+       output_dir)
+}
 
 # sanity checks
 if (identical(bau_dir, ics_dir)) stop("BAU and ICS must be different folders.")
@@ -137,6 +166,7 @@ tb_ics <- tibble(run_dir_ics = runs_ics,
                  run_id = as.integer(str_extract(basename(runs_ics), "\\d+"))) |> arrange(run_id)
 
 common_runs <- inner_join(tb_bau, tb_ics, by = "run_id")
+common_runs <- dplyr::filter(common_runs, .data$run_id %in% selected_run_ids)
 if (nrow(common_runs) == 0) stop("No common debugging_n runs between BAU and ICS.")
 
 cat("Common runs found:", nrow(common_runs), "\n")

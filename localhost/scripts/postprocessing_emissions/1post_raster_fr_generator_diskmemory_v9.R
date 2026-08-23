@@ -198,11 +198,89 @@ read_delimited_table <- function(path) {
   )
 }
 
+parse_manifest_bool <- function(x, field, path) {
+  value <- tolower(trimws(as.character(x)))
+  if (length(value) != 1L || is.na(value)) {
+    stopf("Field '%s' must contain one boolean in %s", field, path)
+  }
+  if (value %in% c("true", "t", "1", "yes", "y")) return(TRUE)
+  if (value %in% c("false", "f", "0", "no", "n")) return(FALSE)
+  stopf("Field '%s' is not boolean in %s: %s", field, path, x)
+}
+
+read_pairing_provenance <- function(scenario_dir, scenario_ver) {
+  is_bau <- grepl("^bau", scenario_ver, ignore.case = TRUE)
+  path <- file.path(scenario_dir, "Temp", "mc_bypass_manifest.csv")
+  if (is_bau) {
+    return(list(
+      mc_bypass_manifest = NA_character_,
+      mc_bypass_manifest_md5 = NA_character_,
+      mc_bypass_status = "not_applicable_bau",
+      mc_bypass_mode = "not_applicable_bau",
+      mc_bau_source_dir = NA_character_,
+      mc_tables_reused_from_bau = NA,
+      patcher_rng_paired = NA,
+      paired_contrast_ready = NA
+    ))
+  }
+  if (!file.exists(path) || dir.exists(path)) {
+    return(list(
+      mc_bypass_manifest = normalizePath(path, winslash = "/", mustWork = FALSE),
+      mc_bypass_manifest_md5 = NA_character_,
+      mc_bypass_status = "missing",
+      mc_bypass_mode = NA_character_,
+      mc_bau_source_dir = NA_character_,
+      mc_tables_reused_from_bau = FALSE,
+      patcher_rng_paired = FALSE,
+      paired_contrast_ready = FALSE
+    ))
+  }
+  path <- normalizePath(path, winslash = "/", mustWork = TRUE)
+  tab <- read_delimited_table(path)
+  required <- c(
+    "status", "mode", "current_scenario_dir", "bau_source_dir",
+    "patcher_rng_paired"
+  )
+  missing <- setdiff(required, names(tab))
+  if (nrow(tab) != 1L || length(missing)) {
+    stopf(
+      "MC bypass manifest must contain one row and fields %s: %s",
+      paste(required, collapse = ", "), path
+    )
+  }
+  current_dir <- normalizePath(
+    as.character(tab$current_scenario_dir[[1]]), winslash = "/", mustWork = FALSE
+  )
+  if (!identical(tolower(current_dir), tolower(scenario_dir))) {
+    stopf("MC bypass manifest points to a different scenario directory: %s", path)
+  }
+  status <- trimws(as.character(tab$status[[1]]))
+  mode <- trimws(as.character(tab$mode[[1]]))
+  tables_reused <- identical(status, "complete") && identical(mode, "reuse_BAU_MC_tables")
+  patcher_paired <- parse_manifest_bool(
+    tab$patcher_rng_paired[[1]], "patcher_rng_paired", path
+  )
+  list(
+    mc_bypass_manifest = path,
+    mc_bypass_manifest_md5 = unname(as.character(tools::md5sum(path))),
+    mc_bypass_status = status,
+    mc_bypass_mode = mode,
+    mc_bau_source_dir = normalizePath(
+      as.character(tab$bau_source_dir[[1]]), winslash = "/", mustWork = FALSE
+    ),
+    mc_tables_reused_from_bau = tables_reused,
+    patcher_rng_paired = patcher_paired,
+    # Patcher is skipped in this bypass workflow. The false RNG flag records
+    # an unused stream, rather than an active unpaired allocator.
+    paired_contrast_ready = tables_reused
+  )
+}
+
 read_model_metadata <- function(scenario_dir) {
   country_path <- file.path(scenario_dir, "LULCC", "TempTables", "Country.csv")
   if (!file.exists(country_path)) stopf("Missing Country.csv: %s", country_path)
   country_table <- read_delimited_table(country_path)
-  key_column <- intersect(c("Key.", "Key"), names(country_table))
+  key_column <- base::intersect(c("Key.", "Key"), names(country_table))
   if (length(key_column) != 1L || !"Country" %in% names(country_table)) {
     stopf("Country.csv must contain one Key/Key. column and a Country column: %s", country_path)
   }
@@ -269,9 +347,11 @@ read_model_metadata <- function(scenario_dir) {
   }
   initial_agb <- normalizePath(initial_agb, winslash = "/", mustWork = TRUE)
 
-  list(
+  scenario_ver <- character_parameter("scenario_ver")
+  pairing <- read_pairing_provenance(scenario_dir, scenario_ver)
+  c(list(
     source_name = country_name,
-    scenario_ver = character_parameter("scenario_ver"),
+    scenario_ver = scenario_ver,
     byregion = character_parameter("byregion"),
     continent = character_parameter("region2BprocessedCont"),
     region = character_parameter("region2BprocessedReg"),
@@ -287,7 +367,7 @@ read_model_metadata <- function(scenario_dir) {
     initial_agb = initial_agb,
     initial_agb_md5 = unname(as.character(tools::md5sum(initial_agb))),
     expected_codes = seq_len(end_year - start_year + 1L)
-  )
+  ), pairing)
 }
 
 discover_family <- function(run_dir, pattern, expected_codes, label) {
@@ -407,6 +487,14 @@ manifest_row <- function(
   processed_run_ids,
   initial_agb,
   initial_agb_md5,
+  mc_bypass_manifest,
+  mc_bypass_manifest_md5,
+  mc_bypass_status,
+  mc_bypass_mode,
+  mc_bau_source_dir,
+  mc_tables_reused_from_bau,
+  patcher_rng_paired,
+  paired_contrast_ready,
   terra_version,
   record_type,
   run_id = NA_integer_,
@@ -448,6 +536,14 @@ manifest_row <- function(
     processed_run_ids = processed_run_ids,
     initial_agb = initial_agb,
     initial_agb_md5 = initial_agb_md5,
+    mc_bypass_manifest = mc_bypass_manifest,
+    mc_bypass_manifest_md5 = mc_bypass_manifest_md5,
+    mc_bypass_status = mc_bypass_status,
+    mc_bypass_mode = mc_bypass_mode,
+    mc_bau_source_dir = mc_bau_source_dir,
+    mc_tables_reused_from_bau = mc_tables_reused_from_bau,
+    patcher_rng_paired = patcher_rng_paired,
+    paired_contrast_ready = paired_contrast_ready,
     record_type = record_type,
     run_id = run_id,
     period_start = period_start,
@@ -586,6 +682,14 @@ build_plan <- function(scenario_dir, periods = NULL, output_subdir) {
       processed_run_ids = paste(processed_ids, collapse = ","),
       initial_agb = metadata$initial_agb,
       initial_agb_md5 = metadata$initial_agb_md5,
+      mc_bypass_manifest = metadata$mc_bypass_manifest,
+      mc_bypass_manifest_md5 = metadata$mc_bypass_manifest_md5,
+      mc_bypass_status = metadata$mc_bypass_status,
+      mc_bypass_mode = metadata$mc_bypass_mode,
+      mc_bau_source_dir = metadata$mc_bau_source_dir,
+      mc_tables_reused_from_bau = metadata$mc_tables_reused_from_bau,
+      patcher_rng_paired = metadata$patcher_rng_paired,
+      paired_contrast_ready = metadata$paired_contrast_ready,
       terra_version = terra_version,
       ...
     )
@@ -829,6 +933,21 @@ print_plan <- function(plan) {
     "MC runs:         ", paste(processed_ids, collapse = ","),
     " (n=", length(processed_ids), ")\n", sep = ""
   )
+  if (!grepl("^bau", plan$metadata$scenario_ver, ignore.case = TRUE)) {
+    cat(
+      "Pairing input:   bypass_tables_reused=", plan$metadata$mc_tables_reused_from_bau,
+      "; patcher_bypassed=TRUE; patcher_rng_paired=",
+      plan$metadata$patcher_rng_paired,
+      "; contrast_ready=", plan$metadata$paired_contrast_ready, "\n", sep = ""
+    )
+    if (!isTRUE(plan$metadata$paired_contrast_ready)) {
+      cat(
+        "WARNING: scenario summaries are valid individually, but BAU-CCTS paired ",
+        "contrasts require a complete, verified BAU-table bypass manifest.\n",
+        sep = ""
+      )
+    }
+  }
   cat("Output path:    ", plan$output_dir, "\n", sep = "")
   cat("Planned inputs (exact paths; read-only):\n")
   input_columns <- c(

@@ -33,7 +33,8 @@
 #
 # Positive values are avoided emissions. End-use avoided emissions use
 # BAU - ICS, so the sign convention is consistent when both components are
-# added.
+# added. In this workflow Patcher is bypassed and the BAU lookup tables are
+# reused by CCTS; patcher_rng_paired=FALSE records an unused RNG stream.
 
 .V9_REQUIRED_PACKAGES <- c("terra", "fs", "stringr", "dplyr", "readr", "tibble")
 .V9_CO2_FACTOR <- 0.47 * (44 / 12)
@@ -78,7 +79,7 @@ SCENARIO_DIRS <- c(
 .v9_parse_cli <- function(args = commandArgs(trailingOnly = TRUE)) {
   allowed <- c(
     "manifest", "config-label", "period", "run-ids", "temp-dir",
-    "dry-run", "overwrite", "enduse-basis", "help"
+    "dry-run", "overwrite", "enduse-basis", "pairing-policy", "help"
   )
   out <- list(
     manifest = NULL,
@@ -89,6 +90,7 @@ SCENARIO_DIRS <- c(
     dry_run = FALSE,
     overwrite = FALSE,
     enduse_basis = "demand",
+    pairing_policy = "strict",
     help = FALSE
   )
 
@@ -125,6 +127,10 @@ SCENARIO_DIRS <- c(
       "  --run-ids=all|1,2,5:10    Selected MC runs (default: all, including MC01)\n",
       "  --temp-dir=DIR             Existing writable terra temp directory\n",
       "  --enduse-basis=demand      Only implemented basis\n",
+      "  --pairing-policy=strict|diagnostic\n",
+      "                             strict (default) requires verified bypass tables;\n",
+      "                             diagnostic calculates signed checks but never\n",
+      "                             labels uncertainty as paired\n",
       "  --dry-run[=true|false]     Validate without creating outputs\n",
       "  --overwrite[=true|false]   Replace known output files; never deletes directories\n",
       "  --help\n"
@@ -232,7 +238,7 @@ SCENARIO_DIRS <- c(
   if (!file.exists(country_file)) .v9_stop("Missing Country.csv: ", country_file)
   country_tbl <- .v9_read_delimited(country_file)
   if (!"Country" %in% names(country_tbl)) .v9_stop("Country.csv lacks a Country column: ", country_file)
-  key_col <- intersect(c("Key.", "Key"), names(country_tbl))
+  key_col <- base::intersect(c("Key.", "Key"), names(country_tbl))
   rows <- if (length(key_col)) which(as.character(country_tbl[[key_col[1]]]) == "1") else 1L
   if (length(rows) != 1L) .v9_stop("Could not identify exactly one active Country.csv row: ", country_file)
   source_name <- trimws(as.character(country_tbl[["Country"]][rows]))
@@ -534,6 +540,87 @@ SCENARIO_DIRS <- c(
   dplyr::bind_rows(rows)
 }
 
+.v13_read_bypass_provenance <- function(bau_root, ics_root, bau_par, ics_par) {
+  path <- file.path(ics_root, "Temp", "mc_bypass_manifest.csv")
+  if (!file.exists(path) || dir.exists(path)) {
+    return(list(
+      manifest_path = normalizePath(path, winslash = "/", mustWork = FALSE),
+      manifest_md5 = NA_character_,
+      status = "missing",
+      mode = NA_character_,
+      mc_tables_declared_reused = FALSE,
+      patcher_rng_paired = FALSE,
+      metadata_validated = FALSE,
+      issue = "CCTS mc_bypass_manifest.csv is missing"
+    ))
+  }
+  path <- normalizePath(path, winslash = "/", mustWork = TRUE)
+  tab <- suppressMessages(
+    readr::read_csv(
+      path,
+      show_col_types = FALSE,
+      progress = FALSE,
+      name_repair = "minimal",
+      col_types = readr::cols(.default = readr::col_character())
+    )
+  )
+  required <- c(
+    "status", "mode", "current_scenario_dir", "current_scenario_ver",
+    "bau_source_dir", "bau_scenario_ver", "geography", "start_year",
+    "end_year", "monte_carlo_runs", "uncapped_regrowth",
+    "patcher_rng_paired"
+  )
+  missing <- setdiff(required, names(tab))
+  if (nrow(tab) != 1L || length(missing)) {
+    .v9_stop(
+      "CCTS MC bypass manifest must contain one row and fields ",
+      paste(required, collapse = ", "), ": ", path
+    )
+  }
+  value <- function(field) trimws(as.character(tab[[field]][[1]]))
+  current_dir <- .v9_norm_existing(value("current_scenario_dir"), "bypass current_scenario_dir")
+  source_dir <- .v9_norm_existing(value("bau_source_dir"), "bypass bau_source_dir")
+  exact_checks <- c(
+    current_scenario_dir = identical(.v9_path_key(current_dir), .v9_path_key(ics_root)),
+    bau_source_dir = identical(.v9_path_key(source_dir), .v9_path_key(bau_root)),
+    current_scenario_ver = identical(value("current_scenario_ver"), ics_par$scenario),
+    bau_scenario_ver = identical(value("bau_scenario_ver"), bau_par$scenario),
+    geography = identical(toupper(value("geography")), toupper(ics_par$iso3)),
+    start_year = identical(suppressWarnings(as.integer(value("start_year"))), ics_par$model_start_year),
+    end_year = identical(suppressWarnings(as.integer(value("end_year"))), ics_par$model_end_year),
+    monte_carlo_runs = identical(suppressWarnings(as.integer(value("monte_carlo_runs"))), ics_par$mc_runs),
+    uncapped_regrowth = identical(suppressWarnings(as.integer(value("uncapped_regrowth"))), ics_par$uncapped_regrowth)
+  )
+  failed <- names(exact_checks)[!exact_checks]
+  if (length(failed)) {
+    .v9_stop(
+      "CCTS MC bypass provenance disagrees with the BAU/CCTS pair for field(s): ",
+      paste(failed, collapse = ", "), ". Manifest: ", path
+    )
+  }
+  status <- value("status")
+  mode <- value("mode")
+  tables_reused <- identical(status, "complete") && identical(mode, "reuse_BAU_MC_tables")
+  patcher_paired <- .v9_parse_bool(value("patcher_rng_paired"), "patcher_rng_paired")
+  issue <- if (!tables_reused) {
+    paste0("MC bypass status/mode is ", status, "/", mode)
+  } else {
+    ""
+  }
+  list(
+    manifest_path = path,
+    manifest_md5 = unname(as.character(tools::md5sum(path))),
+    status = status,
+    mode = mode,
+    current_scenario_dir = current_dir,
+    bau_source_dir = source_dir,
+    mc_tables_declared_reused = tables_reused,
+    patcher_rng_paired = patcher_paired,
+    metadata_validated = TRUE,
+    issue = issue
+  )
+}
+
 .v9_demand_inventory <- function(demand_dir) {
   if (!dir.exists(demand_dir)) .v9_stop("Missing demand_out directory: ", demand_dir)
   files <- list.files(demand_dir, pattern = "\\.tif$", full.names = TRUE, ignore.case = TRUE)
@@ -598,7 +685,9 @@ SCENARIO_DIRS <- c(
   invisible(TRUE)
 }
 
-.v9_preflight_config <- function(config, period, run_ids_requested, temp_dir, overwrite) {
+.v9_preflight_config <- function(
+  config, period, run_ids_requested, temp_dir, overwrite, pairing_policy
+) {
   label <- trimws(as.character(config[["label"]]))
   if (!nzchar(label)) .v9_stop("Manifest contains an empty label.")
   bau_dir <- .v9_norm_existing(config[["bau_dir"]], paste0("BAU directory for ", label))
@@ -769,19 +858,34 @@ SCENARIO_DIRS <- c(
 
   pairing <- .v9_compare_mc_rows(bau_dir, ics_dir, run_ids)
   failed_pairing <- pairing$selected & !pairing$matched
-  pairing_validated <- !any(failed_pairing)
-  if (any(failed_pairing)) {
+  mc_table_pairing_validated <- !any(failed_pairing)
+  bypass <- .v13_read_bypass_provenance(bau_dir, ics_dir, bau_par, ics_par)
+  pairing_validated <- isTRUE(mc_table_pairing_validated) &&
+    isTRUE(bypass$mc_tables_declared_reused) &&
+    isTRUE(bypass$metadata_validated)
+  pairing_issues <- character()
+  if (!mc_table_pairing_validated) {
     bad <- unique(pairing$run_id[failed_pairing])
-    warning(
-      paste0(
-        "BAU/CCTS MC input rows are not yet paired for label ", label,
-        "; run-ID comparisons will be processed provisionally. Failing run IDs: ",
-        paste(bad, collapse = ", "),
-        ". Re-run CCTS with the corrected bypassMC workflow before treating the ",
-        "batch SD/SE as paired uncertainty. See mc_pairing_check.csv."
-      ),
-      call. = FALSE
+    pairing_issues <- c(
+      pairing_issues,
+      paste0("MC table rows differ for run ID(s) ", paste(bad, collapse = ","))
     )
+  }
+  if (nzchar(bypass$issue)) pairing_issues <- c(pairing_issues, bypass$issue)
+  if (!pairing_validated) {
+    detail <- paste(pairing_issues, collapse = "; ")
+    failure_message <- paste0(
+      "BAU/CCTS bypass-input validation failed for label ", label, ": ", detail,
+      ". The existing rasters may be inspected only as a diagnostic until the ",
+      "BAU-to-CCTS table bypass is complete and verified."
+    )
+    if (identical(pairing_policy, "strict")) .v9_stop(failure_message)
+    warning(failure_message, call. = FALSE)
+  }
+  uncertainty_status <- if (pairing_validated) {
+    "paired_bypass_inputs_validated_patcher_skipped"
+  } else {
+    "DIAGNOSTIC_ONLY_unverified_bypass_inputs"
   }
 
   selected_rows <- completeness[match(run_ids, completeness$run_id), ]
@@ -883,7 +987,13 @@ SCENARIO_DIRS <- c(
     completeness = completeness,
     selected_runs = selected_rows,
     pairing = pairing,
+    pairing_policy = pairing_policy,
+    pairing_issues = paste(pairing_issues, collapse = "; "),
+    bypass = bypass,
+    mc_table_pairing_validated = mc_table_pairing_validated,
+    patcher_rng_paired = isTRUE(bypass$patcher_rng_paired),
     pairing_validated = pairing_validated,
+    uncertainty_status = uncertainty_status,
     bau_demand = bau_demand,
     ics_demand = ics_demand,
     demand_template = demand_template,
@@ -1119,7 +1229,7 @@ SCENARIO_DIRS <- c(
 }
 
 .v9_harvest_diagnostic <- function(preflight, enduse, overwrite, harvest_dir) {
-  woody <- intersect(c("fuelwood", "imp_fuelwood", "charcoal", "imp_charcoal"), names(enduse$demand_totals))
+  woody <- base::intersect(c("fuelwood", "imp_fuelwood", "charcoal", "imp_charcoal"), names(enduse$demand_totals))
   woody_bau <- sum(vapply(woody, function(tag) enduse$demand_totals[[tag]][["BAU"]], numeric(1)))
   woody_ics <- sum(vapply(woody, function(tag) enduse$demand_totals[[tag]][["ICS"]], numeric(1)))
   rows <- list()
@@ -1182,6 +1292,23 @@ SCENARIO_DIRS <- c(
 
   .v9_write_csv(preflight$completeness, file.path(output, "input_completeness.csv"), overwrite)
   .v9_write_csv(preflight$pairing, file.path(output, "mc_pairing_check.csv"), overwrite)
+  pairing_provenance <- tibble::tibble(
+    label = preflight$label,
+    pairing_policy = preflight$pairing_policy,
+    mc_table_rows_paired = preflight$mc_table_pairing_validated,
+    mc_tables_declared_reused = preflight$bypass$mc_tables_declared_reused,
+    patcher_rng_paired = preflight$patcher_rng_paired,
+    full_stochastic_pairing_validated = preflight$pairing_validated,
+    uncertainty_status = preflight$uncertainty_status,
+    pairing_issues = preflight$pairing_issues,
+    bypass_manifest = preflight$bypass$manifest_path,
+    bypass_manifest_md5 = preflight$bypass$manifest_md5,
+    bypass_status = preflight$bypass$status,
+    bypass_mode = preflight$bypass$mode
+  )
+  .v9_write_csv(
+    pairing_provenance, file.path(output, "pairing_provenance.csv"), overwrite
+  )
   plan <- preflight$selected_runs[, c(
     "run_id", "bau_run_dir", "ics_run_dir", "bau_baseline_file",
     "ics_baseline_file", "bau_end_file", "ics_end_file"
@@ -1388,12 +1515,13 @@ SCENARIO_DIRS <- c(
       all_configured_runs_included = all_configured_runs,
       includes_mc01 = 1L %in% preflight$run_ids,
       mc01_role = "nominal_mean_debug_case_included_in_batch",
+      pairing_policy = preflight$pairing_policy,
+      mc_table_rows_paired = preflight$mc_table_pairing_validated,
+      patcher_rng_paired = preflight$patcher_rng_paired,
       paired_inputs_validated = preflight$pairing_validated,
-      uncertainty_status = if (preflight$pairing_validated) {
-        "paired_run_ids_validated"
-      } else {
-        "PROVISIONAL_until_CCTS_is_rerun_with_shared_MC_inputs"
-      },
+      uncertainty_status = preflight$uncertainty_status,
+      negative_runs = sum(values < 0),
+      positive_runs = sum(values > 0),
       mean_tCO2e = mean(values),
       sd_tCO2e = if (length(values) >= 2L) stats::sd(values) else NA_real_,
       se_tCO2e = if (length(values) >= 2L) stats::sd(values) / sqrt(length(values)) else NA_real_,
@@ -1454,13 +1582,19 @@ SCENARIO_DIRS <- c(
     mc01_included_in_batch = 1L %in% preflight$run_ids,
     mc01_role = "nominal_mean_debug_case_included_in_batch",
     expected_mc_runs = preflight$bau_parameters$mc_runs,
-    paired_run_id_design = TRUE,
+    pairing_policy = preflight$pairing_policy,
+    paired_run_id_design = preflight$pairing_validated,
+    mc_table_rows_paired = preflight$mc_table_pairing_validated,
+    mc_tables_declared_reused = preflight$bypass$mc_tables_declared_reused,
+    patcher_rng_paired = preflight$patcher_rng_paired,
     paired_mc_inputs_validated = preflight$pairing_validated,
-    uncertainty_status = if (preflight$pairing_validated) {
-      "paired_run_ids_validated"
-    } else {
-      "PROVISIONAL_until_CCTS_is_rerun_with_shared_MC_inputs"
-    },
+    full_stochastic_pairing_validated = preflight$pairing_validated,
+    pairing_issues = preflight$pairing_issues,
+    uncertainty_status = preflight$uncertainty_status,
+    mc_bypass_manifest = preflight$bypass$manifest_path,
+    mc_bypass_manifest_md5 = preflight$bypass$manifest_md5,
+    mc_bypass_status = preflight$bypass$status,
+    mc_bypass_mode = preflight$bypass$mode,
     cross_configuration_pooling = FALSE,
     enduse_basis = "demand",
     unmet_adjustment_applied = FALSE,
@@ -1476,10 +1610,19 @@ SCENARIO_DIRS <- c(
     terra_version = as.character(utils::packageVersion("terra")),
     r_version = R.version.string,
     completed_at_utc = format(Sys.time(), tz = "UTC", usetz = TRUE),
-    status = "complete"
+    status = if (preflight$pairing_validated) {
+      "complete"
+    } else {
+      "diagnostic_complete_unverified_bypass_inputs"
+    }
   )
   .v9_write_csv(manifest_row, file.path(output, "run_manifest.csv"), overwrite)
-  message("[v13] Completed ", preflight$label, " -> ", output)
+  completion_tag <- if (preflight$pairing_validated) {
+    "[v13] Completed fully paired"
+  } else {
+    "[v13] DIAGNOSTIC OUTPUT ONLY (bypass inputs unverified)"
+  }
+  message(completion_tag, " ", preflight$label, " -> ", output)
   invisible(list(
     manifest = manifest_row,
     harvest = harvest_table,
@@ -1498,11 +1641,17 @@ run_emissions_manifest <- function(
   temp_dir = tempdir(),
   dry_run = FALSE,
   overwrite = FALSE,
-  enduse_basis = "demand"
+  enduse_basis = "demand",
+  pairing_policy = "strict"
 ) {
   .v9_require_packages()
   if (!identical(tolower(enduse_basis), "demand")) {
     .v9_stop("Only --enduse-basis=demand is implemented in v13.")
+  }
+  pairing_policy <- tolower(trimws(as.character(pairing_policy)))
+  if (length(pairing_policy) != 1L || is.na(pairing_policy) ||
+      !pairing_policy %in% c("strict", "diagnostic")) {
+    .v9_stop("pairing_policy must be 'strict' or 'diagnostic'.")
   }
   if (!is.null(period)) {
     period <- as.integer(period)
@@ -1587,7 +1736,7 @@ run_emissions_manifest <- function(
 
   preflights <- lapply(seq_len(nrow(manifest_table)), function(i) {
     .v9_preflight_config(
-      manifest_table[i, ], period, run_ids, temp_dir, overwrite
+      manifest_table[i, ], period, run_ids, temp_dir, overwrite, pairing_policy
     )
   })
   preflights <- lapply(preflights, function(preflight) {
@@ -1600,7 +1749,12 @@ run_emissions_manifest <- function(
   if (dry_run) {
     for (preflight in preflights) {
       message(
-        "[v13 dry-run] OK label=", preflight$label,
+        if (preflight$pairing_validated) {
+          "[v13 dry-run] FULL PAIRING OK label="
+        } else {
+          "[v13 dry-run] DIAGNOSTIC ONLY label="
+        },
+        preflight$label,
         " | BAU=", preflight$bau_parameters$scenario,
         " | ICS=", preflight$ics_parameters$scenario,
         " | regrowth=", if (preflight$bau_parameters$uncapped_regrowth == 1L) "uncapped" else "capped",
@@ -1609,7 +1763,10 @@ run_emissions_manifest <- function(
         " (code ", preflight$baseline_code, ")->", preflight$end_code,
         " | runs=", paste(preflight$run_ids, collapse = ","),
         " | MC01 included=", 1L %in% preflight$run_ids,
-        " | MC pairing validated=", preflight$pairing_validated,
+        " | MC tables paired=", preflight$mc_table_pairing_validated,
+        " | Patcher RNG paired=", preflight$patcher_rng_paired,
+        " | full pairing validated=", preflight$pairing_validated,
+        " | uncertainty=", preflight$uncertainty_status,
         " | output=", preflight$emissions_dir
       )
     }
@@ -1638,7 +1795,8 @@ run_emissions_manifest <- function(
     temp_dir = options$temp_dir,
     dry_run = options$dry_run,
     overwrite = options$overwrite,
-    enduse_basis = options$enduse_basis
+    enduse_basis = options$enduse_basis,
+    pairing_policy = options$pairing_policy
   )
 }
 

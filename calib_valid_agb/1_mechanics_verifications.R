@@ -28,7 +28,7 @@ suppressPackageStartupMessages({
 })
 
 cfg <- list(
-  working_dir = "D:/ken_1km_ics3_2030_v3_g",
+  working_dir = "D:/ken_1km_bau1_2030_v3_ng",
   growth_model = "auto",       # auto | logistic | chapman-richards
   depleted_reset_Mg_cell = 2,  # EGO feedback stock after depleted forest
   float_tolerance_Mg_cell = 0.01,

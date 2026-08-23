@@ -17,6 +17,8 @@
 #
 # Default: infer BAU/CCTS pairs, 2010-post-spin-up period, MC01 and outputs.
 # Add --overwrite only after a dry run succeeds. Add --no-plot to omit the PNG.
+# Patcher is bypassed in this workflow, so its RNG stream is unused; pairing is
+# established from the BAU tables reused by CCTS.
 
 stopf <- function(fmt, ...) {
   stop(sprintf(fmt, ...), call. = FALSE)
@@ -38,10 +40,12 @@ usage <- function() {
     "Usage:\n",
     "  Rscript 3post_agb_decomposition_v5.R ",
     "[--output-dir=DIR] [--period=auto|START:END] [--run-id=1] [--dry-run] ",
-    "[--overwrite] [--no-plot]\n\n",
+    "[--pairing-policy=strict|diagnostic] [--overwrite] [--no-plot]\n\n",
     "Default input: SCENARIO_DIRS near the top of this script.\n",
     "Pairings, post-spin-up period, stage-2 inputs and output directory are inferred.\n",
     "Legacy --manifest=CONFIGS.csv remains supported with --output-dir.\n",
+    "Strict bypass-table validation is the default. Diagnostic mode keeps signed values visible ",
+    "but does not certify them as a paired BAU/CCTS effect.\n",
     "Dry-run reads and validates every input and performs all calculations, ",
     "but writes nothing.\n"
   ))
@@ -53,6 +57,7 @@ parse_cli <- function(args) {
     output_dir = NULL,
     period = "auto",
     run_id = "1",
+    pairing_policy = "strict",
     dry_run = FALSE,
     overwrite = FALSE,
     make_plot = TRUE,
@@ -62,7 +67,8 @@ parse_cli <- function(args) {
     "--manifest" = "manifest",
     "--output-dir" = "output_dir",
     "--period" = "period",
-    "--run-id" = "run_id"
+    "--run-id" = "run_id",
+    "--pairing-policy" = "pairing_policy"
   )
   i <- 1L
   while (i <= length(args)) {
@@ -87,6 +93,8 @@ parse_cli <- function(args) {
       out$period <- sub("^--period=", "", a)
     } else if (grepl("^--run-id=", a)) {
       out$run_id <- sub("^--run-id=", "", a)
+    } else if (grepl("^--pairing-policy=", a)) {
+      out$pairing_policy <- sub("^--pairing-policy=", "", a)
     } else {
       stopf("Unknown argument: %s", a)
     }
@@ -501,9 +509,8 @@ read_mc_row <- function(path, run_id) {
 }
 
 validate_mc_pairing <- function(cfg, run_id) {
-  # These are the biological uncertainty tables that must be shared between
-  # BAU and ICS. Harvest/pruning settings are intervention parameters and are
-  # intentionally not required to match.
+  # These exported biological tables define the paired biological draw.
+  # Patcher is bypassed in these simulations, so no Patcher RNG is consumed.
   rel <- file.path("Temp", c("k_all.csv", "rmax_all.csv", "i_st_all.csv"))
   for (r in rel) {
     b <- file.path(cfg$bau_dir, r)
@@ -523,6 +530,96 @@ validate_mc_pairing <- function(cfg, run_id) {
     }
   }
   TRUE
+}
+
+read_pairing_provenance <- function(cfg, bau, ics, pairing_policy) {
+  path <- file.path(cfg$ics_dir, "Temp", "mc_bypass_manifest.csv")
+  if (!file.exists(path) || dir.exists(path)) {
+    status <- list(
+      manifest_path = normalizePath(path, winslash = "/", mustWork = FALSE),
+      manifest_md5 = NA_character_, bypass_status = "missing",
+      bypass_mode = NA_character_, mc_tables_declared_reused = FALSE,
+      patcher_rng_paired = FALSE, full_stochastic_pairing_validated = FALSE,
+      issue = "CCTS mc_bypass_manifest.csv is missing"
+    )
+  } else {
+    path <- normalizePath(path, winslash = "/", mustWork = TRUE)
+    tab <- readr::read_csv(
+      path, show_col_types = FALSE, name_repair = "minimal",
+      col_types = readr::cols(.default = readr::col_character())
+    )
+    required <- c(
+      "status", "mode", "current_scenario_dir", "current_scenario_ver",
+      "bau_source_dir", "bau_scenario_ver", "geography", "start_year",
+      "end_year", "monte_carlo_runs", "uncapped_regrowth",
+      "patcher_rng_paired"
+    )
+    missing <- setdiff(required, names(tab))
+    if (nrow(tab) != 1L || length(missing)) {
+      stopf("Pairing manifest must contain one row and fields %s: %s",
+            paste(required, collapse = ", "), path)
+    }
+    value <- function(field) trimws(as.character(tab[[field]][[1]]))
+    current_dir <- resolve_path(value("current_scenario_dir"), dirname(path), TRUE, "dir")
+    source_dir <- resolve_path(value("bau_source_dir"), dirname(path), TRUE, "dir")
+    checks <- c(
+      current_scenario_dir = identical(tolower(current_dir), tolower(cfg$ics_dir)),
+      bau_source_dir = identical(tolower(source_dir), tolower(cfg$bau_dir)),
+      current_scenario_ver = identical(value("current_scenario_ver"), ics$scenario_ver),
+      bau_scenario_ver = identical(value("bau_scenario_ver"), bau$scenario_ver),
+      geography = identical(toupper(value("geography")), toupper(ics$country_iso)),
+      start_year = identical(strict_integer(value("start_year"), "start_year", path), ics$simulation_start_year),
+      end_year = identical(strict_integer(value("end_year"), "end_year", path), ics$simulation_end_year),
+      monte_carlo_runs = identical(strict_integer(value("monte_carlo_runs"), "monte_carlo_runs", path), ics$monte_carlo_runs),
+      uncapped_regrowth = identical(strict_integer(value("uncapped_regrowth"), "uncapped_regrowth", path), ics$uncapped_regrowth)
+    )
+    failed <- names(checks)[!checks]
+    if (length(failed)) {
+      stopf("Pairing manifest disagrees with config '%s' for: %s.",
+            cfg$label, paste(failed, collapse = ", "))
+    }
+    bypass_status <- value("status")
+    bypass_mode <- value("mode")
+    reused <- identical(bypass_status, "complete") &&
+      identical(bypass_mode, "reuse_BAU_MC_tables")
+    patcher_value <- tolower(value("patcher_rng_paired"))
+    if (!patcher_value %in% c("true", "t", "1", "false", "f", "0")) {
+      stopf("patcher_rng_paired is not boolean in %s", path)
+    }
+    patcher_paired <- patcher_value %in% c("true", "t", "1")
+    full <- reused
+    issue <- if (!reused) {
+      paste0("MC bypass status/mode is ", bypass_status, "/", bypass_mode)
+    } else {
+      ""
+    }
+    status <- list(
+      manifest_path = path,
+      manifest_md5 = file_md5(path),
+      bypass_status = bypass_status,
+      bypass_mode = bypass_mode,
+      mc_tables_declared_reused = reused,
+      patcher_rng_paired = patcher_paired,
+      full_stochastic_pairing_validated = full,
+      issue = issue
+    )
+  }
+  if (!status$full_stochastic_pairing_validated) {
+    msg <- paste0(
+      "Config '", cfg$label, "' is not a fully paired BAU/CCTS experiment: ",
+      status$issue, ". Re-run or repair the BAU-table bypass before comparison."
+    )
+    if (identical(pairing_policy, "strict")) stopf("%s", msg)
+    warning(paste0(msg, " Continuing only because pairing-policy=diagnostic."),
+            call. = FALSE)
+  }
+  status$pairing_policy <- pairing_policy
+  status$uncertainty_status <- if (status$full_stochastic_pairing_validated) {
+    "paired_bypass_inputs_validated_patcher_skipped"
+  } else {
+    "DIAGNOSTIC_ONLY_unverified_bypass_inputs"
+  }
+  status
 }
 
 read_harvest_total <- function(
@@ -656,7 +753,7 @@ read_enduse_total <- function(emissions_dir, period) {
 }
 
 read_stage2_run_manifest <- function(
-  cfg, period, run_id, timing, initial_agb_md5
+  cfg, period, run_id, timing, initial_agb_md5, pairing
 ) {
   path <- file.path(cfg$emissions_dir, "run_manifest.csv")
   if (!file.exists(path)) {
@@ -684,8 +781,14 @@ read_stage2_run_manifest <- function(
   if (length(missing)) {
     stopf("Stage-2 run manifest %s is missing: %s", path, paste(missing, collapse = ", "))
   }
-  if (!identical(trimws(as.character(tab$status[[1]])), "complete")) {
-    stopf("Stage-2 run manifest is not complete: %s", path)
+  stage2_status <- trimws(as.character(tab$status[[1]]))
+  allowed_status <- if (identical(pairing$pairing_policy, "strict")) {
+    "complete"
+  } else {
+    c("complete", "diagnostic_complete_unverified_bypass_inputs")
+  }
+  if (!stage2_status %in% allowed_status) {
+    stopf("Stage-2 run manifest status '%s' is not allowed: %s", stage2_status, path)
   }
   if (!identical(trimws(as.character(tab$label[[1]])), cfg$label)) {
     stopf("Stage-2 run manifest label does not match '%s': %s", cfg$label, path)
@@ -731,6 +834,42 @@ read_stage2_run_manifest <- function(
   optional_equal("baseline_source", timing$baseline_source)
   optional_equal("baseline_timing", timing$baseline_timing)
 
+  stage2_full_pairing <- FALSE
+  if ("full_stochastic_pairing_validated" %in% names(tab)) {
+    saved <- tolower(trimws(as.character(
+      tab$full_stochastic_pairing_validated[[1]]
+    )))
+    if (!saved %in% c("true", "t", "1", "false", "f", "0")) {
+      stopf("Stage-2 full_stochastic_pairing_validated is not boolean: %s", path)
+    }
+    stage2_full_pairing <- saved %in% c("true", "t", "1")
+  } else if ("paired_mc_inputs_validated" %in% names(tab)) {
+    saved <- tolower(trimws(as.character(tab$paired_mc_inputs_validated[[1]])))
+    if (!saved %in% c("true", "t", "1", "false", "f", "0")) {
+      stopf("Stage-2 paired_mc_inputs_validated is not boolean: %s", path)
+    }
+    stage2_full_pairing <- (saved %in% c("true", "t", "1")) &&
+      pairing$full_stochastic_pairing_validated
+  }
+  if ("patcher_rng_paired" %in% names(tab)) {
+    saved <- tolower(trimws(as.character(tab$patcher_rng_paired[[1]])))
+    if (!saved %in% c("true", "t", "1", "false", "f", "0")) {
+      stopf("Stage-2 patcher_rng_paired is not boolean: %s", path)
+    }
+    if ((saved %in% c("true", "t", "1")) != pairing$patcher_rng_paired) {
+      stopf("Stage-2 Patcher pairing provenance disagrees with the CCTS bypass manifest: %s", path)
+    }
+  }
+  if (identical(pairing$pairing_policy, "strict") && !stage2_full_pairing) {
+    stopf(
+      paste0(
+        "Stage-2 output does not certify paired bypass inputs: %s. ",
+        "Re-run stage 2 after validating the BAU tables reused by CCTS."
+      ),
+      path
+    )
+  }
+
   if (timing$full_horizon) {
     full_required <- c(
       "full_horizon", "baseline_source", "baseline_timing", "initial_agb_md5"
@@ -754,15 +893,25 @@ read_stage2_run_manifest <- function(
 
   list(
     path = normalizePath(path, winslash = "/", mustWork = TRUE),
-    md5 = file_md5(path)
+    md5 = file_md5(path),
+    status = stage2_status,
+    full_stochastic_pairing_validated = stage2_full_pairing,
+    uncertainty_status = if ("uncertainty_status" %in% names(tab)) {
+      trimws(as.character(tab$uncertainty_status[[1]]))
+    } else {
+      "legacy_manifest_without_full_pairing_status"
+    }
   )
 }
 
-preflight_config <- function(cfg, run_id, period, output_dir) {
+preflight_config <- function(cfg, run_id, period, output_dir, pairing_policy) {
   bau_params <- read_parameters(cfg$bau_dir, "BAU")
   ics_params <- read_parameters(cfg$ics_dir, "ICS")
   timing <- validate_parameter_pair(cfg, bau_params, ics_params, run_id, period)
-  validate_mc_pairing(cfg, run_id)
+  mc_table_pairing_validated <- validate_mc_pairing(cfg, run_id)
+  pairing <- read_pairing_provenance(
+    cfg, bau_params, ics_params, pairing_policy
+  )
 
   run_rel <- sprintf("debugging_%d", run_id)
   agb_name <- function(code) sprintf("Growth_less_harv%02d.tif", code)
@@ -796,7 +945,7 @@ preflight_config <- function(cfg, run_id, period, output_dir) {
     stopf("Config '%s' has different BAU and ICS AGB-2000 reference rasters.", cfg$label)
   }
   stage2_manifest <- read_stage2_run_manifest(
-    cfg, period, run_id, timing, ref_bau_md5
+    cfg, period, run_id, timing, ref_bau_md5, pairing
   )
   harvest <- read_harvest_total(
     cfg$emissions_dir, run_id, period, timing$baseline_code,
@@ -824,6 +973,8 @@ preflight_config <- function(cfg, run_id, period, output_dir) {
     raster_paths = paths,
     raster_md5 = vapply(paths, file_md5, character(1)),
     reference_md5 = ref_bau_md5,
+    pairing = pairing,
+    mc_table_pairing_validated = mc_table_pairing_validated,
     stage2_manifest = stage2_manifest,
     harvest = harvest,
     enduse = enduse,
@@ -965,6 +1116,12 @@ process_config <- function(meta, run_id, period, co2_factor, eps) {
     country_iso = meta$bau_params$country_iso,
     country_name = meta$bau_params$country_name,
     regrowth_mode = meta$regrowth_mode,
+    pairing_policy = meta$pairing$pairing_policy,
+    mc_table_rows_paired = meta$mc_table_pairing_validated,
+    patcher_rng_paired = meta$pairing$patcher_rng_paired,
+    full_stochastic_pairing_validated =
+      meta$pairing$full_stochastic_pairing_validated,
+    uncertainty_status = meta$pairing$uncertainty_status,
     run_id = run_id,
     period_start_year = period$start,
     period_end_year = period$end,
@@ -1118,7 +1275,11 @@ build_provenance <- function(processed, summary, manifest_path, output_dir,
     m <- p$meta
     s <- summary[i, , drop = FALSE]
     rows[[i]] <- data.frame(
-      validation_status = "PASS",
+      validation_status = if (m$pairing$full_stochastic_pairing_validated) {
+        "PASS_FULLY_PAIRED"
+      } else {
+        "DIAGNOSTIC_IDENTITIES_ONLY_UNVERIFIED_BYPASS_INPUTS"
+      },
       created_utc = created,
       script_version = "5",
       script_path = script_path,
@@ -1133,6 +1294,16 @@ build_provenance <- function(processed, summary, manifest_path, output_dir,
       safe_label = m$safe_label,
       country_iso = m$bau_params$country_iso,
       regrowth_mode = m$regrowth_mode,
+      pairing_policy = m$pairing$pairing_policy,
+      mc_table_rows_paired = m$mc_table_pairing_validated,
+      mc_tables_declared_reused = m$pairing$mc_tables_declared_reused,
+      patcher_rng_paired = m$pairing$patcher_rng_paired,
+      full_stochastic_pairing_validated =
+        m$pairing$full_stochastic_pairing_validated,
+      uncertainty_status = m$pairing$uncertainty_status,
+      pairing_issue = m$pairing$issue,
+      mc_bypass_manifest = m$pairing$manifest_path,
+      mc_bypass_manifest_md5 = m$pairing$manifest_md5,
       run_id = run_id,
       period = period$label,
       full_horizon = m$full_horizon,
@@ -1154,6 +1325,10 @@ build_provenance <- function(processed, summary, manifest_path, output_dir,
       ics_parameters_md5 = m$ics_params$md5,
       stage2_run_manifest_path = m$stage2_manifest$path,
       stage2_run_manifest_md5 = m$stage2_manifest$md5,
+      stage2_status = m$stage2_manifest$status,
+      stage2_full_stochastic_pairing_validated =
+        m$stage2_manifest$full_stochastic_pairing_validated,
+      stage2_uncertainty_status = m$stage2_manifest$uncertainty_status,
       agb_reference_md5 = m$reference_md5,
       bau_baseline_raster = m$raster_paths$bau_baseline,
       bau_baseline_md5 = m$raster_md5[["bau_baseline"]],
@@ -1223,10 +1398,18 @@ write_plot <- function(summary, path) {
     grDevices::dev.off()
   }, add = TRUE)
   cols <- c(`Avoided loss` = "#E1A100", Regrowth = "#1B9E77")
+  pairing_title <- if (all(summary$full_stochastic_pairing_validated)) {
+    "fully paired"
+  } else {
+    "DIAGNOSTIC ONLY: bypass inputs unverified"
+  }
   bp <- graphics::barplot(
     mat, beside = beside, col = cols, border = NA,
     ylab = expression("Period avoided emissions (Mt CO"[2] * "e)"),
-    main = "Period AGB decomposition: signed avoided loss and regrowth",
+    main = paste0(
+      "Period AGB decomposition: signed avoided loss and regrowth\n",
+      pairing_title
+    ),
     las = 2, cex.names = 0.9, cex.axis = 0.9, ylim = plot_limits
   )
   if (!beside) {
@@ -1252,6 +1435,11 @@ main <- function() {
   using_internal <- is.null(opts$manifest) || !nzchar(opts$manifest)
   run_id <- strict_integer(opts$run_id, "--run-id", "command line")
   if (length(run_id) != 1L || run_id < 1L) stopf("--run-id must be a positive integer.")
+  pairing_policy <- tolower(trimws(as.character(opts$pairing_policy)))
+  if (length(pairing_policy) != 1L || is.na(pairing_policy) ||
+      !pairing_policy %in% c("strict", "diagnostic")) {
+    stopf("--pairing-policy must be 'strict' or 'diagnostic'.")
+  }
   period <- parse_period(opts$period)
 
   required_packages <- c("terra", "readr")
@@ -1331,14 +1519,18 @@ main <- function() {
   eps <- 1e-6
 
   cat(sprintf(
-    "MoFuSS AGB decomposition v5 | configs=%d | run=%d | period=%s | dry_run=%s\n",
-    length(configs), run_id, period$label, opts$dry_run
+    paste0(
+      "MoFuSS AGB decomposition v5 | configs=%d | run=%d | period=%s | ",
+      "pairing_policy=%s | dry_run=%s\n"
+    ),
+    length(configs), run_id, period$label, pairing_policy, opts$dry_run
   ))
   cat(if (using_internal) "Internal config:" else "Manifest:", manifest_path,
       "\nOutput:", output_dir, "\n")
 
   metas <- lapply(configs, preflight_config,
-                  run_id = run_id, period = period, output_dir = output_dir)
+                  run_id = run_id, period = period, output_dir = output_dir,
+                  pairing_policy = pairing_policy)
   tag <- sprintf("run%03d_%s", run_id, period$label)
   aggregate_files <- list(
     summary = file.path(output_dir, paste0("agb_decomposition_summary_", tag, ".csv")),
@@ -1364,6 +1556,7 @@ main <- function() {
   )
   summary <- do.call(rbind, lapply(processed, `[[`, "row"))
   if (!all(summary$all_invariants_ok)) stopf("An invariant failed; no outputs were written.")
+  full_pairing <- all(summary$full_stochastic_pairing_validated)
 
   common_counts <- summary$n_decomposition_period_common
   footprint_note <- if (length(unique(common_counts)) > 1L) {
@@ -1390,7 +1583,14 @@ main <- function() {
   if (opts$dry_run) {
     cat("\nDry-run validated all inputs, calculations, and output collisions; wrote nothing.\n")
     print_comparison_table(comparison)
-    cat("[DRY-RUN PASS] All scientific and provenance invariants passed.\n")
+    if (full_pairing) {
+      cat("[DRY-RUN PASS] Full pairing and all calculation/provenance invariants passed.\n")
+    } else {
+      cat(paste0(
+        "[DRY-RUN DIAGNOSTIC ONLY] Calculation identities passed, but the ",
+        "BAU/CCTS effect is not identified because bypass inputs were unverified.\n"
+      ))
+    }
     return(invisible(list(summary = summary, provenance = provenance)))
   }
 
@@ -1419,7 +1619,15 @@ main <- function() {
   readr::write_csv(enduse_validation, aggregate_files$enduse_validation)
   if (opts$make_plot) write_plot(summary, aggregate_files$plot)
 
-  cat("\n[SUCCESS] All configurations passed; outputs written to:", output_dir, "\n")
+  if (full_pairing) {
+    cat("\n[SUCCESS] Full pairing and all configurations passed; outputs written to:",
+        output_dir, "\n")
+  } else {
+    cat(paste0(
+      "\n[DIAGNOSTIC OUTPUT ONLY] Calculation identities passed, but these are ",
+      "not certified paired BAU/CCTS effects; outputs written to: ", output_dir, "\n"
+    ))
+  }
   print_comparison_table(comparison)
   invisible(list(summary = summary, provenance = provenance))
 }

@@ -1,0 +1,11 @@
+Metric,capped,uncapped
+BAU AGB endpoint (Mg),722788722,919007681
+ICS AGB endpoint (Mg),714258833,924738449
+Delta AGB endpoint (Mg),-8529889,5730767
+Avoided loss (Mg),-8529889,1306846
+Regrowth (Mg),0,4423921
+Avoided loss (tCO2e),-14699842,2252132
+Regrowth (tCO2e),0,7623890
+AGB-avoided MC1 (tCO2e),-14699842,9876022
+End-use delta (tCO2e),-1231426,-1231426
+Total avoided MC1 (tCO2e),-15931269,8644596
