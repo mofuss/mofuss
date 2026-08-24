@@ -539,6 +539,7 @@ read_pairing_provenance <- function(cfg, bau, ics, pairing_policy) {
       manifest_path = normalizePath(path, winslash = "/", mustWork = FALSE),
       manifest_md5 = NA_character_, bypass_status = "missing",
       bypass_mode = NA_character_, mc_tables_declared_reused = FALSE,
+      patcher_bypassed = FALSE,
       patcher_rng_paired = FALSE, full_stochastic_pairing_validated = FALSE,
       issue = "CCTS mc_bypass_manifest.csv is missing"
     )
@@ -552,7 +553,7 @@ read_pairing_provenance <- function(cfg, bau, ics, pairing_policy) {
       "status", "mode", "current_scenario_dir", "current_scenario_ver",
       "bau_source_dir", "bau_scenario_ver", "geography", "start_year",
       "end_year", "monte_carlo_runs", "uncapped_regrowth",
-      "patcher_rng_paired"
+      "patcher_bypassed", "patcher_rng_paired"
     )
     missing <- setdiff(required, names(tab))
     if (nrow(tab) != 1L || length(missing)) {
@@ -582,14 +583,21 @@ read_pairing_provenance <- function(cfg, bau, ics, pairing_policy) {
     bypass_mode <- value("mode")
     reused <- identical(bypass_status, "complete") &&
       identical(bypass_mode, "reuse_BAU_MC_tables")
+    patcher_bypassed_value <- tolower(value("patcher_bypassed"))
+    if (!patcher_bypassed_value %in% c("true", "t", "1", "false", "f", "0")) {
+      stopf("patcher_bypassed is not boolean in %s", path)
+    }
+    patcher_bypassed <- patcher_bypassed_value %in% c("true", "t", "1")
     patcher_value <- tolower(value("patcher_rng_paired"))
     if (!patcher_value %in% c("true", "t", "1", "false", "f", "0")) {
       stopf("patcher_rng_paired is not boolean in %s", path)
     }
     patcher_paired <- patcher_value %in% c("true", "t", "1")
-    full <- reused
+    full <- reused && (patcher_bypassed || patcher_paired)
     issue <- if (!reused) {
       paste0("MC bypass status/mode is ", bypass_status, "/", bypass_mode)
+    } else if (!patcher_bypassed && !patcher_paired) {
+      "Patcher is active and its RNG locations are not paired"
     } else {
       ""
     }
@@ -599,6 +607,7 @@ read_pairing_provenance <- function(cfg, bau, ics, pairing_policy) {
       bypass_status = bypass_status,
       bypass_mode = bypass_mode,
       mc_tables_declared_reused = reused,
+      patcher_bypassed = patcher_bypassed,
       patcher_rng_paired = patcher_paired,
       full_stochastic_pairing_validated = full,
       issue = issue
@@ -614,8 +623,10 @@ read_pairing_provenance <- function(cfg, bau, ics, pairing_policy) {
             call. = FALSE)
   }
   status$pairing_policy <- pairing_policy
-  status$uncertainty_status <- if (status$full_stochastic_pairing_validated) {
+  status$uncertainty_status <- if (status$full_stochastic_pairing_validated && status$patcher_bypassed) {
     "paired_bypass_inputs_validated_patcher_skipped"
+  } else if (status$full_stochastic_pairing_validated) {
+    "paired_bypass_inputs_and_patcher_rng_validated"
   } else {
     "DIAGNOSTIC_ONLY_unverified_bypass_inputs"
   }

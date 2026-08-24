@@ -14,10 +14,10 @@ DEFAULT_OUTPUT_SUBDIR <- file.path("Out", "webmofuss_results_v9")
 # Each entry is one completed MoFuSS scenario folder. Metadata, full horizon,
 # available runs and output locations are read/inferred by the script.
 SCENARIO_DIRS <- c(
-  "D:/ken_1km_bau1_2030_v3_ng",
-  "D:/ken_1km_bau1_2030_v3_g",
-  "D:/ken_1km_ics3_2030_v3_ng",
-  "D:/ken_1km_ics3_2030_v3_g"
+  "D:/ken_1000m_bau1_2050_mc2_capped",
+  "D:/ken_1000m_bau1_2050_mc2_uncapped",
+  "D:/ken_1000m_ics3_2050_mc2_capped",
+  "D:/ken_1000m_ics3_2050_mc2_uncapped"
 )
 
 usage <- function() {
@@ -219,6 +219,7 @@ read_pairing_provenance <- function(scenario_dir, scenario_ver) {
       mc_bypass_mode = "not_applicable_bau",
       mc_bau_source_dir = NA_character_,
       mc_tables_reused_from_bau = NA,
+      patcher_bypassed = NA,
       patcher_rng_paired = NA,
       paired_contrast_ready = NA
     ))
@@ -231,6 +232,7 @@ read_pairing_provenance <- function(scenario_dir, scenario_ver) {
       mc_bypass_mode = NA_character_,
       mc_bau_source_dir = NA_character_,
       mc_tables_reused_from_bau = FALSE,
+      patcher_bypassed = FALSE,
       patcher_rng_paired = FALSE,
       paired_contrast_ready = FALSE
     ))
@@ -239,7 +241,7 @@ read_pairing_provenance <- function(scenario_dir, scenario_ver) {
   tab <- read_delimited_table(path)
   required <- c(
     "status", "mode", "current_scenario_dir", "bau_source_dir",
-    "patcher_rng_paired"
+    "patcher_bypassed", "patcher_rng_paired"
   )
   missing <- setdiff(required, names(tab))
   if (nrow(tab) != 1L || length(missing)) {
@@ -260,6 +262,9 @@ read_pairing_provenance <- function(scenario_dir, scenario_ver) {
   patcher_paired <- parse_manifest_bool(
     tab$patcher_rng_paired[[1]], "patcher_rng_paired", path
   )
+  patcher_bypassed <- parse_manifest_bool(
+    tab$patcher_bypassed[[1]], "patcher_bypassed", path
+  )
   list(
     mc_bypass_manifest = path,
     mc_bypass_manifest_md5 = unname(as.character(tools::md5sum(path))),
@@ -269,10 +274,9 @@ read_pairing_provenance <- function(scenario_dir, scenario_ver) {
       as.character(tab$bau_source_dir[[1]]), winslash = "/", mustWork = FALSE
     ),
     mc_tables_reused_from_bau = tables_reused,
+    patcher_bypassed = patcher_bypassed,
     patcher_rng_paired = patcher_paired,
-    # Patcher is skipped in this bypass workflow. The false RNG flag records
-    # an unused stream, rather than an active unpaired allocator.
-    paired_contrast_ready = tables_reused
+    paired_contrast_ready = tables_reused && (patcher_bypassed || patcher_paired)
   )
 }
 
@@ -493,6 +497,7 @@ manifest_row <- function(
   mc_bypass_mode,
   mc_bau_source_dir,
   mc_tables_reused_from_bau,
+  patcher_bypassed,
   patcher_rng_paired,
   paired_contrast_ready,
   terra_version,
@@ -542,6 +547,7 @@ manifest_row <- function(
     mc_bypass_mode = mc_bypass_mode,
     mc_bau_source_dir = mc_bau_source_dir,
     mc_tables_reused_from_bau = mc_tables_reused_from_bau,
+    patcher_bypassed = patcher_bypassed,
     patcher_rng_paired = patcher_rng_paired,
     paired_contrast_ready = paired_contrast_ready,
     record_type = record_type,
@@ -688,6 +694,7 @@ build_plan <- function(scenario_dir, periods = NULL, output_subdir) {
       mc_bypass_mode = metadata$mc_bypass_mode,
       mc_bau_source_dir = metadata$mc_bau_source_dir,
       mc_tables_reused_from_bau = metadata$mc_tables_reused_from_bau,
+      patcher_bypassed = metadata$patcher_bypassed,
       patcher_rng_paired = metadata$patcher_rng_paired,
       paired_contrast_ready = metadata$paired_contrast_ready,
       terra_version = terra_version,
@@ -936,7 +943,8 @@ print_plan <- function(plan) {
   if (!grepl("^bau", plan$metadata$scenario_ver, ignore.case = TRUE)) {
     cat(
       "Pairing input:   bypass_tables_reused=", plan$metadata$mc_tables_reused_from_bau,
-      "; patcher_bypassed=TRUE; patcher_rng_paired=",
+      "; patcher_bypassed=", plan$metadata$patcher_bypassed,
+      "; patcher_rng_paired=",
       plan$metadata$patcher_rng_paired,
       "; contrast_ready=", plan$metadata$paired_contrast_ready, "\n", sep = ""
     )

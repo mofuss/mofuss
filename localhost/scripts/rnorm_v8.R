@@ -31,6 +31,118 @@ draw_truncated_or_fixed <- function(
   )
 }
 
+mc_batch_ready_filename <- "mc_batch_ready.csv"
+
+# Publish one immutable description of the complete Monte Carlo input batch.
+# The file is created beside the tables with an atomic rename, so a concurrent
+# CCTS process can observe either no ready batch or the complete ready batch,
+# never a partially written manifest.
+write_mc_batch_ready <- function(
+  temp_dir, mc_runs, start_year, end_year, scenario_ver, byregion,
+  geography, uncapped_regrowth, luc_version, agb_version
+) {
+  category_name <- sprintf("LULC_Categories%d.csv", luc_version)
+  batch_files <- c(
+    "i_st_all.csv", "k_all.csv", "rmax_all.csv",
+    "Harvest_pixels_V.csv", "Harvest_pixels_W.csv",
+    "Prune_factor_V.csv", "Prune_factor_W.csv",
+    category_name
+  )
+  paths <- file.path(temp_dir, batch_files)
+  missing <- batch_files[!file.exists(paths)]
+  if (length(missing)) {
+    stop(
+      "Cannot publish the MC batch-ready manifest; missing file(s): ",
+      paste(missing, collapse = ", ")
+    )
+  }
+
+  for (name in batch_files[seq_len(7L)]) {
+    path <- file.path(temp_dir, name)
+    tab <- read.csv(path, check.names = FALSE, stringsAsFactors = FALSE)
+    keys <- suppressWarnings(as.integer(tab[[1L]]))
+    if (nrow(tab) != mc_runs || ncol(tab) < 2L ||
+        !identical(keys, seq_len(mc_runs))) {
+      stop(
+        "Cannot publish the MC batch-ready manifest; invalid run keys/shape in ",
+        path, "."
+      )
+    }
+    numeric_values <- lapply(
+      tab[-1L], function(x) suppressWarnings(as.numeric(x))
+    )
+    if (any(!vapply(
+      numeric_values,
+      function(x) length(x) == mc_runs && all(is.finite(x)),
+      logical(1)
+    ))) {
+      stop(
+        "Cannot publish the MC batch-ready manifest; non-numeric or ",
+        "non-finite values in ", path, "."
+      )
+    }
+  }
+
+  info <- file.info(paths)
+  hashes <- unname(tools::md5sum(paths))
+  if (anyNA(info$size) || any(info$size <= 0) ||
+      anyNA(hashes) || any(!grepl("^[0-9a-f]{32}$", hashes))) {
+    stop("Cannot publish the MC batch-ready manifest; file metadata/hash failure.")
+  }
+
+  created_utc <- format(Sys.time(), tz = "UTC", "%Y-%m-%dT%H:%M:%SZ")
+  batch_id <- sprintf(
+    "%s-pid%d", format(Sys.time(), tz = "UTC", "%Y%m%dT%H%M%SZ"),
+    Sys.getpid()
+  )
+  manifest <- data.frame(
+    schema_version = 1L,
+    status = "ready",
+    batch_id = batch_id,
+    created_utc = created_utc,
+    generated_by = "rnorm_v8.R",
+    script_bundle = "V8",
+    scenario_dir = normalizePath(getwd(), winslash = "/", mustWork = TRUE),
+    scenario_ver = scenario_ver,
+    byregion = byregion,
+    geography = geography,
+    start_year = start_year,
+    end_year = end_year,
+    monte_carlo_runs = mc_runs,
+    uncapped_regrowth = uncapped_regrowth,
+    lulc_version = luc_version,
+    agb_version = agb_version,
+    file = batch_files,
+    file_size_bytes = as.numeric(info$size),
+    md5 = hashes,
+    stringsAsFactors = FALSE
+  )
+
+  target <- file.path(temp_dir, mc_batch_ready_filename)
+  temporary <- tempfile(
+    pattern = ".mc_batch_ready_", tmpdir = temp_dir, fileext = ".csv"
+  )
+  on.exit(if (file.exists(temporary)) unlink(temporary, force = TRUE), add = TRUE)
+  write.csv(manifest, temporary, row.names = FALSE)
+  reread <- read.csv(temporary, check.names = FALSE, stringsAsFactors = FALSE)
+  if (nrow(reread) != length(batch_files) ||
+      !identical(as.character(reread$file), batch_files) ||
+      !identical(tolower(as.character(reread$md5)), hashes)) {
+    stop("MC batch-ready manifest verification failed before publication.")
+  }
+  if (file.exists(target)) {
+    stop(
+      "Refusing to replace an existing ready manifest in place: ", target,
+      ". A normal rnorm_v8 run must initialize a new Temp directory first."
+    )
+  }
+  if (!file.rename(temporary, target)) {
+    stop("Cannot atomically publish ", target, ".")
+  }
+  cat(sprintf("[OK] Current MC batch ready: %s (%s)\n", batch_id, target))
+  invisible(manifest)
+}
+
 # Read in the arguments listed at the command line in Dinamica EGO'S "Run external process"
 args=(commandArgs(TRUE))
 
@@ -184,10 +296,74 @@ DryRun <- if (exists("DryRun", inherits = FALSE)) {
 if (length(DryRun) != 1L || is.na(DryRun) || !DryRun %in% c(0L, 1L)) {
   stop("DryRun must be 0 or 1.")
 }
+
+publish_current_mc_batch <- function() {
+  byregion_value <- parameter_value("byregion")
+  geography_key <- if (tolower(byregion_value) == "regional") {
+    "region2BprocessedReg"
+  } else if (tolower(byregion_value) == "country") {
+    "region2BprocessedCtry_iso"
+  } else {
+    stop("Unsupported byregion value while publishing the MC batch: ", byregion_value)
+  }
+  luc_version <- suppressWarnings(as.integer(LUCmap_v))
+  agb_version <- suppressWarnings(as.integer(AGBmap_v))
+  uncapped_value <- suppressWarnings(as.integer(parameter_value("uncapped_regrowth")))
+  if (anyNA(c(luc_version, agb_version, uncapped_value))) {
+    stop("LUCmap_v, AGBmap_v, and uncapped_regrowth must be integers.")
+  }
+  write_mc_batch_ready(
+    temp_dir = "Temp",
+    mc_runs = MC,
+    start_year = configured_start,
+    end_year = configured_end,
+    scenario_ver = parameter_value("scenario_ver"),
+    byregion = byregion_value,
+    geography = parameter_value(geography_key),
+    uncapped_regrowth = uncapped_value,
+    luc_version = luc_version,
+    agb_version = agb_version
+  )
+}
+
+PublishExistingBatch <- if (exists("PublishExistingBatch", inherits = FALSE)) {
+  suppressWarnings(as.integer(PublishExistingBatch))
+} else {
+  0L
+}
+if (length(PublishExistingBatch) != 1L || is.na(PublishExistingBatch) ||
+    !PublishExistingBatch %in% c(0L, 1L)) {
+  stop("PublishExistingBatch must be 0 or 1.")
+}
+if (PublishExistingBatch == 1L) {
+  scenario_ver <- parameter_value("scenario_ver")
+  if (!grepl("^bau", scenario_ver, ignore.case = TRUE)) {
+    stop("PublishExistingBatch is only valid in a completed BAU scenario.")
+  }
+  end_code <- configured_end - configured_start + 1L
+  incomplete <- integer()
+  for (id in seq_len(MC)) {
+    run_dir <- paste0("debugging_", id)
+    files <- if (dir.exists(run_dir)) list.files(run_dir) else character()
+    pattern <- sprintf("^Growth_less_harv0*%d(?:\\.[^.]+)?$", end_code)
+    if (!any(grepl(pattern, files, ignore.case = TRUE, perl = TRUE))) {
+      incomplete <- c(incomplete, id)
+    }
+  }
+  if (length(incomplete)) {
+    stop(
+      "Cannot adopt an existing BAU MC batch until every dynamic run is complete; ",
+      "missing endpoint run(s): ", paste(incomplete, collapse = ", ")
+    )
+  }
+  publish_current_mc_batch()
+  cat("[OK] Existing completed BAU batch adopted; no simulation outputs changed.\n")
+  quit(save = "no", status = 0L, runLast = FALSE)
+}
 if (DryRun == 1L) {
   cat(
     sprintf(
-      "[DRY-RUN] rnorm_v4 preflight passed: %d MC runs, %d-%d; no outputs removed or created.\n",
+      "[DRY-RUN] rnorm_v8 preflight passed: %d MC runs, %d-%d; no outputs removed or created.\n",
       MC, configured_start, configured_end
     )
   )
@@ -1008,3 +1184,5 @@ write.csv(MaxAGB_firstMC,"Temp//MaxAGB_firstMC.csv")
 
 
 # END ----
+
+publish_current_mc_batch()

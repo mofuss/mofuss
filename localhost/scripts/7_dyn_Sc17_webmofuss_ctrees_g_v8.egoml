@@ -3988,7 +3988,7 @@
         </functor>
         <functor name="Bool">
             <property key="dff.functor.alias" value="Re-run MonteCarlo?" />
-            <property key="dff.functor.comment" value='BAU: select Yes to generate a new MC batch (MC01 remains nominal; MC02+ are stochastic). CCTS/ICS: select No to reuse the completed matching BAU MC tables. The bypass validates geography, years, MC count, capped/uncapped mode, static inputs, and file hashes. It discovers a unique matching BAU sibling or reads bau_mc_source.txt.' />
+            <property key="dff.functor.comment" value='BAU: select Yes to generate a new MC batch (MC01 remains nominal; MC02+ are stochastic). CCTS/ICS: select No to reuse the matching BAU MC tables as soon as they have been generated; BAU dynamics may still be running. The bypass validates geography, years, MC count, capped/uncapped mode, static inputs, and file hashes. It discovers a unique matching BAU sibling or reads bau_mc_source.txt.' />
             <property key="wizard.constant.input" value="Bool_constant_10" />
             <inputport name="constant">.yes</inputport>
             <outputport name="object" id="v256" />
@@ -4488,7 +4488,7 @@
             <inputport name="condition" peerid="v256" />
             <containerfunctor name="CreateString">
                 <property key="dff.functor.alias" value="createString3927" />
-                <inputport name="format">&quot;R CMD BATCH --no-save \&quot;--args RerunMC=&lt;v33&gt; BaUvsICS=&apos;&lt;s29&gt;&apos; MC=&lt;v1&gt; IT=&lt;v2&gt; STdyn=&lt;v12&gt; LUCmap_v=&lt;v30&gt; AGBmap_v=&lt;v31&gt;\&quot; -- bypassMC_v8.R&quot;</inputport>
+                <inputport name="format">&quot;R CMD BATCH --no-save \&quot;--args RerunMC=&lt;v33&gt; BaUvsICS=&apos;&lt;s29&gt;&apos; MC=&lt;v1&gt; IT=&lt;v2&gt; STdyn=&lt;v12&gt; LUCmap_v=&lt;v30&gt; AGBmap_v=&lt;v31&gt; PatcherBypassed=&lt;v34&gt;\&quot; -- bypassMC_v8.R&quot;</inputport>
                 <outputport name="result" id="v297" />
                 <functor name="NumberValue">
                     <property key="dff.functor.alias" value="numberValue1797" />
@@ -4524,6 +4524,11 @@
                     <property key="dff.functor.alias" value="bypassMC_agb_version" />
                     <inputport name="value" peerid="v280" />
                     <inputport name="valueNumber">31</inputport>
+                </functor>
+                <functor name="NumberValue">
+                    <property key="dff.functor.alias" value="bypassMC_patcher_bypassed" />
+                    <inputport name="value" peerid="v313" />
+                    <inputport name="valueNumber">34</inputport>
                 </functor>
             </containerfunctor>
         </containerfunctor>
@@ -4639,9 +4644,9 @@
             </functor>
             <functor name="Bool">
                 <property key="dff.functor.alias" value="Bypass Patchers" />
-                <property key="dff.functor.comment" value="Select No for production uncertainty runs: this enables an independent spatial Patcher realization in every BAU and CCTS run. Select Yes only for an explicitly deterministic coarse-resolution run." />
+                <property key="dff.functor.comment" value="Default Yes: use deterministic allocation across all eligible pixels and skip the stochastic Patcher branch. Select No only for an experiment that explicitly requires independent spatial Patcher realizations." />
                 <property key="wizard.constant.input" value="Bool_constant_19" />
-                <inputport name="constant">.no</inputport>
+                <inputport name="constant">.yes</inputport>
                 <outputport name="object" id="v313" />
             </functor>
             <containerfunctor name="CalculateValue">

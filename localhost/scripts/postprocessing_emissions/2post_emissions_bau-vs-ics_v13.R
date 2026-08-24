@@ -549,6 +549,7 @@ SCENARIO_DIRS <- c(
       status = "missing",
       mode = NA_character_,
       mc_tables_declared_reused = FALSE,
+      patcher_bypassed = FALSE,
       patcher_rng_paired = FALSE,
       metadata_validated = FALSE,
       issue = "CCTS mc_bypass_manifest.csv is missing"
@@ -568,7 +569,7 @@ SCENARIO_DIRS <- c(
     "status", "mode", "current_scenario_dir", "current_scenario_ver",
     "bau_source_dir", "bau_scenario_ver", "geography", "start_year",
     "end_year", "monte_carlo_runs", "uncapped_regrowth",
-    "patcher_rng_paired"
+    "patcher_bypassed", "patcher_rng_paired"
   )
   missing <- setdiff(required, names(tab))
   if (nrow(tab) != 1L || length(missing)) {
@@ -601,6 +602,7 @@ SCENARIO_DIRS <- c(
   status <- value("status")
   mode <- value("mode")
   tables_reused <- identical(status, "complete") && identical(mode, "reuse_BAU_MC_tables")
+  patcher_bypassed <- .v9_parse_bool(value("patcher_bypassed"), "patcher_bypassed")
   patcher_paired <- .v9_parse_bool(value("patcher_rng_paired"), "patcher_rng_paired")
   issue <- if (!tables_reused) {
     paste0("MC bypass status/mode is ", status, "/", mode)
@@ -615,6 +617,7 @@ SCENARIO_DIRS <- c(
     current_scenario_dir = current_dir,
     bau_source_dir = source_dir,
     mc_tables_declared_reused = tables_reused,
+    patcher_bypassed = patcher_bypassed,
     patcher_rng_paired = patcher_paired,
     metadata_validated = TRUE,
     issue = issue
@@ -862,7 +865,8 @@ SCENARIO_DIRS <- c(
   bypass <- .v13_read_bypass_provenance(bau_dir, ics_dir, bau_par, ics_par)
   pairing_validated <- isTRUE(mc_table_pairing_validated) &&
     isTRUE(bypass$mc_tables_declared_reused) &&
-    isTRUE(bypass$metadata_validated)
+    isTRUE(bypass$metadata_validated) &&
+    (isTRUE(bypass$patcher_bypassed) || isTRUE(bypass$patcher_rng_paired))
   pairing_issues <- character()
   if (!mc_table_pairing_validated) {
     bad <- unique(pairing$run_id[failed_pairing])
@@ -872,6 +876,9 @@ SCENARIO_DIRS <- c(
     )
   }
   if (nzchar(bypass$issue)) pairing_issues <- c(pairing_issues, bypass$issue)
+  if (!isTRUE(bypass$patcher_bypassed) && !isTRUE(bypass$patcher_rng_paired)) {
+    pairing_issues <- c(pairing_issues, "Patcher is active and its RNG locations are not paired")
+  }
   if (!pairing_validated) {
     detail <- paste(pairing_issues, collapse = "; ")
     failure_message <- paste0(
@@ -991,6 +998,7 @@ SCENARIO_DIRS <- c(
     pairing_issues = paste(pairing_issues, collapse = "; "),
     bypass = bypass,
     mc_table_pairing_validated = mc_table_pairing_validated,
+    patcher_bypassed = isTRUE(bypass$patcher_bypassed),
     patcher_rng_paired = isTRUE(bypass$patcher_rng_paired),
     pairing_validated = pairing_validated,
     uncertainty_status = uncertainty_status,
@@ -1297,6 +1305,7 @@ SCENARIO_DIRS <- c(
     pairing_policy = preflight$pairing_policy,
     mc_table_rows_paired = preflight$mc_table_pairing_validated,
     mc_tables_declared_reused = preflight$bypass$mc_tables_declared_reused,
+    patcher_bypassed = preflight$patcher_bypassed,
     patcher_rng_paired = preflight$patcher_rng_paired,
     full_stochastic_pairing_validated = preflight$pairing_validated,
     uncertainty_status = preflight$uncertainty_status,
@@ -1764,6 +1773,7 @@ run_emissions_manifest <- function(
         " | runs=", paste(preflight$run_ids, collapse = ","),
         " | MC01 included=", 1L %in% preflight$run_ids,
         " | MC tables paired=", preflight$mc_table_pairing_validated,
+        " | Patcher bypassed=", preflight$patcher_bypassed,
         " | Patcher RNG paired=", preflight$patcher_rng_paired,
         " | full pairing validated=", preflight$pairing_validated,
         " | uncertainty=", preflight$uncertainty_status,

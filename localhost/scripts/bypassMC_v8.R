@@ -5,8 +5,10 @@
 #
 # Purpose
 # -------
-# Reuse the Monte Carlo tables from a completed, matching BAU simulation when
-# starting a CCTS/ICS simulation in a separate working directory.
+# Reuse the Monte Carlo tables from a matching BAU scenario when starting a
+# CCTS/ICS simulation in a separate working directory. The MC tables are
+# generated before the dynamic simulations, so BAU dynamics do not need to
+# finish before CCTS starts. BAU completion is recorded for provenance only.
 #
 # Source resolution order
 # -----------------------
@@ -29,6 +31,7 @@ required_mc_files <- c(
   "Prune_factor_V.csv",
   "Prune_factor_W.csv"
 )
+mc_batch_ready_filename <- "mc_batch_ready.csv"
 
 stopf <- function(fmt, ...) stop(sprintf(fmt, ...), call. = FALSE)
 
@@ -259,6 +262,132 @@ assert_mc_table <- function(path, expected_mc, kind = c("wide", "lookup")) {
 
 md5 <- function(paths) unname(tools::md5sum(paths))
 
+read_mc_batch_ready <- function(
+  bau, selected_files, luc_version, agb_version
+) {
+  path <- file.path(bau$root, "Temp", mc_batch_ready_filename)
+  if (!file.exists(path)) {
+    stopf(
+      paste0(
+        "BAU has no atomic current-batch readiness manifest: %s. ",
+        "Finish rnorm_v8.R for the current BAU batch before starting CCTS."
+      ),
+      path
+    )
+  }
+  manifest_hash <- md5(path)
+  tab <- read_mc_csv(path)
+  required_columns <- c(
+    "schema_version", "status", "batch_id", "created_utc",
+    "generated_by", "script_bundle", "scenario_dir", "scenario_ver",
+    "byregion", "geography", "start_year", "end_year",
+    "monte_carlo_runs", "uncapped_regrowth", "lulc_version",
+    "agb_version", "file", "file_size_bytes", "md5"
+  )
+  missing_columns <- setdiff(required_columns, names(tab))
+  if (length(missing_columns)) {
+    stopf(
+      "BAU MC batch-ready manifest lacks column(s): %s",
+      paste(missing_columns, collapse = ", ")
+    )
+  }
+  scalar <- function(column) {
+    values <- unique(trimws(as.character(tab[[column]])))
+    values <- values[!is.na(values) & nzchar(values)]
+    if (length(values) != 1L) {
+      stopf("BAU MC batch-ready manifest has inconsistent '%s' values.", column)
+    }
+    values[[1L]]
+  }
+  scalar_int <- function(column) {
+    value <- suppressWarnings(as.integer(scalar(column)))
+    if (is.na(value)) stopf("BAU MC batch-ready '%s' must be an integer.", column)
+    value
+  }
+
+  if (scalar_int("schema_version") != 1L ||
+      !same_text(scalar("status"), "ready") ||
+      !same_text(scalar("generated_by"), "rnorm_v8.R") ||
+      !same_text(scalar("script_bundle"), "V8")) {
+    stopf("BAU MC batch-ready manifest is not a supported ready V8 batch: %s", path)
+  }
+  recorded_root <- norm_dir(scalar("scenario_dir"), must_work = FALSE)
+  if (!identical(recorded_root, bau$root)) {
+    stopf(
+      "BAU MC batch-ready manifest belongs to a different scenario directory: %s",
+      scalar("scenario_dir")
+    )
+  }
+  checks <- list(
+    scenario_ver = bau$scenario_ver,
+    byregion = bau$byregion,
+    geography = bau$geography,
+    start_year = bau$start_year,
+    end_year = bau$end_year,
+    monte_carlo_runs = bau$monte_carlo_runs,
+    uncapped_regrowth = bau$uncapped_regrowth,
+    lulc_version = luc_version,
+    agb_version = agb_version
+  )
+  bad <- names(checks)[!vapply(
+    names(checks),
+    function(column) same_text(scalar(column), checks[[column]]),
+    logical(1)
+  )]
+  if (length(bad)) {
+    details <- vapply(
+      bad,
+      function(column) sprintf(
+        "%s: manifest='%s', BAU/current='%s'",
+        column, scalar(column), checks[[column]]
+      ),
+      character(1)
+    )
+    stopf("BAU MC batch-ready metadata mismatch:\n  %s", paste(details, collapse = "\n  "))
+  }
+
+  files <- as.character(tab$file)
+  if (anyDuplicated(files) || !identical(sort(files), sort(selected_files))) {
+    stopf(
+      "BAU MC batch-ready file inventory differs from the required batch: %s",
+      path
+    )
+  }
+  tab <- tab[match(selected_files, files), , drop = FALSE]
+  expected_sizes <- suppressWarnings(as.numeric(tab$file_size_bytes))
+  expected_hashes <- tolower(trimws(as.character(tab$md5)))
+  if (anyNA(expected_sizes) || any(expected_sizes <= 0) ||
+      any(!grepl("^[0-9a-f]{32}$", expected_hashes))) {
+    stopf("BAU MC batch-ready manifest contains invalid sizes or MD5 hashes: %s", path)
+  }
+  source_paths <- file.path(bau$root, "Temp", selected_files)
+  if (!all(file.exists(source_paths))) {
+    missing <- selected_files[!file.exists(source_paths)]
+    stopf("Ready BAU batch is missing file(s): %s", paste(missing, collapse = ", "))
+  }
+  actual_sizes <- as.numeric(file.info(source_paths)$size)
+  actual_hashes <- md5(source_paths)
+  if (!identical(actual_sizes, expected_sizes) ||
+      !identical(actual_hashes, expected_hashes)) {
+    stopf(
+      paste0(
+        "BAU MC tables changed after the current-batch manifest was published. ",
+        "Do not start CCTS; rerun rnorm_v8.R to publish one complete current batch."
+      )
+    )
+  }
+  list(
+    path = normalizePath(path, winslash = "/", mustWork = TRUE),
+    manifest_md5 = manifest_hash,
+    batch_id = scalar("batch_id"),
+    created_utc = scalar("created_utc"),
+    files = selected_files,
+    sizes = expected_sizes,
+    hashes = expected_hashes,
+    rows = tab
+  )
+}
+
 assert_static_match <- function(bau_root, ccts_root, relative_path, required = TRUE) {
   bau_path <- file.path(bau_root, relative_path)
   ccts_path <- file.path(ccts_root, relative_path)
@@ -282,25 +411,26 @@ discover_debugging_runs <- function(root) {
   setNames(dirs[keep], ids)
 }
 
-assert_bau_complete <- function(bau, expected_mc) {
+inspect_bau_completion <- function(bau, expected_mc) {
   runs <- discover_debugging_runs(bau$root)
   expected <- seq_len(expected_mc)
-  if (!identical(sort(as.integer(names(runs))), expected)) {
-    stopf("BAU must contain exactly completed debugging_1..debugging_%d folders.", expected_mc)
-  }
   end_code <- bau$end_year - bau$start_year + 1L
-  missing <- integer()
+  complete <- integer()
   for (id in expected) {
-    files <- list.files(runs[[as.character(id)]], full.names = FALSE)
+    run_dir <- unname(runs[as.character(id)])
+    if (!length(run_dir) || is.na(run_dir) || !dir.exists(run_dir)) next
+    files <- list.files(run_dir, full.names = FALSE)
     pattern <- sprintf("^Growth_less_harv0*%d(?:\\.[^.]+)?$", end_code)
-    if (!any(grepl(pattern, files, ignore.case = TRUE, perl = TRUE))) missing <- c(missing, id)
+    if (any(grepl(pattern, files, ignore.case = TRUE, perl = TRUE))) {
+      complete <- c(complete, id)
+    }
   }
-  if (length(missing)) {
-    stopf(
-      "BAU endpoint Growth_less_harv%02d is missing for run(s): %s",
-      end_code, paste(missing, collapse = ", ")
-    )
-  }
+  list(
+    end_code = end_code,
+    completed_run_ids = complete,
+    incomplete_run_ids = setdiff(expected, complete),
+    all_complete = identical(complete, expected)
+  )
 }
 
 write_scalar_csv <- function(value, path) {
@@ -319,19 +449,38 @@ safe_remove_children <- function(root, relative_dir) {
   invisible(TRUE)
 }
 
-prepare_stage <- function(bau, ccts, selected_files) {
+prepare_stage <- function(
+  bau, ccts, selected_files, patcher_bypassed, bau_completion, batch_ready
+) {
   stage <- tempfile(pattern = ".bypassMC_stage_", tmpdir = ccts$root)
   if (!dir.create(stage, recursive = FALSE)) stopf("Cannot create staging directory: %s", stage)
   ok <- FALSE
   on.exit(if (!ok && dir.exists(stage)) unlink(stage, recursive = TRUE, force = TRUE), add = TRUE)
 
   source_paths <- file.path(bau$root, "Temp", selected_files)
+  if (!identical(md5(source_paths), batch_ready$hashes)) {
+    stopf("BAU MC batch changed before staging began; CCTS was not modified.")
+  }
   copied <- file.copy(source_paths, stage, overwrite = FALSE, copy.date = TRUE)
   if (!all(copied)) stopf("Failed to stage one or more BAU MC files.")
+  copied_ready <- file.copy(
+    batch_ready$path,
+    file.path(stage, mc_batch_ready_filename),
+    overwrite = FALSE,
+    copy.date = TRUE
+  )
+  if (!copied_ready) stopf("Failed to stage the BAU MC batch-ready manifest.")
   staged_paths <- file.path(stage, selected_files)
   source_hash <- md5(source_paths)
   staged_hash <- md5(staged_paths)
-  if (!identical(source_hash, staged_hash)) stopf("Staged MC file hash verification failed.")
+  if (!identical(staged_hash, batch_ready$hashes) ||
+      !identical(source_hash, batch_ready$hashes)) {
+    stopf("Staged MC file hash verification against the ready batch failed.")
+  }
+  if (!identical(md5(batch_ready$path), batch_ready$manifest_md5) ||
+      !identical(md5(file.path(stage, mc_batch_ready_filename)), batch_ready$manifest_md5)) {
+    stopf("BAU MC batch-ready manifest changed during staging.")
+  }
 
   k <- read_mc_csv(file.path(stage, "k_all.csv"))
   k_values <- as.data.frame(lapply(k[-1L], as.numeric), check.names = FALSE)
@@ -345,6 +494,7 @@ prepare_stage <- function(bau, ccts, selected_files) {
     source_path = normalizePath(source_paths, winslash = "/", mustWork = TRUE),
     source_md5 = source_hash,
     copied_md5 = staged_hash,
+    bau_mc_batch_id = batch_ready$batch_id,
     stringsAsFactors = FALSE
   )
   write.csv(file_manifest, file.path(stage, "mc_bypass_file_manifest.csv"), row.names = FALSE)
@@ -356,11 +506,19 @@ prepare_stage <- function(bau, ccts, selected_files) {
     current_scenario_ver = ccts$scenario_ver,
     bau_source_dir = bau$root,
     bau_scenario_ver = bau$scenario_ver,
+    bau_mc_batch_id = batch_ready$batch_id,
+    bau_mc_batch_created_utc = batch_ready$created_utc,
+    bau_mc_batch_manifest = batch_ready$path,
+    bau_mc_batch_manifest_md5 = batch_ready$manifest_md5,
     geography = ccts$geography,
     start_year = ccts$start_year,
     end_year = ccts$end_year,
     monte_carlo_runs = ccts$monte_carlo_runs,
     uncapped_regrowth = ccts$uncapped_regrowth,
+    bau_dynamics_complete = bau_completion$all_complete,
+    bau_completed_run_count = length(bau_completion$completed_run_ids),
+    bau_completed_run_ids = paste(bau_completion$completed_run_ids, collapse = ";"),
+    patcher_bypassed = patcher_bypassed,
     patcher_rng_paired = FALSE,
     stringsAsFactors = FALSE
   )
@@ -424,7 +582,7 @@ main <- function() {
   current <- read_scenario_metadata(current_root)
   if (current$role != "CCTS") {
     stopf(
-      "bypassMC_v2 is only valid inside an ICS/CCTS scenario; found %s in %s.",
+      "bypassMC_v8 is only valid inside an ICS/CCTS scenario; found %s in %s.",
       current$scenario_ver, current_root
     )
   }
@@ -444,6 +602,7 @@ main <- function() {
   if (requested_st != current$end_year - current$start_year) {
     stopf("EGOML STdyn=%d is inconsistent with parameters.csv years.", requested_st)
   }
+  patcher_bypassed <- arg_bool(args, "PatcherBypassed", TRUE)
 
   explicit_source <- arg_text(args, "BAU_MC_DIR", NULL)
   if (!is.null(explicit_source) && toupper(explicit_source) != "AUTO") {
@@ -484,7 +643,11 @@ main <- function() {
   category_name <- sprintf("LULC_Categories%d.csv", luc_version)
   category_path <- file.path(source_temp, category_name)
   if (!file.exists(category_path)) stopf("BAU Temp is missing %s.", category_name)
-  assert_bau_complete(bau, requested_mc)
+  selected_files <- c(required_mc_files, category_name)
+  batch_ready <- read_mc_batch_ready(
+    bau, selected_files, luc_version = luc_version, agb_version = agb_version
+  )
+  bau_completion <- inspect_bau_completion(bau, requested_mc)
 
   cat(sprintf("[OK] CCTS scenario: %s\n", current$root))
   cat(sprintf("[OK] Matching BAU:  %s (%s)\n", bau$root, source_method))
@@ -492,20 +655,50 @@ main <- function() {
               current$geography, current$start_year, current$end_year,
               current$monte_carlo_runs, current$uncapped_regrowth))
   cat("[OK] Seven Dinamica MC tables and the LULC category table passed validation.\n")
+  cat(sprintf(
+    "[OK] Atomic current BAU MC batch verified: %s (%s).\n",
+    batch_ready$batch_id, batch_ready$created_utc
+  ))
+  cat(sprintf("[OK] Patcher bypass requested by EGOML: %s\n", patcher_bypassed))
+  if (!bau_completion$all_complete) {
+    warning(
+      sprintf(
+        paste0(
+          "BAU MC tables are ready, but BAU dynamics are still incomplete: ",
+          "%d/%d endpoint runs found; waiting on run(s) %s. ",
+          "CCTS may start now, but paired emissions require both scenarios to finish."
+        ),
+        length(bau_completion$completed_run_ids), requested_mc,
+        paste(bau_completion$incomplete_run_ids, collapse = ", ")
+      ),
+      call. = FALSE
+    )
+  }
 
   if (arg_bool(args, "DryRun", FALSE)) {
     cat("[DRY-RUN] No files or folders were changed.\n")
     return(invisible(TRUE))
   }
 
-  stage <- prepare_stage(bau, current, c(required_mc_files, category_name))
+  stage <- prepare_stage(
+    bau, current, selected_files,
+    patcher_bypassed, bau_completion, batch_ready
+  )
   install_stage(stage, current)
-  installed <- file.path(current$root, "Temp", required_mc_files)
-  if (!identical(md5(source_paths), md5(installed))) {
+  installed <- file.path(current$root, "Temp", selected_files)
+  if (!identical(batch_ready$hashes, md5(installed)) ||
+      !identical(
+        batch_ready$manifest_md5,
+        md5(file.path(current$root, "Temp", mc_batch_ready_filename))
+      )) {
     stopf("Post-install MC table hash verification failed.")
   }
   cat("[OK] BAU Monte Carlo tables installed in CCTS Temp with verified hashes.\n")
-  cat("[NOTE] Dinamica Patcher random choices are not paired by this table bypass.\n")
+  if (patcher_bypassed) {
+    cat("[OK] Dinamica harvest-allocation Patchers are bypassed; their stochastic locations are not used.\n")
+  } else {
+    cat("[NOTE] Dinamica Patcher random choices are not paired by this table bypass.\n")
+  }
   invisible(TRUE)
 }
 
