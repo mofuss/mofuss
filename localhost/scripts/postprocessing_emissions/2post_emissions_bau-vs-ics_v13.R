@@ -17,8 +17,9 @@
 # Script: 2post_emissions_bau-vs-ics_v13.R
 # Version: 13
 # Date: August 2026
-# Execution: Source from RStudio; Rscript compatibility is secondary.
-# Dinamica EGO does not invoke this script directly.
+# Execution: Use regular RStudio Source, RStudio Source as Background Job, or
+# run directly with Rscript from PowerShell/a terminal. Dinamica EGO does not
+# invoke this script directly.
 #
 # Purpose: Compare BAU/CCTS scenario pairs and calculate avoided AGB/harvest,
 # end-use, and total emissions across Monte Carlo realizations.
@@ -117,8 +118,8 @@ SCENARIO_DIRS <- c(
   "E:/rwa_1000m_ics3_2050_mc30_uncapped"
 )
 
-# RSTUDIO SOURCE SETTINGS. These are used only when this file is sourced in an
-# interactive R session. CLEAN_REBUILD=TRUE validates every pair and then fully
+# RSTUDIO SOURCE SETTINGS. These are used by regular Source and Source as a
+# Background Job. CLEAN_REBUILD=TRUE validates every pair and then fully
 # removes the exact inferred analysis root (for example
 # D:/mofuss_postprocessing/ken_2026_2030_mc2) before rebuilding any pair.
 .V13_RSTUDIO_PERIOD <- "auto"
@@ -202,7 +203,7 @@ SCENARIO_DIRS <- c(
       "MoFuSS avoided-emissions post-processing v13\n\n",
       "Default input:\n",
       "  SCENARIO_DIRS near the top of this script\n\n",
-      "RStudio Source:\n",
+      "RStudio Source or Source as Background Job:\n",
       "  validates inputs, deletes the entire inferred analysis root, and rebuilds it\n\n",
       "Options:\n",
       "  --manifest=CSV             Legacy resolved-pair manifest\n",
@@ -2296,6 +2297,7 @@ run_emissions_manifest <- function(
 config_only <- isTRUE(get0(
   "MOFUSS_CONFIG_ONLY", envir = environment(), inherits = FALSE, ifnotfound = FALSE
 ))
-if (!config_only && (sys.nframe() == 0L || interactive())) {
-  .v9_main(source_mode = interactive())
+if (!config_only) {
+  # A sourced file uses the RStudio settings; direct Rscript uses CLI options.
+  .v9_main(source_mode = interactive() || sys.nframe() > 0L)
 }

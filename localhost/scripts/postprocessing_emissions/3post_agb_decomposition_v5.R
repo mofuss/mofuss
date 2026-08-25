@@ -17,8 +17,9 @@
 # Script: 3post_agb_decomposition_v5.R
 # Version: 5
 # Date: August 2026
-# Execution: Source from RStudio; Rscript compatibility is secondary.
-# Dinamica EGO does not invoke this script directly.
+# Execution: Use regular RStudio Source, RStudio Source as Background Job, or
+# run directly with Rscript from PowerShell/a terminal. Dinamica EGO does not
+# invoke this script directly.
 #
 # Purpose: Decompose the period change in the BAU-vs-CCTS AGB difference into
 # avoided-loss and enhanced-regrowth components across Monte Carlo runs.
@@ -37,7 +38,7 @@
 # Default: infer BAU/CCTS pairs, the post-spin-up period, all configured runs,
 # and outputs. One execution writes the direct nominal MC01 decomposition and
 # the MC01:n decomposition uncertainty products.
-# A normal RStudio Source run validates every input, fully removes only the exact
+# Either RStudio source mode validates every input, fully removes only the exact
 # guarded agb_decomposition output folder, and rebuilds it. Rscript users opt in
 # to the same clean rebuild with --overwrite. Add --no-plot to omit the PNG.
 # Pairing is established from the BAU tables reused by CCTS. Patcher may be
@@ -100,7 +101,8 @@ SCENARIO_DIRS <- c(
   "E:/rwa_1000m_ics3_2050_mc30_uncapped"
 )
 
-# RSTUDIO SOURCE SETTINGS. Edit these values, then press Source.
+# RSTUDIO SOURCE SETTINGS. Edit these values, then use regular Source or
+# Source as Background Job.
 # NULL output means <analysis root>/agb_decomposition, inferred from the pairs.
 V5_RSTUDIO_OUTPUT_DIR <- NULL
 V5_RSTUDIO_PERIOD <- "auto"
@@ -120,7 +122,7 @@ usage <- function() {
     "[--output-dir=DIR] [--period=auto|START:END] [--run-ids=all|LIST] [--dry-run] ",
     "[--pairing-policy=strict|diagnostic] [--overwrite] [--no-plot]\n\n",
     "Default input: SCENARIO_DIRS near the top of this script.\n",
-    "RStudio: edit the RSTUDIO SOURCE SETTINGS block and press Source.\n",
+    "RStudio: edit the RSTUDIO SOURCE SETTINGS block, then use Source or Source as Background Job.\n",
     "Pairings, post-spin-up period, stage-2 inputs and output directory are inferred.\n",
     "Default --run-ids=all writes both nominal MC1 and MC1:n uncertainty analyses.\n",
     "Legacy --run-id=N remains supported for one-run diagnostics.\n",
@@ -2340,6 +2342,7 @@ main <- function(args = commandArgs(trailingOnly = TRUE), source_mode = interact
 v5_config_only <- isTRUE(get0(
   "MOFUSS_CONFIG_ONLY", envir = .GlobalEnv, inherits = FALSE, ifnotfound = FALSE
 ))
-if (!v5_config_only && (sys.nframe() == 0L || interactive())) {
-  main(source_mode = interactive())
+if (!v5_config_only) {
+  # A sourced file uses the RStudio settings; direct Rscript uses CLI options.
+  main(source_mode = interactive() || sys.nframe() > 0L)
 }

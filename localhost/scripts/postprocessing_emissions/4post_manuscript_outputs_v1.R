@@ -19,8 +19,9 @@
 # Script: 4post_manuscript_outputs_v1.R
 # Version: 1
 # Date: August 2026
-# Execution: Source from RStudio; Rscript compatibility is secondary.
-# Dinamica EGO does not invoke this script directly.
+# Execution: Use regular RStudio Source, RStudio Source as Background Job, or
+# run directly with Rscript from PowerShell/a terminal. Dinamica EGO does not
+# invoke this script directly.
 #
 # Purpose: Build the minimal manuscript package from existing Stage 2 and
 # Stage 3 outputs without rerunning MoFuSS or any emissions stage.
@@ -50,7 +51,8 @@ CONFIGURATION_ORDER <- c("capped", "uncapped")
 COMPONENT_ORDER <- c("harvest", "enduse", "total")
 COMPONENT_LABELS <- c(harvest = "Harvest / AGB", enduse = "End-use", total = "Total")
 
-# RSTUDIO SOURCE SETTINGS. Edit these values, then press Source.
+# RSTUDIO SOURCE SETTINGS. Edit these values, then use regular Source or
+# Source as Background Job.
 V1_RSTUDIO_SOURCE_DIR <- "D:/mofuss_postprocessing/ken_2026_2030_mc2"
 V1_RSTUDIO_OUTPUT_DIR <- file.path(V1_RSTUDIO_SOURCE_DIR, "manuscript_outputs")
 V1_RSTUDIO_MIN_UNCERTAINTY_RUNS <- DEFAULT_MIN_UNCERTAINTY_RUNS
@@ -59,6 +61,7 @@ V1_RSTUDIO_CLEAN_REBUILD <- TRUE
 stopf <- function(fmt, ...) stop(sprintf(fmt, ...), call. = FALSE)
 
 args <- commandArgs(trailingOnly = TRUE)
+v1_source_mode <- interactive() || sys.nframe() > 0L
 arg_value <- function(name, default = NULL) {
   prefix <- paste0("--", name, "=")
   hit <- args[startsWith(args, prefix)]
@@ -68,7 +71,7 @@ arg_value <- function(name, default = NULL) {
 }
 arg_flag <- function(name) paste0("--", name) %in% args
 
-if (interactive()) {
+if (v1_source_mode) {
   source_dir_arg <- V1_RSTUDIO_SOURCE_DIR
   output_dir_arg <- V1_RSTUDIO_OUTPUT_DIR
   overwrite <- isTRUE(V1_RSTUDIO_CLEAN_REBUILD)

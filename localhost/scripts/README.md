@@ -11,8 +11,10 @@ the active workflow.
   user's behalf.
 - Other active R scripts are invoked from the command line, normally by
   Dinamica EGO, unless their own header explicitly states otherwise.
-- Numbered scripts under `postprocessing_emissions` are also sourced from
-  RStudio. Some retain secondary `Rscript` compatibility for reproducibility.
+- Numbered scripts under `postprocessing_emissions` support regular RStudio
+  Source, RStudio Source as Background Job, and direct `Rscript` execution from
+  PowerShell or another terminal. Sourced execution uses each script's RStudio
+  settings; direct `Rscript` execution uses its command-line arguments.
 - Files under `older_versions` are archival and are not part of the active
   workflow.
 

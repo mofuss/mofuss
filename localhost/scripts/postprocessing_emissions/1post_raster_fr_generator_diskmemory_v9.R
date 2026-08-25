@@ -17,8 +17,9 @@
 # Script: 1post_raster_fr_generator_diskmemory_v9.R
 # Version: 9
 # Date: August 2026
-# Execution: Source from RStudio; Rscript compatibility is secondary.
-# Dinamica EGO does not invoke this script directly.
+# Execution: Use regular RStudio Source, RStudio Source as Background Job, or
+# run directly with Rscript from PowerShell/a terminal. Dinamica EGO does not
+# invoke this script directly.
 #
 # Purpose: Validate completed scenario rasters and produce period and
 # Monte Carlo summaries of harvest, non-renewable biomass, and AGB.
@@ -1303,11 +1304,12 @@ main <- function(args = commandArgs(trailingOnly = TRUE), source_mode = interact
 config_only <- isTRUE(get0(
   "MOFUSS_CONFIG_ONLY", envir = environment(), inherits = FALSE, ifnotfound = FALSE
 ))
-if (!config_only && (sys.nframe() == 0L || interactive())) {
-  if (interactive()) {
-    # RStudio Source: run with the explicit source settings above.
+if (!config_only) {
+  if (interactive() || sys.nframe() > 0L) {
+    # Regular RStudio Source and Source as Background Job both source this file.
     main(args = character(), source_mode = TRUE)
   } else {
+    # Direct Rscript execution uses command-line arguments.
     tryCatch(
       main(source_mode = FALSE),
       error = function(error) {
