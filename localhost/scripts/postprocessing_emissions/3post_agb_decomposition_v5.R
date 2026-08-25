@@ -1,53 +1,135 @@
-# Copyright 2025 Stockholm Environment Institute
+# SPDX-License-Identifier: Apache-2.0
+#
+# Copyright 2025-2027 Universidad Nacional Autónoma de México
+# and Stockholm Environment Institute
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# MoFuSS post-processing: period AGB decomposition
-# Version 5
+# https://www.apache.org/licenses/LICENSE-2.0
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# MoFuSS ----
+# Script: 3post_agb_decomposition_v5.R
+# Version: 5
 # Date: August 2026
+# Execution: Source from RStudio; Rscript compatibility is secondary.
+# Dinamica EGO does not invoke this script directly.
 #
-# This program is deliberately non-interactive. It decomposes the change in the
-# BAU-vs-ICS AGB difference over an accounting period into signed avoided-loss
-# and regrowth components. The default period starts after the first ten modeled
-# spin-up years. It evaluates the decomposition state at end-(START-1) and at
-# END, then subtracts the former from the latter.
+# Purpose: Decompose the period change in the BAU-vs-CCTS AGB difference into
+# avoided-loss and enhanced-regrowth components across Monte Carlo runs.
+# Inputs: SCENARIO_DIRS, parameters.csv, Stage 2 emissions outputs, scenario AGB
+# rasters, and pairing provenance.
+# Outputs: AGB-decomposition rasters, tables, uncertainty summaries, and plots
+# in the guarded agb_decomposition output directory.
+# Side effects: A clean rebuild fully deletes the exact validated decomposition
+# directory before writing its replacement products.
+
+# Accounting and pairing notes ----
+# The default period starts after the configured modeled spin-up years. It
+# evaluates the decomposition state at end-(START-1) and at END, then subtracts
+# the former from the latter.
 #
-# Default: infer BAU/CCTS pairs, 2010-post-spin-up period, MC01 and outputs.
-# Add --overwrite only after a dry run succeeds. Add --no-plot to omit the PNG.
-# Patcher is bypassed in this workflow, so its RNG stream is unused; pairing is
-# established from the BAU tables reused by CCTS.
+# Default: infer BAU/CCTS pairs, the post-spin-up period, all configured runs,
+# and outputs. One execution writes the direct nominal MC01 decomposition and
+# the MC01:n decomposition uncertainty products.
+# A normal RStudio Source run validates every input, fully removes only the exact
+# guarded agb_decomposition output folder, and rebuilds it. Rscript users opt in
+# to the same clean rebuild with --overwrite. Add --no-plot to omit the PNG.
+# Pairing is established from the BAU tables reused by CCTS. Patcher may be
+# bypassed, RNG-paired, or intentionally independent between scenarios. The
+# last design is valid but semi-paired and includes spatial-allocation noise.
+
+# 2dolist ----
+
+# Internal parameters ----
 
 stopf <- function(fmt, ...) {
   stop(sprintf(fmt, ...), call. = FALSE)
 }
 
-V5_SPINUP_YEARS <- 10L
+V5_SPINUP_YEARS <- 26L
+V5_MIN_UNCERTAINTY_RUNS <- 30L
+
+pairing_design_status <- function(
+  paired_mc_inputs_validated, patcher_bypassed, patcher_rng_paired
+) {
+  paired_mc_inputs_validated <- isTRUE(paired_mc_inputs_validated)
+  patcher_bypassed <- isTRUE(patcher_bypassed)
+  patcher_rng_paired <- isTRUE(patcher_rng_paired)
+  full <- paired_mc_inputs_validated &&
+    (patcher_bypassed || patcher_rng_paired)
+  design <- if (!paired_mc_inputs_validated) {
+    "unverified_mc_input_pairing"
+  } else if (patcher_bypassed) {
+    "paired_mc_inputs_patcher_bypassed"
+  } else if (patcher_rng_paired) {
+    "paired_mc_inputs_patcher_rng_paired"
+  } else {
+    "paired_mc_inputs_independent_patcher_rng"
+  }
+  uncertainty_status <- if (!paired_mc_inputs_validated) {
+    "DIAGNOSTIC_ONLY_unverified_bypass_inputs"
+  } else if (patcher_bypassed) {
+    "paired_mc_inputs_validated_patcher_skipped"
+  } else if (patcher_rng_paired) {
+    "paired_mc_inputs_and_patcher_rng_validated"
+  } else {
+    "paired_mc_inputs_validated_independent_patcher_rng"
+  }
+  list(
+    comparison_validated = paired_mc_inputs_validated,
+    full_stochastic_pairing_validated = full,
+    pairing_design = design,
+    independent_patcher_rng_included =
+      paired_mc_inputs_validated && !patcher_bypassed && !patcher_rng_paired,
+    uncertainty_status = uncertainty_status
+  )
+}
 
 # EDIT ONLY THIS BLOCK when changing country/region scenario folders.
 # Folder order does not define pairing; parameters.csv does.
 SCENARIO_DIRS <- c(
-  "D:/ken_1km_bau1_2030_v3_ng",
-  "D:/ken_1km_bau1_2030_v3_g",
-  "D:/ken_1km_ics3_2030_v3_ng",
-  "D:/ken_1km_ics3_2030_v3_g"
+  "E:/rwa_1000m_bau1_2050_mc30_capped",
+  "E:/rwa_1000m_bau1_2050_mc30_uncapped",
+  "E:/rwa_1000m_ics3_2050_mc30_capped",
+  "E:/rwa_1000m_ics3_2050_mc30_uncapped"
 )
+
+# RSTUDIO SOURCE SETTINGS. Edit these values, then press Source.
+# NULL output means <analysis root>/agb_decomposition, inferred from the pairs.
+V5_RSTUDIO_OUTPUT_DIR <- NULL
+V5_RSTUDIO_PERIOD <- "auto"
+V5_RSTUDIO_RUN_IDS <- "all"
+V5_RSTUDIO_PAIRING_POLICY <- "strict"
+V5_RSTUDIO_DRY_RUN <- FALSE
+V5_RSTUDIO_CLEAN_REBUILD <- TRUE
+V5_RSTUDIO_MAKE_PLOT <- TRUE
+
+# Load libraries ----
+# Required packages are checked and loaded by the Stage 3 runner.
 
 usage <- function() {
   cat(paste0(
     "Usage:\n",
     "  Rscript 3post_agb_decomposition_v5.R ",
-    "[--output-dir=DIR] [--period=auto|START:END] [--run-id=1] [--dry-run] ",
+    "[--output-dir=DIR] [--period=auto|START:END] [--run-ids=all|LIST] [--dry-run] ",
     "[--pairing-policy=strict|diagnostic] [--overwrite] [--no-plot]\n\n",
     "Default input: SCENARIO_DIRS near the top of this script.\n",
+    "RStudio: edit the RSTUDIO SOURCE SETTINGS block and press Source.\n",
     "Pairings, post-spin-up period, stage-2 inputs and output directory are inferred.\n",
+    "Default --run-ids=all writes both nominal MC1 and MC1:n uncertainty analyses.\n",
+    "Legacy --run-id=N remains supported for one-run diagnostics.\n",
     "Legacy --manifest=CONFIGS.csv remains supported with --output-dir.\n",
-    "Strict bypass-table validation is the default. Diagnostic mode keeps signed values visible ",
-    "but does not certify them as a paired BAU/CCTS effect.\n",
+    "Strict bypass-table validation is the default. Active independent Patcher RNG is accepted ",
+    "as a valid semi-paired design when the BAU/CCTS input tables are verified.\n",
     "Dry-run reads and validates every input and performs all calculations, ",
-    "but writes nothing.\n"
+    "but writes nothing. --overwrite fully removes only the validated exact ",
+    "agb_decomposition folder immediately before rebuilding it.\n"
   ))
 }
 
@@ -56,7 +138,8 @@ parse_cli <- function(args) {
     manifest = NULL,
     output_dir = NULL,
     period = "auto",
-    run_id = "1",
+    run_ids = "all",
+    run_id = NULL,
     pairing_policy = "strict",
     dry_run = FALSE,
     overwrite = FALSE,
@@ -67,6 +150,7 @@ parse_cli <- function(args) {
     "--manifest" = "manifest",
     "--output-dir" = "output_dir",
     "--period" = "period",
+    "--run-ids" = "run_ids",
     "--run-id" = "run_id",
     "--pairing-policy" = "pairing_policy"
   )
@@ -91,6 +175,8 @@ parse_cli <- function(args) {
       out$output_dir <- sub("^--output-dir=", "", a)
     } else if (grepl("^--period=", a)) {
       out$period <- sub("^--period=", "", a)
+    } else if (grepl("^--run-ids=", a)) {
+      out$run_ids <- sub("^--run-ids=", "", a)
     } else if (grepl("^--run-id=", a)) {
       out$run_id <- sub("^--run-id=", "", a)
     } else if (grepl("^--pairing-policy=", a)) {
@@ -119,6 +205,71 @@ resolve_path <- function(x, base_dir, must_exist = TRUE, kind = c("any", "file",
   if (must_exist && kind == "file" && dir.exists(p)) stopf("Expected a file, found a directory: %s", p)
   if (must_exist && kind == "dir" && !dir.exists(p)) stopf("Expected a directory: %s", p)
   p
+}
+
+v5_path_key <- function(path, must_work = FALSE) {
+  tolower(gsub("/+$", "", normalizePath(
+    path, winslash = "/", mustWork = must_work
+  )))
+}
+
+v5_is_within <- function(path, parent) {
+  child_key <- v5_path_key(path, FALSE)
+  parent_key <- v5_path_key(parent, FALSE)
+  identical(child_key, parent_key) || startsWith(child_key, paste0(parent_key, "/"))
+}
+
+v5_root_like <- function(path) {
+  key <- gsub("\\\\", "/", path)
+  identical(key, "/") ||
+    grepl("^[a-z]:/?$", key, ignore.case = TRUE) ||
+    grepl("^//[^/]+/[^/]+/?$", key)
+}
+
+validate_v5_clean_target <- function(output_dir, input_dirs, inferred_output = NULL) {
+  target <- normalizePath(output_dir, winslash = "/", mustWork = FALSE)
+  if (!identical(tolower(basename(target)), "agb_decomposition")) {
+    stopf(
+      "Refusing clean rebuild: Stage 3 output leaf must be exactly 'agb_decomposition': %s",
+      target
+    )
+  }
+  parent <- normalizePath(dirname(target), winslash = "/", mustWork = FALSE)
+  if (v5_root_like(target) || v5_root_like(parent)) {
+    stopf("Refusing clean rebuild at a filesystem root or its direct child: %s", target)
+  }
+  if (!is.null(inferred_output) &&
+      !identical(v5_path_key(target), v5_path_key(inferred_output))) {
+    stopf(
+      "Refusing clean rebuild: inferred Stage 3 output is %s, not %s.",
+      normalizePath(inferred_output, winslash = "/", mustWork = FALSE), target
+    )
+  }
+  for (input_dir in unique(input_dirs)) {
+    if (v5_is_within(target, input_dir) || v5_is_within(input_dir, target)) {
+      stopf(
+        "Refusing clean rebuild because output and scenario input overlap: %s ; %s",
+        target, input_dir
+      )
+    }
+  }
+  if (dir.exists(target)) {
+    resolved <- normalizePath(target, winslash = "/", mustWork = TRUE)
+    if (!identical(v5_path_key(resolved, TRUE), v5_path_key(target, TRUE))) {
+      stopf("Refusing clean rebuild through a redirected output path: %s", target)
+    }
+  }
+  target
+}
+
+clean_v5_output <- function(target) {
+  if (!dir.exists(target)) return(invisible(FALSE))
+  message("Removing existing Stage 3 output folder: ", target)
+  status <- unlink(target, recursive = TRUE, force = TRUE)
+  if (status != 0L || file.exists(target)) {
+    stopf("Could not fully remove existing Stage 3 output folder: %s", target)
+  }
+  invisible(TRUE)
 }
 
 file_md5 <- function(path) {
@@ -160,6 +311,36 @@ parse_period <- function(x) {
   z <- as.integer(strsplit(x, ":", fixed = TRUE)[[1]])
   if (z[[2]] < z[[1]]) stopf("Period end must not precede period start: %s", x)
   list(start = z[[1]], end = z[[2]], label = sprintf("%d-%d", z[[1]], z[[2]]))
+}
+
+parse_run_ids <- function(x, configured_runs) {
+  if (length(configured_runs) != 1L || is.na(configured_runs) || configured_runs < 1L) {
+    stopf("Configured Monte Carlo run count must be one positive integer.")
+  }
+  x <- tolower(trimws(as.character(x)))
+  if (length(x) != 1L || is.na(x) || !nzchar(x)) {
+    stopf("--run-ids must be 'all' or a comma-separated list/range.")
+  }
+  if (identical(x, "all")) return(seq_len(configured_runs))
+  tokens <- strsplit(x, ",", fixed = TRUE)[[1L]]
+  ids <- integer()
+  for (token in tokens) {
+    token <- trimws(token)
+    if (grepl("^[0-9]+$", token)) {
+      ids <- c(ids, as.integer(token))
+    } else if (grepl("^[0-9]+:[0-9]+$", token)) {
+      bounds <- as.integer(strsplit(token, ":", fixed = TRUE)[[1L]])
+      if (bounds[[1L]] > bounds[[2L]]) stopf("Descending run range is invalid: %s", token)
+      ids <- c(ids, seq.int(bounds[[1L]], bounds[[2L]]))
+    } else {
+      stopf("Invalid --run-ids token: %s", token)
+    }
+  }
+  ids <- sort(unique(ids))
+  if (!length(ids) || any(ids < 1L) || any(ids > configured_runs)) {
+    stopf("--run-ids must be within 1..%d.", configured_runs)
+  }
+  ids
 }
 
 read_manifest <- function(path) {
@@ -385,10 +566,14 @@ v5_internal_pairs <- function(scenario_dirs = SCENARIO_DIRS) {
       paste0(format(a$gee_scale, scientific = FALSE, trim = TRUE), "m"),
       paste0(v5_safe_id(b$scenario), "_vs_", v5_safe_id(a$scenario)),
       paste0(analysis_start_year, "_", a$end_year),
+      paste0("mc", a$mc_runs),
       mode,
       sep = "_"
     )
-    analysis_id <- paste(scope_id, analysis_start_year, a$end_year, sep = "_")
+    analysis_id <- paste(
+      scope_id, analysis_start_year, a$end_year, paste0("mc", a$mc_runs),
+      sep = "_"
+    )
     emissions_dir <- normalizePath(
       file.path(parent, "mofuss_postprocessing", analysis_id, "pairs", label, "emissions"),
       winslash = "/", mustWork = FALSE
@@ -401,6 +586,7 @@ v5_internal_pairs <- function(scenario_dirs = SCENARIO_DIRS) {
       model_start_year = a$start_year,
       model_end_year = a$end_year,
       analysis_start_year = analysis_start_year,
+      mc_runs = a$mc_runs,
       analysis_root = normalizePath(
         file.path(parent, "mofuss_postprocessing", analysis_id),
         winslash = "/", mustWork = FALSE
@@ -509,9 +695,14 @@ read_mc_row <- function(path, run_id) {
 }
 
 validate_mc_pairing <- function(cfg, run_id) {
-  # These exported biological tables define the paired biological draw.
-  # Patcher is bypassed in these simulations, so no Patcher RNG is consumed.
-  rel <- file.path("Temp", c("k_all.csv", "rmax_all.csv", "i_st_all.csv"))
+  # These exported tables define every paired numerical input. When Patcher is
+  # active its internal spatial RNG may remain independent, but its requested
+  # cell counts and prune factors must still match BAU by run ID.
+  rel <- file.path("Temp", c(
+    "k_all.csv", "rmax_all.csv", "i_st_all.csv",
+    "Harvest_pixels_V.csv", "Harvest_pixels_W.csv",
+    "Prune_factor_V.csv", "Prune_factor_W.csv"
+  ))
   for (r in rel) {
     b <- file.path(cfg$bau_dir, r)
     i <- file.path(cfg$ics_dir, r)
@@ -525,7 +716,7 @@ validate_mc_pairing <- function(cfg, run_id) {
         !isTRUE(all.equal(br, ir, tolerance = 0, check.attributes = FALSE))) {
       stopf(paste0(
         "Config '%s' run %d is not a paired BAU/ICS MC realization in %s. ",
-        "Reuse the same biological MC draws/seeds; do not pair independent run IDs."
+        "Reuse the same MC input draws; do not pair independent run IDs."
       ), cfg$label, run_id, r)
     }
   }
@@ -540,7 +731,10 @@ read_pairing_provenance <- function(cfg, bau, ics, pairing_policy) {
       manifest_md5 = NA_character_, bypass_status = "missing",
       bypass_mode = NA_character_, mc_tables_declared_reused = FALSE,
       patcher_bypassed = FALSE,
-      patcher_rng_paired = FALSE, full_stochastic_pairing_validated = FALSE,
+      patcher_rng_paired = FALSE, comparison_validated = FALSE,
+      full_stochastic_pairing_validated = FALSE,
+      pairing_design = "unverified_mc_input_pairing",
+      independent_patcher_rng_included = FALSE,
       issue = "CCTS mc_bypass_manifest.csv is missing"
     )
   } else {
@@ -593,11 +787,9 @@ read_pairing_provenance <- function(cfg, bau, ics, pairing_policy) {
       stopf("patcher_rng_paired is not boolean in %s", path)
     }
     patcher_paired <- patcher_value %in% c("true", "t", "1")
-    full <- reused && (patcher_bypassed || patcher_paired)
+    design <- pairing_design_status(reused, patcher_bypassed, patcher_paired)
     issue <- if (!reused) {
       paste0("MC bypass status/mode is ", bypass_status, "/", bypass_mode)
-    } else if (!patcher_bypassed && !patcher_paired) {
-      "Patcher is active and its RNG locations are not paired"
     } else {
       ""
     }
@@ -609,13 +801,18 @@ read_pairing_provenance <- function(cfg, bau, ics, pairing_policy) {
       mc_tables_declared_reused = reused,
       patcher_bypassed = patcher_bypassed,
       patcher_rng_paired = patcher_paired,
-      full_stochastic_pairing_validated = full,
+      comparison_validated = design$comparison_validated,
+      full_stochastic_pairing_validated =
+        design$full_stochastic_pairing_validated,
+      pairing_design = design$pairing_design,
+      independent_patcher_rng_included =
+        design$independent_patcher_rng_included,
       issue = issue
     )
   }
-  if (!status$full_stochastic_pairing_validated) {
+  if (!status$comparison_validated) {
     msg <- paste0(
-      "Config '", cfg$label, "' is not a fully paired BAU/CCTS experiment: ",
+      "Config '", cfg$label, "' lacks validated paired BAU/CCTS input tables: ",
       status$issue, ". Re-run or repair the BAU-table bypass before comparison."
     )
     if (identical(pairing_policy, "strict")) stopf("%s", msg)
@@ -623,13 +820,11 @@ read_pairing_provenance <- function(cfg, bau, ics, pairing_policy) {
             call. = FALSE)
   }
   status$pairing_policy <- pairing_policy
-  status$uncertainty_status <- if (status$full_stochastic_pairing_validated && status$patcher_bypassed) {
-    "paired_bypass_inputs_validated_patcher_skipped"
-  } else if (status$full_stochastic_pairing_validated) {
-    "paired_bypass_inputs_and_patcher_rng_validated"
-  } else {
-    "DIAGNOSTIC_ONLY_unverified_bypass_inputs"
-  }
+  status$uncertainty_status <- pairing_design_status(
+    status$comparison_validated,
+    status$patcher_bypassed,
+    status$patcher_rng_paired
+  )$uncertainty_status
   status
 }
 
@@ -642,7 +837,7 @@ read_harvest_total <- function(
   tab <- readr::read_csv(path, show_col_types = FALSE, name_repair = "minimal")
   required <- c(
     "run_id", "period_start_year", "period_end_year",
-    "baseline_year_code", "end_year_code", "sumco2_Mg"
+    "baseline_year_code", "end_year_code"
   )
   missing <- setdiff(required, names(tab))
   if (length(missing)) {
@@ -668,7 +863,17 @@ read_harvest_total <- function(
     )
   }
   ec <- strict_integer(tab$end_year_code, "end_year_code", path)
-  value <- strict_numeric(tab$sumco2_Mg, "sumco2_Mg", path)
+  value_field <- if ("agb_avoided_tCO2e" %in% names(tab)) {
+    "agb_avoided_tCO2e"
+  } else if ("sumco2_Mg" %in% names(tab)) {
+    "sumco2_Mg"
+  } else {
+    stopf(
+      "Harvest table %s lacks agb_avoided_tCO2e (or legacy sumco2_Mg).",
+      path
+    )
+  }
+  value <- strict_numeric(tab[[value_field]], value_field, path)
   hit <- which(
     run == run_id & ps == period$start & pe == period$end &
       bc == baseline_code & bs == baseline_source & bt == baseline_timing & ec == end_code
@@ -786,7 +991,8 @@ read_stage2_run_manifest <- function(
   required <- c(
     "label", "bau_dir", "ics_dir", "emissions_dir", "period_start_year",
     "period_end_year", "baseline_year_code", "end_year_code",
-    "selected_run_ids", "enduse_basis", "status"
+    "selected_run_ids", "enduse_basis", "stage2_script",
+    "stage2_script_md5", "status"
   )
   missing <- setdiff(required, names(tab))
   if (length(missing)) {
@@ -834,6 +1040,32 @@ read_stage2_run_manifest <- function(
     stopf("Stage-2 end-use basis is not demand in: %s", path)
   }
 
+  saved_stage2_script <- trimws(as.character(tab$stage2_script[[1]]))
+  saved_stage2_md5 <- tolower(trimws(as.character(tab$stage2_script_md5[[1]])))
+  if (!grepl("^[a-f0-9]{32}$", saved_stage2_md5)) {
+    stopf("Stage-2 script MD5 is absent or malformed in: %s", path)
+  }
+  current_v5 <- v5_script_path()
+  stage2_candidates <- unique(c(
+    saved_stage2_script,
+    if (!is.na(current_v5)) {
+      file.path(dirname(current_v5), basename(saved_stage2_script))
+    } else {
+      character()
+    }
+  ))
+  stage2_candidates <- stage2_candidates[
+    nzchar(stage2_candidates) & file.exists(stage2_candidates)
+  ]
+  if (!length(stage2_candidates) || !any(
+    vapply(stage2_candidates, file_md5, character(1)) == saved_stage2_md5
+  )) {
+    stopf(
+      "No available Stage-2 script matches recorded MD5 %s: %s",
+      saved_stage2_md5, path
+    )
+  }
+
   optional_equal <- function(field, expected) {
     if (field %in% names(tab)) {
       saved <- trimws(as.character(tab[[field]][[1]]))
@@ -862,6 +1094,17 @@ read_stage2_run_manifest <- function(
     stage2_full_pairing <- (saved %in% c("true", "t", "1")) &&
       pairing$full_stochastic_pairing_validated
   }
+  stage2_comparison_validated <- stage2_full_pairing
+  comparison_field <- intersect(
+    c("comparison_validated", "paired_mc_inputs_validated"), names(tab)
+  )
+  if (length(comparison_field)) {
+    saved <- tolower(trimws(as.character(tab[[comparison_field[[1L]]]][[1L]])))
+    if (!saved %in% c("true", "t", "1", "false", "f", "0")) {
+      stopf("Stage-2 comparison validation is not boolean: %s", path)
+    }
+    stage2_comparison_validated <- saved %in% c("true", "t", "1")
+  }
   if ("patcher_rng_paired" %in% names(tab)) {
     saved <- tolower(trimws(as.character(tab$patcher_rng_paired[[1]])))
     if (!saved %in% c("true", "t", "1", "false", "f", "0")) {
@@ -871,10 +1114,27 @@ read_stage2_run_manifest <- function(
       stopf("Stage-2 Patcher pairing provenance disagrees with the CCTS bypass manifest: %s", path)
     }
   }
-  if (identical(pairing$pairing_policy, "strict") && !stage2_full_pairing) {
+  stage2_pairing_design <- if ("pairing_design" %in% names(tab)) {
+    trimws(as.character(tab$pairing_design[[1L]]))
+  } else {
+    pairing_design_status(
+      stage2_comparison_validated,
+      pairing$patcher_bypassed,
+      pairing$patcher_rng_paired
+    )$pairing_design
+  }
+  if (stage2_comparison_validated &&
+      !identical(stage2_pairing_design, pairing$pairing_design)) {
+    stopf("Stage-2 pairing design disagrees with the CCTS bypass manifest: %s", path)
+  }
+  if (stage2_full_pairing != pairing$full_stochastic_pairing_validated) {
+    stopf("Stage-2 full-pairing provenance disagrees with the CCTS bypass manifest: %s", path)
+  }
+  if (identical(pairing$pairing_policy, "strict") &&
+      !stage2_comparison_validated) {
     stopf(
       paste0(
-        "Stage-2 output does not certify paired bypass inputs: %s. ",
+        "Stage-2 output does not certify paired MC input tables: %s. ",
         "Re-run stage 2 after validating the BAU tables reused by CCTS."
       ),
       path
@@ -906,7 +1166,16 @@ read_stage2_run_manifest <- function(
     path = normalizePath(path, winslash = "/", mustWork = TRUE),
     md5 = file_md5(path),
     status = stage2_status,
+    script_path = normalizePath(
+      stage2_candidates[[which(vapply(
+        stage2_candidates, file_md5, character(1)
+      ) == saved_stage2_md5)[[1L]]]],
+      winslash = "/", mustWork = TRUE
+    ),
+    script_md5 = saved_stage2_md5,
+    comparison_validated = stage2_comparison_validated,
     full_stochastic_pairing_validated = stage2_full_pairing,
+    pairing_design = stage2_pairing_design,
     uncertainty_status = if ("uncertainty_status" %in% names(tab)) {
       trimws(as.character(tab$uncertainty_status[[1]]))
     } else {
@@ -1129,9 +1398,14 @@ process_config <- function(meta, run_id, period, co2_factor, eps) {
     regrowth_mode = meta$regrowth_mode,
     pairing_policy = meta$pairing$pairing_policy,
     mc_table_rows_paired = meta$mc_table_pairing_validated,
+    patcher_bypassed = meta$pairing$patcher_bypassed,
     patcher_rng_paired = meta$pairing$patcher_rng_paired,
+    comparison_validated = meta$pairing$comparison_validated,
     full_stochastic_pairing_validated =
       meta$pairing$full_stochastic_pairing_validated,
+    pairing_design = meta$pairing$pairing_design,
+    independent_patcher_rng_included =
+      meta$pairing$independent_patcher_rng_included,
     uncertainty_status = meta$pairing$uncertainty_status,
     run_id = run_id,
     period_start_year = period$start,
@@ -1288,6 +1562,8 @@ build_provenance <- function(processed, summary, manifest_path, output_dir,
     rows[[i]] <- data.frame(
       validation_status = if (m$pairing$full_stochastic_pairing_validated) {
         "PASS_FULLY_PAIRED"
+      } else if (m$pairing$comparison_validated) {
+        "PASS_PAIRED_MC_INPUTS_INDEPENDENT_PATCHER_RNG"
       } else {
         "DIAGNOSTIC_IDENTITIES_ONLY_UNVERIFIED_BYPASS_INPUTS"
       },
@@ -1308,9 +1584,14 @@ build_provenance <- function(processed, summary, manifest_path, output_dir,
       pairing_policy = m$pairing$pairing_policy,
       mc_table_rows_paired = m$mc_table_pairing_validated,
       mc_tables_declared_reused = m$pairing$mc_tables_declared_reused,
+      patcher_bypassed = m$pairing$patcher_bypassed,
       patcher_rng_paired = m$pairing$patcher_rng_paired,
+      comparison_validated = m$pairing$comparison_validated,
       full_stochastic_pairing_validated =
         m$pairing$full_stochastic_pairing_validated,
+      pairing_design = m$pairing$pairing_design,
+      independent_patcher_rng_included =
+        m$pairing$independent_patcher_rng_included,
       uncertainty_status = m$pairing$uncertainty_status,
       pairing_issue = m$pairing$issue,
       mc_bypass_manifest = m$pairing$manifest_path,
@@ -1336,9 +1617,14 @@ build_provenance <- function(processed, summary, manifest_path, output_dir,
       ics_parameters_md5 = m$ics_params$md5,
       stage2_run_manifest_path = m$stage2_manifest$path,
       stage2_run_manifest_md5 = m$stage2_manifest$md5,
+      stage2_script_path = m$stage2_manifest$script_path,
+      stage2_script_md5 = m$stage2_manifest$script_md5,
       stage2_status = m$stage2_manifest$status,
+      stage2_comparison_validated =
+        m$stage2_manifest$comparison_validated,
       stage2_full_stochastic_pairing_validated =
         m$stage2_manifest$full_stochastic_pairing_validated,
+      stage2_pairing_design = m$stage2_manifest$pairing_design,
       stage2_uncertainty_status = m$stage2_manifest$uncertainty_status,
       agb_reference_md5 = m$reference_md5,
       bau_baseline_raster = m$raster_paths$bau_baseline,
@@ -1411,6 +1697,8 @@ write_plot <- function(summary, path) {
   cols <- c(`Avoided loss` = "#E1A100", Regrowth = "#1B9E77")
   pairing_title <- if (all(summary$full_stochastic_pairing_validated)) {
     "fully paired"
+  } else if (all(summary$comparison_validated)) {
+    "paired MC inputs; independent Patcher spatial RNG"
   } else {
     "DIAGNOSTIC ONLY: bypass inputs unverified"
   }
@@ -1437,15 +1725,214 @@ write_plot <- function(summary, path) {
   invisible(path)
 }
 
-main <- function() {
-  opts <- parse_cli(commandArgs(trailingOnly = TRUE))
+make_uncertainty_summary <- function(per_run_summary) {
+  metric_fields <- c(
+    period_delta_agb_mg = "Mg",
+    period_avoided_loss_mg = "Mg",
+    period_regrowth_mg = "Mg",
+    period_delta_tco2e = "tCO2e",
+    period_avoided_loss_tco2e = "tCO2e",
+    period_regrowth_tco2e = "tCO2e",
+    agb_avoided_stage2_tco2e = "tCO2e",
+    enduse_avoided_tco2e = "tCO2e",
+    total_avoided_tco2e = "tCO2e"
+  )
+  groups <- split(per_run_summary, per_run_summary$label)
+  rows <- list()
+  for (group in groups) {
+    for (field in names(metric_fields)) {
+      values <- strict_numeric(group[[field]], field, "per-run decomposition")
+      q <- if (length(values) >= 2L) {
+        as.numeric(stats::quantile(values, c(0.025, 0.5, 0.975), names = FALSE))
+      } else {
+        c(NA_real_, values[[1L]], NA_real_)
+      }
+      rows[[length(rows) + 1L]] <- data.frame(
+        label = group$label[[1L]],
+        display_label = group$display_label[[1L]],
+        regrowth_mode = group$regrowth_mode[[1L]],
+        analysis = if (all(group$independent_patcher_rng_included)) {
+          "MC1_to_n_paired_mc_inputs_independent_patcher_uncertainty"
+        } else {
+          "MC1_to_n_fully_paired_uncertainty"
+        },
+        metric = field,
+        unit = unname(metric_fields[[field]]),
+        runs = length(values),
+        run_ids = paste(group$run_id, collapse = ","),
+        includes_mc1 = 1L %in% group$run_id,
+        uncertainty_estimable = length(values) >= 2L,
+        requested_minimum_uncertainty_runs = V5_MIN_UNCERTAINTY_RUNS,
+        uncertainty_sample_adequate = length(values) >= V5_MIN_UNCERTAINTY_RUNS,
+        mean = mean(values),
+        sd = if (length(values) >= 2L) stats::sd(values) else NA_real_,
+        se = if (length(values) >= 2L) stats::sd(values) / sqrt(length(values)) else NA_real_,
+        empirical_p025 = q[[1L]],
+        median = q[[2L]],
+        empirical_p975 = q[[3L]],
+        min = min(values),
+        max = max(values),
+        negative_runs = sum(values < 0),
+        zero_runs = sum(values == 0),
+        positive_runs = sum(values > 0),
+        probability_positive = mean(values > 0),
+        interval_type = if (length(values) >= 2L) {
+          if (all(group$independent_patcher_rng_included)) {
+            "empirical_central_95_percent_across_paired_mc_inputs_independent_patcher_runs"
+          } else {
+            "empirical_central_95_percent_across_fully_paired_runs"
+          }
+        } else {
+          "not_estimable_fewer_than_two_runs"
+        },
+        comparison_validated = all(group$comparison_validated),
+        full_stochastic_pairing_validated = all(
+          group$full_stochastic_pairing_validated
+        ),
+        pairing_design = paste(unique(group$pairing_design), collapse = ","),
+        independent_patcher_rng_included = all(
+          group$independent_patcher_rng_included
+        ),
+        cross_configuration_pooling = FALSE,
+        stringsAsFactors = FALSE
+      )
+    }
+  }
+  do.call(rbind, rows)
+}
+
+write_uncertainty_plot <- function(summary, path) {
+  keep <- summary$metric %in% c(
+    "period_avoided_loss_tco2e", "period_regrowth_tco2e"
+  )
+  x <- summary[keep, , drop = FALSE]
+  if (!nrow(x)) return(invisible(NULL))
+  configs <- unique(x$display_label)
+  metrics <- c("period_avoided_loss_tco2e", "period_regrowth_tco2e")
+  value <- lower <- upper <- matrix(
+    NA_real_, nrow = length(metrics), ncol = length(configs),
+    dimnames = list(c("Avoided loss", "Regrowth"), configs)
+  )
+  for (j in seq_along(configs)) for (i in seq_along(metrics)) {
+    hit <- which(x$display_label == configs[[j]] & x$metric == metrics[[i]])
+    if (length(hit) != 1L) stopf("Uncertainty plot input is not unique.")
+    value[i, j] <- x$mean[[hit]] / 1e6
+    lower[i, j] <- x$empirical_p025[[hit]] / 1e6
+    upper[i, j] <- x$empirical_p975[[hit]] / 1e6
+  }
+  png(path, width = 1900, height = 1150, res = 180)
+  on.exit(dev.off(), add = TRUE)
+  extent <- range(c(lower, upper, value, 0), na.rm = TRUE)
+  pad <- max(diff(extent) * 0.12, 1e-9)
+  centers <- barplot(
+    value, beside = TRUE, col = c("#E1A100", "#1B9E77"),
+    ylim = c(extent[[1L]] - pad, extent[[2L]] + pad),
+    ylab = expression("Mean avoided emissions (Mt CO"[2] * "e)"),
+    main = "Paired MC1:n AGB decomposition\nempirical 2.5th-97.5th percentiles",
+    las = 1
+  )
+  for (j in seq_len(ncol(value))) for (i in seq_len(nrow(value))) {
+    if (is.finite(lower[i, j]) && is.finite(upper[i, j])) {
+      # Draw interval stems and caps directly. graphics::arrows() warns when an
+      # interval is non-zero numerically but shorter than a device pixel.
+      segments(centers[i, j], lower[i, j], centers[i, j], upper[i, j], lwd = 1.5)
+      segments(
+        centers[i, j] - 0.05, lower[i, j],
+        centers[i, j] + 0.05, lower[i, j], lwd = 1.5
+      )
+      segments(
+        centers[i, j] - 0.05, upper[i, j],
+        centers[i, j] + 0.05, upper[i, j], lwd = 1.5
+      )
+    }
+  }
+  abline(h = 0, col = "#555555", lty = 2)
+  legend(
+    "topright", fill = c("#E1A100", "#1B9E77"),
+    legend = rownames(value), bty = "n"
+  )
+  invisible(path)
+}
+
+write_mc_raster_summaries <- function(
+  metas_by_run, run_ids, run_tag, output_dir, overwrite, scalar_summary
+) {
+  if (length(run_ids) < 2L) return(invisible(character()))
+  raster_dir <- file.path(output_dir, "uncertainty_rasters")
+  dir.create(raster_dir, recursive = TRUE, showWarnings = FALSE)
+  if (!dir.exists(raster_dir)) stopf("Could not create %s", raster_dir)
+  metrics <- c("delta_mg", "avoided_mg", "regrowth_mg", "avoided_tco2e", "regrowth_tco2e")
+  scalar_fields <- c(
+    delta_mg = "period_delta_agb_mg",
+    avoided_mg = "period_avoided_loss_mg",
+    regrowth_mg = "period_regrowth_mg",
+    avoided_tco2e = "period_avoided_loss_tco2e",
+    regrowth_tco2e = "period_regrowth_tco2e"
+  )
+  written <- character()
+  config_count <- length(metas_by_run[[1L]])
+  for (config_index in seq_len(config_count)) {
+    label <- metas_by_run[[1L]][[config_index]]$safe_label
+    for (metric in metrics) {
+      paths <- vapply(
+        metas_by_run,
+        function(run_metas) run_metas[[config_index]]$out_files[[metric]],
+        character(1)
+      )
+      if (any(!file.exists(paths))) stopf("Missing per-run raster before MC summary: %s", paths[!file.exists(paths)][[1L]])
+      stack <- terra::rast(paths)
+      count <- terra::app(!is.na(stack), sum)
+      avg <- terra::ifel(count > 0, terra::app(stack, mean, na.rm = TRUE), NA)
+      sdev <- terra::ifel(count > 1, terra::app(stack, stats::sd, na.rm = TRUE), NA)
+      stats_rasters <- list(mean = avg, sd = sdev, se = sdev / sqrt(count))
+      for (statistic in names(stats_rasters)) {
+        path <- file.path(
+          raster_dir,
+          sprintf("%s_%s_%s_%s.tif", label, metric, run_tag, statistic)
+        )
+        terra::writeRaster(
+          stats_rasters[[statistic]], path, overwrite = overwrite,
+          wopt = list(gdal = c("COMPRESS=DEFLATE", "TILED=YES", "BIGTIFF=IF_SAFER"))
+        )
+        written <- c(written, path)
+      }
+      expected <- scalar_summary[
+        scalar_summary$label == metas_by_run[[1L]][[config_index]]$label &
+          scalar_summary$metric == scalar_fields[[metric]],
+        "mean"
+      ]
+      observed <- global_sum0(avg)
+      tolerance <- max(2.0, abs(expected) * 1e-6)
+      if (length(expected) != 1L || abs(observed - expected) > tolerance) {
+        stopf("MC mean raster/table reconciliation failed for %s/%s.", label, metric)
+      }
+    }
+  }
+  invisible(written)
+}
+
+main <- function(args = commandArgs(trailingOnly = TRUE), source_mode = interactive()) {
+  opts <- if (isTRUE(source_mode)) {
+    list(
+      manifest = NULL,
+      output_dir = V5_RSTUDIO_OUTPUT_DIR,
+      period = V5_RSTUDIO_PERIOD,
+      run_ids = V5_RSTUDIO_RUN_IDS,
+      run_id = NULL,
+      pairing_policy = V5_RSTUDIO_PAIRING_POLICY,
+      dry_run = isTRUE(V5_RSTUDIO_DRY_RUN),
+      overwrite = isTRUE(V5_RSTUDIO_CLEAN_REBUILD),
+      make_plot = isTRUE(V5_RSTUDIO_MAKE_PLOT),
+      help = FALSE
+    )
+  } else {
+    parse_cli(args)
+  }
   if (opts$help) {
     usage()
     return(invisible(TRUE))
   }
   using_internal <- is.null(opts$manifest) || !nzchar(opts$manifest)
-  run_id <- strict_integer(opts$run_id, "--run-id", "command line")
-  if (length(run_id) != 1L || run_id < 1L) stopf("--run-id must be a positive integer.")
   pairing_policy <- tolower(trimws(as.character(opts$pairing_policy)))
   if (length(pairing_policy) != 1L || is.na(pairing_policy) ||
       !pairing_policy %in% c("strict", "diagnostic")) {
@@ -1476,11 +1963,30 @@ main <- function() {
       internal_path
     }
     inferred_output <- file.path(unique(pairs$analysis_root), "agb_decomposition")
+    configured_counts <- unique(as.integer(pairs$mc_runs))
   } else {
     manifest_path <- resolve_path(opts$manifest, getwd(), TRUE, "file")
     configs <- read_manifest(manifest_path)
     pairs <- NULL
     inferred_output <- NULL
+    configured_counts <- unique(vapply(
+      configs,
+      function(cfg) read_parameters(cfg$bau_dir, "BAU")$monte_carlo_runs,
+      integer(1)
+    ))
+  }
+  if (length(configured_counts) != 1L) {
+    stopf("Stage 3 requires one common configured MC count; found: %s",
+          paste(configured_counts, collapse = ","))
+  }
+  configured_runs <- configured_counts[[1L]]
+  if (!is.null(opts$run_id)) {
+    if (!identical(tolower(trimws(opts$run_ids)), "all")) {
+      stopf("Use either --run-id or --run-ids, not both.")
+    }
+    run_ids <- parse_run_ids(opts$run_id, configured_runs)
+  } else {
+    run_ids <- parse_run_ids(opts$run_ids, configured_runs)
   }
 
   if (is.null(period)) {
@@ -1528,121 +2034,312 @@ main <- function() {
   }
   co2_factor <- 0.47 * (44 / 12)
   eps <- 1e-6
+  all_configured_runs <- identical(run_ids, seq_len(configured_runs))
+  run_tag <- if (all_configured_runs) {
+    sprintf("mc1-%d", configured_runs)
+  } else {
+    paste0("selected_", paste(run_ids, collapse = "-"))
+  }
+  tag <- paste(run_tag, period$label, sep = "_")
 
   cat(sprintf(
     paste0(
-      "MoFuSS AGB decomposition v5 | configs=%d | run=%d | period=%s | ",
+      "MoFuSS AGB decomposition v5 | configs=%d | runs=%s | period=%s | ",
       "pairing_policy=%s | dry_run=%s\n"
     ),
-    length(configs), run_id, period$label, pairing_policy, opts$dry_run
+    length(configs), paste(run_ids, collapse = ","), period$label,
+    pairing_policy, opts$dry_run
   ))
   cat(if (using_internal) "Internal config:" else "Manifest:", manifest_path,
       "\nOutput:", output_dir, "\n")
 
-  metas <- lapply(configs, preflight_config,
-                  run_id = run_id, period = period, output_dir = output_dir,
-                  pairing_policy = pairing_policy)
-  tag <- sprintf("run%03d_%s", run_id, period$label)
+  metas_by_run <- lapply(run_ids, function(run_id) {
+    lapply(
+      configs, preflight_config,
+      run_id = run_id, period = period, output_dir = output_dir,
+      pairing_policy = pairing_policy
+    )
+  })
+  names(metas_by_run) <- as.character(run_ids)
+
   aggregate_files <- list(
-    summary = file.path(output_dir, paste0("agb_decomposition_summary_", tag, ".csv")),
-    comparison = file.path(output_dir, paste0("comparison_table_", tag, ".csv")),
+    per_run = file.path(output_dir, paste0("agb_decomposition_per_run_", tag, ".csv")),
+    deterministic = file.path(output_dir, paste0("deterministic_mc1_summary_", period$label, ".csv")),
+    uncertainty = file.path(output_dir, paste0("uncertainty_summary_", tag, ".csv")),
+    comparison = file.path(output_dir, paste0("comparison_table_mc1_", period$label, ".csv")),
     provenance = file.path(output_dir, paste0("provenance_", tag, ".csv")),
     enduse_validation = file.path(output_dir, paste0("enduse_validation_", tag, ".csv")),
-    plot = file.path(output_dir, paste0("agb_decomposition_plot_", tag, ".png"))
+    plot_mc1 = file.path(output_dir, paste0("agb_decomposition_plot_mc1_", period$label, ".png")),
+    plot_uncertainty = file.path(output_dir, paste0("agb_decomposition_plot_", tag, ".png")),
+    run_manifest = file.path(output_dir, paste0("run_manifest_", tag, ".csv"))
   )
-  planned <- unlist(lapply(metas, function(x) x$out_files), use.names = FALSE)
-  planned <- c(planned, unlist(aggregate_files[c(
-    "summary", "comparison", "provenance", "enduse_validation"
-  )], use.names = FALSE))
-  if (opts$make_plot) planned <- c(planned, aggregate_files$plot)
-  collisions <- planned[file.exists(planned)]
-  if (length(collisions) && !opts$overwrite) {
-    stopf("Refusing to overwrite %d existing output(s); use --overwrite only after review. First: %s",
-          length(collisions), collisions[[1]])
-  }
-
-  processed <- lapply(
-    metas, process_config, run_id = run_id, period = period,
-    co2_factor = co2_factor, eps = eps
-  )
-  summary <- do.call(rbind, lapply(processed, `[[`, "row"))
-  if (!all(summary$all_invariants_ok)) stopf("An invariant failed; no outputs were written.")
-  full_pairing <- all(summary$full_stochastic_pairing_validated)
-
-  common_counts <- summary$n_decomposition_period_common
-  footprint_note <- if (length(unique(common_counts)) > 1L) {
-    paste0(
-      "INDEPENDENT FOOTPRINTS: common-cell counts differ across configurations; ",
-      "totals are not directly comparable as per-area effects."
+  planned <- unlist(lapply(
+    metas_by_run,
+    function(run_metas) unlist(lapply(run_metas, `[[`, "out_files"), use.names = FALSE)
+  ), use.names = FALSE)
+  planned_aggregates <- unlist(aggregate_files[c(
+    "per_run", "uncertainty", "provenance", "enduse_validation", "run_manifest"
+  )], use.names = FALSE)
+  if (1L %in% run_ids) {
+    planned_aggregates <- c(
+      planned_aggregates, aggregate_files$deterministic, aggregate_files$comparison
     )
-  } else {
-    paste0(
-      "Common-cell counts are equal, but configurations still use independent masks; ",
-      "confirm spatial mask equivalence before per-area comparison."
-    )
+    if (opts$make_plot) planned_aggregates <- c(planned_aggregates, aggregate_files$plot_mc1)
   }
-  if (length(unique(common_counts)) > 1L) warning(footprint_note, call. = FALSE)
-  summary$footprint_comparability <- footprint_note
-  comparison <- make_comparison_table(summary)
-  enduse_validation <- do.call(rbind, lapply(processed, `[[`, "enduse_by_fuel"))
-  provenance <- build_provenance(
-    processed, summary, manifest_path, output_dir, period, run_id,
-    co2_factor, eps, paste(commandArgs(trailingOnly = TRUE), collapse = " "),
-    footprint_note
-  )
-
-  if (opts$dry_run) {
-    cat("\nDry-run validated all inputs, calculations, and output collisions; wrote nothing.\n")
-    print_comparison_table(comparison)
-    if (full_pairing) {
-      cat("[DRY-RUN PASS] Full pairing and all calculation/provenance invariants passed.\n")
-    } else {
-      cat(paste0(
-        "[DRY-RUN DIAGNOSTIC ONLY] Calculation identities passed, but the ",
-        "BAU/CCTS effect is not identified because bypass inputs were unverified.\n"
-      ))
-    }
-    return(invisible(list(summary = summary, provenance = provenance)))
+  if (length(run_ids) >= 2L && opts$make_plot) {
+    planned_aggregates <- c(planned_aggregates, aggregate_files$plot_uncertainty)
   }
-
-  dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
-  if (!dir.exists(output_dir)) stopf("Could not create output directory: %s", output_dir)
-  write_test <- file.path(output_dir, sprintf(".write_test_%d.tmp", Sys.getpid()))
-  ok <- tryCatch({
-    writeLines("ok", write_test)
-    unlink(write_test)
-    TRUE
-  }, error = function(e) FALSE)
-  if (!ok) stopf("Output directory is not writable: %s", output_dir)
-
-  wopt <- list(gdal = c("COMPRESS=DEFLATE", "TILED=YES", "BIGTIFF=IF_SAFER"))
-  for (p in processed) {
-    for (nm in names(p$rasters)) {
-      terra::writeRaster(
-        p$rasters[[nm]], p$meta$out_files[[nm]], overwrite = opts$overwrite,
-        wopt = wopt
+  if (length(run_ids) >= 2L) {
+    raster_dir <- file.path(output_dir, "uncertainty_rasters")
+    metrics <- c("delta_mg", "avoided_mg", "regrowth_mg", "avoided_tco2e", "regrowth_tco2e")
+    for (meta in metas_by_run[[1L]]) for (metric in metrics) for (statistic in c("mean", "sd", "se")) {
+      planned_aggregates <- c(
+        planned_aggregates,
+        file.path(
+          raster_dir,
+          sprintf("%s_%s_%s_%s.tif", meta$safe_label, metric, run_tag, statistic)
+        )
       )
     }
   }
-  readr::write_csv(summary, aggregate_files$summary)
-  readr::write_csv(comparison, aggregate_files$comparison)
+  planned <- c(planned, planned_aggregates)
+  collisions <- planned[file.exists(planned)]
+  if (length(collisions) && !opts$overwrite) {
+    stopf("Refusing to overwrite %d existing output(s); use --overwrite only after review. First: %s",
+          length(collisions), collisions[[1L]])
+  }
+
+  clean_target <- NULL
+  if (opts$overwrite) {
+    input_dirs <- unlist(lapply(
+      configs, function(cfg) c(cfg$bau_dir, cfg$ics_dir, cfg$emissions_dir)
+    ), use.names = FALSE)
+    clean_target <- validate_v5_clean_target(
+      output_dir, input_dirs,
+      if (using_internal) inferred_output else NULL
+    )
+  }
+
+  if (!opts$dry_run) {
+    if (!is.null(clean_target)) clean_v5_output(clean_target)
+    dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
+    if (!dir.exists(output_dir)) stopf("Could not create output directory: %s", output_dir)
+    write_test <- file.path(output_dir, sprintf(".write_test_%d.tmp", Sys.getpid()))
+    ok <- tryCatch({
+      writeLines("ok", write_test)
+      unlink(write_test)
+      TRUE
+    }, error = function(e) FALSE)
+    if (!ok) stopf("Output directory is not writable: %s", output_dir)
+  }
+
+  wopt <- list(gdal = c("COMPRESS=DEFLATE", "TILED=YES", "BIGTIFF=IF_SAFER"))
+  summary_rows <- provenance_rows <- enduse_rows <- list()
+  mc1_comparison <- NULL
+  mc1_summary <- NULL
+  all_comparisons_valid <- TRUE
+  all_full_pairing <- TRUE
+  for (run_index in seq_along(run_ids)) {
+    run_id <- run_ids[[run_index]]
+    processed <- lapply(
+      metas_by_run[[run_index]], process_config,
+      run_id = run_id, period = period, co2_factor = co2_factor, eps = eps
+    )
+    run_summary <- do.call(rbind, lapply(processed, `[[`, "row"))
+    if (!all(run_summary$all_invariants_ok)) stopf("An invariant failed for run %d.", run_id)
+    all_comparisons_valid <- all_comparisons_valid && all(
+      run_summary$comparison_validated
+    )
+    all_full_pairing <- all_full_pairing && all(
+      run_summary$full_stochastic_pairing_validated
+    )
+    common_counts <- run_summary$n_decomposition_period_common
+    footprint_note <- if (length(unique(common_counts)) > 1L) {
+      paste0(
+        "INDEPENDENT FOOTPRINTS: common-cell counts differ across configurations; ",
+        "totals are not directly comparable as per-area effects."
+      )
+    } else {
+      paste0(
+        "Common-cell counts are equal, but capped and uncapped remain independent ",
+        "simulation units and are not pooled."
+      )
+    }
+    run_summary$footprint_comparability <- footprint_note
+    summary_rows[[length(summary_rows) + 1L]] <- run_summary
+    run_enduse <- do.call(rbind, lapply(processed, `[[`, "enduse_by_fuel"))
+    run_enduse$run_id <- run_id
+    enduse_rows[[length(enduse_rows) + 1L]] <- run_enduse
+    provenance_rows[[length(provenance_rows) + 1L]] <- build_provenance(
+      processed, run_summary, manifest_path, output_dir, period, run_id,
+      co2_factor, eps, paste(commandArgs(trailingOnly = TRUE), collapse = " "),
+      footprint_note
+    )
+    if (run_id == 1L) {
+      mc1_summary <- run_summary
+      mc1_comparison <- make_comparison_table(run_summary)
+    }
+    if (!opts$dry_run) {
+      for (p in processed) for (nm in names(p$rasters)) {
+        terra::writeRaster(
+          p$rasters[[nm]], p$meta$out_files[[nm]], overwrite = opts$overwrite,
+          wopt = wopt
+        )
+      }
+    }
+    rm(processed)
+    gc(FALSE)
+  }
+
+  per_run_summary <- do.call(rbind, summary_rows)
+  provenance <- do.call(rbind, provenance_rows)
+  enduse_validation <- do.call(rbind, enduse_rows)
+  uncertainty <- make_uncertainty_summary(per_run_summary)
+  deterministic <- if (1L %in% run_ids) {
+    out <- make_uncertainty_summary(per_run_summary[per_run_summary$run_id == 1L, , drop = FALSE])
+    out$analysis <- if (all(
+      per_run_summary$patcher_bypassed[per_run_summary$run_id == 1L]
+    )) {
+      "MC1_deterministic_nominal_parameters"
+    } else {
+      "MC1_nominal_parameters_with_patcher_spatial_rng"
+    }
+    out
+  } else {
+    NULL
+  }
+
+  if (opts$dry_run) {
+    cat("\nDry-run validated every selected run, calculation identity, and output collision; wrote nothing.\n")
+    if (!is.null(mc1_comparison)) print_comparison_table(mc1_comparison)
+    print(uncertainty[
+      uncertainty$metric %in% c(
+        "period_avoided_loss_tco2e", "period_regrowth_tco2e",
+        "agb_avoided_stage2_tco2e", "enduse_avoided_tco2e",
+        "total_avoided_tco2e"
+      ),
+      c("display_label", "metric", "runs", "mean", "sd", "empirical_p025", "empirical_p975")
+    ], row.names = FALSE)
+    if (all_full_pairing) {
+      cat("[DRY-RUN PASS] Full pairing and all run/configuration invariants passed.\n")
+    } else if (all_comparisons_valid) {
+      cat(paste0(
+        "[DRY-RUN PASS] Paired MC inputs and all invariants passed; ",
+        "independent Patcher RNG is included as spatial-allocation uncertainty.\n"
+      ))
+    } else {
+      cat("[DRY-RUN DIAGNOSTIC ONLY] Calculation identities passed but pairing is uncertified.\n")
+    }
+    return(invisible(list(
+      per_run = per_run_summary, deterministic = deterministic,
+      uncertainty = uncertainty, provenance = provenance
+    )))
+  }
+
+  readr::write_csv(per_run_summary, aggregate_files$per_run)
+  if (!is.null(deterministic)) {
+    readr::write_csv(deterministic, aggregate_files$deterministic)
+    readr::write_csv(mc1_comparison, aggregate_files$comparison)
+  }
+  readr::write_csv(uncertainty, aggregate_files$uncertainty)
   readr::write_csv(provenance, aggregate_files$provenance)
   readr::write_csv(enduse_validation, aggregate_files$enduse_validation)
-  if (opts$make_plot) write_plot(summary, aggregate_files$plot)
-
-  if (full_pairing) {
-    cat("\n[SUCCESS] Full pairing and all configurations passed; outputs written to:",
-        output_dir, "\n")
-  } else {
-    cat(paste0(
-      "\n[DIAGNOSTIC OUTPUT ONLY] Calculation identities passed, but these are ",
-      "not certified paired BAU/CCTS effects; outputs written to: ", output_dir, "\n"
-    ))
+  write_mc_raster_summaries(
+    metas_by_run, run_ids, run_tag, output_dir, opts$overwrite, uncertainty
+  )
+  if (opts$make_plot && !is.null(mc1_summary)) {
+    write_plot(mc1_summary, aggregate_files$plot_mc1)
   }
-  print_comparison_table(comparison)
-  invisible(list(summary = summary, provenance = provenance))
+  if (opts$make_plot && length(run_ids) >= 2L) {
+    write_uncertainty_plot(uncertainty, aggregate_files$plot_uncertainty)
+  }
+  script_path <- v5_script_path()
+  run_manifest <- data.frame(
+    script_version = 5L,
+    script_path = script_path,
+    script_md5 = if (!is.na(script_path) && file.exists(script_path)) file_md5(script_path) else NA_character_,
+    analysis_products = if (any(!per_run_summary$patcher_bypassed)) {
+      if (any(per_run_summary$independent_patcher_rng_included)) {
+        "nominal_MC1_and_paired_MC_inputs_independent_Patcher_uncertainty"
+      } else {
+        "nominal_MC1_and_fully_paired_Patcher_RNG_uncertainty"
+      }
+    } else if (1L %in% run_ids && length(run_ids) >= 2L) {
+      "MC1_deterministic_and_fully_paired_MC1_to_n_uncertainty"
+    } else if (1L %in% run_ids) {
+      "MC1_deterministic_only_patcher_bypassed"
+    } else {
+      "selected_run_diagnostic_without_MC1"
+    },
+    configured_mc_runs = configured_runs,
+    selected_run_ids = paste(run_ids, collapse = ","),
+    selected_run_count = length(run_ids),
+    all_configured_runs_included = all_configured_runs,
+    nominal_run_id = if (1L %in% run_ids) 1L else NA_integer_,
+    deterministic_run_id = if (1L %in% run_ids &&
+      all(per_run_summary$patcher_bypassed)) 1L else NA_integer_,
+    requested_minimum_uncertainty_runs = V5_MIN_UNCERTAINTY_RUNS,
+    uncertainty_sample_adequate = length(run_ids) >= V5_MIN_UNCERTAINTY_RUNS,
+    uncertainty_interval = if (length(run_ids) >= 2L) {
+      if (any(per_run_summary$independent_patcher_rng_included)) {
+        "empirical_central_95_percent_across_paired_mc_inputs_independent_patcher_runs"
+      } else {
+        "empirical_central_95_percent_across_fully_paired_runs"
+      }
+    } else {
+      "not_estimable_fewer_than_two_runs"
+    },
+    period_start_year = period$start,
+    period_end_year = period$end,
+    pairing_policy = pairing_policy,
+    comparison_validated = all_comparisons_valid,
+    full_stochastic_pairing_validated = all_full_pairing,
+    pairing_design = paste(unique(per_run_summary$pairing_design), collapse = ","),
+    independent_patcher_rng_included = any(
+      per_run_summary$independent_patcher_rng_included
+    ),
+    cross_configuration_pooling = FALSE,
+    capped_uncapped_relationship = "independent_simulation_units",
+    output_dir = output_dir,
+    per_run_summary = aggregate_files$per_run,
+    deterministic_summary = if (!is.null(deterministic)) aggregate_files$deterministic else NA_character_,
+    uncertainty_summary = aggregate_files$uncertainty,
+    stage2_script_md5 = paste(unique(provenance$stage2_script_md5), collapse = ","),
+    completed_at_utc = format(Sys.time(), tz = "UTC", usetz = TRUE),
+    status = if (all_comparisons_valid) {
+      "complete"
+    } else {
+      "diagnostic_complete_unverified_pairing"
+    },
+    stringsAsFactors = FALSE
+  )
+  # Written last: its presence certifies that every planned batch product above
+  # completed successfully.
+  readr::write_csv(run_manifest, aggregate_files$run_manifest)
+
+  if (all_full_pairing) {
+    cat("\n[SUCCESS] Full pairing and all selected runs/configurations passed; outputs written to:",
+        output_dir, "\n")
+  } else if (all_comparisons_valid) {
+    cat(paste0(
+      "\n[SUCCESS] Paired MC inputs and all selected runs/configurations passed; ",
+      "independent Patcher RNG is included in uncertainty; outputs written to: "
+    ), output_dir, "\n")
+  } else {
+    cat("\n[DIAGNOSTIC OUTPUT ONLY] Calculations passed but pairing is uncertified; outputs written to:",
+        output_dir, "\n")
+  }
+  if (!is.null(mc1_comparison)) print_comparison_table(mc1_comparison)
+  invisible(list(
+    per_run = per_run_summary, deterministic = deterministic,
+    uncertainty = uncertainty, provenance = provenance,
+    run_manifest = run_manifest
+  ))
 }
 
-if (sys.nframe() == 0L || interactive()) {
-  main()
+v5_config_only <- isTRUE(get0(
+  "MOFUSS_CONFIG_ONLY", envir = .GlobalEnv, inherits = FALSE, ifnotfound = FALSE
+))
+if (!v5_config_only && (sys.nframe() == 0L || interactive())) {
+  main(source_mode = interactive())
 }

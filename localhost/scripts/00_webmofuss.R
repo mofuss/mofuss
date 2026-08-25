@@ -1,18 +1,29 @@
-# Copyright 2025 Stockholm Environment Institute ----
-
+# SPDX-License-Identifier: Apache-2.0
+#
+# Copyright 2025-2027 Universidad Nacional Autónoma de México
+# and Stockholm Environment Institute
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
-# http://www.apache.org/licenses/LICENSE-2.0
+# https://www.apache.org/licenses/LICENSE-2.0
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# MoFuSS
-# Version 1
+# MoFuSS ----
+# Script: 00_webmofuss.R
+# Version: 1
 # Date: Jan 2025
+# Execution: Source from RStudio; it is normally sourced by a numbered main script.
+#
+# Purpose: Detect web/local execution and load machine-specific MoFuSS paths and
+# notification identifiers from the local .env configuration.
+# Inputs: Optional .env key-value file in the active working directory.
+# Outputs: Shared configuration objects including paths, webmofuss and chatId.
+# Side effects: Reads local configuration into the current R session.
 
 # 2dolist ----
 
@@ -50,5 +61,5 @@ if (webmofuss == 1) {
 	# ToDoList
   # Load Temporals for webmofuss if needed
 } else {
-	#Algo salió mal
+	# Algo salió mal
 }

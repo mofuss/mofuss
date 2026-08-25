@@ -1,6 +1,31 @@
-# MoFuSS
-# Version 1
+# SPDX-License-Identifier: Apache-2.0
+#
+# Copyright 2025-2027 Universidad Nacional Autónoma de México
+# and Stockholm Environment Institute
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+# https://www.apache.org/licenses/LICENSE-2.0
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# MoFuSS ----
+# Script: 6b_plantations_v0.R
+# Version: 0
 # Date: Jan 2026
+# Execution: Source from RStudio; Dinamica EGO does not invoke this script directly.
+#
+# Purpose: Prototype plantation suitability, productivity, rotation and charcoal-
+# supply calculations and connect selected outputs to the MoFuSS demand workflow.
+# Inputs: Plantation productivity tiles, roads/protected-area/land-cover rasters
+# and inherited repository and country paths.
+# Outputs: Plantation suitability/productivity rasters, supply tables and demand inputs.
+# Side effects: Uses a configured external plantation working directory, overwrites
+# raster/CSV products and sources additional workflow scripts.
 
 # 2dolist ----
 
@@ -33,7 +58,7 @@ KSDv = 2 # Standard deviation of Kv
 opt_rotation <- 12 # You need to adjust this after  lines 172 - 180, pick the year with highest production potential
 ####
 
-# Load packages ----
+# Load libraries ----
 library(conflicted)
 
 library(terra)

@@ -1,11 +1,37 @@
-# Copyright 2026 Stockholm Environment Institute
+# SPDX-License-Identifier: Apache-2.0
+#
+# Copyright 2025-2027 Universidad Nacional Autónoma de México
+# and Stockholm Environment Institute
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
-# http://www.apache.org/licenses/LICENSE-2.0
+# https://www.apache.org/licenses/LICENSE-2.0
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# MoFuSS ----
+# Script: 1post_raster_fr_generator_diskmemory_v9.R
+# Version: 9
+# Date: August 2026
+# Execution: Source from RStudio; Rscript compatibility is secondary.
+# Dinamica EGO does not invoke this script directly.
 #
-# MoFuSS postprocessing: MC raster summaries (version 9)
+# Purpose: Validate completed scenario rasters and produce period and
+# Monte Carlo summaries of harvest, non-renewable biomass, and AGB.
+# Inputs: SCENARIO_DIRS, scenario parameters/provenance, and completed MoFuSS
+# output rasters.
+# Outputs: Statistical rasters and manifests under each scenario's guarded
+# Out/webmofuss_results_v9 directory.
+# Side effects: A clean rebuild fully deletes the validated Stage 1 output
+# directory before writing replacement rasters and tables.
+
+# 2dolist ----
+
+# Internal parameters ----
 
 SCRIPT_VERSION <- "9"
 DEFAULT_OUTPUT_SUBDIR <- file.path("Out", "webmofuss_results_v9")
@@ -13,12 +39,29 @@ DEFAULT_OUTPUT_SUBDIR <- file.path("Out", "webmofuss_results_v9")
 # EDIT ONLY THIS BLOCK when changing the country/region analysis.
 # Each entry is one completed MoFuSS scenario folder. Metadata, full horizon,
 # available runs and output locations are read/inferred by the script.
+# SCENARIO_DIRS <- c(
+#   "D:/ken_1000m_bau1_2030_mc2_capped",
+#   "D:/ken_1000m_bau1_2030_mc2_uncapped",
+#   "D:/ken_1000m_ics3_2030_mc2_capped",
+#   "D:/ken_1000m_ics3_2030_mc2_uncapped"
+# )
 SCENARIO_DIRS <- c(
-  "D:/ken_1000m_bau1_2050_mc2_capped",
-  "D:/ken_1000m_bau1_2050_mc2_uncapped",
-  "D:/ken_1000m_ics3_2050_mc2_capped",
-  "D:/ken_1000m_ics3_2050_mc2_uncapped"
+  "E:/rwa_1000m_bau1_2050_mc30_capped",
+  "E:/rwa_1000m_bau1_2050_mc30_uncapped",
+  "E:/rwa_1000m_ics3_2050_mc30_capped",
+  "E:/rwa_1000m_ics3_2050_mc30_uncapped"
 )
+
+# RSTUDIO SOURCE SETTINGS. Leave PERIODS empty to use the script's inferred
+# schedule, or use values such as c("2026:2030"). CLEAN_REBUILD=TRUE fully
+# removes each scenario's validated Stage 1 output directory before processing.
+V9_RSTUDIO_PERIODS <- character()
+V9_RSTUDIO_OUTPUT_SUBDIR <- DEFAULT_OUTPUT_SUBDIR
+V9_RSTUDIO_DRY_RUN <- FALSE
+V9_RSTUDIO_CLEAN_REBUILD <- TRUE
+
+# Load libraries ----
+# Required packages are checked and loaded by the Stage 1 runner.
 
 usage <- function() {
   paste(
@@ -28,7 +71,8 @@ usage <- function() {
     "    [--period=START:END ...] (default: v3 STdyn windows after spin-up)",
     "    [--output-subdir=Out/webmofuss_results_v9] [--dry-run] [--overwrite]",
     "",
-    "Edit SCENARIO_DIRS near the top for a new country/region.",
+    "Edit SCENARIO_DIRS and the RSTUDIO SOURCE SETTINGS near the top.",
+    "--overwrite fully deletes each validated Stage 1 output directory first.",
     "",
     "Period semantics:",
     "  Default periods reproduce v3's STdyn-dependent output schedule exactly.",
@@ -64,6 +108,67 @@ validate_output_subdir <- function(path) {
     stop("--output-subdir cannot contain empty, '.' or '..' path components.", call. = FALSE)
   }
   do.call(file.path, as.list(parts))
+}
+
+stage1_path_key <- function(path) {
+  path <- gsub("\\\\", "/", path)
+  path <- sub("/+$", "", path)
+  if (.Platform$OS.type == "windows") tolower(path) else path
+}
+
+stage1_is_within <- function(child, parent) {
+  startsWith(paste0(stage1_path_key(child), "/"), paste0(stage1_path_key(parent), "/"))
+}
+
+validate_stage1_clean_target <- function(plan, output_subdir) {
+  output_subdir <- validate_output_subdir(output_subdir)
+  parts <- strsplit(gsub("\\\\", "/", output_subdir), "/", fixed = TRUE)[[1L]]
+  if (tolower(parts[[1L]]) != "out" ||
+      !startsWith(tolower(tail(parts, 1L)), "webmofuss_results")) {
+    stopf(
+      paste0(
+        "Refusing destructive clean rebuild: output_subdir must be an Out/",
+        "webmofuss_results* directory; got %s"
+      ),
+      output_subdir
+    )
+  }
+  expected <- normalizePath(
+    file.path(plan$scenario_dir, output_subdir), winslash = "/", mustWork = FALSE
+  )
+  if (!identical(stage1_path_key(plan$output_dir), stage1_path_key(expected)) ||
+      !stage1_is_within(plan$output_dir, plan$scenario_dir)) {
+    stopf("Refusing destructive clean rebuild for unexpected Stage 1 target: %s", plan$output_dir)
+  }
+  if (dir.exists(plan$output_dir)) {
+    resolved <- normalizePath(plan$output_dir, winslash = "/", mustWork = TRUE)
+    if (!identical(stage1_path_key(resolved), stage1_path_key(expected))) {
+      stopf(
+        "Refusing destructive clean rebuild because Stage 1 output resolves elsewhere: %s -> %s",
+        plan$output_dir, resolved
+      )
+    }
+  } else if (file.exists(plan$output_dir)) {
+    stopf("Stage 1 output path is an existing file: %s", plan$output_dir)
+  }
+  list(label = plan$scenario_name, path = plan$output_dir)
+}
+
+clean_stage1_output <- function(target) {
+  if (!dir.exists(target$path)) return(invisible(FALSE))
+  entries <- length(list.files(
+    target$path, all.files = TRUE, no.. = TRUE, recursive = TRUE
+  ))
+  message(
+    "[stage1 v9] clean rebuild: deleting ", target$path,
+    " (", entries, " entries)"
+  )
+  status <- unlink(target$path, recursive = TRUE, force = TRUE)
+  if (status != 0L || file.exists(target$path)) {
+    stopf("Could not fully delete Stage 1 output directory: %s", target$path)
+  }
+  message("[stage1 v9] clean output ready: ", target$label)
+  invisible(TRUE)
 }
 
 parse_cli <- function(args) {
@@ -1138,6 +1243,11 @@ run_stage1 <- function(
     periods = periods,
     output_subdir = output_subdir
   )
+  clean_targets <- if (overwrite) {
+    lapply(plans, validate_stage1_clean_target, output_subdir = output_subdir)
+  } else {
+    rep(list(NULL), length(plans))
+  }
   for (plan in plans) {
     planned_outputs <- unique(plan$records$path[plan$records$record_type != "input"])
     existing <- planned_outputs[file.exists(planned_outputs)]
@@ -1155,12 +1265,26 @@ run_stage1 <- function(
     return(invisible(plans))
   }
 
-  lapply(plans, execute_plan, overwrite = overwrite)
+  lapply(seq_along(plans), function(i) {
+    if (overwrite) clean_stage1_output(clean_targets[[i]])
+    execute_plan(plans[[i]], overwrite = overwrite)
+  })
   invisible(plans)
 }
 
-main <- function(args = commandArgs(trailingOnly = TRUE)) {
-  config <- parse_cli(args)
+main <- function(args = commandArgs(trailingOnly = TRUE), source_mode = interactive()) {
+  config <- if (source_mode) {
+    list(
+      scenario_dirs = character(),
+      periods = V9_RSTUDIO_PERIODS,
+      output_subdir = V9_RSTUDIO_OUTPUT_SUBDIR,
+      dry_run = V9_RSTUDIO_DRY_RUN,
+      overwrite = V9_RSTUDIO_CLEAN_REBUILD,
+      help = FALSE
+    )
+  } else {
+    parse_cli(args)
+  }
   if (config$help) {
     cat(usage(), "\n")
     return(invisible(NULL))
@@ -1181,11 +1305,11 @@ config_only <- isTRUE(get0(
 ))
 if (!config_only && (sys.nframe() == 0L || interactive())) {
   if (interactive()) {
-    # RStudio Source: run with the internal configuration and no CLI arguments.
-    main(args = character())
+    # RStudio Source: run with the explicit source settings above.
+    main(args = character(), source_mode = TRUE)
   } else {
     tryCatch(
-      main(),
+      main(source_mode = FALSE),
       error = function(error) {
         message("ERROR: ", conditionMessage(error))
         quit(save = "no", status = 1L, runLast = FALSE)

@@ -1,31 +1,36 @@
-# Copyright 2027 Stockholm Environment Institute ----
-
+# SPDX-License-Identifier: Apache-2.0
+#
+# Copyright 2025-2027 Universidad Nacional Autónoma de México
+# and Stockholm Environment Institute
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
-# http://www.apache.org/licenses/LICENSE-2.0
+# https://www.apache.org/licenses/LICENSE-2.0
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# MoFuSS
-# Version 5
+# MoFuSS ----
+# Script: 4_produce_growth_and_stock_csv_v2.R
+# Version: 2
 # Date: Aug 2026
+# Execution: Source from RStudio; Dinamica EGO does not invoke this script directly.
+#
+# Purpose: Validate and preserve the forest-growth, stock and trees-outside-
+# forests parameters produced by preprocessing without silently rewriting them.
+# Inputs: Preprocessed growth/stock objects and rasters plus inherited workspace paths.
+# Outputs: Validated growth and stock CSV inputs for downstream harmonization/modeling.
+# Side effects: Clears the configured Terra temporary directory and overwrites
+# generated parameter tables.
 
-# Preserves the growth and TOF parameters produced by 7pre_lulcc_v6.R.
-# It validates those values instead of silently converting low-K/non-forest
-# rows to TOF or overwriting their K values.
+# 2dolist ----
 
 # Internal parameters ----
 temdirdefined = 1
 forced_urban_parameter_digits <- 4L
-# # Select MoFuSS platform:
-# webmofuss = 1 # "1" is  web-MoFuSS running in our Ubuntu server, "0" is localcal host (Windows or Linux)
-
-
-# source(paste0(scriptsmofuss,"00_webmofuss.R"))
 
 # Load libraries ----
 library(conflicted)

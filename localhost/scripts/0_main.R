@@ -1,3 +1,35 @@
+# SPDX-License-Identifier: Apache-2.0
+#
+# Copyright 2025-2027 Universidad Nacional Autónoma de México
+# and Stockholm Environment Institute
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+# https://www.apache.org/licenses/LICENSE-2.0
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# MoFuSS ----
+# Script: 0_main.R
+# Version: 1
+# Date: Aug 2026
+# Execution: Source from RStudio; Dinamica EGO does not invoke this script directly.
+#
+# Purpose: Load the web/local configuration and source the configured MoFuSS
+# workflow scripts sequentially with progress, error and completion reporting.
+# Inputs: .env settings through 00_webmofuss.R and the configured script files.
+# Outputs: Products and R objects created by the sourced workflow scripts.
+# Side effects: Sends HTTP notifications, sources scripts and terminates R on failure.
+
+# 2dolist ----
+
+# Internal parameters ----
+
+# Load libraries ----
 #library(telegram.bot)
 library(glue)
 library(stringi)

@@ -1,6 +1,30 @@
-# MoFuSS
-# Version 3
+# SPDX-License-Identifier: Apache-2.0
+#
+# Copyright 2025-2027 Universidad Nacional Autónoma de México
+# and Stockholm Environment Institute
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+# https://www.apache.org/licenses/LICENSE-2.0
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# MoFuSS ----
+# Script: 2c_demand_tables_v5.R
+# Version: 5
 # Date: Mar 2024
+# Execution: Source from RStudio; Dinamica EGO does not invoke this script directly.
+#
+# Purpose: Validate, transform, summarize and visualize scenario demand tables
+# for the configured country or analysis area.
+# Inputs: parameters.csv, scenario demand CSV files and inherited workspace paths.
+# Outputs: Processed demand tables, diagnostics and demand-summary figures.
+# Side effects: Changes working directory, clears selected output folders and
+# overwrites generated CSV and figure files.
 
 # 2dolist ----
 # Fix split version of the tables

@@ -1,6 +1,29 @@
-# MoFuSS
-# Version 3
+# SPDX-License-Identifier: Apache-2.0
+#
+# Copyright 2025-2027 Universidad Nacional Autónoma de México
+# and Stockholm Environment Institute
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+# https://www.apache.org/licenses/LICENSE-2.0
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# MoFuSS ----
+# Script: 6c_demand_maps_v2_fix.R
+# Version: 2
 # Date: Mar 2024
+# Execution: Source from RStudio; Dinamica EGO does not invoke this script directly.
+#
+# Purpose: Render regional demand-atlas and zoom products using the corrected
+# region-selection behavior introduced after demand_maps_v1.
+# Inputs: Demand rasters, parameters.csv, DEM/administrative data and zoom KMLs.
+# Outputs: Full-extent and zoomed regional demand figures and map caches.
+# Side effects: May query OSM, cache downloaded data and overwrite atlas figures.
 
 # 2dolist ----
 # Zoom regions falling outside country borders breaks the map atlas

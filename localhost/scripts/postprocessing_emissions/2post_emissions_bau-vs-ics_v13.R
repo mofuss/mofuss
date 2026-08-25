@@ -1,29 +1,48 @@
-# Copyright 2025 Stockholm Environment Institute
+# SPDX-License-Identifier: Apache-2.0
+#
+# Copyright 2025-2027 Universidad Nacional Autónoma de México
+# and Stockholm Environment Institute
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# MoFuSS post-processing: avoided emissions, version 13
+# https://www.apache.org/licenses/LICENSE-2.0
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# MoFuSS ----
+# Script: 2post_emissions_bau-vs-ics_v13.R
+# Version: 13
 # Date: August 2026
+# Execution: Source from RStudio; Rscript compatibility is secondary.
+# Dinamica EGO does not invoke this script directly.
 #
-# This script compares BAU/CCTS scenario pairs inferred from the SCENARIO_DIRS
-# vector below. parameters.csv supplies the spatial scope, scenario metadata,
-# model horizon, MC count, pairing keys, and output IDs.
-# It is deliberately non-interactive and never installs packages,
-# changes the working directory, deletes an output tree, or modifies a scenario
-# folder.
+# Purpose: Compare BAU/CCTS scenario pairs and calculate avoided AGB/harvest,
+# end-use, and total emissions across Monte Carlo realizations.
+# Inputs: SCENARIO_DIRS, parameters.csv, BAU/CCTS output rasters, paired Monte
+# Carlo tables, and fuel/emission-factor tables.
+# Outputs: Emissions rasters, tables, uncertainty summaries, and manifests in
+# the guarded pair-analysis root.
+# Side effects: In RStudio clean-rebuild mode, the validated inferred analysis
+# root is fully deleted and rebuilt; the working directory may be moved outside
+# that root first.
+
+# Accounting and pairing notes ----
 #
 # Run/source this file directly after editing only SCENARIO_DIRS below.
-# By default, every configured MoFuSS run (including nominal/debug MC01) is
-# processed. BAU/CCTS runs are paired by the same run ID within each
-# configuration; capped and uncapped configurations are never pooled.
+# By default, every configured MoFuSS run (including nominal MC01) is
+# processed. One complete execution writes both the direct MC01 analysis and
+# the MC01:n uncertainty analysis. BAU/CCTS input tables are paired by the same
+# run ID within each configuration; active Patcher locations may remain
+# independent. Capped and uncapped configurations are never pooled.
 #
 # The default accounting period is inferred from parameters.csv as the model
-# start plus ten spin-up years through the model end. For a 2000-2030 model this
-# is 2010-2030, using end-2009 (code 10) as the state baseline and end-2030
-# (code 31) as the endpoint. The primary AGB result is therefore the change in
+# start plus .V13_SPINUP_YEARS through the model end. With the current 26-year
+# setting, a 2000-2030 model uses 2026-2030, end-2025 as its state baseline, and
+# end-2030 as its endpoint. The primary AGB result is therefore the change in
 # the BAU-vs-CCTS AGB gap over the post-spin-up accounting period.
 # Code 10 is an opening stock only: demand and Harvest_tot flows begin at code
 # 11 (calendar 2010), so no 2000-2009 flow is counted.
@@ -33,27 +52,89 @@
 #
 # Positive values are avoided emissions. End-use avoided emissions use
 # BAU - ICS, so the sign convention is consistent when both components are
-# added. In this workflow Patcher is bypassed and the BAU lookup tables are
-# reused by CCTS; patcher_rng_paired=FALSE records an unused RNG stream.
+# added. BAU lookup tables are reused by CCTS. When Patcher is bypassed,
+# patcher_rng_paired=FALSE records an unused RNG stream. When Patcher is active,
+# the same flag records an intentionally independent spatial-allocation draw:
+# the comparison remains valid, but it is semi-paired rather than fully paired.
+
+# 2dolist ----
+
+# Internal parameters ----
 
 .V9_REQUIRED_PACKAGES <- c("terra", "fs", "stringr", "dplyr", "readr", "tibble")
 .V9_CO2_FACTOR <- 0.47 * (44 / 12)
-.V9_MC_FILES <- c("k_all.csv", "rmax_all.csv", "i_st_all.csv")
-.V13_SPINUP_YEARS <- 10L
+.V9_MC_FILES <- c(
+  "k_all.csv", "rmax_all.csv", "i_st_all.csv",
+  "Harvest_pixels_V.csv", "Harvest_pixels_W.csv",
+  "Prune_factor_V.csv", "Prune_factor_W.csv"
+)
+.V13_SPINUP_YEARS <- 26L
+.V13_MIN_UNCERTAINTY_RUNS <- 30L
+
+.v13_pairing_design <- function(
+  paired_mc_inputs_validated, patcher_bypassed, patcher_rng_paired
+) {
+  paired_mc_inputs_validated <- isTRUE(paired_mc_inputs_validated)
+  patcher_bypassed <- isTRUE(patcher_bypassed)
+  patcher_rng_paired <- isTRUE(patcher_rng_paired)
+  full <- paired_mc_inputs_validated &&
+    (patcher_bypassed || patcher_rng_paired)
+  design <- if (!paired_mc_inputs_validated) {
+    "unverified_mc_input_pairing"
+  } else if (patcher_bypassed) {
+    "paired_mc_inputs_patcher_bypassed"
+  } else if (patcher_rng_paired) {
+    "paired_mc_inputs_patcher_rng_paired"
+  } else {
+    "paired_mc_inputs_independent_patcher_rng"
+  }
+  uncertainty_status <- if (!paired_mc_inputs_validated) {
+    "DIAGNOSTIC_ONLY_unverified_bypass_inputs"
+  } else if (patcher_bypassed) {
+    "paired_mc_inputs_validated_patcher_skipped"
+  } else if (patcher_rng_paired) {
+    "paired_mc_inputs_and_patcher_rng_validated"
+  } else {
+    "paired_mc_inputs_validated_independent_patcher_rng"
+  }
+  list(
+    comparison_validated = paired_mc_inputs_validated,
+    full_stochastic_pairing_validated = full,
+    pairing_design = design,
+    independent_patcher_rng_included =
+      paired_mc_inputs_validated && !patcher_bypassed && !patcher_rng_paired,
+    uncertainty_status = uncertainty_status
+  )
+}
 
 # EDIT ONLY THIS BLOCK when changing country/region scenario folders.
 # Folder order does not define pairing. BAU/CCTS roles and capped/uncapped
 # configurations are read from each folder's parameters.csv.
 SCENARIO_DIRS <- c(
-  "D:/ken_1km_bau1_2030_v3_ng",
-  "D:/ken_1km_bau1_2030_v3_g",
-  "D:/ken_1km_ics3_2030_v3_ng",
-  "D:/ken_1km_ics3_2030_v3_g"
+  "E:/rwa_1000m_bau1_2050_mc30_capped",
+  "E:/rwa_1000m_bau1_2050_mc30_uncapped",
+  "E:/rwa_1000m_ics3_2050_mc30_capped",
+  "E:/rwa_1000m_ics3_2050_mc30_uncapped"
 )
+
+# RSTUDIO SOURCE SETTINGS. These are used only when this file is sourced in an
+# interactive R session. CLEAN_REBUILD=TRUE validates every pair and then fully
+# removes the exact inferred analysis root (for example
+# D:/mofuss_postprocessing/ken_2026_2030_mc2) before rebuilding any pair.
+.V13_RSTUDIO_PERIOD <- "auto"
+.V13_RSTUDIO_RUN_IDS <- "all"
+.V13_RSTUDIO_CONFIG_LABEL <- NULL
+.V13_RSTUDIO_DRY_RUN <- FALSE
+.V13_RSTUDIO_CLEAN_REBUILD <- TRUE
+.V13_RSTUDIO_CLEAN_ANALYSIS_ROOT <- TRUE
+.V13_RSTUDIO_PAIRING_POLICY <- "strict"
 
 .v9_stop <- function(...) {
   stop(paste0(...), call. = FALSE)
 }
+
+# Load libraries ----
+# Required packages are checked by .v9_require_packages() and used by namespace.
 
 .v9_require_packages <- function() {
   missing <- .V9_REQUIRED_PACKAGES[
@@ -89,6 +170,7 @@ SCENARIO_DIRS <- c(
     temp_dir = tempdir(),
     dry_run = FALSE,
     overwrite = FALSE,
+    clean_analysis_root = FALSE,
     enduse_basis = "demand",
     pairing_policy = "strict",
     help = FALSE
@@ -120,10 +202,13 @@ SCENARIO_DIRS <- c(
       "MoFuSS avoided-emissions post-processing v13\n\n",
       "Default input:\n",
       "  SCENARIO_DIRS near the top of this script\n\n",
+      "RStudio Source:\n",
+      "  validates inputs, deletes the entire inferred analysis root, and rebuilds it\n\n",
       "Options:\n",
       "  --manifest=CSV             Legacy resolved-pair manifest\n",
       "  --config-label=LABEL       Process one manifest label (default: all)\n",
-      "  --period=auto|YYYY:YYYY    Default: post-spin-up horizon (start+10):end\n",
+      "  --period=auto|YYYY:YYYY    Default: post-spin-up horizon (start+",
+      .V13_SPINUP_YEARS, "):end\n",
       "  --run-ids=all|1,2,5:10    Selected MC runs (default: all, including MC01)\n",
       "  --temp-dir=DIR             Existing writable terra temp directory\n",
       "  --enduse-basis=demand      Only implemented basis\n",
@@ -132,7 +217,7 @@ SCENARIO_DIRS <- c(
       "                             diagnostic calculates signed checks but never\n",
       "                             labels uncertainty as paired\n",
       "  --dry-run[=true|false]     Validate without creating outputs\n",
-      "  --overwrite[=true|false]   Replace known output files; never deletes directories\n",
+      "  --overwrite[=true|false]   CLI/legacy mode fully rebuilds each exact emissions_dir\n",
       "  --help\n"
     )
   )
@@ -410,11 +495,13 @@ SCENARIO_DIRS <- c(
       paste0(format(a$gee_scale, scientific = FALSE, trim = TRUE), "m"),
       paste0(.v11_safe_id(b$scenario), "_vs_", .v11_safe_id(a$scenario)),
       paste0(analysis_start_year, "_", a$end_year),
+      paste0("mc", a$mc_runs),
       mode,
       sep = "_"
     )
     analysis_id <- paste(
-      scope_id, analysis_start_year, a$end_year, sep = "_"
+      scope_id, analysis_start_year, a$end_year, paste0("mc", a$mc_runs),
+      sep = "_"
     )
     output <- normalizePath(
       file.path(parent, "mofuss_postprocessing", analysis_id, "pairs", label, "emissions"),
@@ -467,7 +554,12 @@ SCENARIO_DIRS <- c(
       name_repair = "minimal"
     )
   )
-  if (!"Key" %in% names(x)) .v9_stop("Monte Carlo table lacks Key column: ", path)
+  if (!"Key" %in% names(x)) {
+    # Harvest-pixel and prune-factor tables are legacy row-indexed CSVs.
+    # Their row number is the MC run ID, whereas biological tables carry Key.
+    x[["Key"]] <- seq_len(nrow(x))
+    x <- dplyr::relocate(x, "Key")
+  }
   key <- suppressWarnings(as.integer(x[["Key"]]))
   if (anyNA(key) || anyDuplicated(key)) .v9_stop("Invalid or duplicate Key values in: ", path)
   x[["Key"]] <- key
@@ -688,6 +780,178 @@ SCENARIO_DIRS <- c(
   invisible(TRUE)
 }
 
+.v13_root_like <- function(path) {
+  key <- gsub("\\\\", "/", path)
+  identical(key, "/") ||
+    grepl("^[a-z]:/?$", key, ignore.case = TRUE) ||
+    grepl("^//[^/]+/[^/]+/?$", key)
+}
+
+.v13_validate_clean_output <- function(preflight) {
+  output_dir <- .v9_norm_output(preflight$emissions_dir)
+  .v9_check_output_path(
+    output_dir, preflight$bau_dir, preflight$ics_dir, overwrite = TRUE
+  )
+
+  if (!identical(tolower(basename(output_dir)), "emissions")) {
+    .v9_stop(
+      "Refusing destructive --overwrite because emissions_dir is not an exact ",
+      "'emissions' leaf directory: ", output_dir
+    )
+  }
+
+  parent_dir <- dirname(output_dir)
+  if (.v13_root_like(output_dir) || .v13_root_like(parent_dir) ||
+      identical(.v9_path_key(parent_dir), .v9_path_key(dirname(parent_dir)))) {
+    .v9_stop(
+      "Refusing destructive --overwrite for an emissions_dir directly below a drive/root: ",
+      output_dir
+    )
+  }
+
+  if (dir.exists(output_dir)) {
+    resolved_output <- normalizePath(output_dir, winslash = "/", mustWork = TRUE)
+    if (!identical(.v9_path_key(resolved_output), .v9_path_key(output_dir))) {
+      .v9_stop(
+        "Refusing destructive --overwrite because emissions_dir resolves elsewhere: ",
+        output_dir, " -> ", resolved_output
+      )
+    }
+    if (!identical(tolower(basename(resolved_output)), "emissions")) {
+      .v9_stop(
+        "Refusing destructive --overwrite because the resolved directory is not named ",
+        "'emissions': ", resolved_output
+      )
+    }
+  }
+
+  list(label = preflight$label, path = output_dir)
+}
+
+.v13_clean_output <- function(target) {
+  output_dir <- target$path
+  if (!dir.exists(output_dir)) return(invisible(FALSE))
+
+  entry_count <- length(list.files(
+    output_dir, all.files = TRUE, no.. = TRUE, recursive = TRUE
+  ))
+  message(
+    "[v13] --overwrite clean rebuild: deleting ", output_dir,
+    " (", entry_count, " entries)"
+  )
+  status <- unlink(output_dir, recursive = TRUE, force = TRUE)
+  if (status != 0L || dir.exists(output_dir) || file.exists(output_dir)) {
+    .v9_stop("Could not fully delete emissions_dir before processing: ", output_dir)
+  }
+  message("[v13] clean output ready label=", target$label, " -> ", output_dir)
+  invisible(TRUE)
+}
+
+.v13_validate_analysis_root <- function(manifest_table, scenario_dirs) {
+  emissions_dirs <- vapply(
+    manifest_table$emissions_dir, .v9_norm_output, character(1)
+  )
+  roots <- vapply(emissions_dirs, function(output_dir) {
+    pair_dir <- dirname(output_dir)
+    pairs_dir <- dirname(pair_dir)
+    root <- dirname(pairs_dir)
+    if (!identical(tolower(basename(output_dir)), "emissions") ||
+        !identical(tolower(basename(pairs_dir)), "pairs") ||
+        !identical(
+          .v9_path_key(output_dir),
+          .v9_path_key(file.path(root, "pairs", basename(pair_dir), "emissions"))
+        )) {
+      .v9_stop(
+        "Refusing analysis-root clean rebuild for an unexpected emissions path: ",
+        output_dir
+      )
+    }
+    normalizePath(root, winslash = "/", mustWork = FALSE)
+  }, character(1))
+  root_keys <- unique(vapply(roots, .v9_path_key, character(1)))
+  if (length(root_keys) != 1L) {
+    .v9_stop("Refusing analysis-root clean rebuild: pair outputs do not share one root.")
+  }
+  root <- roots[[1L]]
+  if (!grepl(
+    "^[A-Za-z0-9._-]+_[0-9]{4}_[0-9]{4}_mc[1-9][0-9]*$",
+    basename(root)
+  )) {
+    .v9_stop("Refusing analysis-root clean rebuild for unexpected root name: ", root)
+  }
+
+  scenario_paths <- vapply(
+    scenario_dirs, .v9_norm_existing, character(1), what = "scenario directory"
+  )
+  scenario_parents <- unique(vapply(dirname(scenario_paths), .v9_path_key, character(1)))
+  if (length(scenario_parents) != 1L) {
+    .v9_stop("Refusing analysis-root clean rebuild: scenario folders lack one parent.")
+  }
+  scenario_parent <- dirname(scenario_paths)[[1L]]
+  expected_parent <- normalizePath(
+    file.path(scenario_parent, "mofuss_postprocessing"),
+    winslash = "/", mustWork = FALSE
+  )
+  if (!identical(.v9_path_key(dirname(root)), .v9_path_key(expected_parent)) ||
+      .v13_root_like(root) || .v13_root_like(dirname(root))) {
+    .v9_stop(
+      "Refusing analysis-root clean rebuild outside the inferred mofuss_postprocessing folder: ",
+      root
+    )
+  }
+  for (scenario_dir in scenario_paths) {
+    if (.v9_is_within(root, scenario_dir) || .v9_is_within(scenario_dir, root)) {
+      .v9_stop("Refusing analysis-root clean rebuild overlapping scenario inputs: ", root)
+    }
+  }
+  if (file.exists(root) && !dir.exists(root)) {
+    .v9_stop("Analysis output root is an existing file: ", root)
+  }
+  if (dir.exists(root)) {
+    resolved <- normalizePath(root, winslash = "/", mustWork = TRUE)
+    if (!identical(.v9_path_key(resolved), .v9_path_key(root))) {
+      .v9_stop(
+        "Refusing analysis-root clean rebuild because the root resolves elsewhere: ",
+        root, " -> ", resolved
+      )
+    }
+  }
+  list(label = basename(root), path = root)
+}
+
+.v13_clean_analysis_root <- function(target) {
+  root <- target$path
+  if (!dir.exists(root)) return(invisible(FALSE))
+  current_wd <- normalizePath(getwd(), winslash = "/", mustWork = TRUE)
+  if (.v9_is_within(current_wd, root)) {
+    safe_wd <- normalizePath(dirname(root), winslash = "/", mustWork = TRUE)
+    setwd(safe_wd)
+    message(
+      "[v13] R working directory was inside the analysis root; moved it to ",
+      safe_wd, " before cleanup"
+    )
+  }
+  entry_count <- length(list.files(
+    root, all.files = TRUE, no.. = TRUE, recursive = TRUE
+  ))
+  message(
+    "[v13] clean rebuild: deleting entire analysis root ", root,
+    " (", entry_count, " entries)"
+  )
+  status <- 1L
+  for (attempt in seq_len(3L)) {
+    status <- unlink(root, recursive = TRUE, force = TRUE)
+    if (!file.exists(root)) break
+    invisible(gc())
+    Sys.sleep(0.25)
+  }
+  if (status != 0L || file.exists(root)) {
+    .v9_stop("Could not fully delete analysis output root before processing: ", root)
+  }
+  message("[v13] analysis root removed: ", target$label)
+  invisible(TRUE)
+}
+
 .v9_preflight_config <- function(
   config, period, run_ids_requested, temp_dir, overwrite, pairing_policy
 ) {
@@ -863,10 +1127,14 @@ SCENARIO_DIRS <- c(
   failed_pairing <- pairing$selected & !pairing$matched
   mc_table_pairing_validated <- !any(failed_pairing)
   bypass <- .v13_read_bypass_provenance(bau_dir, ics_dir, bau_par, ics_par)
-  pairing_validated <- isTRUE(mc_table_pairing_validated) &&
+  paired_mc_inputs_validated <- isTRUE(mc_table_pairing_validated) &&
     isTRUE(bypass$mc_tables_declared_reused) &&
-    isTRUE(bypass$metadata_validated) &&
-    (isTRUE(bypass$patcher_bypassed) || isTRUE(bypass$patcher_rng_paired))
+    isTRUE(bypass$metadata_validated)
+  design <- .v13_pairing_design(
+    paired_mc_inputs_validated,
+    bypass$patcher_bypassed,
+    bypass$patcher_rng_paired
+  )
   pairing_issues <- character()
   if (!mc_table_pairing_validated) {
     bad <- unique(pairing$run_id[failed_pairing])
@@ -876,10 +1144,7 @@ SCENARIO_DIRS <- c(
     )
   }
   if (nzchar(bypass$issue)) pairing_issues <- c(pairing_issues, bypass$issue)
-  if (!isTRUE(bypass$patcher_bypassed) && !isTRUE(bypass$patcher_rng_paired)) {
-    pairing_issues <- c(pairing_issues, "Patcher is active and its RNG locations are not paired")
-  }
-  if (!pairing_validated) {
+  if (!design$comparison_validated) {
     detail <- paste(pairing_issues, collapse = "; ")
     failure_message <- paste0(
       "BAU/CCTS bypass-input validation failed for label ", label, ": ", detail,
@@ -889,11 +1154,7 @@ SCENARIO_DIRS <- c(
     if (identical(pairing_policy, "strict")) .v9_stop(failure_message)
     warning(failure_message, call. = FALSE)
   }
-  uncertainty_status <- if (pairing_validated) {
-    "paired_bypass_inputs_validated_patcher_skipped"
-  } else {
-    "DIAGNOSTIC_ONLY_unverified_bypass_inputs"
-  }
+  uncertainty_status <- design$uncertainty_status
 
   selected_rows <- completeness[match(run_ids, completeness$run_id), ]
   for (j in seq_len(nrow(selected_rows))) {
@@ -1000,7 +1261,19 @@ SCENARIO_DIRS <- c(
     mc_table_pairing_validated = mc_table_pairing_validated,
     patcher_bypassed = isTRUE(bypass$patcher_bypassed),
     patcher_rng_paired = isTRUE(bypass$patcher_rng_paired),
-    pairing_validated = pairing_validated,
+    paired_mc_inputs_validated = design$comparison_validated,
+    comparison_validated = design$comparison_validated,
+    full_stochastic_pairing_validated =
+      design$full_stochastic_pairing_validated,
+    pairing_design = design$pairing_design,
+    independent_patcher_rng_included =
+      design$independent_patcher_rng_included,
+    pairing_validated = design$comparison_validated,
+    mc01_role = if (isTRUE(bypass$patcher_bypassed)) {
+      "nominal_parameter_deterministic_patcher_bypassed"
+    } else {
+      "nominal_parameter_case_with_patcher_spatial_rng"
+    },
     uncertainty_status = uncertainty_status,
     bau_demand = bau_demand,
     ics_demand = ics_demand,
@@ -1296,7 +1569,9 @@ SCENARIO_DIRS <- c(
   if (length(failed_dirs)) {
     .v9_stop("Could not create output directories: ", paste(failed_dirs, collapse = ", "))
   }
-  terra::terraOptions(progress = 1, tempdir = preflight$temp_dir)
+  # Block-level progress bars dominate logs for multi-run batches; retain only
+  # the concise per-configuration completion messages and explicit failures.
+  terra::terraOptions(progress = 0, tempdir = preflight$temp_dir)
 
   .v9_write_csv(preflight$completeness, file.path(output, "input_completeness.csv"), overwrite)
   .v9_write_csv(preflight$pairing, file.path(output, "mc_pairing_check.csv"), overwrite)
@@ -1307,7 +1582,13 @@ SCENARIO_DIRS <- c(
     mc_tables_declared_reused = preflight$bypass$mc_tables_declared_reused,
     patcher_bypassed = preflight$patcher_bypassed,
     patcher_rng_paired = preflight$patcher_rng_paired,
-    full_stochastic_pairing_validated = preflight$pairing_validated,
+    paired_mc_inputs_validated = preflight$paired_mc_inputs_validated,
+    comparison_validated = preflight$comparison_validated,
+    full_stochastic_pairing_validated =
+      preflight$full_stochastic_pairing_validated,
+    pairing_design = preflight$pairing_design,
+    independent_patcher_rng_included =
+      preflight$independent_patcher_rng_included,
     uncertainty_status = preflight$uncertainty_status,
     pairing_issues = preflight$pairing_issues,
     bypass_manifest = preflight$bypass$manifest_path,
@@ -1438,6 +1719,9 @@ SCENARIO_DIRS <- c(
       baseline_source = preflight$baseline_source,
       baseline_timing = preflight$baseline_timing,
       end_year_code = preflight$end_code,
+      agb_avoided_tCO2e = sumco2,
+      # Retained for compatibility with stage-3 versions written before v13.
+      # Despite its historical name, this column is also tCO2e, not Mg AGB.
       sumco2_Mg = sumco2,
       legacy_v8_terminal_sumco2_Mg = legacy_v8_harvest_tCO2e,
       post_spinup_correction_vs_v8_Mg = sumco2 - legacy_v8_harvest_tCO2e,
@@ -1476,6 +1760,7 @@ SCENARIO_DIRS <- c(
   total_table <- dplyr::bind_rows(total_rows)
   .v9_write_csv(harvest_table, file.path(dirs$harvest, "per_run_sumco2.csv"), overwrite)
   .v9_write_csv(total_table, file.path(output, "total_by_run.csv"), overwrite)
+  deterministic_summary <- NULL
   if (include_mc1) {
     mc01_harvest <- harvest_table[harvest_table$run_id == 1L, , drop = FALSE]
     mc01_total <- total_table[total_table$run_id == 1L, , drop = FALSE]
@@ -1485,7 +1770,7 @@ SCENARIO_DIRS <- c(
     mc01_crosscheck <- tibble::tibble(
       label = preflight$label,
       run_id = 1L,
-      mc01_role = "nominal_mean_debug_case_included_in_mc_batch",
+      mc01_role = preflight$mc01_role,
       included_in_mc_batch = TRUE,
       period_start_year = preflight$period[1],
       period_end_year = preflight$period[2],
@@ -1506,6 +1791,46 @@ SCENARIO_DIRS <- c(
       file.path(dirs$summary_mc1, "mc01_v8_terminal_crosscheck.csv"),
       overwrite
     )
+    deterministic_values <- c(
+      harvest = mc01_harvest$agb_avoided_tCO2e,
+      enduse_demand = enduse$total_tCO2e,
+      total = mc01_total$total_tCO2e
+    )
+    deterministic_summary <- tibble::tibble(
+      analysis = if (preflight$patcher_bypassed) {
+        "MC1_deterministic_nominal_parameters"
+      } else {
+        "MC1_nominal_parameters_with_patcher_spatial_rng"
+      },
+      component = names(deterministic_values),
+      runs = 1L,
+      run_ids = "1",
+      uncertainty_estimable = FALSE,
+      requested_minimum_uncertainty_runs = .V13_MIN_UNCERTAINTY_RUNS,
+      uncertainty_sample_adequate = FALSE,
+      estimate_tCO2e = unname(deterministic_values),
+      sd_tCO2e = NA_real_,
+      se_tCO2e = NA_real_,
+      empirical_p025_tCO2e = NA_real_,
+      median_tCO2e = unname(deterministic_values),
+      empirical_p975_tCO2e = NA_real_,
+      min_tCO2e = unname(deterministic_values),
+      max_tCO2e = unname(deterministic_values),
+      negative_runs = as.integer(deterministic_values < 0),
+      zero_runs = as.integer(deterministic_values == 0),
+      positive_runs = as.integer(deterministic_values > 0),
+      probability_positive = as.numeric(deterministic_values > 0),
+      interval_type = if (preflight$patcher_bypassed) {
+        "not_applicable_deterministic"
+      } else {
+        "single_patcher_realization_no_uncertainty_interval"
+      }
+    )
+    .v9_write_csv(
+      deterministic_summary,
+      file.path(dirs$summary_mc1, "deterministic_summary.csv"),
+      overwrite
+    )
   }
 
   scalar_summary <- function(values, component) {
@@ -1513,6 +1838,11 @@ SCENARIO_DIRS <- c(
       preflight$run_ids,
       seq_len(preflight$bau_parameters$mc_runs)
     )
+    quantiles <- if (length(values) >= 2L) {
+      as.numeric(stats::quantile(values, c(0.025, 0.5, 0.975), names = FALSE))
+    } else {
+      c(NA_real_, values[[1]], NA_real_)
+    }
     tibble::tibble(
       component = component,
       runs = length(values),
@@ -1523,35 +1853,95 @@ SCENARIO_DIRS <- c(
       },
       all_configured_runs_included = all_configured_runs,
       includes_mc01 = 1L %in% preflight$run_ids,
-      mc01_role = "nominal_mean_debug_case_included_in_batch",
+      mc01_role = preflight$mc01_role,
       pairing_policy = preflight$pairing_policy,
       mc_table_rows_paired = preflight$mc_table_pairing_validated,
       patcher_rng_paired = preflight$patcher_rng_paired,
-      paired_inputs_validated = preflight$pairing_validated,
+      paired_inputs_validated = preflight$paired_mc_inputs_validated,
+      comparison_validated = preflight$comparison_validated,
+      full_stochastic_pairing_validated =
+        preflight$full_stochastic_pairing_validated,
+      pairing_design = preflight$pairing_design,
+      independent_patcher_rng_included =
+        preflight$independent_patcher_rng_included,
       uncertainty_status = preflight$uncertainty_status,
+      requested_minimum_uncertainty_runs = .V13_MIN_UNCERTAINTY_RUNS,
+      uncertainty_sample_adequate = length(values) >= .V13_MIN_UNCERTAINTY_RUNS,
       negative_runs = sum(values < 0),
+      zero_runs = sum(values == 0),
       positive_runs = sum(values > 0),
+      probability_positive = mean(values > 0),
       mean_tCO2e = mean(values),
       sd_tCO2e = if (length(values) >= 2L) stats::sd(values) else NA_real_,
       se_tCO2e = if (length(values) >= 2L) stats::sd(values) / sqrt(length(values)) else NA_real_,
+      empirical_p025_tCO2e = quantiles[[1]],
+      median_tCO2e = quantiles[[2]],
+      empirical_p975_tCO2e = quantiles[[3]],
       min_tCO2e = min(values),
       max_tCO2e = max(values)
     )
   }
   mc_summary <- dplyr::bind_rows(
-    scalar_summary(harvest_table$sumco2_Mg, "harvest"),
+    scalar_summary(harvest_table$agb_avoided_tCO2e, "harvest"),
     scalar_summary(rep(enduse$total_tCO2e, nrow(total_table)), "enduse_demand"),
     scalar_summary(total_table$total_tCO2e, "total")
   )
   .v9_write_csv(mc_summary, file.path(output, "summary_mc.csv"), overwrite)
+  paired_summary <- tibble::tibble(
+    analysis = if (preflight$independent_patcher_rng_included) {
+      "MC1_to_n_paired_mc_inputs_independent_patcher_uncertainty"
+    } else {
+      "MC1_to_n_fully_paired_uncertainty"
+    },
+    component = mc_summary$component,
+    runs = mc_summary$runs,
+    run_ids = paste(preflight$run_ids, collapse = ","),
+    uncertainty_estimable = mc_summary$runs >= 2L,
+    requested_minimum_uncertainty_runs = .V13_MIN_UNCERTAINTY_RUNS,
+    uncertainty_sample_adequate = mc_summary$runs >= .V13_MIN_UNCERTAINTY_RUNS,
+    estimate_tCO2e = mc_summary$mean_tCO2e,
+    sd_tCO2e = mc_summary$sd_tCO2e,
+    se_tCO2e = mc_summary$se_tCO2e,
+    empirical_p025_tCO2e = mc_summary$empirical_p025_tCO2e,
+    median_tCO2e = mc_summary$median_tCO2e,
+    empirical_p975_tCO2e = mc_summary$empirical_p975_tCO2e,
+    min_tCO2e = mc_summary$min_tCO2e,
+    max_tCO2e = mc_summary$max_tCO2e,
+    negative_runs = mc_summary$negative_runs,
+    zero_runs = mc_summary$zero_runs,
+    positive_runs = mc_summary$positive_runs,
+    probability_positive = mc_summary$probability_positive,
+    interval_type = ifelse(
+      mc_summary$runs >= 2L,
+      if (preflight$independent_patcher_rng_included) {
+        "empirical_central_95_percent_across_paired_mc_inputs_independent_patcher_runs"
+      } else {
+        "empirical_central_95_percent_across_fully_paired_runs"
+      },
+      "not_estimable_fewer_than_two_runs"
+    )
+  )
+  analysis_summary <- dplyr::bind_rows(deterministic_summary, paired_summary)
+  .v9_write_csv(
+    analysis_summary, file.path(output, "analysis_summary.csv"), overwrite
+  )
   .v9_write_mc_rasters(
-    harvest_state, dirs$harvest, "delta_co2", overwrite, harvest_table$sumco2_Mg
+    harvest_state, dirs$harvest, "delta_co2", overwrite,
+    harvest_table$agb_avoided_tCO2e
   )
   .v9_write_mc_rasters(
     total_state, dirs$total, "delta_co2", overwrite, total_table$total_tCO2e
   )
   diagnostic <- .v9_harvest_diagnostic(preflight, enduse, overwrite, dirs$harvest)
 
+  stage2_script <- .v13_script_path()
+  stage2_script_md5 <- if (
+    length(stage2_script) == 1L && !is.na(stage2_script) && file.exists(stage2_script)
+  ) {
+    unname(as.character(tools::md5sum(stage2_script)))
+  } else {
+    NA_character_
+  }
   manifest_row <- tibble::tibble(
     label = preflight$label,
     bau_dir = preflight$bau_dir,
@@ -1584,20 +1974,55 @@ SCENARIO_DIRS <- c(
     initial_agb_md5 = preflight$initial_agb_md5,
     end_year_code = preflight$end_code,
     selected_run_ids = paste(preflight$run_ids, collapse = ","),
+    analysis_products = if (!preflight$patcher_bypassed) {
+      if (preflight$independent_patcher_rng_included) {
+        "nominal_MC1_and_paired_MC_inputs_independent_Patcher_uncertainty"
+      } else {
+        "nominal_MC1_and_fully_paired_Patcher_RNG_uncertainty"
+      }
+    } else if (identical(
+      preflight$run_ids, seq_len(preflight$bau_parameters$mc_runs)
+    )) {
+      "MC1_deterministic_and_fully_paired_MC1_to_n_uncertainty"
+    } else {
+      "MC1_deterministic_and_selected_fully_paired_run_batch"
+    },
+    nominal_run_id = if (1L %in% preflight$run_ids) 1L else NA_integer_,
+    deterministic_run_id = if (1L %in% preflight$run_ids &&
+      preflight$patcher_bypassed) 1L else NA_integer_,
+    uncertainty_run_ids = paste(preflight$run_ids, collapse = ","),
+    uncertainty_run_count = length(preflight$run_ids),
+    requested_minimum_uncertainty_runs = .V13_MIN_UNCERTAINTY_RUNS,
+    uncertainty_sample_adequate = length(preflight$run_ids) >= .V13_MIN_UNCERTAINTY_RUNS,
+    uncertainty_interval = if (length(preflight$run_ids) >= 2L) {
+      if (preflight$independent_patcher_rng_included) {
+        "empirical_central_95_percent_across_paired_mc_inputs_independent_patcher_runs"
+      } else {
+        "empirical_central_95_percent_across_fully_paired_runs"
+      }
+    } else {
+      "not_estimable_fewer_than_two_runs"
+    },
     all_configured_runs_included = identical(
       preflight$run_ids,
       seq_len(preflight$bau_parameters$mc_runs)
     ),
     mc01_included_in_batch = 1L %in% preflight$run_ids,
-    mc01_role = "nominal_mean_debug_case_included_in_batch",
+    mc01_role = preflight$mc01_role,
     expected_mc_runs = preflight$bau_parameters$mc_runs,
     pairing_policy = preflight$pairing_policy,
-    paired_run_id_design = preflight$pairing_validated,
+    paired_run_id_design = preflight$paired_mc_inputs_validated,
     mc_table_rows_paired = preflight$mc_table_pairing_validated,
     mc_tables_declared_reused = preflight$bypass$mc_tables_declared_reused,
+    patcher_bypassed = preflight$patcher_bypassed,
     patcher_rng_paired = preflight$patcher_rng_paired,
-    paired_mc_inputs_validated = preflight$pairing_validated,
-    full_stochastic_pairing_validated = preflight$pairing_validated,
+    paired_mc_inputs_validated = preflight$paired_mc_inputs_validated,
+    comparison_validated = preflight$comparison_validated,
+    full_stochastic_pairing_validated =
+      preflight$full_stochastic_pairing_validated,
+    pairing_design = preflight$pairing_design,
+    independent_patcher_rng_included =
+      preflight$independent_patcher_rng_included,
     pairing_issues = preflight$pairing_issues,
     uncertainty_status = preflight$uncertainty_status,
     mc_bypass_manifest = preflight$bypass$manifest_path,
@@ -1615,21 +2040,24 @@ SCENARIO_DIRS <- c(
     manifest_md5 = preflight$manifest_md5,
     parameters_bau = preflight$bau_parameters$parameter_file,
     parameters_ics = preflight$ics_parameters$parameter_file,
-    stage2_script = .v13_script_path(),
+    stage2_script = stage2_script,
+    stage2_script_md5 = stage2_script_md5,
     terra_version = as.character(utils::packageVersion("terra")),
     r_version = R.version.string,
     completed_at_utc = format(Sys.time(), tz = "UTC", usetz = TRUE),
-    status = if (preflight$pairing_validated) {
+    status = if (preflight$comparison_validated) {
       "complete"
     } else {
       "diagnostic_complete_unverified_bypass_inputs"
     }
   )
   .v9_write_csv(manifest_row, file.path(output, "run_manifest.csv"), overwrite)
-  completion_tag <- if (preflight$pairing_validated) {
+  completion_tag <- if (!preflight$comparison_validated) {
+    "[v13] DIAGNOSTIC OUTPUT ONLY (bypass inputs unverified)"
+  } else if (preflight$full_stochastic_pairing_validated) {
     "[v13] Completed fully paired"
   } else {
-    "[v13] DIAGNOSTIC OUTPUT ONLY (bypass inputs unverified)"
+    "[v13] Completed valid semi-paired comparison (independent Patcher RNG)"
   }
   message(completion_tag, " ", preflight$label, " -> ", output)
   invisible(list(
@@ -1650,6 +2078,7 @@ run_emissions_manifest <- function(
   temp_dir = tempdir(),
   dry_run = FALSE,
   overwrite = FALSE,
+  clean_analysis_root = FALSE,
   enduse_basis = "demand",
   pairing_policy = "strict"
 ) {
@@ -1670,6 +2099,15 @@ run_emissions_manifest <- function(
   }
   dry_run <- .v9_parse_bool(dry_run, "dry-run")
   overwrite <- .v9_parse_bool(overwrite, "overwrite")
+  clean_analysis_root <- .v9_parse_bool(
+    clean_analysis_root, "clean-analysis-root"
+  )
+  if (clean_analysis_root && !overwrite) {
+    .v9_stop("clean_analysis_root=TRUE requires overwrite=TRUE.")
+  }
+  if (clean_analysis_root && !is.null(manifest)) {
+    .v9_stop("Full analysis-root cleanup is available only with internal SCENARIO_DIRS.")
+  }
   if (!is.null(run_ids)) {
     original_run_ids <- run_ids
     run_ids <- suppressWarnings(as.integer(run_ids))
@@ -1755,11 +2193,29 @@ run_emissions_manifest <- function(
   })
   names(preflights) <- vapply(preflights, `[[`, character(1), "label")
 
+  analysis_clean_target <- if (overwrite && clean_analysis_root) {
+    .v13_validate_analysis_root(manifest_table, scenario_dirs)
+  } else {
+    NULL
+  }
+  clean_targets <- if (overwrite && !clean_analysis_root) {
+    # Validate every destructive target before deleting any of them. Actual
+    # deletion remains immediately before processing each configuration.
+    lapply(preflights, .v13_validate_clean_output)
+  } else {
+    rep(list(NULL), length(preflights))
+  }
+
   if (dry_run) {
+    if (!is.null(analysis_clean_target)) {
+      message("[v13 dry-run] entire analysis root would be deleted: ", analysis_clean_target$path)
+    }
     for (preflight in preflights) {
       message(
-        if (preflight$pairing_validated) {
+        if (preflight$full_stochastic_pairing_validated) {
           "[v13 dry-run] FULL PAIRING OK label="
+        } else if (preflight$comparison_validated) {
+          "[v13 dry-run] VALID SEMI-PAIRED COMPARISON label="
         } else {
           "[v13 dry-run] DIAGNOSTIC ONLY label="
         },
@@ -1775,7 +2231,10 @@ run_emissions_manifest <- function(
         " | MC tables paired=", preflight$mc_table_pairing_validated,
         " | Patcher bypassed=", preflight$patcher_bypassed,
         " | Patcher RNG paired=", preflight$patcher_rng_paired,
-        " | full pairing validated=", preflight$pairing_validated,
+        " | comparison validated=", preflight$comparison_validated,
+        " | full pairing validated=",
+        preflight$full_stochastic_pairing_validated,
+        " | pairing design=", preflight$pairing_design,
         " | uncertainty=", preflight$uncertainty_status,
         " | output=", preflight$emissions_dir
       )
@@ -1783,13 +2242,36 @@ run_emissions_manifest <- function(
     return(invisible(preflights))
   }
 
-  results <- lapply(preflights, .v9_process_config, overwrite = overwrite)
+  if (!is.null(analysis_clean_target)) {
+    .v13_clean_analysis_root(analysis_clean_target)
+  }
+  results <- lapply(seq_along(preflights), function(i) {
+    if (overwrite && !clean_analysis_root) .v13_clean_output(clean_targets[[i]])
+    .v9_process_config(preflights[[i]], overwrite = overwrite)
+  })
+  names(results) <- names(preflights)
   invisible(results)
 }
 
-.v9_main <- function() {
+.v9_main <- function(source_mode = interactive()) {
   .v9_require_packages()
-  options <- .v9_parse_cli()
+  options <- if (source_mode) {
+    list(
+      manifest = NULL,
+      config_label = .V13_RSTUDIO_CONFIG_LABEL,
+      period = .V13_RSTUDIO_PERIOD,
+      run_ids = .V13_RSTUDIO_RUN_IDS,
+      temp_dir = tempdir(),
+      dry_run = .V13_RSTUDIO_DRY_RUN,
+      overwrite = .V13_RSTUDIO_CLEAN_REBUILD,
+      clean_analysis_root = .V13_RSTUDIO_CLEAN_ANALYSIS_ROOT,
+      enduse_basis = "demand",
+      pairing_policy = .V13_RSTUDIO_PAIRING_POLICY,
+      help = FALSE
+    )
+  } else {
+    .v9_parse_cli()
+  }
   if (isTRUE(options$help)) {
     .v9_usage()
     return(invisible(NULL))
@@ -1805,11 +2287,15 @@ run_emissions_manifest <- function(
     temp_dir = options$temp_dir,
     dry_run = options$dry_run,
     overwrite = options$overwrite,
+    clean_analysis_root = options$clean_analysis_root,
     enduse_basis = options$enduse_basis,
     pairing_policy = options$pairing_policy
   )
 }
 
-if (sys.nframe() == 0L || interactive()) {
-  .v9_main()
+config_only <- isTRUE(get0(
+  "MOFUSS_CONFIG_ONLY", envir = environment(), inherits = FALSE, ifnotfound = FALSE
+))
+if (!config_only && (sys.nframe() == 0L || interactive())) {
+  .v9_main(source_mode = interactive())
 }

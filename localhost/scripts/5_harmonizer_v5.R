@@ -1,18 +1,31 @@
-# Copyright 2027 Stockholm Environment Institute ----
-
+# SPDX-License-Identifier: Apache-2.0
+#
+# Copyright 2025-2027 Universidad Nacional Autónoma de México
+# and Stockholm Environment Institute
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
-# http://www.apache.org/licenses/LICENSE-2.0
+# https://www.apache.org/licenses/LICENSE-2.0
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# MoFuSS
-# Version 3
-# Date: Mar 2024
+# MoFuSS ----
+# Script: 5_harmonizer_v5.R
+# Version: 5
+# Date: Aug 2026
+# Execution: Source from RStudio; Dinamica EGO does not invoke this script directly.
+#
+# Purpose: Harmonize land cover, biomass, accessibility and administrative inputs
+# to the common analysis grid required by the MoFuSS/Dinamica workflow.
+# Inputs: Downloaded/source rasters and vectors, growth tables, parameters.csv and
+# inherited country and temporary-directory paths.
+# Outputs: Aligned/cropped model rasters, vectors and supporting lookup tables.
+# Side effects: Clears temporary files and creates, deletes or overwrites numerous
+# harmonized workspace products.
 
 # 2dolist ----
 # FIX GFC new layers when reproyecting loss and gain. Keepp or move out 
@@ -30,7 +43,7 @@
 #     subset(select=-c(Name,description)) -> userarea_GCS
 # }
 # userarea <- st_transform(userarea_GCS, epsg_pcs)
-# # Land Use Land Cover Module ####
+# # Land Use Land Cover Module
 # if (webmofuss == 0) {
 #   
 #   if (LULCt1map == "YES"){
@@ -57,10 +70,6 @@ w1 = 25000 #250000
 w2 = 50000 #500000
 w3 = 75000 #750000
 w4 = 100000 #1000000
-
-# # Select MoFuSS platform:
-# webmofuss = 1 # "1" is  web-MoFuSS running in our Ubuntu server, "0" is localcal host (Windows or Linux)
-# source(paste0(scriptsmofuss,"00_webmofuss.R"))
 
 # Load libraries ----
 library(conflicted)

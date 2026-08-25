@@ -1,18 +1,30 @@
-# Copyright 2025 Stockholm Environment Institute ----
-
+# SPDX-License-Identifier: Apache-2.0
+#
+# Copyright 2025-2027 Universidad Nacional Autónoma de México
+# and Stockholm Environment Institute
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
-# http://www.apache.org/licenses/LICENSE-2.0
+# https://www.apache.org/licenses/LICENSE-2.0
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# MoFuSS
-# Version 3
+# MoFuSS ----
+# Script: 6a_scenarios.R
+# Version: 3
 # Date: Mar 2024
+# Execution: Source from RStudio; Dinamica EGO does not invoke this script directly.
+#
+# Purpose: Convert harmonized inputs and annual demand trajectories into scenario,
+# friction and lookup products consumed by the Dinamica EGO model.
+# Inputs: Harmonized rasters/tables, demand maps, parameters.csv and inherited paths.
+# Outputs: Demand-scenario CSVs, friction rasters and Dinamica supporting tables.
+# Side effects: Changes working directory, clears prior Debugging/Temp/Out products
+# and overwrites model inputs.
 
 # 2dolist ----
 # URGENTLY fix this very old and outdated chunck to make it 
@@ -20,14 +32,14 @@
 # Fix for linux cluster
 # Read validation dataset and based on that turn on/off deforestation module in dinamica
 # Line 183: BaU vs ICS
+# Friction ----
+# WARNING: MARITIME AND ATRACTION LAYERS NEED TO BE FLESHED OUT AND DEBUG AS OF JULY 2023
 
 # Internal parameters ----
 attdecay = 1.40  # decay rate of attraction kernels
-# # Select MoFuSS platform:
-# webmofuss = 1 # "1" is  web-MoFuSS running in our Ubuntu server, "0" is localcal host (Windows or Linux)
-# source(paste0(scriptsmofuss,"00_webmofuss.R"))
 
-# Load packages ----
+
+# Load libraries ----
 library(conflicted)
 
 library(dplyr)

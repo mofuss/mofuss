@@ -1,18 +1,30 @@
-# Copyright 2025 Stockholm Environment Institute ----
-
+# SPDX-License-Identifier: Apache-2.0
+#
+# Copyright 2025-2027 Universidad Nacional Autónoma de México
+# and Stockholm Environment Institute
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
-# http://www.apache.org/licenses/LICENSE-2.0
+# https://www.apache.org/licenses/LICENSE-2.0
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# MoFuSS
-# Version 5
+# MoFuSS ----
+# Script: 0_set_directories_and_region_v3.R
+# Version: 3
 # Date: Apr 2026
+# Execution: Source from RStudio; Dinamica EGO does not invoke this script directly.
+#
+# Purpose: Resolve the analysis region and working directories, read the selected
+# parameters table and initialize the country-specific MoFuSS folder structure.
+# Inputs: Local or web configuration, parameters.csv and repository input datasets.
+# Outputs: Shared path/region objects, copied inputs and initialized work directories.
+# Side effects: May prompt for files/folders, change working directory, and create,
+# remove or overwrite country-workspace files and directories.
 
 # 2dolist ----
 

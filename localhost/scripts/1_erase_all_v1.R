@@ -1,18 +1,29 @@
-# Copyright 2025 Stockholm Environment Institute ----
+# SPDX-License-Identifier: Apache-2.0
+#
+# Copyright 2025-2027 Universidad Nacional Autónoma de México
+# and Stockholm Environment Institute
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
-# http://www.apache.org/licenses/LICENSE-2.0
+# https://www.apache.org/licenses/LICENSE-2.0
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# MoFuSS
-# Version 5
+# MoFuSS ----
+# Script: 1_erase_all_v1.R
+# Version: 1
 # Date: Apr 2026
+# Execution: Source from RStudio; Dinamica EGO does not invoke this script directly.
+#
+# Purpose: Remove outputs and temporary artifacts from a previously prepared
+# country workspace so the main workflow can rebuild them.
+# Inputs: The inherited countrydir and its expected MoFuSS directory structure.
+# Outputs: A cleaned workspace; no analytical products are created.
+# Side effects: Destructively deletes configured output directories and file patterns.
 
 # 2dolist ----
 

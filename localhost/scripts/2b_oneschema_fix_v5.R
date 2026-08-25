@@ -1,20 +1,30 @@
-# Copyright 2025 Stockholm Environment Institute ----
-
+# SPDX-License-Identifier: Apache-2.0
+#
+# Copyright 2025-2027 Universidad Nacional Autónoma de México
+# and Stockholm Environment Institute
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
-# http://www.apache.org/licenses/LICENSE-2.0
+# https://www.apache.org/licenses/LICENSE-2.0
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# MoFuSS
-# Version 5 -- runs ALL three ICS scenarios in one shot when scenario_ver is
-# any of ICS1_v2 / ICS2_v2 / ICS3_v2 (writes demand_ics1_v2.csv,
-# demand_ics2_v2.csv, demand_ics3_v2.csv). BaU behaviour unchanged.
+# MoFuSS ----
+# Script: 2b_oneschema_fix_v5.R
+# Version: 5
 # Date: July 2026
+# Execution: Source from RStudio; Dinamica EGO does not invoke this script directly.
+#
+# Purpose: Harmonize demand inputs to one schema and construct BAU or all three
+# ICS demand tables from WHO data, parameters and scenario anchor points.
+# Inputs: parameters.csv, WHO/demand inputs, ICS anchor files and inherited paths.
+# Outputs: demand_bau1_v2.csv or demand_ics1_v2.csv through demand_ics3_v2.csv,
+# together with validation/difference tables.
+# Side effects: Changes working directory and overwrites generated demand CSV files.
 
 # 2dolist ----
 
