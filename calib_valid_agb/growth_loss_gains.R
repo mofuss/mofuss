@@ -1,7 +1,40 @@
 #!/usr/bin/env Rscript
-# ==============================================================================
-# growth_loss_gains.R
-# ------------------------------------------------------------------------------
+# SPDX-License-Identifier: Apache-2.0
+#
+# Copyright 2025-2027 Universidad Nacional Autónoma de México
+# and Stockholm Environment Institute
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+# https://www.apache.org/licenses/LICENSE-2.0
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# MoFuSS ----
+# Script: growth_loss_gains.R
+# Version: 1
+# Date: August 2026
+# Execution: Run directly with Rscript from PowerShell/a terminal after editing
+# cfg; an alternative MoFuSS working folder may be supplied as the first
+# command-line argument.
+#
+# Purpose: Estimate per-administrative-unit AGB loss and gain curves, identify
+# gain-loss crossings, and classify units from a completed MoFuSS run.
+# Inputs: One debugging_N annual AGB stack and the run's userarea1.gpkg
+# administrative boundaries.
+# Outputs: Summary and binned-curve CSVs, a composite figure, and per-unit
+# figures under Out/agb_g_h_curves in the selected working folder.
+# Side effects: Creates output directories when absent and overwrites same-named
+# figures and tables; it does not delete existing directories or other outputs.
+
+# 2dolist ----
+
+# Method and usage notes ----
+#
 # Per-admin-unit AGB loss & gain curves from a MoFuSS working folder.
 #
 # For every consecutive-year pair in the annual AGB stack (Growth_less_harv),
@@ -17,11 +50,13 @@
 # USAGE:
 #   Edit the CONFIG block below, then:   Rscript growth_loss_gains.R
 #   Or pass a working folder as an argument: Rscript growth_loss_gains.R "D:/path/to/cty_folder"
-# ==============================================================================
 
+# Load libraries ----
 suppressPackageStartupMessages({
   library(terra); library(sf); library(data.table); library(ggplot2)
 })
+
+# Internal parameters ----
 
 ## ----------------------------- CONFIG -----------------------------
 cfg <- list(

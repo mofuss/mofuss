@@ -27,8 +27,8 @@
 # Stage 3 outputs without rerunning MoFuSS or any emissions stage.
 # Inputs: A completed Stage 2/3 analysis root containing summary CSVs and
 # component rasters.
-# Outputs: MC01 and MC-all manuscript tables, 18 component rasters, and one
-# 300-dpi MC01 emissions-map figure.
+# Outputs: MC01 and MC-all manuscript tables as CSV and 300-dpi PNG files,
+# 18 component rasters, and one 300-dpi MC01 emissions-map figure.
 # Side effects: A clean rebuild fully deletes the exact validated
 # manuscript_outputs directory before recreating it.
 
@@ -50,10 +50,13 @@ DEFAULT_MIN_UNCERTAINTY_RUNS <- 30L
 CONFIGURATION_ORDER <- c("capped", "uncapped")
 COMPONENT_ORDER <- c("harvest", "enduse", "total")
 COMPONENT_LABELS <- c(harvest = "Harvest / AGB", enduse = "End-use", total = "Total")
+TABLE_PNG_DPI <- 300L
+TABLE_PNG_WIDTH_IN <- 7.5
 
-# RSTUDIO SOURCE SETTINGS. Edit these values, then use regular Source or
-# Source as Background Job.
-V1_RSTUDIO_SOURCE_DIR <- "D:/mofuss_postprocessing/ken_2026_2030_mc2"
+# RSTUDIO SOURCE SETTINGS. SOURCE_DIR must be the analysis root printed by
+# Stage 2/3 (the folder containing both pairs/ and agb_decomposition/). Edit
+# this value for each region, then use regular Source or Source as Background Job.
+V1_RSTUDIO_SOURCE_DIR <- "E:/mofuss_postprocessing/rwa_2026_2050_mc30"
 V1_RSTUDIO_OUTPUT_DIR <- file.path(V1_RSTUDIO_SOURCE_DIR, "manuscript_outputs")
 V1_RSTUDIO_MIN_UNCERTAINTY_RUNS <- DEFAULT_MIN_UNCERTAINTY_RUNS
 V1_RSTUDIO_CLEAN_REBUILD <- TRUE
@@ -197,6 +200,137 @@ write_csv_utf8 <- function(x, path) {
   connection <- file(path, open = "wb")
   on.exit(close(connection), add = TRUE)
   writeBin(charToRaw(enc2utf8(payload)), connection)
+  invisible(path)
+}
+
+write_table_png <- function(x, path, title, subtitle) {
+  value_columns <- setdiff(names(x), "Metric")
+  if (length(value_columns) != 2L) {
+    stopf("PNG table renderer expects Metric plus exactly two value columns.")
+  }
+
+  is_blank <- function(value) {
+    is.na(value) || !nzchar(trimws(as.character(value)))
+  }
+  note_rows <- vapply(seq_len(nrow(x)), function(i) {
+    all(vapply(value_columns, function(column) {
+      is_blank(x[[column]][[i]])
+    }, logical(1)))
+  }, logical(1))
+  body <- x[!note_rows, , drop = FALSE]
+  notes <- as.character(x$Metric[note_rows])
+
+  format_value <- function(value, metric) {
+    if (is_blank(value)) return("")
+    digits <- if (grepl("MtCO2e", metric, fixed = TRUE)) 3L else 0L
+    format_number <- function(z) {
+      number <- suppressWarnings(as.numeric(trimws(z)))
+      if (!is.finite(number)) return(trimws(z))
+      formatC(number, format = "f", digits = digits, big.mark = ",")
+    }
+    text <- as.character(value)
+    plus_minus <- intToUtf8(177L)
+    if (grepl(plus_minus, text, fixed = TRUE)) {
+      pieces <- strsplit(text, plus_minus, fixed = TRUE)[[1L]]
+      return(paste(vapply(pieces, format_number, character(1)), collapse = paste0(" ", plus_minus, " ")))
+    }
+    format_number(text)
+  }
+
+  display <- body
+  for (column in value_columns) {
+    display[[column]] <- vapply(seq_len(nrow(body)), function(i) {
+      format_value(body[[column]][[i]], body$Metric[[i]])
+    }, character(1))
+  }
+
+  wrapped_notes <- lapply(notes, function(note) strwrap(note, width = 130L))
+  title_height <- 0.54
+  subtitle_height <- 0.28
+  header_height <- 0.42
+  body_height <- 0.36
+  note_line_height <- 0.18
+  notes_height <- if (length(wrapped_notes)) {
+    sum(vapply(wrapped_notes, length, integer(1))) * note_line_height +
+      length(wrapped_notes) * 0.15 + 0.12
+  } else 0
+  height_in <- 0.22 + title_height + subtitle_height + 0.12 +
+    header_height + nrow(display) * body_height + notes_height + 0.22
+
+  png_args <- list(
+    filename = path, width = TABLE_PNG_WIDTH_IN, height = height_in,
+    units = "in", res = TABLE_PNG_DPI, pointsize = 11, bg = "white"
+  )
+  if (isTRUE(capabilities("cairo"))) png_args$type <- "cairo"
+  do.call(grDevices::png, png_args)
+  on.exit(grDevices::dev.off(), add = TRUE)
+
+  graphics::par(mar = c(0, 0, 0, 0), xaxs = "i", yaxs = "i", family = "sans")
+  graphics::plot.new()
+  graphics::plot.window(
+    xlim = c(0, TABLE_PNG_WIDTH_IN), ylim = c(0, height_in),
+    xaxs = "i", yaxs = "i"
+  )
+
+  left <- 0.22
+  right <- TABLE_PNG_WIDTH_IN - 0.22
+  column_edges <- c(left, left + 3.55, left + 5.30, right)
+  y <- height_in - 0.20
+  graphics::text(left, y, title, adj = c(0, 1), font = 2, cex = 1.18, col = "#172B4D")
+  y <- y - title_height
+  graphics::text(left, y, subtitle, adj = c(0, 1), cex = 0.83, col = "#44546A")
+  y <- y - subtitle_height - 0.06
+
+  header_bottom <- y - header_height
+  graphics::rect(left, header_bottom, right, y, col = "#234E70", border = NA)
+  graphics::text(column_edges[[1L]] + 0.10, (y + header_bottom) / 2, "Metric",
+                 adj = c(0, 0.5), font = 2, cex = 0.86, col = "white")
+  for (j in seq_along(value_columns)) {
+    x_mid <- mean(column_edges[c(j + 1L, j + 2L)])
+    graphics::text(x_mid, (y + header_bottom) / 2, value_columns[[j]],
+                   font = 2, cex = 0.82, col = "white")
+  }
+  y <- header_bottom
+
+  for (i in seq_len(nrow(display))) {
+    row_bottom <- y - body_height
+    important <- grepl("^(Total emissions|Annual emissions)", display$Metric[[i]])
+    fill <- if (important) "#DCEAF4" else if (i %% 2L == 0L) "#F4F6F8" else "white"
+    graphics::rect(left, row_bottom, right, y, col = fill, border = NA)
+    graphics::segments(left, row_bottom, right, row_bottom, col = "#D5DCE3", lwd = 0.55)
+    graphics::text(
+      column_edges[[1L]] + 0.10, (y + row_bottom) / 2, display$Metric[[i]],
+      adj = c(0, 0.5), font = if (important) 2 else 1, cex = 0.80,
+      col = "#1F2933"
+    )
+    for (j in seq_along(value_columns)) {
+      graphics::text(
+        column_edges[[j + 2L]] - 0.10, (y + row_bottom) / 2,
+        display[[value_columns[[j]]]][[i]], adj = c(1, 0.5),
+        font = if (important) 2 else 1, cex = 0.80, col = "#1F2933"
+      )
+    }
+    y <- row_bottom
+  }
+  graphics::rect(left, y, right, y + nrow(display) * body_height,
+                 border = "#9AA5B1", lwd = 0.8)
+  graphics::segments(column_edges[[2L]], y, column_edges[[2L]],
+                     y + nrow(display) * body_height + header_height,
+                     col = "#C7CED6", lwd = 0.55)
+  graphics::segments(column_edges[[3L]], y, column_edges[[3L]],
+                     y + nrow(display) * body_height + header_height,
+                     col = "#C7CED6", lwd = 0.55)
+
+  if (length(wrapped_notes)) {
+    y <- y - 0.20
+    for (lines in wrapped_notes) {
+      graphics::text(
+        left, y, paste(lines, collapse = "\n"), adj = c(0, 1),
+        cex = 0.66, col = "#52616B"
+      )
+      y <- y - length(lines) * note_line_height - 0.15
+    }
+  }
   invisible(path)
 }
 
@@ -415,6 +549,8 @@ for (note in footnotes) {
 
 table_mc1_path <- file.path(output_dir, "tables", sprintf("table_%s_%s_mc_1.csv", region_slug, period_tag))
 table_mc_all_path <- file.path(output_dir, "tables", sprintf("table_%s_%s_mc_all.csv", region_slug, period_tag))
+table_mc1_png_path <- sub("\\.csv$", ".png", table_mc1_path)
+table_mc_all_png_path <- sub("\\.csv$", ".png", table_mc_all_path)
 
 pair_root <- file.path(source_dir, "pairs")
 pair_dirs <- list.dirs(pair_root, full.names = TRUE, recursive = FALSE)
@@ -454,6 +590,16 @@ for (configuration in CONFIGURATION_ORDER) {
 prepare_output_dir(output_dir, source_dir, overwrite)
 write_csv_utf8(mc1_table, table_mc1_path)
 write_csv_utf8(mc_all_table, table_mc_all_path)
+write_table_png(
+  mc1_table, table_mc1_png_path,
+  sprintf("%s MoFuSS results, %s", region_name, period_tag),
+  "First Monte Carlo realization (MC1)"
+)
+write_table_png(
+  mc_all_table, table_mc_all_png_path,
+  sprintf("%s MoFuSS results, %s", region_name, period_tag),
+  sprintf("Mean %s sample SD across %d Monte Carlo realizations", plus_minus, n_runs)
+)
 
 raster_path <- function(scope, configuration, component, statistic = NULL) {
   suffix <- if (scope == "mc_1") {
@@ -573,7 +719,9 @@ grDevices::dev.off()
 expected_files <- c(
   file.path("figures", "mc_1", basename(figure_path)),
   file.path("tables", basename(table_mc1_path)),
-  file.path("tables", basename(table_mc_all_path))
+  file.path("tables", basename(table_mc_all_path)),
+  file.path("tables", basename(table_mc1_png_path)),
+  file.path("tables", basename(table_mc_all_png_path))
 )
 for (configuration in CONFIGURATION_ORDER) {
   for (component in COMPONENT_ORDER) {
@@ -587,7 +735,7 @@ for (configuration in CONFIGURATION_ORDER) {
 }
 actual_files <- list.files(output_dir, recursive = TRUE, all.files = FALSE)
 if (!setequal(gsub("\\\\", "/", actual_files), gsub("\\\\", "/", expected_files))) {
-  stopf("Final package inventory differs from the expected 21 files.")
+  stopf("Final package inventory differs from the expected %d files.", length(expected_files))
 }
 
 if (n_runs < min_uncertainty_runs) {

@@ -1,3 +1,38 @@
+# SPDX-License-Identifier: Apache-2.0
+#
+# Copyright 2025-2027 Universidad Nacional Autónoma de México
+# and Stockholm Environment Institute
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+# https://www.apache.org/licenses/LICENSE-2.0
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# MoFuSS ----
+# Script: 3_mofuss_agb_validation_v3.R
+# Version: 3
+# Date: August 2026
+# Execution: Use regular RStudio Source. With INTERACTIVE = FALSE, the script
+# can also be run directly with Rscript from PowerShell/a terminal.
+#
+# Purpose: Validate BAU and CCTS AGB trajectories and endpoint changes against
+# CTrees observations, comparing capped and uncapped versions of each scenario.
+# Inputs: Four completed BAU/CCTS x capped/uncapped working folders, every
+# debugging_N annual AGB series, CTrees AGB rasters, admin boundaries, and lakes.
+# Outputs: Complete BAU and CCTS validation sets under the corresponding
+# <drive>/mofuss_postprocessing/<analysis>/validation directory.
+# Side effects: Cleanly rebuilds only its exact per-scenario validation output
+# folders; it does not modify the MoFuSS working folders.
+
+# 2dolist ----
+
+# Validation design notes ----
+
 ###############################################################################
 ##  MoFuSS simulated  vs  CTrees observed  ABOVEGROUND BIOMASS (AGB) validation
 ##  -------------------------------------------------------------------------
@@ -29,34 +64,94 @@
 ##  Requirements:  install.packages(c("terra","ggplot2"))
 ###############################################################################
 
+# Load libraries ----
+
 if (!requireNamespace("terra",   quietly = TRUE)) stop("Please install 'terra':   install.packages('terra')")
 if (!requireNamespace("ggplot2", quietly = TRUE)) stop("Please install 'ggplot2': install.packages('ggplot2')")
 ## All terra/ggplot2 calls below are explicitly namespaced. This prevents the
 ## `conflicted` package (or an attached raster/dplyr/glue/gdata package) from
 ## making function dispatch depend on the user's current RStudio session.
 
+# Internal parameters ----
+
 ###############################################################################
 ## 1. CONFIGURATION
 ###############################################################################
-INTERACTIVE <- FALSE          # TRUE = ask via pop-up/menus; FALSE = use paths below
+INTERACTIVE <- FALSE          # TRUE only prompts for the observed-data variant
 
-COUNTRY      <- "Mozambique"
-CAPPED_DIR   <- "E:/moz_bau1_1km_nv3_ng"   # capped   (_ng)
-UNCAPPED_DIR <- "E:/moz_bau1_1km_nv3_g"    # uncapped (_g); "" to skip
+# Edit only this vector when moving to another region. Positional command-line
+# folders, when supplied, replace it. Folder order is irrelevant.
+WORKING_DIRS <- c(
+  "E:/rwa_1000m_bau1_2050_mc30_capped",
+  "E:/rwa_1000m_bau1_2050_mc30_uncapped",
+  "E:/rwa_1000m_ics3_2050_mc30_capped",
+  "E:/rwa_1000m_ics3_2050_mc30_uncapped"
+)
 
-OBS_TYPE     <- "projected"  # "projected" (MgDM/ha, EPSG:3395) or "latlong" (MgCO2/ha, EPSG:4326)
-# OBS_PROJ_DIR <- "D:/agb3rdparties/ctrees_dic2025_agb_paras/1km_agco2_2000_2025/agb_projected_ha"
-OBS_PROJ_DIR <- "G:/My Drive/webpages/2026_MoFuSSGlobal_Datasets/ctrees_dic2025_agb_cr/1km_agco2_2000_2025/agb_projected_ha"
-# OBS_LL_DIR   <- "D:/agb3rdparties/ctrees_dic2025_agb_paras/1km_agco2_2000_2025"
-OBS_LL_DIR   <- "G:/My Drive/webpages/2026_MoFuSSGlobal_Datasets/ctrees_dic2025_agb_cr/1km_agco2_2000_2025/"
+SPINUP_YEARS <- 26L          # same convention as emissions v13 / decomposition v5
+OBS_TYPE <- "projected"      # "projected" (MgDM/ha) or "latlong" (MgCO2/ha)
 
-# OUT_BASE     <- "C:/Users/aghil/Documents/MoFuSS_localhost/calib_valid_agb_new_2000-2025_verra"
-OUT_BASE     <- "C:/Users/aghil/Documents/calib_valid_agb_new_2000-2025_verra"
+# Optional overrides. Leave blank for automatic discovery.
+GOOGLE_DRIVE_ROOT <- ""      # e.g. "G:/My Drive" or "G:/Mi unidad"
+ADMIN_REGIONS_DIR <- ""      # folder containing mofuss_regions0.gpkg
+POSTPROCESSING_ROOT <- ""     # default: <working-dir parent>/mofuss_postprocessing
+DRY_RUN <- tolower(Sys.getenv("MOFUSS_VALIDATION_DRY_RUN", unset = "false")) %in%
+  c("1", "true", "yes")      # environment-only preflight; no outputs are changed
 
-## Country boundary used to clip the observed maps (and to overlay in the maps).
-## "" = auto-find at <CAPPED_DIR>/LULCC/TempVector/userarea1.gpkg
+stopf <- function(...) stop(sprintf(...), call. = FALSE)
+safe_id <- function(x) {
+  x <- tolower(trimws(as.character(x)))
+  x <- gsub("[^a-z0-9]+", "_", x)
+  x <- gsub("^_+|_+$", "", x)
+  if (!nzchar(x)) stop("Could not construct a safe identifier.", call. = FALSE)
+  x
+}
+path_key <- function(x) {
+  y <- normalizePath(x, winslash = "/", mustWork = FALSE)
+  if (.Platform$OS.type == "windows") tolower(y) else y
+}
+first_existing_dir <- function(paths, label) {
+  paths <- unique(paths[nzchar(paths)])
+  hit <- paths[dir.exists(paths)]
+  if (!length(hit)) stopf("Could not locate %s. Checked:\n  %s", label, paste(paths, collapse = "\n  "))
+  normalizePath(hit[[1]], winslash = "/", mustWork = TRUE)
+}
+
+drive_roots <- paste0(LETTERS, ":/")
+google_root_candidates <- unique(c(
+  GOOGLE_DRIVE_ROOT,
+  Sys.getenv("GOOGLE_DRIVE_ROOT", unset = ""),
+  unlist(lapply(drive_roots, function(d) file.path(d, c("My Drive", "Mi unidad")))),
+  file.path(Sys.getenv("USERPROFILE", unset = ""), c("My Drive", "Mi unidad"))
+))
+google_root_candidates <- google_root_candidates[nzchar(google_root_candidates)]
+obs_base_candidates <- file.path(
+  google_root_candidates, "webpages", "2026_MoFuSSGlobal_Datasets",
+  "ctrees_dic2025_agb_cr", "1km_agco2_2000_2025"
+)
+OBS_LL_DIR <- first_existing_dir(obs_base_candidates, "CTrees lat/long observation directory")
+OBS_PROJ_DIR <- first_existing_dir(file.path(obs_base_candidates, "agb_projected_ha"),
+                                   "CTrees projected observation directory")
+
+admin_root_candidates <- unique(c(
+  ADMIN_REGIONS_DIR,
+  Sys.getenv("MOFUSS_ADMIN_REGIONS_DIR", unset = ""),
+  file.path(drive_roots, "admin_regions")
+))
+admin_root_candidates <- admin_root_candidates[nzchar(admin_root_candidates)]
+admin_candidates <- unique(c(
+  admin_root_candidates,
+  file.path(admin_root_candidates, "regions_adm0")
+))
+admin_candidates <- admin_candidates[
+  file.exists(file.path(admin_candidates, "mofuss_regions0.gpkg"))
+]
+if (!length(admin_candidates)) {
+  stopf("Could not locate admin_regions/mofuss_regions0.gpkg on any mounted drive. Set ADMIN_REGIONS_DIR.")
+}
+ADMIN_VECTOR <- normalizePath(file.path(admin_candidates[[1]], "mofuss_regions0.gpkg"),
+                              winslash = "/", mustWork = TRUE)
 CLIP_OBS_TO_COUNTRY <- TRUE
-ADMIN_VECTOR        <- ""
 
 ## Validation-domain water mask. "" auto-finds hydrolakes_pcs.tif under the
 ## capped working folder (then the uncapped folder as a fallback). Applying the
@@ -80,6 +175,100 @@ obs_ll_name   <- function(year) sprintf("ctrees_global_%d_AGC.tif",  year)
 
 COL_OBS <- "#222222"; COL_CAP <- "#1f77b4"; COL_UNC <- "#d62728"
 
+find_parameters_file <- function(workdir) {
+  root <- file.path(workdir, "LULCC", "DownloadedDatasets")
+  files <- list.files(root, pattern = "^parameters.*\\.csv$", recursive = TRUE,
+                      full.names = TRUE, ignore.case = TRUE)
+  if (length(files) != 1L) stopf("Expected exactly one parameters*.csv below %s; found %d.", root, length(files))
+  files[[1]]
+}
+read_run_metadata <- function(workdir) {
+  workdir <- normalizePath(workdir, winslash = "/", mustWork = TRUE)
+  path <- find_parameters_file(workdir)
+  x <- utils::read.csv(path, check.names = FALSE, stringsAsFactors = FALSE)
+  if (ncol(x) < 2L) stopf("Parameter table has fewer than two columns: %s", path)
+  keys <- trimws(as.character(x[[1]])); vals <- trimws(as.character(x[[2]]))
+  value <- function(key) {
+    z <- vals[keys == key]; z <- z[!is.na(z) & nzchar(z)]
+    if (length(z) != 1L) stopf("Expected one value for '%s' in %s.", key, path)
+    z[[1]]
+  }
+  int_value <- function(key) {
+    z <- suppressWarnings(as.integer(value(key)))
+    if (is.na(z)) stopf("Parameter '%s' is not an integer in %s.", key, path)
+    z
+  }
+  scenario <- value("scenario_ver")
+  uncapped <- int_value("uncapped_regrowth")
+  if (!uncapped %in% c(0L, 1L)) stopf("uncapped_regrowth must be 0 or 1 in %s.", path)
+  role <- if (grepl("^bau", scenario, ignore.case = TRUE)) {
+    "bau"
+  } else if (grepl("^(ics|ccts)", scenario, ignore.case = TRUE)) {
+    "ccts"
+  } else {
+    stopf("Could not classify scenario_ver '%s' as BAU or CCTS in %s.", scenario, path)
+  }
+  gee_scale <- suppressWarnings(as.numeric(value("GEE_scale")))
+  if (!is.finite(gee_scale)) stopf("GEE_scale is not numeric in %s.", path)
+  data.frame(
+    working_dir = workdir,
+    iso3 = toupper(value("region2BprocessedCtry_iso")),
+    country = value("region2BprocessedCtry"),
+    scenario = scenario,
+    role = role,
+    mode = if (uncapped == 1L) "uncapped" else "capped",
+    model_start = int_value("start_year"), model_end = int_value("end_year"),
+    mc_runs = int_value("monte_carlo_runs"),
+    gee_scale = gee_scale,
+    stringsAsFactors = FALSE
+  )
+}
+
+cli_dirs <- commandArgs(trailingOnly = TRUE)
+if (length(cli_dirs)) WORKING_DIRS <- cli_dirs[nzchar(cli_dirs)]
+WORKING_DIRS <- unique(as.character(WORKING_DIRS[nzchar(WORKING_DIRS)]))
+if (length(WORKING_DIRS) != 4L) stopf("This batch requires exactly four working folders; received %d.", length(WORKING_DIRS))
+run_metadata <- do.call(rbind, lapply(WORKING_DIRS, read_run_metadata))
+common_fields <- c("iso3", "country", "model_start", "model_end", "mc_runs", "gee_scale")
+for (field in common_fields) {
+  if (length(unique(tolower(as.character(run_metadata[[field]])))) != 1L) {
+    stopf("The four working folders disagree on '%s'.", field)
+  }
+}
+combos <- paste(run_metadata$role, run_metadata$mode, sep = "/")
+expected_combos <- c("bau/capped", "bau/uncapped", "ccts/capped", "ccts/uncapped")
+if (!setequal(combos, expected_combos) || anyDuplicated(combos)) {
+  stopf("Expected one BAU/CCTS x capped/uncapped folder; found: %s", paste(combos, collapse = ", "))
+}
+scenario_count_by_role <- vapply(split(run_metadata$scenario, run_metadata$role),
+                                 function(x) length(unique(tolower(x))), integer(1))
+if (any(scenario_count_by_role != 1L)) {
+  stop("Capped and uncapped folders must use the same scenario_ver within BAU and CCTS.", call. = FALSE)
+}
+if (anyDuplicated(paste(run_metadata$scenario, run_metadata$mode, sep = "/"))) {
+  stop("Scenario/configuration identities are not unique.", call. = FALSE)
+}
+common_parent <- unique(path_key(dirname(run_metadata$working_dir)))
+if (length(common_parent) != 1L) stop("All four working folders must share one parent.", call. = FALSE)
+working_parent <- dirname(run_metadata$working_dir[[1]])
+postprocessing_root <- if (nzchar(POSTPROCESSING_ROOT)) POSTPROCESSING_ROOT else
+  file.path(working_parent, "mofuss_postprocessing")
+analysis_id <- paste(
+  safe_id(run_metadata$iso3[[1]]), run_metadata$model_start[[1]] + SPINUP_YEARS,
+  run_metadata$model_end[[1]], paste0("mc", run_metadata$mc_runs[[1]]), sep = "_"
+)
+analysis_root <- normalizePath(file.path(postprocessing_root, analysis_id), winslash = "/", mustWork = FALSE)
+validation_root <- file.path(analysis_root, "validation", "3_mofuss_agb_validation")
+
+run_validation_pair <- function(COUNTRY, COUNTRY_ISO3, SCENARIO_LABEL, MODEL_END_YEAR, MC_RUNS,
+                                CAPPED_DIR, UNCAPPED_DIR, OUT_DIR) {
+FILE_PREFIX <- paste(safe_id(COUNTRY_ISO3), safe_id(SCENARIO_LABEL), sep = "_")
+DISPLAY_NAME <- paste(COUNTRY, "-", SCENARIO_LABEL)
+if (!identical(path_key(dirname(OUT_DIR)), path_key(validation_root)) ||
+    !identical(basename(OUT_DIR), safe_id(SCENARIO_LABEL))) {
+  stop("Refusing unsafe validation output path: ", OUT_DIR, call. = FALSE)
+}
+
 ###############################################################################
 ## 2. INTERACTIVE SELECTION
 ###############################################################################
@@ -92,17 +281,12 @@ ask_dir <- function(prompt, default) {
   gsub("\\\\", "/", d)
 }
 if (INTERACTIVE) {
-  cat("=== MoFuSS AGB validation : interactive setup ===\n")
-  cn <- readline(sprintf("Country name [%s]: ", COUNTRY)); if (nzchar(cn)) COUNTRY <- cn
-  CAPPED_DIR   <- ask_dir("Select the CAPPED (_ng) MoFuSS working folder", CAPPED_DIR)
-  uc <- utils::select.list(c("Yes","No"), preselect = "Yes", title = "Also include an UNCAPPED (_g) run?")
-  UNCAPPED_DIR <- if (identical(uc, "Yes")) ask_dir("Select the UNCAPPED (_g) MoFuSS working folder", UNCAPPED_DIR) else ""
+  cat("=== MoFuSS AGB validation: observed-data selection ===\n")
   ot <- utils::select.list(c("projected  (MgDM/ha, same grid as MoFuSS)","lat-long   (MgCO2/ha, global EPSG:4326)"),
                            preselect = "projected  (MgDM/ha, same grid as MoFuSS)", title = "Which observed AGB maps?")
   OBS_TYPE <- if (grepl("^lat", ot)) "latlong" else "projected"
   if (OBS_TYPE == "projected") OBS_PROJ_DIR <- ask_dir("Select the observed PROJECTED (MgDM/ha) folder", OBS_PROJ_DIR)
   if (OBS_TYPE == "latlong")   OBS_LL_DIR   <- ask_dir("Select the observed LAT/LONG (MgCO2/ha) folder", OBS_LL_DIR)
-  OUT_BASE <- ask_dir("Select the OUTPUT folder (figures + csv)", OUT_BASE)
 }
 
 if (!OBS_TYPE %in% c("projected", "latlong")) stop("OBS_TYPE must be 'projected' or 'latlong'.")
@@ -110,9 +294,7 @@ if (END_YEAR <= BASE_YEAR) stop("END_YEAR must be later than BASE_YEAR.")
 OBS_DIR  <- if (OBS_TYPE == "latlong") OBS_LL_DIR else OBS_PROJ_DIR
 if (!dir.exists(OBS_DIR)) stop("Observed AGB folder not found: ", OBS_DIR)
 obs_name <- if (OBS_TYPE == "latlong") obs_ll_name else obs_proj_name
-OUT_DIR  <- file.path(OUT_BASE, paste0(tolower(gsub("[^A-Za-z0-9]", "_", COUNTRY)), "_R"))
-dir.create(OUT_DIR, showWarnings = FALSE, recursive = TRUE)
-admin_path <- if (nzchar(ADMIN_VECTOR)) ADMIN_VECTOR else file.path(CAPPED_DIR, "LULCC", "TempVector", "userarea1.gpkg")
+admin_path <- ADMIN_VECTOR
 hydrolakes_rel <- file.path("LULCC", "DownloadedDatasets", "SourceDataGlobal",
                             "InRaster", "hydrolakes_pcs.tif")
 hydrolakes_candidates <- unique(c(
@@ -126,6 +308,7 @@ if (EXCLUDE_HYDROLAKES && (length(hydrolakes_path) == 0L || is.na(hydrolakes_pat
        paste(hydrolakes_candidates, collapse = "\n  "))
 
 cat("\nCountry      :", COUNTRY,
+    "\nScenario     :", SCENARIO_LABEL,
     "\nCapped dir   :", CAPPED_DIR,
     "\nUncapped dir :", if (nzchar(UNCAPPED_DIR)) UNCAPPED_DIR else "(none)",
     "\nObserved     :", OBS_TYPE, "->", OBS_DIR,
@@ -141,6 +324,16 @@ pad_ext <- function(e, f = 0.02) {
   dy <- (terra::ymax(e) - terra::ymin(e)) * f
   terra::ext(terra::xmin(e) - dx, terra::xmax(e) + dx,
              terra::ymin(e) - dy, terra::ymax(e) + dy)
+}
+load_country_boundary <- function(path, iso3) {
+  if (!file.exists(path)) stop("Country boundary not found: ", path)
+  x <- terra::vect(path)
+  if ("GID_0" %in% names(x)) x <- x[as.character(x$GID_0) == iso3, ]
+  if (nrow(x) != 1L) {
+    stop("Expected one country polygon for ", iso3, " in ", path,
+         "; found ", nrow(x), ".")
+  }
+  x
 }
 list_mc <- function(workdir) {
   if (!dir.exists(workdir)) stop("MoFuSS folder not found: ", workdir)
@@ -248,7 +441,7 @@ cat(sprintf("  planar x*y area = %.3f ha | geodesic ground area = %.3f-%.3f ha (
 ## country mask (rasterise the boundary onto the reference grid)
 country_vec <- rep(TRUE, terra::ncell(ref))
 if (CLIP_OBS_TO_COUNTRY && file.exists(admin_path)) {
-  adm <- terra::vect(admin_path)
+  adm <- load_country_boundary(admin_path, COUNTRY_ISO3)
   if (!terra::same.crs(adm, ref)) adm <- terra::project(adm, terra::crs(ref))
   adm$burnval <- 1L
   country_vec <- !is.na(as.numeric(terra::values(
@@ -280,8 +473,13 @@ for (y in years) {
 capMC <- list_mc(CAPPED_DIR)
 uncMC <- if (nzchar(UNCAPPED_DIR)) list_mc(UNCAPPED_DIR) else character(0)
 cat(sprintf("Monte-Carlo folders: capped = %d, uncapped = %d\n", length(capMC), length(uncMC)))
-validate_sim_coverage(capMC, years, "Capped")
-if (length(uncMC)) validate_sim_coverage(uncMC, years, "Uncapped")
+if (length(capMC) != MC_RUNS || length(uncMC) != MC_RUNS) {
+  stop("Monte-Carlo folder counts do not match monte_carlo_runs=", MC_RUNS,
+       ": capped=", length(capMC), ", uncapped=", length(uncMC), ".")
+}
+required_sim_years <- BASE_YEAR:min(SIM_END_YEAR, MODEL_END_YEAR)
+validate_sim_coverage(capMC, required_sim_years, "Capped")
+if (length(uncMC)) validate_sim_coverage(uncMC, required_sim_years, "Uncapped")
 
 ## observed validity across all years, and per-config PAIRWISE masks
 obs_valid <- rep(TRUE, terra::ncell(ref)); for (y in years) obs_valid <- obs_valid & is.finite(obs_ha[[as.character(y)]])
@@ -325,7 +523,21 @@ traj$change_Mt <- stats::ave(
   interaction(traj$series, traj$config, traj$mc, drop = TRUE),
   FUN = function(x) x - x[1]
 )
-utils::write.csv(traj, file.path(OUT_DIR, paste0(COUNTRY, "_national_trajectory_allMC.csv")), row.names = FALSE)
+traj$scenario <- SCENARIO_LABEL
+
+# All required observed and simulation inputs have now passed validation. Only
+# now replace the exact scenario output folder, preserving older results when
+# input preflight fails.
+if (dir.exists(OUT_DIR)) {
+  status <- unlink(OUT_DIR, recursive = TRUE, force = TRUE)
+  if (status != 0L || dir.exists(OUT_DIR) || file.exists(OUT_DIR)) {
+    stop("Could not fully remove prior validation output folder: ", OUT_DIR, call. = FALSE)
+  }
+}
+if (!dir.create(OUT_DIR, recursive = TRUE, showWarnings = FALSE) && !dir.exists(OUT_DIR)) {
+  stop("Could not create validation output folder: ", OUT_DIR, call. = FALSE)
+}
+utils::write.csv(traj, file.path(OUT_DIR, paste0(FILE_PREFIX, "_national_trajectory_allMC.csv")), row.names = FALSE)
 
 ###############################################################################
 ## 6. PIXEL-LEVEL CHANGE (debugging_1) -> per-config stats (pairwise masks)
@@ -356,7 +568,8 @@ pix_stats <- function(sim_change, obs_change, m, label) {
 }
 stats <- pix_stats(dCap, dObs, mask_cap, "capped")
 if (!is.null(dUnc)) stats <- rbind(stats, pix_stats(dUnc, dObs, mask_unc, "uncapped"))
-utils::write.csv(stats, file.path(OUT_DIR, paste0(COUNTRY, "_change_pixelwise_stats.csv")), row.names = FALSE)
+stats$scenario <- SCENARIO_LABEL
+utils::write.csv(stats, file.path(OUT_DIR, paste0(FILE_PREFIX, "_change_pixelwise_stats.csv")), row.names = FALSE)
 print(stats, digits = 3)
 
 ###############################################################################
@@ -475,10 +688,13 @@ summarise_nrb <- function(d) {
   do.call(rbind, rows)
 }
 nrb_summary <- summarise_nrb(nrb_all)
+nrb_all$scenario <- SCENARIO_LABEL
+nrb_summary$scenario <- SCENARIO_LABEL
+nrb_pairwise$scenario <- SCENARIO_LABEL
 
-utils::write.csv(nrb_all, file.path(OUT_DIR, paste0(COUNTRY, "_NRB_aggregates_allMC.csv")), row.names = FALSE)
-utils::write.csv(nrb_summary, file.path(OUT_DIR, paste0(COUNTRY, "_NRB_aggregates_summary.csv")), row.names = FALSE)
-utils::write.csv(nrb_pairwise, file.path(OUT_DIR, paste0(COUNTRY, "_NRB_aggregates_pairwise_allMC.csv")), row.names = FALSE)
+utils::write.csv(nrb_all, file.path(OUT_DIR, paste0(FILE_PREFIX, "_NRB_aggregates_allMC.csv")), row.names = FALSE)
+utils::write.csv(nrb_summary, file.path(OUT_DIR, paste0(FILE_PREFIX, "_NRB_aggregates_summary.csv")), row.names = FALSE)
+utils::write.csv(nrb_pairwise, file.path(OUT_DIR, paste0(FILE_PREFIX, "_NRB_aggregates_pairwise_allMC.csv")), row.names = FALSE)
 print(nrb_summary, row.names = FALSE, digits = 5)
 
 ###############################################################################
@@ -513,13 +729,13 @@ g1 <- ggplot2::ggplot() +
   ggplot2::geom_line(data = obs_line, ggplot2::aes(year, pct, colour = grp), linewidth = 1.2) +
   ggplot2::scale_colour_manual(values = c(Observed = COL_OBS, Capped = COL_CAP, Uncapped = COL_UNC), name = NULL) +
   ggplot2::scale_y_continuous(labels = function(v) paste0(v, "%")) +
-  ggplot2::labs(title = sprintf("%s - aboveground biomass change relative to %d", COUNTRY, BASE_YEAR),
+  ggplot2::labs(title = sprintf("%s - aboveground biomass change relative to %d", DISPLAY_NAME, BASE_YEAR),
        subtitle = paste0(coverage_note, "; thin = MC runs, bold = MC means / observed"),
        x = "Year", y = sprintf("AGB change vs %d", BASE_YEAR)) +
   ggplot2::theme_bw(base_size = 12) +
   ggplot2::theme(legend.position = "bottom", plot.title = ggplot2::element_text(size = 12),
         plot.subtitle = ggplot2::element_text(size = 9))
-ggplot2::ggsave(file.path(OUT_DIR, paste0(COUNTRY, "_fig1_national_trajectory.png")), g1,
+ggplot2::ggsave(file.path(OUT_DIR, paste0(FILE_PREFIX, "_fig1_national_trajectory.png")), g1,
        width = 8.6, height = 5.2, dpi = 150)
 
 ###############################################################################
@@ -558,6 +774,36 @@ b_df$grp   <- b_df$config
 b_mean     <- stats::aggregate(total_Mt ~ year + config, data = b_df, FUN = mean); b_mean$grp <- b_mean$config
 obs_b      <- traj[traj$series == "Observed", c("year","total_Mt")]; obs_b$grp <- "Observed"
 
+# Figure 1b extends beyond the observation period, so preserve its underlying
+# all-MC values and summary rather than leaving them only inside the PNG.
+b_export <- rbind(
+  b_df[, c("year", "total_Mt", "series", "config", "mc")],
+  data.frame(year = obs_b$year, total_Mt = obs_b$total_Mt, series = "Observed",
+             config = "Observed", mc = 0L)
+)
+b_export$scenario <- SCENARIO_LABEL
+extended_groups <- split(b_df, interaction(b_df$year, b_df$config, drop = TRUE))
+b_summary <- do.call(rbind, lapply(extended_groups, function(z) {
+  finite_values <- z$total_Mt[is.finite(z$total_Mt)]
+  data.frame(
+    year = z$year[[1]], config = z$config[[1]], n_runs = length(finite_values),
+    total_Mt_mean = if (length(finite_values)) mean(finite_values) else NA_real_,
+    total_Mt_sd = if (length(finite_values) > 1L) stats::sd(finite_values) else NA_real_,
+    scenario = SCENARIO_LABEL,
+    row.names = NULL
+  )
+}))
+utils::write.csv(
+  b_export,
+  file.path(OUT_DIR, paste0(FILE_PREFIX, "_total_AGB_extended_allMC.csv")),
+  row.names = FALSE
+)
+utils::write.csv(
+  b_summary,
+  file.path(OUT_DIR, paste0(FILE_PREFIX, "_total_AGB_extended_summary.csv")),
+  row.names = FALSE
+)
+
 ## `sim_total()` deliberately returns NA when a future raster is incomplete on
 ## the fixed validation footprint. Remove those unavailable points explicitly
 ## before plotting so ggplot does not emit a generic "Removed rows" warning.
@@ -575,14 +821,14 @@ g1b <- ggplot2::ggplot() +
   ggplot2::geom_line(data = obs_b_plot, ggplot2::aes(year, total_Mt, colour = grp), linewidth = 1.2) +
   ggplot2::geom_vline(xintercept = END_YEAR, linetype = "dotted", colour = "grey55") +
   ggplot2::scale_colour_manual(values = c(Observed = COL_OBS, Capped = COL_CAP, Uncapped = COL_UNC), name = NULL) +
-  ggplot2::labs(title = sprintf("%s - total aboveground biomass by configuration, %d-%d", COUNTRY, BASE_YEAR, sim_end),
+  ggplot2::labs(title = sprintf("%s - total aboveground biomass by configuration, %d-%d", DISPLAY_NAME, BASE_YEAR, sim_end),
        subtitle = sprintf("%s; observed ends %d (dotted); thin = MC runs, bold = means",
                           coverage_note, END_YEAR),
        x = "Year", y = "Total AGB (Mt dry matter)") +
   ggplot2::theme_bw(base_size = 12) +
   ggplot2::theme(legend.position = "bottom", plot.title = ggplot2::element_text(size = 12),
                  plot.subtitle = ggplot2::element_text(size = 9))
-ggplot2::ggsave(file.path(OUT_DIR, paste0(COUNTRY, "_fig1b_total_AGB.png")), g1b,
+ggplot2::ggsave(file.path(OUT_DIR, paste0(FILE_PREFIX, "_fig1b_total_AGB.png")), g1b,
                 width = 9, height = 5.4, dpi = 150)
 
 ###############################################################################
@@ -613,7 +859,7 @@ divpal <- grDevices::colorRampPalette(c("#a50026","#d73027","#f46d43","#fdae61",
 
 adm_layer <- NULL
 if (file.exists(admin_path)) {
-  adm2 <- terra::vect(admin_path)
+  adm2 <- load_country_boundary(admin_path, COUNTRY_ISO3)
   if (!terra::same.crs(adm2, ref)) adm2 <- terra::project(adm2, terra::crs(ref))
   gdf  <- as.data.frame(terra::geom(adm2))
   adm_layer <- ggplot2::geom_polygon(
@@ -649,7 +895,7 @@ g2 <- ggplot2::ggplot(map_df, ggplot2::aes(x, y, fill = value)) +
         panel.background = ggplot2::element_rect(fill = "grey85", colour = NA), panel.spacing = grid::unit(3, "pt"),
         strip.text = ggplot2::element_blank(), strip.background = ggplot2::element_blank(),
         legend.title = ggplot2::element_text(size = 9))
-ggplot2::ggsave(file.path(OUT_DIR, paste0(COUNTRY, "_fig2_change_maps.png")), g2,
+ggplot2::ggsave(file.path(OUT_DIR, paste0(FILE_PREFIX, "_fig2_change_maps.png")), g2,
        width = np * maph * asp + 1.7, height = maph + 0.3, dpi = 150)
 cat("   Figure 2 saved.\n")
 
@@ -669,11 +915,11 @@ g3 <- ggplot2::ggplot(sc_df, ggplot2::aes(obs, sim)) +
   ggplot2::geom_smooth(method = "lm", se = FALSE, colour = "black", linewidth = 0.7, formula = y ~ x) +
   ggplot2::coord_equal(xlim = lim, ylim = lim) + ggplot2::facet_wrap(~ config) +
   ggplot2::labs(title = sprintf("%s - pixel-level simulated vs observed AGB change %d-%d (debugging_1; dashed = 1:1)",
-                       COUNTRY, BASE_YEAR, END_YEAR),
+                       DISPLAY_NAME, BASE_YEAR, END_YEAR),
        x = "Observed dAGB (MgDM/ha)", y = "Simulated dAGB (MgDM/ha)") +
   ggplot2::theme_bw(base_size = 12) +
   ggplot2::theme(plot.title = ggplot2::element_text(size = 11))
-ggplot2::ggsave(file.path(OUT_DIR, paste0(COUNTRY, "_fig3_pixel_scatter.png")), g3,
+ggplot2::ggsave(file.path(OUT_DIR, paste0(FILE_PREFIX, "_fig3_pixel_scatter.png")), g3,
                 width = 11, height = 5.2, dpi = 150)
 
 ###############################################################################
@@ -691,9 +937,10 @@ summ_row <- function(cfg, ser, cells) {
 summ <- rbind(summ_row("Observed", "Observed", sum(mask_cap)),
               summ_row("Capped", "Simulated", sum(mask_cap)))
 if (length(uncMC)) summ <- rbind(summ, summ_row("Uncapped", "Simulated", sum(mask_unc)))
-utils::write.csv(summ, file.path(OUT_DIR, paste0(COUNTRY, "_national_summary.csv")), row.names = FALSE)
+summ$scenario <- SCENARIO_LABEL
+utils::write.csv(summ, file.path(OUT_DIR, paste0(FILE_PREFIX, "_national_summary.csv")), row.names = FALSE)
 
-cat("\n================  SUMMARY  (", COUNTRY, ", ", BASE_YEAR, "-", END_YEAR, ")  ================\n", sep = "")
+cat("\n================  SUMMARY  (", DISPLAY_NAME, ", ", BASE_YEAR, "-", END_YEAR, ")  ================\n", sep = "")
 print(summ, row.names = FALSE)
 cat("\nPixel-level change agreement (debugging_1, pairwise):\n")
 print(stats[, c("config","n","pearson_r","rmse_MgDMha","bias_MgDMha")], row.names = FALSE, digits = 3)
@@ -701,4 +948,53 @@ cat("\nGross/net NRB aggregates (full endpoint scopes; MC values summarized):\n"
 print(nrb_summary, row.names = FALSE, digits = 5)
 cat("\nOutputs written to:\n  ", OUT_DIR, "\n", sep = "")
 cat("Done.\n")
+invisible(normalizePath(OUT_DIR, winslash = "/", mustWork = TRUE))
+}
+
+###############################################################################
+## 11. BATCH EXECUTION
+###############################################################################
+run_metadata$scenario_id <- vapply(run_metadata$scenario, safe_id, character(1))
+scenario_ids <- unique(run_metadata$scenario_id[order(match(run_metadata$role, c("bau", "ccts")))])
+run_metadata$output_dir <- file.path(validation_root, run_metadata$scenario_id)
+message("\nResolved four-run AGB validation batch:")
+print(run_metadata[, c("scenario", "role", "mode", "working_dir", "output_dir")], row.names = FALSE)
+failures <- character()
+if (DRY_RUN) {
+  message("DRY RUN complete; no validation outputs were changed.")
+} else {
+  for (scenario_id in scenario_ids) {
+    pair <- run_metadata[run_metadata$scenario_id == scenario_id, , drop = FALSE]
+    if (nrow(pair) != 2L || !setequal(pair$mode, c("capped", "uncapped"))) {
+      failures <- c(failures, sprintf("%s: expected exactly one capped and one uncapped folder", scenario_id))
+      next
+    }
+    capped_dir <- pair$working_dir[pair$mode == "capped"][[1]]
+    uncapped_dir <- pair$working_dir[pair$mode == "uncapped"][[1]]
+    scenario_label <- pair$scenario[[1]]
+    message("\n=== AGB validation pair: ", scenario_label, " ===")
+    result <- tryCatch(
+      run_validation_pair(
+        COUNTRY = run_metadata$country[[1]],
+        COUNTRY_ISO3 = run_metadata$iso3[[1]],
+        SCENARIO_LABEL = scenario_label,
+        MODEL_END_YEAR = run_metadata$model_end[[1]],
+        MC_RUNS = run_metadata$mc_runs[[1]],
+        CAPPED_DIR = capped_dir,
+        UNCAPPED_DIR = uncapped_dir,
+        OUT_DIR = pair$output_dir[[1]]
+      ),
+      error = function(e) e
+    )
+    if (inherits(result, "error")) {
+      failure <- sprintf("%s: %s", scenario_label, conditionMessage(result))
+      failures <- c(failures, failure)
+      message("FAILED: ", failure)
+    }
+  }
+  if (length(failures)) {
+    stop("One or more AGB validation pairs failed:\n  ", paste(failures, collapse = "\n  "), call. = FALSE)
+  }
+  message("\nBoth BAU and CCTS AGB validations completed: ", validation_root)
+}
 ###############################################################################

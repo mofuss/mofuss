@@ -1,5 +1,40 @@
 #!/usr/bin/env Rscript
-# ==============================================================================
+# SPDX-License-Identifier: Apache-2.0
+#
+# Copyright 2025-2027 Universidad Nacional Autónoma de México
+# and Stockholm Environment Institute
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+# https://www.apache.org/licenses/LICENSE-2.0
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# MoFuSS ----
+# Script: 1_mechanics_verifications_v2.R
+# Version: 2
+# Date: August 2026
+# Execution: Run directly with Rscript from PowerShell/a terminal. One or more
+# completed MoFuSS working folders may be supplied as command-line arguments.
+#
+# Purpose: Independently audit growth, harvest, capping, state integrity,
+# demand reconciliation, and grid-unit mechanics across multiple completed
+# MoFuSS Monte Carlo runs.
+# Inputs: Completed MoFuSS working folders, their debugging_N and shared
+# Debugging rasters, model parameter tables, and aggregate Temp rasters.
+# Outputs: Audit tables and diagnostic figures under each selected run's
+# guarded Out/pixel-wise mechanics verification directory.
+# Side effects: For every validated input run, fully deletes and rebuilds only
+# its existing Out/pixel-wise mechanics verification directory.
+
+# 2dolist ----
+
+# Verification scope and usage ----
+#
 # MoFuSS mechanics verification (v4 mechanics; multi-run/outreach edition)
 #
 # Audits every Monte Carlo realization and every annual raster in native model
@@ -19,28 +54,32 @@
 # debugging_N, annual pixel-level capping is audited only for the MC represented
 # by the shared Debugging folder (normally the last MC).  Full-run cumulative
 # capping remains available for every MC from Temp/2_*_TOTNN.tif.
-# ==============================================================================
 
+# Load libraries ----
 suppressPackageStartupMessages({
   library(terra)
   library(data.table)
   library(ggplot2)
 })
 
+# Internal parameters ----
+
 cfg <- list(
   # Edit this vector to audit any number of completed MoFuSS working folders.
   # Command-line folders, when supplied, replace this vector.
   working_dirs = c(
-    "D:/ken_1000m_bau1_2030_mc2_capped",
-    "D:/ken_1000m_bau1_2030_mc2_uncapped",
-    "D:/ken_1000m_ics3_2030_mc2_capped",
-    "D:/ken_1000m_ics3_2030_mc2_uncapped"
+    "E:/rwa_1000m_bau1_2050_mc30_capped",
+    "E:/rwa_1000m_bau1_2050_mc30_uncapped",
+    "E:/rwa_1000m_ics3_2050_mc30_capped",
+    "E:/rwa_1000m_ics3_2050_mc30_uncapped"
   ),
   growth_model = "auto",       # auto | logistic | chapman-richards
   depleted_reset_Mg_cell = 2,  # EGO feedback stock after depleted forest
   float_tolerance_Mg_cell = 0.01,
   plot_seed = 42L,
-  plot_cells_per_group = 3L
+  plot_cells_per_group = 3L,
+  rnorm_script = "rnorm_v8.R",
+  maps_script = "maps_animations_v8.R"
 )
 
 args <- commandArgs(trailingOnly = TRUE)
@@ -238,9 +277,12 @@ mc_ids <- sort(unique(debug_ids[is.finite(debug_ids)]))
 if (is.finite(n_mc_declared)) mc_ids <- base::intersect(seq_len(n_mc_declared), mc_ids)
 if (!length(mc_ids)) stopf("No debugging_N directories were found under %s", wd)
 
-# The iteration length is currently defined inside rnorm_v3.R.
+# Source-code checks target the version bundled with the completed run.  Keep
+# these checks evidence-driven so an older warning cannot be carried forward
+# after the underlying implementation has been corrected.
 iteration_weeks <- NA_real_
-rnorm_run <- file.path(wd, "rnorm_v3.R")
+rnorm_run <- file.path(wd, cfg$rnorm_script)
+rnorm_text <- character()
 if (file.exists(rnorm_run)) {
   rnorm_text <- readLines(rnorm_run, warn = FALSE)
   il_line <- grep("^[[:space:]]*IL[[:space:]]*=", rnorm_text, value = TRUE)
@@ -248,6 +290,28 @@ if (file.exists(rnorm_run)) {
     iteration_weeks <- as_num(sub(".*IL[[:space:]]*=[[:space:]]*([0-9.]+).*", "\\1", il_line[[1L]]))
   }
 }
+source_has <- function(lines, pattern) {
+  length(lines) > 0L && any(grepl(pattern, lines, perl = TRUE))
+}
+rnorm_table_scaling_verified <- length(rnorm_text) > 0L && all(c(
+  source_has(rnorm_text, "K_all_1.*namesFOR.*res_factor_to_ha"),
+  source_has(rnorm_text, "K_all_1.*namesTOR.*res_factor_to_ha")
+))
+rnorm_pixel_bounds_are_counts <- length(rnorm_text) > 0L && all(c(
+  source_has(rnorm_text, "TOF_total_pixels[[:space:]]*<-[[:space:]]*sum\\(df4_TOF\\$count\\)"),
+  source_has(rnorm_text, "FOR_total_pixels[[:space:]]*<-[[:space:]]*sum\\(df4_FOR\\$count\\)"),
+  source_has(rnorm_text, "Harvestable_total_W[[:space:]]*<-[[:space:]]*TOF_total_pixels[[:space:]]*\\+[[:space:]]*FOR_total_pixels"),
+  source_has(rnorm_text, "Harvestable_total_V[[:space:]]*<-[[:space:]]*FOR_total_pixels")
+))
+
+maps_run <- file.path(wd, cfg$maps_script)
+maps_text <- if (file.exists(maps_run)) {
+  readLines(maps_run, warn = FALSE)
+} else character()
+maps_density_uses_projected_area <- length(maps_text) > 0L && all(c(
+  source_has(maps_text, "Areaadj[[:space:]]*<-.*xres\\(aoi_IniSt\\).*yres\\(aoi_IniSt\\).*10000"),
+  source_has(maps_text, "aoi_IniSt[[:space:]]*/[[:space:]]*Areaadj")
+))
 
 period_starts <- seq.int(start_year, end_year, by = 10L)
 period_ends <- pmin(period_starts + 9L, end_year)
@@ -1689,23 +1753,25 @@ scaling_audit <- data.table(
     if (!expected_map_coverage_complete || !is.finite(expected_map_demand_error)) {
       "NOT FULLY AUDITED"
     } else if (core_unit_reconciled) "RECONCILED" else "CHECK",
-    if (is_1km) "PASS" else "CHECK", "SOURCE-CODE INFERENCE",
+    if (is_1km) "PASS" else "CHECK",
+    if (!length(rnorm_text)) "NOT AUDITED" else if (rnorm_table_scaling_verified) "PASS (source audit)" else "CHECK",
     if (demand_complete && core_unit_reconciled) "PASS" else "CHECK",
     if (!is.finite(area_bias_percent)) "NOT AUDITED" else if (abs(area_bias_percent) < 1) "PASS (sub-percent)" else "CHECK",
     if (is_mercator) "STRUCTURAL WARNING" else "CHECK",
-    "UNIT BUG", if (is.na(iteration_weeks)) "NOT AUDITED" else if (iteration_weeks == 48) "PASS FOR THIS RUN" else "CHECK",
-    "PRESENTATION WARNING"
+    if (!length(rnorm_text)) "NOT AUDITED" else if (rnorm_pixel_bounds_are_counts) "PASS" else "CHECK",
+    if (is.na(iteration_weeks)) "NOT AUDITED" else if (iteration_weeks == 48) "PASS FOR THIS RUN" else "CHECK",
+    if (!length(maps_text)) "NOT AUDITED" else if (maps_density_uses_projected_area) "PASS FOR PROJECTED GRID" else "CHECK"
   ),
   evidence = c(
     sprintf("Per-MC annual expected-map coverage complete=%s; max expected-map versus demand-table |difference|=%s Mg", expected_map_coverage_complete, ifelse(is.finite(expected_map_demand_error), sprintf("%.6f", expected_map_demand_error), "not available")),
     sprintf("Grid is %.0f x %.0f m; nominal projected area %.3f ha/cell", resolution_xy[1], resolution_xy[2], nominal_area_ha),
-    sprintf("Source audit: rnorm_v3.R uses resolution^2/10000 = %.3f ha/cell: forest K and annual TOF supply are multiplied by this factor; forest r is not. This row documents code behavior rather than independently re-deriving every input raster.", nominal_area_ha),
+    sprintf("Source audit: %s %s resolution^2/10000 = %.3f ha/cell to forest K and annual TOF supply; forest r remains a rate.", cfg$rnorm_script, if (rnorm_table_scaling_verified) "applies" else "was not verified to apply", nominal_area_ha),
     sprintf("Raw-demand years complete=%s; assigned W/V demand years complete=%s; max expected-map versus demand-table difference=%s Mg", raw_demand_complete, assigned_demand_complete, ifelse(is.finite(expected_map_demand_error), sprintf("%.6f", expected_map_demand_error), "not available")),
     sprintf("Geodesic area within this AOI mask: %.3f-%.3f ha, mean %.3f ha; nominal mean bias %.3f%%", geodesic_min_ha, geodesic_max_ha, geodesic_mean_ha, area_bias_percent),
     "Table K/TOF use a fixed nominal cell area while harmonized AGB/CTrees A use geodesic source-cell area. EPSG:3395 is not equal-area, so the mismatch grows strongly with latitude.",
-    "rnorm_v3.R converts LULC pixel frequencies to hectares and then uses those hectare totals as upper bounds for Harv.Pix, which is a pixel count. Keep pixel_count and area_ha separate.",
-    sprintf("Current Chapman-Richards implementation advances age by +1 per iteration; iteration length detected as %s weeks", ifelse(is.na(iteration_weeks), "unknown", format(iteration_weeks))),
-    "maps_animations7.R divides native pixel totals by a scalar nominal area and labels t/ha. For pixel-total reporting, do not divide; for density reporting, use a cell-area raster globally."
+    if (!length(rnorm_text)) sprintf("%s was not found in the completed run.", cfg$rnorm_script) else if (rnorm_pixel_bounds_are_counts) sprintf("%s keeps raster::freq totals and Harv.Pix upper bounds in pixel counts; hectare totals are presentation-only.", cfg$rnorm_script) else sprintf("Could not verify pixel-count Harv.Pix bounds in %s; inspect its LULC-frequency and harvest-bound code.", cfg$rnorm_script),
+    sprintf("Current Chapman-Richards implementation advances age by +1 per iteration; %s iteration length detected as %s weeks", cfg$rnorm_script, ifelse(is.na(iteration_weeks), "unknown", format(iteration_weeks))),
+    if (!length(maps_text)) sprintf("%s was not found in the completed run.", cfg$maps_script) else if (maps_density_uses_projected_area) sprintf("%s converts native pixel totals to density using projected cell area. Use a geodesic cell-area raster when global ground-area density is required.", cfg$maps_script) else sprintf("Could not verify projected-area density conversion in %s.", cfg$maps_script)
   )
 )
 fwrite(scaling_audit, file.path(out_dir, "scaling_audit.csv"))

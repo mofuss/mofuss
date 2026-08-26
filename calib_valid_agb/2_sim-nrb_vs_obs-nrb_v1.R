@@ -1,3 +1,39 @@
+# SPDX-License-Identifier: Apache-2.0
+#
+# Copyright 2025-2027 Universidad Nacional Autónoma de México
+# and Stockholm Environment Institute
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+# https://www.apache.org/licenses/LICENSE-2.0
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# MoFuSS ----
+# Script: 2_sim-nrb_vs_obs-nrb_v1.R
+# Version: 1
+# Date: August 2026
+# Execution: Use regular RStudio Source when aoi_mode = "draw" so the Shiny
+# selection map can run interactively. With aoi_mode = "country" or "full",
+# the script can also be run directly with Rscript from PowerShell/a terminal.
+#
+# Purpose: Compare MC1 MoFuSS woodfuel harvest and non-renewable biomass with
+# observed CTrees endpoint AGB change for BAU/CCTS x capped/uncapped runs.
+# Inputs: Four completed MoFuSS working folders, their debugging_1 stock and
+# harvest rasters, CTrees endpoint AGB rasters, and an admin-region GeoPackage.
+# Outputs: One complete result set per working folder under the corresponding
+# <drive>/mofuss_postprocessing/<analysis>/validation directory.
+# Side effects: Cleanly rebuilds only its exact per-configuration validation
+# output folders; it does not modify the MoFuSS working folders.
+
+# 2dolist ----
+
+# Validation method notes ----
+
 # =============================================================================
 #  MoFuSS validation against observed AGB dynamics (CTrees)
 #  v5  -  fixed 2010-2020 CTrees versus MoFuSS MC1 fNRB comparison
@@ -58,6 +94,8 @@
 # =============================================================================
 
 
+# Load libraries ----
+
 # =============================================================================
 # 0. PACKAGES
 # =============================================================================
@@ -69,12 +107,32 @@ library(leaflet)        # the map itself
 library(leaflet.extras) # rectangle draw toolbar
 
 
+# Internal parameters ----
+
 # =============================================================================
 # 1. CONFIG  -  the only block you normally need to edit
 # =============================================================================
 
-# --- 1a. Country ------------------------------------------------------------
-country_iso3 <- "MOZ"      # matches GID_0 in mofuss_regions0.gpkg
+# --- 1a. Four-run batch -----------------------------------------------------
+# Edit only this vector when moving to another region. Positional command-line
+# folders, when supplied, replace this vector. Folder order is irrelevant:
+# scenario and capped/uncapped identities are read from parameters.csv.
+WORKING_DIRS <- c(
+  "E:/rwa_1000m_bau1_2050_mc30_capped",
+  "E:/rwa_1000m_bau1_2050_mc30_uncapped",
+  "E:/rwa_1000m_ics3_2050_mc30_capped",
+  "E:/rwa_1000m_ics3_2050_mc30_uncapped"
+)
+
+# Must match the post-spin-up convention used by emissions scripts v13/v5.
+SPINUP_YEARS <- 26L
+
+# Optional overrides. Leave blank for automatic discovery.
+GOOGLE_DRIVE_ROOT <- ""       # e.g. "G:/My Drive" or "G:/Mi unidad"
+ADMIN_REGIONS_DIR <- ""       # folder containing mofuss_regions0.gpkg
+POSTPROCESSING_ROOT <- ""      # default: <working-dir parent>/mofuss_postprocessing
+DRY_RUN <- tolower(Sys.getenv("MOFUSS_VALIDATION_DRY_RUN", unset = "false")) %in%
+  c("1", "true", "yes")       # environment-only preflight; no outputs are changed
 
 # --- 1b. Resolution switch --------------------------------------------------
 # "1km"  -> use the 1 km MoFuSS output and 1 km CTrees maps (this dataset).
@@ -83,25 +141,150 @@ country_iso3 <- "MOZ"      # matches GID_0 in mofuss_regions0.gpkg
 #            (set to 10) or keep native 100 m (set to 1).
 resolution <- "1km"        # "1km" or "100m"
 
-res_cfg <- list(
-  "1km" = list(
-    mofuss_dir  = "E:/moz_bau1_1km_nv3_g",
-    #ctrees_dir  = "G:/Mi unidad/webpages/2026_MoFuSSGlobal_Datasets/fnrb_obs_data/1km_agco2_2000_2025",
-    ctrees_dir  = "G:/My Drive/webpages/2026_MoFuSSGlobal_Datasets/fnrb_obs_data/1km_agco2_2000_2025",
-    agg_factor  = 1        # 1 = no aggregation
-  ),
-  "100m" = list(
-    mofuss_dir  = "D:/_zambia/zmb_bau_1km_subc",   # <- point to a real 100 m run
-    ctrees_dir  = "C:/Users/aghil/Documents/MoFuSS_localhost/calib_valid_agb_FAO",
-    agg_factor  = 1        # set to 10 to coarsen 100 m -> 1 km before comparing
-  )
-)[[resolution]]
+agg_factor <- 1L             # set to 10 only for genuine 100 m simulations
 
-mofuss_dir       <- res_cfg$mofuss_dir
-ctrees_dir       <- res_cfg$ctrees_dir
-agg_factor       <- res_cfg$agg_factor
-# mofuss_regionsdir <- "C:/Users/aghil/Documents/MoFuSS_localhost/admin_regions/regions_adm0"
-mofuss_regionsdir <- "E:/admin_regions/regions_adm0"
+stopf <- function(...) stop(sprintf(...), call. = FALSE)
+safe_id <- function(x) {
+  x <- tolower(trimws(as.character(x)))
+  x <- gsub("[^a-z0-9]+", "_", x)
+  x <- gsub("^_+|_+$", "", x)
+  if (!nzchar(x)) stop("Could not construct a safe identifier.", call. = FALSE)
+  x
+}
+path_key <- function(x) {
+  y <- normalizePath(x, winslash = "/", mustWork = FALSE)
+  if (.Platform$OS.type == "windows") tolower(y) else y
+}
+first_existing_dir <- function(paths, label) {
+  paths <- unique(paths[nzchar(paths)])
+  hit <- paths[dir.exists(paths)]
+  if (!length(hit)) {
+    stopf("Could not locate %s. Checked:\n  %s", label, paste(paths, collapse = "\n  "))
+  }
+  normalizePath(hit[[1]], winslash = "/", mustWork = TRUE)
+}
+
+drive_roots <- paste0(LETTERS, ":/")
+google_root_candidates <- unique(c(
+  GOOGLE_DRIVE_ROOT,
+  Sys.getenv("GOOGLE_DRIVE_ROOT", unset = ""),
+  unlist(lapply(drive_roots, function(d) file.path(d, c("My Drive", "Mi unidad")))),
+  file.path(Sys.getenv("USERPROFILE", unset = ""), c("My Drive", "Mi unidad"))
+))
+google_root_candidates <- google_root_candidates[nzchar(google_root_candidates)]
+ctrees_dir <- first_existing_dir(
+  file.path(google_root_candidates, "webpages", "2026_MoFuSSGlobal_Datasets", "fnrb_obs_data",
+            "1km_agco2_2000_2025"),
+  "CTrees fNRB observation directory"
+)
+
+admin_root_candidates <- unique(c(
+  ADMIN_REGIONS_DIR,
+  Sys.getenv("MOFUSS_ADMIN_REGIONS_DIR", unset = ""),
+  file.path(drive_roots, "admin_regions")
+))
+admin_root_candidates <- admin_root_candidates[nzchar(admin_root_candidates)]
+admin_candidates <- unique(c(
+  admin_root_candidates,
+  file.path(admin_root_candidates, "regions_adm0")
+))
+admin_candidates <- admin_candidates[
+  file.exists(file.path(admin_candidates, "mofuss_regions0.gpkg"))
+]
+if (!length(admin_candidates)) {
+  stopf("Could not locate admin_regions/mofuss_regions0.gpkg on any mounted drive. Set ADMIN_REGIONS_DIR.")
+}
+mofuss_regionsdir <- normalizePath(admin_candidates[[1]], winslash = "/", mustWork = TRUE)
+
+find_parameters_file <- function(workdir) {
+  root <- file.path(workdir, "LULCC", "DownloadedDatasets")
+  files <- list.files(root, pattern = "^parameters.*\\.csv$", recursive = TRUE,
+                      full.names = TRUE, ignore.case = TRUE)
+  if (length(files) != 1L) {
+    stopf("Expected exactly one parameters*.csv below %s; found %d.", root, length(files))
+  }
+  files[[1]]
+}
+read_run_metadata <- function(workdir) {
+  workdir <- normalizePath(workdir, winslash = "/", mustWork = TRUE)
+  path <- find_parameters_file(workdir)
+  x <- utils::read.csv(path, check.names = FALSE, stringsAsFactors = FALSE)
+  if (ncol(x) < 2L) stopf("Parameter table has fewer than two columns: %s", path)
+  keys <- trimws(as.character(x[[1]]))
+  vals <- trimws(as.character(x[[2]]))
+  value <- function(key) {
+    z <- vals[keys == key]
+    z <- z[!is.na(z) & nzchar(z)]
+    if (length(z) != 1L) stopf("Expected one value for '%s' in %s.", key, path)
+    z[[1]]
+  }
+  int_value <- function(key) {
+    z <- suppressWarnings(as.integer(value(key)))
+    if (is.na(z)) stopf("Parameter '%s' is not an integer in %s.", key, path)
+    z
+  }
+  scenario <- value("scenario_ver")
+  uncapped <- int_value("uncapped_regrowth")
+  if (!uncapped %in% c(0L, 1L)) stopf("uncapped_regrowth must be 0 or 1 in %s.", path)
+  role <- if (grepl("^bau", scenario, ignore.case = TRUE)) {
+    "bau"
+  } else if (grepl("^(ics|ccts)", scenario, ignore.case = TRUE)) {
+    "ccts"
+  } else {
+    stopf("Could not classify scenario_ver '%s' as BAU or CCTS in %s.", scenario, path)
+  }
+  gee_scale <- suppressWarnings(as.numeric(value("GEE_scale")))
+  if (!is.finite(gee_scale)) stopf("GEE_scale is not numeric in %s.", path)
+  data.frame(
+    working_dir = workdir,
+    iso3 = toupper(value("region2BprocessedCtry_iso")),
+    country = value("region2BprocessedCtry"),
+    scenario = scenario,
+    role = role,
+    mode = if (uncapped == 1L) "uncapped" else "capped",
+    model_start = int_value("start_year"),
+    model_end = int_value("end_year"),
+    mc_runs = int_value("monte_carlo_runs"),
+    gee_scale = gee_scale,
+    stringsAsFactors = FALSE
+  )
+}
+
+cli_dirs <- commandArgs(trailingOnly = TRUE)
+if (length(cli_dirs)) WORKING_DIRS <- cli_dirs[nzchar(cli_dirs)]
+WORKING_DIRS <- unique(as.character(WORKING_DIRS[nzchar(WORKING_DIRS)]))
+if (length(WORKING_DIRS) != 4L) {
+  stopf("This batch requires exactly four working folders; received %d.", length(WORKING_DIRS))
+}
+run_metadata <- do.call(rbind, lapply(WORKING_DIRS, read_run_metadata))
+common_fields <- c("iso3", "country", "model_start", "model_end", "mc_runs", "gee_scale")
+for (field in common_fields) {
+  if (length(unique(tolower(as.character(run_metadata[[field]])))) != 1L) {
+    stopf("The four working folders disagree on '%s'.", field)
+  }
+}
+combos <- paste(run_metadata$role, run_metadata$mode, sep = "/")
+expected_combos <- c("bau/capped", "bau/uncapped", "ccts/capped", "ccts/uncapped")
+if (!setequal(combos, expected_combos) || anyDuplicated(combos)) {
+  stopf("Expected one BAU/CCTS x capped/uncapped folder; found: %s", paste(combos, collapse = ", "))
+}
+scenario_count_by_role <- vapply(split(run_metadata$scenario, run_metadata$role),
+                                 function(x) length(unique(tolower(x))), integer(1))
+if (any(scenario_count_by_role != 1L)) {
+  stop("Capped and uncapped folders must use the same scenario_ver within BAU and CCTS.", call. = FALSE)
+}
+country_iso3 <- run_metadata$iso3[[1]]
+common_parent <- unique(path_key(dirname(run_metadata$working_dir)))
+if (length(common_parent) != 1L) stop("All four working folders must share one parent.", call. = FALSE)
+working_parent <- dirname(run_metadata$working_dir[[1]])
+postprocessing_root <- if (nzchar(POSTPROCESSING_ROOT)) POSTPROCESSING_ROOT else
+  file.path(working_parent, "mofuss_postprocessing")
+analysis_id <- paste(
+  safe_id(country_iso3), run_metadata$model_start[[1]] + SPINUP_YEARS,
+  run_metadata$model_end[[1]], paste0("mc", run_metadata$mc_runs[[1]]), sep = "_"
+)
+analysis_root <- normalizePath(file.path(postprocessing_root, analysis_id), winslash = "/", mustWork = FALSE)
+validation_root <- file.path(analysis_root, "validation", "2_sim_nrb_vs_obs_nrb")
 
 # --- 1c. Comparison period (fixed common window) ---------------------------
 START_YEAR    <- 2010L
@@ -109,18 +292,20 @@ END_YEAR      <- 2020L
 ctrees_file1  <- "ctrees_global_2010_AGC.tif"   # earlier year
 ctrees_file2  <- "ctrees_global_2020_AGC.tif"   # later year
 
-# MoFuSS's established 2010-2020 convention uses the stock at the start of
-# 2010 (Growth11), the stock at the start of 2020 after the 2019 cycle
-# (Growth_less_harv20), and ten annual harvest layers Harvest_tot11:20.
-MOFUSS_START_INDEX   <- 11L
-MOFUSS_END_INDEX     <- 20L
-MOFUSS_HARVEST_INDEX <- 11:20
+# MoFuSS file codes are derived from the simulation start year. For a 2000
+# simulation this resolves to Growth11, Growth_less_harv20 and Harvest_tot11:20.
+MOFUSS_START_INDEX <- START_YEAR - run_metadata$model_start[[1]] + 1L
+MOFUSS_END_INDEX <- END_YEAR - run_metadata$model_start[[1]]
+MOFUSS_HARVEST_INDEX <- MOFUSS_START_INDEX:MOFUSS_END_INDEX
+if (MOFUSS_START_INDEX < 1L || MOFUSS_END_INDEX < MOFUSS_START_INDEX) {
+  stop("The requested validation period is outside the simulation period.", call. = FALSE)
+}
 
 # --- 1d. AOI mode -----------------------------------------------------------
 # "draw"    -> open a map, draw a rectangle, script continues automatically
 # "country" -> use the whole selected country polygon (no map)
 # "full"    -> use the full MoFuSS x CTrees overlap (no map)
-aoi_mode <- "draw"
+aoi_mode <- "country"
 
 # TRUE expands the shorter side of a drawn rectangle around its centre so the
 # final analysis AOI is square in the MoFuSS projected CRS. The complete area
@@ -143,25 +328,17 @@ nrb_threshold <- 100
 ctrees_units <- "CO2"      # "CO2" (original) or "C"
 agc_to_agb   <- if (ctrees_units == "C") 1 / 0.47 else (12 / 44) / 0.47
 
+run_one_validation <- function(mofuss_dir, run_label, out_dir) {
+message("\n=== NRB validation: ", run_label, " ===")
+message("Working folder: ", mofuss_dir)
+if (!identical(path_key(dirname(out_dir)), path_key(validation_root)) ||
+    !identical(basename(out_dir), run_label)) {
+  stop("Refusing unsafe validation output path: ", out_dir, call. = FALSE)
+}
+
 # =============================================================================
 # 2. HELPER FUNCTIONS
 # =============================================================================
-
-# Locate the single results folder --------------------------------------------
-# The output folder always starts with "Out" (Out, OutBaU, ...) but the exact
-# name varies per run. There is only ever one, so find it automatically.
-find_out_dir <- function(dir) {
-  outs <- list.dirs(dir, recursive = FALSE, full.names = FALSE)
-  outs <- outs[startsWith(outs, "Out")]
-  if (length(outs) != 1)
-    stop(sprintf("Expected exactly one 'Out*' folder in %s, found %d%s",
-                 dir, length(outs),
-                 if (length(outs)) paste0(": ", paste(outs, collapse = ", ")) else ""))
-  file.path(dir, outs)
-}
-mofuss_out_dir <- find_out_dir(mofuss_dir)   # resolved once
-out_dir <- file.path(mofuss_out_dir, "nrb_agb_comparison")
-dir.create(out_dir, showWarnings = FALSE, recursive = TRUE)
 
 # Load the exact MoFuSS MC1 2010-2020 NRB and harvest ------------------------
 load_mofuss_mc1 <- function(dir) {
@@ -519,6 +696,8 @@ fnrb_ctrees_net_pct   <- 100 * observed_net_nrb   / mofuss_harvest
 fnrb_mofuss_pct       <- 100 * modelled_nrb       / mofuss_harvest
 
 fnrb_summary <- data.frame(
+  Run = run_label,
+  Working.Directory = mofuss_dir,
   Country = country_iso3,
   Start.Year = START_YEAR,
   End.Year = END_YEAR,
@@ -534,11 +713,53 @@ fnrb_summary <- data.frame(
   check.names = FALSE
 )
 
+# Inputs and calculations have now passed. Only at this point replace the exact
+# configuration output folder, preserving previous results if preflight fails.
+if (dir.exists(out_dir)) {
+  status <- unlink(out_dir, recursive = TRUE, force = TRUE)
+  if (status != 0L || dir.exists(out_dir) || file.exists(out_dir)) {
+    stop("Could not fully remove prior validation output folder: ", out_dir, call. = FALSE)
+  }
+}
+if (!dir.create(out_dir, recursive = TRUE, showWarnings = FALSE) && !dir.exists(out_dir)) {
+  stop("Could not create validation output folder: ", out_dir, call. = FALSE)
+}
+
 fnrb_csv_path <- file.path(
   out_dir,
   sprintf("fNRB_comparison_%s_%d_%d_MC1.csv", country_iso3, START_YEAR, END_YEAR)
 )
 utils::write.csv(fnrb_summary, fnrb_csv_path, row.names = FALSE)
+
+agreement_summary <- data.frame(
+  Run = run_label,
+  Working.Directory = mofuss_dir,
+  Country = country_iso3,
+  Start.Year = START_YEAR,
+  End.Year = END_YEAR,
+  AOI.Mode = aoi_mode,
+  Monte.Carlo = 1L,
+  NRB.Threshold.Mg.Pixel = nrb_threshold,
+  Co.detected.loss.pixels = n_ok,
+  Pearson.r = correlation,
+  RMSE.Mg.Pixel = rmse,
+  MAE.Mg.Pixel = mae,
+  Common.footprint.pixels = n_dom,
+  Hits = hits,
+  Misses = misses,
+  False.alarms = falarm,
+  Correct.negatives = corrng,
+  Overall.agreement = agreement,
+  POD = pod,
+  FAR = far,
+  CSI = csi,
+  check.names = FALSE
+)
+agreement_csv_path <- file.path(
+  out_dir,
+  sprintf("NRB_pixel_agreement_%s_%d_%d_MC1.csv", country_iso3, START_YEAR, END_YEAR)
+)
+utils::write.csv(agreement_summary, agreement_csv_path, row.names = FALSE)
 
 cat("\n================  NRB / fNRB comparison  (", country_iso3,
     " ", START_YEAR, "-", END_YEAR, ", MC1)",
@@ -580,11 +801,18 @@ cat("\n")
 # =============================================================================
 
 # --- 8a. Scatter (observed vs modelled), 1:1 line ---------------------------
+scatter_path <- file.path(
+  out_dir,
+  sprintf("NRB_scatter_%s_%d_%d_MC1.png", country_iso3, START_YEAR, END_YEAR)
+)
+grDevices::png(scatter_path, width = 7, height = 7, units = "in", res = 300,
+               type = if (capabilities("cairo")) "cairo" else getOption("bitmapType"))
 plot(v_obs[ok], v_mof[ok],
      xlab = "Observed NRB (Mg/pixel)",
      ylab = "Modelled NRB (Mg/pixel)",
      main = sprintf("Observed vs MoFuSS MC1 NRB  (r = %.2f)", correlation))
 abline(0, 1, col = "red")
+grDevices::dev.off()
 
 # --- 8b. 4-panel map --------------------------------------------------------
 # The two NRB panels share ONE scale anchored to the fixed observed CTrees map.
@@ -696,8 +924,45 @@ tif(harv_mofuss_plot,  sprintf("Modeled_MC1_Harvest_%s_%s.tif", ctrees_year1, ct
 
 cat("Wrote outputs to:", out_dir, "\n")
 cat("  -", basename(png_path), "\n")
+cat("  -", basename(scatter_path), "\n")
 cat("  -", basename(fnrb_csv_path), "\n")
+cat("  -", basename(agreement_csv_path), "\n")
+
+invisible(normalizePath(out_dir, winslash = "/", mustWork = TRUE))
+}
 
 # =============================================================================
-# END
+# BATCH EXECUTION
 # =============================================================================
+run_metadata$run_label <- paste(
+  vapply(run_metadata$scenario, safe_id, character(1)),
+  run_metadata$mode,
+  sep = "_"
+)
+run_metadata$output_dir <- file.path(validation_root, run_metadata$run_label)
+message("\nResolved four-run NRB validation batch:")
+print(run_metadata[, c("scenario", "role", "mode", "working_dir", "output_dir")], row.names = FALSE)
+failures <- character()
+if (DRY_RUN) {
+  message("DRY RUN complete; no validation outputs were changed.")
+} else {
+  for (i in seq_len(nrow(run_metadata))) {
+    result <- tryCatch(
+      run_one_validation(
+        run_metadata$working_dir[[i]],
+        run_metadata$run_label[[i]],
+        run_metadata$output_dir[[i]]
+      ),
+      error = function(e) e
+    )
+    if (inherits(result, "error")) {
+      failure <- sprintf("%s: %s", run_metadata$run_label[[i]], conditionMessage(result))
+      failures <- c(failures, failure)
+      message("FAILED: ", failure)
+    }
+  }
+  if (length(failures)) {
+    stop("One or more NRB validations failed:\n  ", paste(failures, collapse = "\n  "), call. = FALSE)
+  }
+  message("\nAll four NRB validations completed: ", validation_root)
+}
