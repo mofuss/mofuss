@@ -68,10 +68,10 @@ cfg <- list(
   # Edit this vector to audit any number of completed MoFuSS working folders.
   # Command-line folders, when supplied, replace this vector.
   working_dirs = c(
-    "E:/rwa_1000m_bau1_2050_mc30_capped",
-    "E:/rwa_1000m_bau1_2050_mc30_uncapped",
-    "E:/rwa_1000m_ics3_2050_mc30_capped",
-    "E:/rwa_1000m_ics3_2050_mc30_uncapped"
+    "D:/ken_1000m_bau1_2050_mc30_capped",
+    "D:/ken_1000m_bau1_2050_mc30_uncapped",
+    "D:/ken_1000m_ics3_2050_mc30_capped",
+    "D:/ken_1000m_ics3_2050_mc30_uncapped"
   ),
   growth_model = "auto",       # auto | logistic | chapman-richards
   depleted_reset_Mg_cell = 2,  # EGO feedback stock after depleted forest

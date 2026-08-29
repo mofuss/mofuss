@@ -118,10 +118,10 @@ library(leaflet.extras) # rectangle draw toolbar
 # folders, when supplied, replace this vector. Folder order is irrelevant:
 # scenario and capped/uncapped identities are read from parameters.csv.
 WORKING_DIRS <- c(
-  "E:/rwa_1000m_bau1_2050_mc30_capped",
-  "E:/rwa_1000m_bau1_2050_mc30_uncapped",
-  "E:/rwa_1000m_ics3_2050_mc30_capped",
-  "E:/rwa_1000m_ics3_2050_mc30_uncapped"
+  "D:/ken_1000m_bau1_2050_mc30_capped",
+  "D:/ken_1000m_bau1_2050_mc30_uncapped",
+  "D:/ken_1000m_ics3_2050_mc30_capped",
+  "D:/ken_1000m_ics3_2050_mc30_uncapped"
 )
 
 # Must match the post-spin-up convention used by emissions scripts v13/v5.

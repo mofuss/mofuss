@@ -29,7 +29,7 @@
 # 2dolist ----
 
 # Internal parameters ----
-runGADM <- 0
+runGADM <- 1
 runplantations <- 0
 telegram_msgs <- 1
 personal_demand <- 1
@@ -388,7 +388,7 @@ copy_personal_demand_csv <- function() {
 scripts <- list(
   "00_webmofuss.R",
   "0_set_directories_and_region_v3.R",
-  if (runGADM == 1) "preprocessing4globaldatasets/0apre_GADM_admin_wp_v8.R",
+  if (runGADM == 1) "preprocessing/0apre_GADM_admin_wp_v9.R",
   "1_erase_all_v1.R",
   "2_copy_files_v1.R",
   # "2a_ics_constructor_v7.R",

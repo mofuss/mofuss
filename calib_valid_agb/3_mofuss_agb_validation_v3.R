@@ -82,10 +82,10 @@ INTERACTIVE <- FALSE          # TRUE only prompts for the observed-data variant
 # Edit only this vector when moving to another region. Positional command-line
 # folders, when supplied, replace it. Folder order is irrelevant.
 WORKING_DIRS <- c(
-  "E:/rwa_1000m_bau1_2050_mc30_capped",
-  "E:/rwa_1000m_bau1_2050_mc30_uncapped",
-  "E:/rwa_1000m_ics3_2050_mc30_capped",
-  "E:/rwa_1000m_ics3_2050_mc30_uncapped"
+  "D:/ken_1000m_bau1_2050_mc30_capped",
+  "D:/ken_1000m_bau1_2050_mc30_uncapped",
+  "D:/ken_1000m_ics3_2050_mc30_capped",
+  "D:/ken_1000m_ics3_2050_mc30_uncapped"
 )
 
 SPINUP_YEARS <- 26L          # same convention as emissions v13 / decomposition v5

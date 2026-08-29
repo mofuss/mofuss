@@ -95,10 +95,10 @@ pairing_design_status <- function(
 # EDIT ONLY THIS BLOCK when changing country/region scenario folders.
 # Folder order does not define pairing; parameters.csv does.
 SCENARIO_DIRS <- c(
-  "E:/rwa_1000m_bau1_2050_mc30_capped",
-  "E:/rwa_1000m_bau1_2050_mc30_uncapped",
-  "E:/rwa_1000m_ics3_2050_mc30_capped",
-  "E:/rwa_1000m_ics3_2050_mc30_uncapped"
+  "D:/ken_1000m_bau1_2050_mc30_capped",
+  "D:/ken_1000m_bau1_2050_mc30_uncapped",
+  "D:/ken_1000m_ics3_2050_mc30_capped",
+  "D:/ken_1000m_ics3_2050_mc30_uncapped"
 )
 
 # RSTUDIO SOURCE SETTINGS. Edit these values, then use regular Source or

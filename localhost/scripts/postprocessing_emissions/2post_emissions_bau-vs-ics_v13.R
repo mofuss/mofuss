@@ -112,10 +112,10 @@
 # Folder order does not define pairing. BAU/CCTS roles and capped/uncapped
 # configurations are read from each folder's parameters.csv.
 SCENARIO_DIRS <- c(
-  "E:/rwa_1000m_bau1_2050_mc30_capped",
-  "E:/rwa_1000m_bau1_2050_mc30_uncapped",
-  "E:/rwa_1000m_ics3_2050_mc30_capped",
-  "E:/rwa_1000m_ics3_2050_mc30_uncapped"
+  "D:/ken_1000m_bau1_2050_mc30_capped",
+  "D:/ken_1000m_bau1_2050_mc30_uncapped",
+  "D:/ken_1000m_ics3_2050_mc30_capped",
+  "D:/ken_1000m_ics3_2050_mc30_uncapped"
 )
 
 # RSTUDIO SOURCE SETTINGS. These are used by regular Source and Source as a

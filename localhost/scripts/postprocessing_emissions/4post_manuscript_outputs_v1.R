@@ -56,7 +56,7 @@ TABLE_PNG_WIDTH_IN <- 7.5
 # RSTUDIO SOURCE SETTINGS. SOURCE_DIR must be the analysis root printed by
 # Stage 2/3 (the folder containing both pairs/ and agb_decomposition/). Edit
 # this value for each region, then use regular Source or Source as Background Job.
-V1_RSTUDIO_SOURCE_DIR <- "E:/mofuss_postprocessing/rwa_2026_2050_mc30"
+V1_RSTUDIO_SOURCE_DIR <- "D:/mofuss_postprocessing/ken_2026_2050_mc30"
 V1_RSTUDIO_OUTPUT_DIR <- file.path(V1_RSTUDIO_SOURCE_DIR, "manuscript_outputs")
 V1_RSTUDIO_MIN_UNCERTAINTY_RUNS <- DEFAULT_MIN_UNCERTAINTY_RUNS
 V1_RSTUDIO_CLEAN_REBUILD <- TRUE

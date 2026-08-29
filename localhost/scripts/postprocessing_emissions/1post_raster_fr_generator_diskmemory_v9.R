@@ -40,18 +40,18 @@ DEFAULT_OUTPUT_SUBDIR <- file.path("Out", "webmofuss_results_v9")
 # EDIT ONLY THIS BLOCK when changing the country/region analysis.
 # Each entry is one completed MoFuSS scenario folder. Metadata, full horizon,
 # available runs and output locations are read/inferred by the script.
-# SCENARIO_DIRS <- c(
-#   "D:/ken_1000m_bau1_2030_mc2_capped",
-#   "D:/ken_1000m_bau1_2030_mc2_uncapped",
-#   "D:/ken_1000m_ics3_2030_mc2_capped",
-#   "D:/ken_1000m_ics3_2030_mc2_uncapped"
-# )
 SCENARIO_DIRS <- c(
-  "E:/rwa_1000m_bau1_2050_mc30_capped",
-  "E:/rwa_1000m_bau1_2050_mc30_uncapped",
-  "E:/rwa_1000m_ics3_2050_mc30_capped",
-  "E:/rwa_1000m_ics3_2050_mc30_uncapped"
+  "D:/ken_1000m_bau1_2050_mc30_capped",
+  "D:/ken_1000m_bau1_2050_mc30_uncapped",
+  "D:/ken_1000m_ics3_2050_mc30_capped",
+  "D:/ken_1000m_ics3_2050_mc30_uncapped"
 )
+# SCENARIO_DIRS <- c(
+#   "E:/rwa_1000m_bau1_2050_mc30_capped",
+#   "E:/rwa_1000m_bau1_2050_mc30_uncapped",
+#   "E:/rwa_1000m_ics3_2050_mc30_capped",
+#   "E:/rwa_1000m_ics3_2050_mc30_uncapped"
+# )
 
 # RSTUDIO SOURCE SETTINGS. Leave PERIODS empty to use the script's inferred
 # schedule, or use values such as c("2026:2030"). CLEAN_REBUILD=TRUE fully
