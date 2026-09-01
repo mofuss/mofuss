@@ -29,7 +29,7 @@
 # 2dolist ----
 
 # Internal parameters ----
-runGADM <- 1
+runGADM <- 0
 runplantations <- 0
 telegram_msgs <- 1
 personal_demand <- 1
