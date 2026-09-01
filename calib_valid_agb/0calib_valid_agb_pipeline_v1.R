@@ -70,13 +70,14 @@ PIPELINE_SPINUP_YEARS <- 26L
 
 # External validation data. These are the only required non-MoFuSS paths.
 PIPELINE_ADMIN_VECTOR <- paste0(
-  "C:/Users/aghil/Documents/MoFuSS_localhost/",
+  "D:/",
   "admin_regions/regions_adm0/mofuss_regions0.gpkg"
 )
 PIPELINE_FNRB_OBS_DIR <- paste0(
   "G:/Mi unidad/webpages/2026_MoFuSSGlobal_Datasets/",
   "fnrb_obs_data/1km_agco2_2000_2025"
 )
+
 PIPELINE_AGB_OBS_TYPE <- "projected"  # projected (MgDM/ha) or latlong (MgCO2/ha)
 PIPELINE_AGB_OBS_DIR <- paste0(
   "G:/Mi unidad/webpages/2026_MoFuSSGlobal_Datasets/",
