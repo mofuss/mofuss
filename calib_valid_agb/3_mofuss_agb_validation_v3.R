@@ -20,11 +20,11 @@
 # Execution: Use regular RStudio Source. With INTERACTIVE = FALSE, the script
 # can also be run directly with Rscript from PowerShell/a terminal.
 #
-# Purpose: Validate BAU and CCTS AGB trajectories and endpoint changes against
+# Purpose: Validate BAU and ICS/CCTS intervention AGB trajectories and endpoint changes against
 # CTrees observations, comparing capped and uncapped versions of each scenario.
-# Inputs: Four completed BAU/CCTS x capped/uncapped working folders, every
+# Inputs: Four completed BAU and intervention x capped/uncapped working folders, every
 # debugging_N annual AGB series, CTrees AGB rasters, admin boundaries, and lakes.
-# Outputs: Complete BAU and CCTS validation sets under the corresponding
+# Outputs: Complete BAU and intervention validation sets under the corresponding
 # <drive>/mofuss_postprocessing/<analysis>/validation directory.
 # Side effects: Cleanly rebuilds only its exact per-scenario validation output
 # folders; it does not modify the MoFuSS working folders.
@@ -77,26 +77,24 @@ if (!requireNamespace("ggplot2", quietly = TRUE)) stop("Please install 'ggplot2'
 ###############################################################################
 ## 1. CONFIGURATION
 ###############################################################################
-INTERACTIVE <- FALSE          # TRUE only prompts for the observed-data variant
+INTERACTIVE <- FALSE
 
-# Edit only this vector when moving to another region. Positional command-line
-# folders, when supplied, replace it. Folder order is irrelevant.
-WORKING_DIRS <- c(
-  "D:/ken_1000m_bau1_2050_mc30_capped",
-  "D:/ken_1000m_bau1_2050_mc30_uncapped",
-  "D:/ken_1000m_ics3_2050_mc30_capped",
-  "D:/ken_1000m_ics3_2050_mc30_uncapped"
-)
-
-SPINUP_YEARS <- 26L          # same convention as emissions v13 / decomposition v5
-OBS_TYPE <- "projected"      # "projected" (MgDM/ha) or "latlong" (MgCO2/ha)
-
-# Optional overrides. Leave blank for automatic discovery.
-GOOGLE_DRIVE_ROOT <- ""      # e.g. "G:/My Drive" or "G:/Mi unidad"
-ADMIN_REGIONS_DIR <- ""      # folder containing mofuss_regions0.gpkg
-POSTPROCESSING_ROOT <- ""     # default: <working-dir parent>/mofuss_postprocessing
-DRY_RUN <- tolower(Sys.getenv("MOFUSS_VALIDATION_DRY_RUN", unset = "false")) %in%
-  c("1", "true", "yes")      # environment-only preflight; no outputs are changed
+# Supplied centrally by 0calib_valid_agb_pipeline_v1.R. Empty/NA defaults
+# prevent stale computer-specific paths and hidden analysis conventions.
+WORKING_DIRS <- character()
+SPINUP_YEARS <- NA_integer_
+OBS_TYPE <- "projected"      # projected (MgDM/ha) or latlong (MgCO2/ha)
+OBS_DIR_INPUT <- ""
+ADMIN_VECTOR <- ""
+POSTPROCESSING_ROOT <- ""    # inferred from the common working-folder parent
+DRY_RUN <- FALSE
+CLIP_OBS_TO_COUNTRY <- TRUE
+EXCLUDE_HYDROLAKES <- TRUE
+HYDROLAKES_RASTER <- ""
+BASE_YEAR <- 2000L
+END_YEAR <- 2025L
+SIM_END_YEAR <- 2050L
+CARBON_FRACTION <- 0.47
 
 stopf <- function(...) stop(sprintf(...), call. = FALSE)
 safe_id <- function(x) {
@@ -110,62 +108,91 @@ path_key <- function(x) {
   y <- normalizePath(x, winslash = "/", mustWork = FALSE)
   if (.Platform$OS.type == "windows") tolower(y) else y
 }
-first_existing_dir <- function(paths, label) {
-  paths <- unique(paths[nzchar(paths)])
-  hit <- paths[dir.exists(paths)]
-  if (!length(hit)) stopf("Could not locate %s. Checked:\n  %s", label, paste(paths, collapse = "\n  "))
-  normalizePath(hit[[1]], winslash = "/", mustWork = TRUE)
-}
-
-drive_roots <- paste0(LETTERS, ":/")
-google_root_candidates <- unique(c(
-  GOOGLE_DRIVE_ROOT,
-  Sys.getenv("GOOGLE_DRIVE_ROOT", unset = ""),
-  unlist(lapply(drive_roots, function(d) file.path(d, c("My Drive", "Mi unidad")))),
-  file.path(Sys.getenv("USERPROFILE", unset = ""), c("My Drive", "Mi unidad"))
-))
-google_root_candidates <- google_root_candidates[nzchar(google_root_candidates)]
-obs_base_candidates <- file.path(
-  google_root_candidates, "webpages", "2026_MoFuSSGlobal_Datasets",
-  "ctrees_dic2025_agb_cr", "1km_agco2_2000_2025"
-)
-OBS_LL_DIR <- first_existing_dir(obs_base_candidates, "CTrees lat/long observation directory")
-OBS_PROJ_DIR <- first_existing_dir(file.path(obs_base_candidates, "agb_projected_ha"),
-                                   "CTrees projected observation directory")
-
-admin_root_candidates <- unique(c(
-  ADMIN_REGIONS_DIR,
-  Sys.getenv("MOFUSS_ADMIN_REGIONS_DIR", unset = ""),
-  file.path(drive_roots, "admin_regions")
-))
-admin_root_candidates <- admin_root_candidates[nzchar(admin_root_candidates)]
-admin_candidates <- unique(c(
-  admin_root_candidates,
-  file.path(admin_root_candidates, "regions_adm0")
-))
-admin_candidates <- admin_candidates[
-  file.exists(file.path(admin_candidates, "mofuss_regions0.gpkg"))
-]
-if (!length(admin_candidates)) {
-  stopf("Could not locate admin_regions/mofuss_regions0.gpkg on any mounted drive. Set ADMIN_REGIONS_DIR.")
-}
-ADMIN_VECTOR <- normalizePath(file.path(admin_candidates[[1]], "mofuss_regions0.gpkg"),
-                              winslash = "/", mustWork = TRUE)
-CLIP_OBS_TO_COUNTRY <- TRUE
-
-## Validation-domain water mask. "" auto-finds hydrolakes_pcs.tif under the
-## capped working folder (then the uncapped folder as a fallback). Applying the
-## mask remains safe after upstream rasters are corrected because it is idempotent.
-EXCLUDE_HYDROLAKES <- TRUE
-HYDROLAKES_RASTER  <- ""
-
-BASE_YEAR <- 2000
-END_YEAR  <- 2025
-SIM_END_YEAR <- 2050       # optional extension used only in Figure 1b
 NODATA    <- -9999
 
-## LAT/LONG observed unit conversion  MgCO2/ha -> MgDM/ha  (empirical 0.581 ~ theoretical 0.580)
-CARBON_FRACTION <- 0.47
+parse_bool <- function(x, label) {
+  value <- tolower(trimws(as.character(x)))
+  if (value %in% c("true", "t", "1", "yes", "y")) return(TRUE)
+  if (value %in% c("false", "f", "0", "no", "n")) return(FALSE)
+  stopf("%s must be true or false; got: %s", label, x)
+}
+parse_integer <- function(x, label, minimum = 0L) {
+  numeric_value <- suppressWarnings(as.numeric(x))
+  integer_value <- suppressWarnings(as.integer(x))
+  if (length(integer_value) != 1L || is.na(integer_value) ||
+      !is.finite(numeric_value) || numeric_value != integer_value || integer_value < minimum) {
+    stopf("%s must be one integer >= %d; got: %s", label, minimum, x)
+  }
+  integer_value
+}
+
+for (arg in commandArgs(trailingOnly = TRUE)) {
+  value <- function(prefix) sub(paste0("^", prefix), "", arg)
+  if (arg %in% c("--help", "-h")) {
+    cat(paste0(
+      "Usage: Rscript 3_mofuss_agb_validation_v3.R [options]\n",
+      "  --working-dir=DIR       Repeat exactly four times\n",
+      "  --spinup-years=N\n",
+      "  --obs-type=projected|latlong --obs-dir=DIR\n",
+      "  --admin-vector=GPKG\n",
+      "  --base-year=YYYY --end-year=YYYY --sim-end-year=YYYY\n",
+      "  --clip-obs-to-country=true|false\n",
+      "  --exclude-hydrolakes=true|false [--hydrolakes-raster=FILE]\n",
+      "  --carbon-fraction=N --dry-run\n"
+    ))
+    quit(save = "no", status = 0L, runLast = FALSE)
+  } else if (startsWith(arg, "--working-dir=")) {
+    WORKING_DIRS <- c(WORKING_DIRS, value("--working-dir="))
+  } else if (startsWith(arg, "--spinup-years=")) {
+    SPINUP_YEARS <- parse_integer(value("--spinup-years="), "--spinup-years")
+  } else if (startsWith(arg, "--obs-type=")) {
+    OBS_TYPE <- tolower(value("--obs-type="))
+  } else if (startsWith(arg, "--obs-dir=")) {
+    OBS_DIR_INPUT <- value("--obs-dir=")
+  } else if (startsWith(arg, "--admin-vector=")) {
+    ADMIN_VECTOR <- value("--admin-vector=")
+  } else if (startsWith(arg, "--base-year=")) {
+    BASE_YEAR <- parse_integer(value("--base-year="), "--base-year")
+  } else if (startsWith(arg, "--end-year=")) {
+    END_YEAR <- parse_integer(value("--end-year="), "--end-year")
+  } else if (startsWith(arg, "--sim-end-year=")) {
+    SIM_END_YEAR <- parse_integer(value("--sim-end-year="), "--sim-end-year")
+  } else if (startsWith(arg, "--clip-obs-to-country=")) {
+    CLIP_OBS_TO_COUNTRY <- parse_bool(value("--clip-obs-to-country="), "--clip-obs-to-country")
+  } else if (startsWith(arg, "--exclude-hydrolakes=")) {
+    EXCLUDE_HYDROLAKES <- parse_bool(value("--exclude-hydrolakes="), "--exclude-hydrolakes")
+  } else if (startsWith(arg, "--hydrolakes-raster=")) {
+    HYDROLAKES_RASTER <- value("--hydrolakes-raster=")
+  } else if (startsWith(arg, "--carbon-fraction=")) {
+    CARBON_FRACTION <- suppressWarnings(as.numeric(value("--carbon-fraction=")))
+  } else if (identical(arg, "--dry-run")) {
+    DRY_RUN <- TRUE
+  } else if (startsWith(arg, "--")) {
+    stopf("Unknown option: %s", arg)
+  } else {
+    WORKING_DIRS <- c(WORKING_DIRS, arg)
+  }
+}
+
+if (is.na(SPINUP_YEARS)) stop("--spinup-years is required.", call. = FALSE)
+if (!OBS_TYPE %in% c("projected", "latlong")) {
+  stop("--obs-type must be projected or latlong.", call. = FALSE)
+}
+if (!dir.exists(OBS_DIR_INPUT)) stopf("Observed AGB directory does not exist: %s", OBS_DIR_INPUT)
+OBS_DIR_INPUT <- normalizePath(OBS_DIR_INPUT, winslash = "/", mustWork = TRUE)
+OBS_LL_DIR <- OBS_DIR_INPUT
+OBS_PROJ_DIR <- OBS_DIR_INPUT
+if (!file.exists(ADMIN_VECTOR) || dir.exists(ADMIN_VECTOR)) {
+  stopf("Admin GeoPackage does not exist: %s", ADMIN_VECTOR)
+}
+ADMIN_VECTOR <- normalizePath(ADMIN_VECTOR, winslash = "/", mustWork = TRUE)
+if (END_YEAR <= BASE_YEAR) stop("--end-year must be later than --base-year.", call. = FALSE)
+if (SIM_END_YEAR < END_YEAR) stop("--sim-end-year cannot precede --end-year.", call. = FALSE)
+if (!is.finite(CARBON_FRACTION) || CARBON_FRACTION <= 0) {
+  stop("--carbon-fraction must be a positive number.", call. = FALSE)
+}
+
+## LAT/LONG observed unit conversion MgCO2/ha -> MgDM/ha.
 CO2_TO_DM       <- (12/44) / CARBON_FRACTION
 
 ## MoFuSS convention: 01 = BASE_YEAR, 02 = BASE_YEAR+1, ..., 51 = BASE_YEAR+50.
@@ -206,7 +233,7 @@ read_run_metadata <- function(workdir) {
   } else if (grepl("^(ics|ccts)", scenario, ignore.case = TRUE)) {
     "ccts"
   } else {
-    stopf("Could not classify scenario_ver '%s' as BAU or CCTS in %s.", scenario, path)
+    stopf("Could not classify scenario_ver '%s' as BAU or ICS/CCTS intervention in %s.", scenario, path)
   }
   gee_scale <- suppressWarnings(as.numeric(value("GEE_scale")))
   if (!is.finite(gee_scale)) stopf("GEE_scale is not numeric in %s.", path)
@@ -224,8 +251,6 @@ read_run_metadata <- function(workdir) {
   )
 }
 
-cli_dirs <- commandArgs(trailingOnly = TRUE)
-if (length(cli_dirs)) WORKING_DIRS <- cli_dirs[nzchar(cli_dirs)]
 WORKING_DIRS <- unique(as.character(WORKING_DIRS[nzchar(WORKING_DIRS)]))
 if (length(WORKING_DIRS) != 4L) stopf("This batch requires exactly four working folders; received %d.", length(WORKING_DIRS))
 run_metadata <- do.call(rbind, lapply(WORKING_DIRS, read_run_metadata))
@@ -238,12 +263,12 @@ for (field in common_fields) {
 combos <- paste(run_metadata$role, run_metadata$mode, sep = "/")
 expected_combos <- c("bau/capped", "bau/uncapped", "ccts/capped", "ccts/uncapped")
 if (!setequal(combos, expected_combos) || anyDuplicated(combos)) {
-  stopf("Expected one BAU/CCTS x capped/uncapped folder; found: %s", paste(combos, collapse = ", "))
+  stopf("Expected BAU and ICS/CCTS intervention folders, each capped and uncapped; found: %s", paste(combos, collapse = ", "))
 }
 scenario_count_by_role <- vapply(split(run_metadata$scenario, run_metadata$role),
                                  function(x) length(unique(tolower(x))), integer(1))
 if (any(scenario_count_by_role != 1L)) {
-  stop("Capped and uncapped folders must use the same scenario_ver within BAU and CCTS.", call. = FALSE)
+  stop("Capped and uncapped folders must use the same scenario_ver within each BAU/intervention pair.", call. = FALSE)
 }
 if (anyDuplicated(paste(run_metadata$scenario, run_metadata$mode, sep = "/"))) {
   stop("Scenario/configuration identities are not unique.", call. = FALSE)
@@ -995,6 +1020,6 @@ if (DRY_RUN) {
   if (length(failures)) {
     stop("One or more AGB validation pairs failed:\n  ", paste(failures, collapse = "\n  "), call. = FALSE)
   }
-  message("\nBoth BAU and CCTS AGB validations completed: ", validation_root)
+  message("\nAll BAU and intervention AGB validation pairs completed: ", validation_root)
 }
 ###############################################################################

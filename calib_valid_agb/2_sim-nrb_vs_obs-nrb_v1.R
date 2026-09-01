@@ -113,26 +113,16 @@ library(leaflet.extras) # rectangle draw toolbar
 # 1. CONFIG  -  the only block you normally need to edit
 # =============================================================================
 
-# --- 1a. Four-run batch -----------------------------------------------------
-# Edit only this vector when moving to another region. Positional command-line
-# folders, when supplied, replace this vector. Folder order is irrelevant:
-# scenario and capped/uncapped identities are read from parameters.csv.
-WORKING_DIRS <- c(
-  "D:/ken_1000m_bau1_2050_mc30_capped",
-  "D:/ken_1000m_bau1_2050_mc30_uncapped",
-  "D:/ken_1000m_ics3_2050_mc30_capped",
-  "D:/ken_1000m_ics3_2050_mc30_uncapped"
-)
-
-# Must match the post-spin-up convention used by emissions scripts v13/v5.
-SPINUP_YEARS <- 26L
-
-# Optional overrides. Leave blank for automatic discovery.
-GOOGLE_DRIVE_ROOT <- ""       # e.g. "G:/My Drive" or "G:/Mi unidad"
-ADMIN_REGIONS_DIR <- ""       # folder containing mofuss_regions0.gpkg
-POSTPROCESSING_ROOT <- ""      # default: <working-dir parent>/mofuss_postprocessing
-DRY_RUN <- tolower(Sys.getenv("MOFUSS_VALIDATION_DRY_RUN", unset = "false")) %in%
-  c("1", "true", "yes")       # environment-only preflight; no outputs are changed
+# --- 1a. Pipeline-supplied inputs -------------------------------------------
+# Paths and user-facing parameters are supplied by
+# 0calib_valid_agb_pipeline_v1.R. Empty/NA defaults prevent stale paths or
+# hidden spin-up conventions from being used when this stage is moved.
+WORKING_DIRS <- character()
+SPINUP_YEARS <- NA_integer_
+CTREES_DIR <- ""
+ADMIN_VECTOR <- ""
+POSTPROCESSING_ROOT <- ""      # inferred from the common working-folder parent
+DRY_RUN <- FALSE
 
 # --- 1b. Resolution switch --------------------------------------------------
 # "1km"  -> use the 1 km MoFuSS output and 1 km CTrees maps (this dataset).
@@ -142,6 +132,13 @@ DRY_RUN <- tolower(Sys.getenv("MOFUSS_VALIDATION_DRY_RUN", unset = "false")) %in
 resolution <- "1km"        # "1km" or "100m"
 
 agg_factor <- 1L             # set to 10 only for genuine 100 m simulations
+
+START_YEAR <- 2010L
+END_YEAR <- 2020L
+aoi_mode <- "country"
+square_draw_aoi <- TRUE
+nrb_threshold <- 100
+ctrees_units <- "CO2"
 
 stopf <- function(...) stop(sprintf(...), call. = FALSE)
 safe_id <- function(x) {
@@ -155,46 +152,88 @@ path_key <- function(x) {
   y <- normalizePath(x, winslash = "/", mustWork = FALSE)
   if (.Platform$OS.type == "windows") tolower(y) else y
 }
-first_existing_dir <- function(paths, label) {
-  paths <- unique(paths[nzchar(paths)])
-  hit <- paths[dir.exists(paths)]
-  if (!length(hit)) {
-    stopf("Could not locate %s. Checked:\n  %s", label, paste(paths, collapse = "\n  "))
+parse_bool <- function(x, label) {
+  value <- tolower(trimws(as.character(x)))
+  if (value %in% c("true", "t", "1", "yes", "y")) return(TRUE)
+  if (value %in% c("false", "f", "0", "no", "n")) return(FALSE)
+  stopf("%s must be true or false; got: %s", label, x)
+}
+parse_integer <- function(x, label, minimum = 0L) {
+  numeric_value <- suppressWarnings(as.numeric(x))
+  integer_value <- suppressWarnings(as.integer(x))
+  if (length(integer_value) != 1L || is.na(integer_value) ||
+      !is.finite(numeric_value) || numeric_value != integer_value || integer_value < minimum) {
+    stopf("%s must be one integer >= %d; got: %s", label, minimum, x)
   }
-  normalizePath(hit[[1]], winslash = "/", mustWork = TRUE)
+  integer_value
 }
 
-drive_roots <- paste0(LETTERS, ":/")
-google_root_candidates <- unique(c(
-  GOOGLE_DRIVE_ROOT,
-  Sys.getenv("GOOGLE_DRIVE_ROOT", unset = ""),
-  unlist(lapply(drive_roots, function(d) file.path(d, c("My Drive", "Mi unidad")))),
-  file.path(Sys.getenv("USERPROFILE", unset = ""), c("My Drive", "Mi unidad"))
-))
-google_root_candidates <- google_root_candidates[nzchar(google_root_candidates)]
-ctrees_dir <- first_existing_dir(
-  file.path(google_root_candidates, "webpages", "2026_MoFuSSGlobal_Datasets", "fnrb_obs_data",
-            "1km_agco2_2000_2025"),
-  "CTrees fNRB observation directory"
-)
-
-admin_root_candidates <- unique(c(
-  ADMIN_REGIONS_DIR,
-  Sys.getenv("MOFUSS_ADMIN_REGIONS_DIR", unset = ""),
-  file.path(drive_roots, "admin_regions")
-))
-admin_root_candidates <- admin_root_candidates[nzchar(admin_root_candidates)]
-admin_candidates <- unique(c(
-  admin_root_candidates,
-  file.path(admin_root_candidates, "regions_adm0")
-))
-admin_candidates <- admin_candidates[
-  file.exists(file.path(admin_candidates, "mofuss_regions0.gpkg"))
-]
-if (!length(admin_candidates)) {
-  stopf("Could not locate admin_regions/mofuss_regions0.gpkg on any mounted drive. Set ADMIN_REGIONS_DIR.")
+for (arg in commandArgs(trailingOnly = TRUE)) {
+  value <- function(prefix) sub(paste0("^", prefix), "", arg)
+  if (arg %in% c("--help", "-h")) {
+    cat(paste0(
+      "Usage: Rscript 2_sim-nrb_vs_obs-nrb_v1.R [options]\n",
+      "  --working-dir=DIR       Repeat exactly four times\n",
+      "  --spinup-years=N\n",
+      "  --ctrees-dir=DIR         CTrees fNRB observation folder\n",
+      "  --admin-vector=GPKG\n",
+      "  --start-year=YYYY --end-year=YYYY\n",
+      "  --resolution=1km|100m --agg-factor=N\n",
+      "  --aoi-mode=country|full|draw\n",
+      "  --square-draw-aoi=true|false\n",
+      "  --nrb-threshold=N --ctrees-units=CO2|C\n",
+      "  --dry-run\n"
+    ))
+    quit(save = "no", status = 0L, runLast = FALSE)
+  } else if (startsWith(arg, "--working-dir=")) {
+    WORKING_DIRS <- c(WORKING_DIRS, value("--working-dir="))
+  } else if (startsWith(arg, "--spinup-years=")) {
+    SPINUP_YEARS <- parse_integer(value("--spinup-years="), "--spinup-years")
+  } else if (startsWith(arg, "--ctrees-dir=")) {
+    CTREES_DIR <- value("--ctrees-dir=")
+  } else if (startsWith(arg, "--admin-vector=")) {
+    ADMIN_VECTOR <- value("--admin-vector=")
+  } else if (startsWith(arg, "--start-year=")) {
+    START_YEAR <- parse_integer(value("--start-year="), "--start-year")
+  } else if (startsWith(arg, "--end-year=")) {
+    END_YEAR <- parse_integer(value("--end-year="), "--end-year")
+  } else if (startsWith(arg, "--resolution=")) {
+    resolution <- value("--resolution=")
+  } else if (startsWith(arg, "--agg-factor=")) {
+    agg_factor <- parse_integer(value("--agg-factor="), "--agg-factor", 1L)
+  } else if (startsWith(arg, "--aoi-mode=")) {
+    aoi_mode <- tolower(value("--aoi-mode="))
+  } else if (startsWith(arg, "--square-draw-aoi=")) {
+    square_draw_aoi <- parse_bool(value("--square-draw-aoi="), "--square-draw-aoi")
+  } else if (startsWith(arg, "--nrb-threshold=")) {
+    nrb_threshold <- suppressWarnings(as.numeric(value("--nrb-threshold=")))
+  } else if (startsWith(arg, "--ctrees-units=")) {
+    ctrees_units <- toupper(value("--ctrees-units="))
+  } else if (identical(arg, "--dry-run")) {
+    DRY_RUN <- TRUE
+  } else if (startsWith(arg, "--")) {
+    stopf("Unknown option: %s", arg)
+  } else {
+    WORKING_DIRS <- c(WORKING_DIRS, arg)
+  }
 }
-mofuss_regionsdir <- normalizePath(admin_candidates[[1]], winslash = "/", mustWork = TRUE)
+
+if (is.na(SPINUP_YEARS)) stop("--spinup-years is required.", call. = FALSE)
+if (!dir.exists(CTREES_DIR)) stopf("CTrees fNRB directory does not exist: %s", CTREES_DIR)
+ctrees_dir <- normalizePath(CTREES_DIR, winslash = "/", mustWork = TRUE)
+if (!file.exists(ADMIN_VECTOR) || dir.exists(ADMIN_VECTOR)) {
+  stopf("Admin GeoPackage does not exist: %s", ADMIN_VECTOR)
+}
+ADMIN_VECTOR <- normalizePath(ADMIN_VECTOR, winslash = "/", mustWork = TRUE)
+if (!resolution %in% c("1km", "100m")) stop("--resolution must be 1km or 100m.", call. = FALSE)
+if (!aoi_mode %in% c("country", "full", "draw")) {
+  stop("--aoi-mode must be country, full or draw.", call. = FALSE)
+}
+if (!is.finite(nrb_threshold) || nrb_threshold < 0) {
+  stop("--nrb-threshold must be a non-negative number.", call. = FALSE)
+}
+if (!ctrees_units %in% c("CO2", "C")) stop("--ctrees-units must be CO2 or C.", call. = FALSE)
+if (END_YEAR <= START_YEAR) stop("--end-year must be later than --start-year.", call. = FALSE)
 
 find_parameters_file <- function(workdir) {
   root <- file.path(workdir, "LULCC", "DownloadedDatasets")
@@ -250,8 +289,6 @@ read_run_metadata <- function(workdir) {
   )
 }
 
-cli_dirs <- commandArgs(trailingOnly = TRUE)
-if (length(cli_dirs)) WORKING_DIRS <- cli_dirs[nzchar(cli_dirs)]
 WORKING_DIRS <- unique(as.character(WORKING_DIRS[nzchar(WORKING_DIRS)]))
 if (length(WORKING_DIRS) != 4L) {
   stopf("This batch requires exactly four working folders; received %d.", length(WORKING_DIRS))
@@ -287,10 +324,8 @@ analysis_root <- normalizePath(file.path(postprocessing_root, analysis_id), wins
 validation_root <- file.path(analysis_root, "validation", "2_sim_nrb_vs_obs_nrb")
 
 # --- 1c. Comparison period (fixed common window) ---------------------------
-START_YEAR    <- 2010L
-END_YEAR      <- 2020L
-ctrees_file1  <- "ctrees_global_2010_AGC.tif"   # earlier year
-ctrees_file2  <- "ctrees_global_2020_AGC.tif"   # later year
+ctrees_file1 <- sprintf("ctrees_global_%d_AGC.tif", START_YEAR)
+ctrees_file2 <- sprintf("ctrees_global_%d_AGC.tif", END_YEAR)
 
 # MoFuSS file codes are derived from the simulation start year. For a 2000
 # simulation this resolves to Growth11, Growth_less_harv20 and Harvest_tot11:20.
@@ -301,22 +336,6 @@ if (MOFUSS_START_INDEX < 1L || MOFUSS_END_INDEX < MOFUSS_START_INDEX) {
   stop("The requested validation period is outside the simulation period.", call. = FALSE)
 }
 
-# --- 1d. AOI mode -----------------------------------------------------------
-# "draw"    -> open a map, draw a rectangle, script continues automatically
-# "country" -> use the whole selected country polygon (no map)
-# "full"    -> use the full MoFuSS x CTrees overlap (no map)
-aoi_mode <- "country"
-
-# TRUE expands the shorter side of a drawn rectangle around its centre so the
-# final analysis AOI is square in the MoFuSS projected CRS. The complete area
-# originally drawn is retained; nothing is trimmed away.
-square_draw_aoi <- TRUE
-
-# --- 1e. NRB threshold ------------------------------------------------------
-# Stability band, in Mg / pixel. Losses of at least this much count as NRB;
-# gains and smaller changes are dropped (set to NA).
-nrb_threshold <- 100
-
 # --- 1f. CTrees units (IMPORTANT - verify before trusting absolute fNRB) ----
 # CTrees rasters are named *_AGC = Above-Ground CARBON. Converting to biomass
 # (dry matter) depends on their true units, and the band carries NO unit
@@ -325,7 +344,6 @@ nrb_threshold <- 100
 #   "CO2" -> agb = value * (12/44) / 0.47   <- your original v3 setting
 #   "C"   -> agb = value / 0.47
 # Check the CTrees documentation and set this accordingly.
-ctrees_units <- "CO2"      # "CO2" (original) or "C"
 agc_to_agb   <- if (ctrees_units == "C") 1 / 0.47 else (12 / 44) / 0.47
 
 run_one_validation <- function(mofuss_dir, run_label, out_dir) {
@@ -501,7 +519,7 @@ harv_mofuss <- mofuss_mc1$harvest
 target_crs  <- terra::crs(nrb_mofuss)          # World Mercator for this dataset
 
 # --- Country polygon --------------------------------------------------------
-ctry     <- terra::vect(file.path(mofuss_regionsdir, "mofuss_regions0.gpkg"))
+ctry     <- terra::vect(ADMIN_VECTOR)
 ctry_sel <- ctry[ctry$GID_0 == country_iso3, ]
 if (nrow(ctry_sel) != 1L)
   stop("Expected one country polygon for ", country_iso3, "; found ", nrow(ctry_sel), ".")

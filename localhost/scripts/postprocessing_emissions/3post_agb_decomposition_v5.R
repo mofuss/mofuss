@@ -53,7 +53,7 @@ stopf <- function(fmt, ...) {
   stop(sprintf(fmt, ...), call. = FALSE)
 }
 
-V5_SPINUP_YEARS <- 26L
+V5_SPINUP_YEARS <- NA_integer_
 V5_MIN_UNCERTAINTY_RUNS <- 30L
 
 pairing_design_status <- function(
@@ -92,19 +92,15 @@ pairing_design_status <- function(
   )
 }
 
-# EDIT ONLY THIS BLOCK when changing country/region scenario folders.
-# Folder order does not define pairing; parameters.csv does.
-SCENARIO_DIRS <- c(
-  "D:/ken_1000m_bau1_2050_mc30_capped",
-  "D:/ken_1000m_bau1_2050_mc30_uncapped",
-  "D:/ken_1000m_ics3_2050_mc30_capped",
-  "D:/ken_1000m_ics3_2050_mc30_uncapped"
-)
+# Scenario folders are supplied centrally by 0post_emissions_pipeline_v1.R.
+# This empty fallback prevents stale computer-specific paths from being used.
+SCENARIO_DIRS <- character()
 
 # RSTUDIO SOURCE SETTINGS. Edit these values, then use regular Source or
 # Source as Background Job.
 # NULL output means <analysis root>/agb_decomposition, inferred from the pairs.
 V5_RSTUDIO_OUTPUT_DIR <- NULL
+V5_RSTUDIO_SPINUP_YEARS <- NA_integer_
 V5_RSTUDIO_PERIOD <- "auto"
 V5_RSTUDIO_RUN_IDS <- "all"
 V5_RSTUDIO_PAIRING_POLICY <- "strict"
@@ -119,9 +115,11 @@ usage <- function() {
   cat(paste0(
     "Usage:\n",
     "  Rscript 3post_agb_decomposition_v5.R ",
-    "[--output-dir=DIR] [--period=auto|START:END] [--run-ids=all|LIST] [--dry-run] ",
+    "[--scenario-dir=DIR ...] [--output-dir=DIR] [--spinup-years=N] ",
+    "[--period=auto|START:END] ",
+    "[--run-ids=all|LIST] [--dry-run] ",
     "[--pairing-policy=strict|diagnostic] [--overwrite] [--no-plot]\n\n",
-    "Default input: SCENARIO_DIRS near the top of this script.\n",
+    "Default input: repeated --scenario-dir options from 0post_emissions_pipeline_v1.R.\n",
     "RStudio: edit the RSTUDIO SOURCE SETTINGS block, then use Source or Source as Background Job.\n",
     "Pairings, post-spin-up period, stage-2 inputs and output directory are inferred.\n",
     "Default --run-ids=all writes both nominal MC1 and MC1:n uncertainty analyses.\n",
@@ -137,8 +135,10 @@ usage <- function() {
 
 parse_cli <- function(args) {
   out <- list(
+    scenario_dirs = character(),
     manifest = NULL,
     output_dir = NULL,
+    spinup_years = NULL,
     period = "auto",
     run_ids = "all",
     run_id = NULL,
@@ -151,6 +151,7 @@ parse_cli <- function(args) {
   value_names <- c(
     "--manifest" = "manifest",
     "--output-dir" = "output_dir",
+    "--spinup-years" = "spinup_years",
     "--period" = "period",
     "--run-ids" = "run_ids",
     "--run-id" = "run_id",
@@ -167,14 +168,24 @@ parse_cli <- function(args) {
       out$overwrite <- TRUE
     } else if (a == "--no-plot") {
       out$make_plot <- FALSE
+    } else if (a == "--scenario-dir") {
+      if (i == length(args)) stopf("Missing value after %s.", a)
+      i <- i + 1L
+      out$scenario_dirs <- c(out$scenario_dirs, args[[i]])
     } else if (a %in% names(value_names)) {
       if (i == length(args)) stopf("Missing value after %s.", a)
       i <- i + 1L
       out[[unname(value_names[[a]])]] <- args[[i]]
+    } else if (grepl("^--scenario-dir=", a)) {
+      value <- sub("^--scenario-dir=", "", a)
+      if (!nzchar(value)) stopf("--scenario-dir cannot be blank.")
+      out$scenario_dirs <- c(out$scenario_dirs, value)
     } else if (grepl("^--manifest=", a)) {
       out$manifest <- sub("^--manifest=", "", a)
     } else if (grepl("^--output-dir=", a)) {
       out$output_dir <- sub("^--output-dir=", "", a)
+    } else if (grepl("^--spinup-years=", a)) {
+      out$spinup_years <- sub("^--spinup-years=", "", a)
     } else if (grepl("^--period=", a)) {
       out$period <- sub("^--period=", "", a)
     } else if (grepl("^--run-ids=", a)) {
@@ -189,6 +200,16 @@ parse_cli <- function(args) {
     i <- i + 1L
   }
   out
+}
+
+parse_spinup_years <- function(x) {
+  numeric_value <- suppressWarnings(as.numeric(x))
+  integer_value <- suppressWarnings(as.integer(x))
+  if (length(integer_value) != 1L || is.na(integer_value) ||
+      !is.finite(numeric_value) || numeric_value != integer_value || integer_value < 0L) {
+    stopf("--spinup-years must be one non-negative integer; got: %s", x)
+  }
+  integer_value
 }
 
 is_absolute_path <- function(x) {
@@ -1916,8 +1937,10 @@ write_mc_raster_summaries <- function(
 main <- function(args = commandArgs(trailingOnly = TRUE), source_mode = interactive()) {
   opts <- if (isTRUE(source_mode)) {
     list(
+      scenario_dirs = character(),
       manifest = NULL,
       output_dir = V5_RSTUDIO_OUTPUT_DIR,
+      spinup_years = V5_RSTUDIO_SPINUP_YEARS,
       period = V5_RSTUDIO_PERIOD,
       run_ids = V5_RSTUDIO_RUN_IDS,
       run_id = NULL,
@@ -1934,7 +1957,12 @@ main <- function(args = commandArgs(trailingOnly = TRUE), source_mode = interact
     usage()
     return(invisible(TRUE))
   }
+  spinup_years <- parse_spinup_years(opts$spinup_years)
+  V5_SPINUP_YEARS <<- spinup_years
   using_internal <- is.null(opts$manifest) || !nzchar(opts$manifest)
+  if (!using_internal && length(opts$scenario_dirs)) {
+    stopf("Use either repeated --scenario-dir options or --manifest, not both.")
+  }
   pairing_policy <- tolower(trimws(as.character(opts$pairing_policy)))
   if (length(pairing_policy) != 1L || is.na(pairing_policy) ||
       !pairing_policy %in% c("strict", "diagnostic")) {
@@ -1956,7 +1984,8 @@ main <- function(args = commandArgs(trailingOnly = TRUE), source_mode = interact
   })
 
   if (using_internal) {
-    pairs <- v5_internal_pairs(SCENARIO_DIRS)
+    scenario_dirs <- if (length(opts$scenario_dirs)) opts$scenario_dirs else SCENARIO_DIRS
+    pairs <- v5_internal_pairs(scenario_dirs)
     configs <- configs_from_pairs(pairs)
     internal_path <- v5_script_path()
     manifest_path <- if (is.na(internal_path)) {
@@ -2009,7 +2038,7 @@ main <- function(args = commandArgs(trailingOnly = TRUE), source_mode = interact
     }
     if (nrow(horizons) != 1L) {
       stopf(
-        "Automatic post-spin-up mode requires one common analysis horizon; found: %s. Edit SCENARIO_DIRS or use --period.",
+        "Automatic post-spin-up mode requires one common analysis horizon; found: %s. Update PIPELINE_SCENARIO_DIRS or use --period.",
         paste(apply(horizons, 1L, paste, collapse = ":"), collapse = ", ")
       )
     }

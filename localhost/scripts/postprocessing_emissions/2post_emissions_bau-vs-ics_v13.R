@@ -33,7 +33,9 @@
 
 # Accounting and pairing notes ----
 #
-# Run/source this file directly after editing only SCENARIO_DIRS below.
+# Normal use is through 0post_emissions_pipeline_v1.R, which supplies the
+# scenario folders once for every stage. Standalone Rscript execution accepts
+# repeated --scenario-dir options.
 # By default, every configured MoFuSS run (including nominal MC01) is
 # processed. One complete execution writes both the direct MC01 analysis and
 # the MC01:n uncertainty analysis. BAU/CCTS input tables are paired by the same
@@ -69,7 +71,7 @@
   "Harvest_pixels_V.csv", "Harvest_pixels_W.csv",
   "Prune_factor_V.csv", "Prune_factor_W.csv"
 )
-.V13_SPINUP_YEARS <- 26L
+.V13_SPINUP_YEARS <- NA_integer_
 .V13_MIN_UNCERTAINTY_RUNS <- 30L
 
 .v13_pairing_design <- function(
@@ -108,21 +110,16 @@
   )
 }
 
-# EDIT ONLY THIS BLOCK when changing country/region scenario folders.
-# Folder order does not define pairing. BAU/CCTS roles and capped/uncapped
-# configurations are read from each folder's parameters.csv.
-SCENARIO_DIRS <- c(
-  "D:/ken_1000m_bau1_2050_mc30_capped",
-  "D:/ken_1000m_bau1_2050_mc30_uncapped",
-  "D:/ken_1000m_ics3_2050_mc30_capped",
-  "D:/ken_1000m_ics3_2050_mc30_uncapped"
-)
+# Scenario folders are supplied centrally by 0post_emissions_pipeline_v1.R.
+# This empty fallback prevents stale computer-specific paths from being used.
+SCENARIO_DIRS <- character()
 
 # RSTUDIO SOURCE SETTINGS. These are used by regular Source and Source as a
 # Background Job. CLEAN_REBUILD=TRUE validates every pair and then fully
 # removes the exact inferred analysis root (for example
 # D:/mofuss_postprocessing/ken_2026_2030_mc2) before rebuilding any pair.
 .V13_RSTUDIO_PERIOD <- "auto"
+.V13_RSTUDIO_SPINUP_YEARS <- NA_integer_
 .V13_RSTUDIO_RUN_IDS <- "all"
 .V13_RSTUDIO_CONFIG_LABEL <- NULL
 .V13_RSTUDIO_DRY_RUN <- FALSE
@@ -160,12 +157,15 @@ SCENARIO_DIRS <- c(
 
 .v9_parse_cli <- function(args = commandArgs(trailingOnly = TRUE)) {
   allowed <- c(
-    "manifest", "config-label", "period", "run-ids", "temp-dir",
+    "scenario-dir", "manifest", "config-label", "spinup-years", "period",
+    "run-ids", "temp-dir",
     "dry-run", "overwrite", "enduse-basis", "pairing-policy", "help"
   )
   out <- list(
+    scenario_dirs = character(),
     manifest = NULL,
     config_label = NULL,
+    spinup_years = NULL,
     period = "auto",
     run_ids = "all",
     temp_dir = tempdir(),
@@ -191,6 +191,10 @@ SCENARIO_DIRS <- c(
       .v9_stop("Option --", key, " requires a value.")
     }
 
+    if (identical(key, "scenario-dir")) {
+      out$scenario_dirs <- c(out$scenario_dirs, value)
+      next
+    }
     key_r <- gsub("-", "_", key, fixed = TRUE)
     out[[key_r]] <- value
   }
@@ -202,14 +206,15 @@ SCENARIO_DIRS <- c(
     paste0(
       "MoFuSS avoided-emissions post-processing v13\n\n",
       "Default input:\n",
-      "  SCENARIO_DIRS near the top of this script\n\n",
+      "  repeated --scenario-dir options supplied by 0post_emissions_pipeline_v1.R\n\n",
       "RStudio Source or Source as Background Job:\n",
       "  validates inputs, deletes the entire inferred analysis root, and rebuilds it\n\n",
       "Options:\n",
+      "  --scenario-dir=DIR        Scenario folder; repeat once per BAU/CCTS folder\n",
       "  --manifest=CSV             Legacy resolved-pair manifest\n",
       "  --config-label=LABEL       Process one manifest label (default: all)\n",
-      "  --period=auto|YYYY:YYYY    Default: post-spin-up horizon (start+",
-      .V13_SPINUP_YEARS, "):end\n",
+      "  --spinup-years=N           Non-negative years from simulation start to reporting start\n",
+      "  --period=auto|YYYY:YYYY    Default: configured post-spin-up start through end\n",
       "  --run-ids=all|1,2,5:10    Selected MC runs (default: all, including MC01)\n",
       "  --temp-dir=DIR             Existing writable terra temp directory\n",
       "  --enduse-basis=demand      Only implemented basis\n",
@@ -231,6 +236,16 @@ SCENARIO_DIRS <- c(
   years <- as.integer(m[1, 2:3])
   if (years[1] > years[2]) .v9_stop("Period start is after period end: ", x)
   years
+}
+
+.v13_parse_spinup_years <- function(x) {
+  numeric_value <- suppressWarnings(as.numeric(x))
+  integer_value <- suppressWarnings(as.integer(x))
+  if (length(integer_value) != 1L || is.na(integer_value) ||
+      !is.finite(numeric_value) || numeric_value != integer_value || integer_value < 0L) {
+    .v9_stop("--spinup-years must be one non-negative integer; got: ", x)
+  }
+  integer_value
 }
 
 .v9_parse_run_ids <- function(x) {
@@ -2258,8 +2273,10 @@ run_emissions_manifest <- function(
   .v9_require_packages()
   options <- if (source_mode) {
     list(
+      scenario_dirs = character(),
       manifest = NULL,
       config_label = .V13_RSTUDIO_CONFIG_LABEL,
+      spinup_years = .V13_RSTUDIO_SPINUP_YEARS,
       period = .V13_RSTUDIO_PERIOD,
       run_ids = .V13_RSTUDIO_RUN_IDS,
       temp_dir = tempdir(),
@@ -2277,11 +2294,21 @@ run_emissions_manifest <- function(
     .v9_usage()
     return(invisible(NULL))
   }
+  spinup_years <- .v13_parse_spinup_years(options$spinup_years)
+  .V13_SPINUP_YEARS <<- spinup_years
   period <- .v9_parse_period(options$period)
   run_ids <- .v9_parse_run_ids(options$run_ids)
+  scenario_dirs <- if (length(options$scenario_dirs)) {
+    options$scenario_dirs
+  } else {
+    SCENARIO_DIRS
+  }
+  if (!is.null(options$manifest) && length(options$scenario_dirs)) {
+    .v9_stop("Use either repeated --scenario-dir options or --manifest, not both.")
+  }
   run_emissions_manifest(
     manifest = options$manifest,
-    scenario_dirs = SCENARIO_DIRS,
+    scenario_dirs = scenario_dirs,
     period = period,
     run_ids = run_ids,
     config_label = options$config_label,

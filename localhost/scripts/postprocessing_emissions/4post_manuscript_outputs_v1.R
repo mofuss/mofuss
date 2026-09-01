@@ -53,11 +53,11 @@ COMPONENT_LABELS <- c(harvest = "Harvest / AGB", enduse = "End-use", total = "To
 TABLE_PNG_DPI <- 300L
 TABLE_PNG_WIDTH_IN <- 7.5
 
-# RSTUDIO SOURCE SETTINGS. SOURCE_DIR must be the analysis root printed by
-# Stage 2/3 (the folder containing both pairs/ and agb_decomposition/). Edit
-# this value for each region, then use regular Source or Source as Background Job.
-V1_RSTUDIO_SOURCE_DIR <- "D:/mofuss_postprocessing/ken_2026_2050_mc30"
-V1_RSTUDIO_OUTPUT_DIR <- file.path(V1_RSTUDIO_SOURCE_DIR, "manuscript_outputs")
+# Paths are inferred centrally by 0post_emissions_pipeline_v1.R and passed as
+# command-line options. NULL prevents a stale computer-specific path from being
+# used when this stage is sourced directly.
+V1_RSTUDIO_SOURCE_DIR <- NULL
+V1_RSTUDIO_OUTPUT_DIR <- NULL
 V1_RSTUDIO_MIN_UNCERTAINTY_RUNS <- DEFAULT_MIN_UNCERTAINTY_RUNS
 V1_RSTUDIO_CLEAN_REBUILD <- TRUE
 
@@ -519,7 +519,7 @@ footnotes <- c(
   sprintf(
     paste0(
       "Note 1: The %s reporting period begins after the %d-%d spin-up/past-to-present simulation ",
-      "(%d years); its start year is calculated as simulation_start_year + .V13_SPINUP_YEARS. ",
+      "(%d years); its start year is calculated as simulation_start_year plus the configured spin-up interval. ",
       "Period effects use the %d ",
       "end-of-previous-year state as their baseline. BAU and CCTS may enter the reporting period with ",
       "slightly different AGB, especially when Patcher is active; therefore their %d AGB stock difference ",

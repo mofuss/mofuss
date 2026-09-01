@@ -65,14 +65,9 @@ suppressPackageStartupMessages({
 # Internal parameters ----
 
 cfg <- list(
-  # Edit this vector to audit any number of completed MoFuSS working folders.
-  # Command-line folders, when supplied, replace this vector.
-  working_dirs = c(
-    "D:/ken_1000m_bau1_2050_mc30_capped",
-    "D:/ken_1000m_bau1_2050_mc30_uncapped",
-    "D:/ken_1000m_ics3_2050_mc30_capped",
-    "D:/ken_1000m_ics3_2050_mc30_uncapped"
-  ),
+  # Supplied centrally by 0calib_valid_agb_pipeline_v1.R. Positional folders
+  # remain accepted for backwards-compatible standalone execution.
+  working_dirs = character(),
   growth_model = "auto",       # auto | logistic | chapman-richards
   depleted_reset_Mg_cell = 2,  # EGO feedback stock after depleted forest
   float_tolerance_Mg_cell = 0.01,
@@ -83,13 +78,69 @@ cfg <- list(
 )
 
 args <- commandArgs(trailingOnly = TRUE)
-if (length(args)) cfg$working_dirs <- args[nzchar(args)]
+for (arg in args) {
+  if (arg %in% c("--help", "-h")) {
+    cat(paste0(
+      "Usage: Rscript 1_mechanics_verifications_v2.R [working_dir ...] [options]\n",
+      "  --working-dir=DIR                 Repeat for each completed run\n",
+      "  --growth-model=auto|logistic|chapman-richards\n",
+      "  --depleted-reset-mg-cell=N\n",
+      "  --float-tolerance-mg-cell=N\n",
+      "  --plot-seed=N\n",
+      "  --plot-cells-per-group=N\n",
+      "  --rnorm-script=FILE\n",
+      "  --maps-script=FILE\n"
+    ))
+    quit(save = "no", status = 0L, runLast = FALSE)
+  } else if (startsWith(arg, "--working-dir=")) {
+    cfg$working_dirs <- c(cfg$working_dirs, sub("^--working-dir=", "", arg))
+  } else if (startsWith(arg, "--growth-model=")) {
+    cfg$growth_model <- sub("^--growth-model=", "", arg)
+  } else if (startsWith(arg, "--depleted-reset-mg-cell=")) {
+    cfg$depleted_reset_Mg_cell <- suppressWarnings(as.numeric(
+      sub("^--depleted-reset-mg-cell=", "", arg)
+    ))
+  } else if (startsWith(arg, "--float-tolerance-mg-cell=")) {
+    cfg$float_tolerance_Mg_cell <- suppressWarnings(as.numeric(
+      sub("^--float-tolerance-mg-cell=", "", arg)
+    ))
+  } else if (startsWith(arg, "--plot-seed=")) {
+    cfg$plot_seed <- suppressWarnings(as.integer(sub("^--plot-seed=", "", arg)))
+  } else if (startsWith(arg, "--plot-cells-per-group=")) {
+    cfg$plot_cells_per_group <- suppressWarnings(as.integer(
+      sub("^--plot-cells-per-group=", "", arg)
+    ))
+  } else if (startsWith(arg, "--rnorm-script=")) {
+    cfg$rnorm_script <- sub("^--rnorm-script=", "", arg)
+  } else if (startsWith(arg, "--maps-script=")) {
+    cfg$maps_script <- sub("^--maps-script=", "", arg)
+  } else if (startsWith(arg, "--")) {
+    stop("Unknown option: ", arg, call. = FALSE)
+  } else {
+    cfg$working_dirs <- c(cfg$working_dirs, arg)
+  }
+}
 cfg$working_dirs <- unique(as.character(cfg$working_dirs[nzchar(cfg$working_dirs)]))
 if (!length(cfg$working_dirs)) {
   stop(
-    "Set cfg$working_dirs or supply one or more working folders on the command line.",
+    "Supply one or more --working-dir options (normally through 0calib_valid_agb_pipeline_v1.R).",
     call. = FALSE
   )
+}
+if (!cfg$growth_model %in% c("auto", "logistic", "chapman-richards")) {
+  stop("--growth-model must be auto, logistic or chapman-richards.", call. = FALSE)
+}
+if (!is.finite(cfg$depleted_reset_Mg_cell) || cfg$depleted_reset_Mg_cell < 0) {
+  stop("--depleted-reset-mg-cell must be a non-negative number.", call. = FALSE)
+}
+if (!is.finite(cfg$float_tolerance_Mg_cell) || cfg$float_tolerance_Mg_cell < 0) {
+  stop("--float-tolerance-mg-cell must be a non-negative number.", call. = FALSE)
+}
+if (is.na(cfg$plot_seed) || is.na(cfg$plot_cells_per_group) || cfg$plot_cells_per_group < 1L) {
+  stop("Plot seed must be an integer and plot-cells-per-group must be >= 1.", call. = FALSE)
+}
+if (!nzchar(cfg$rnorm_script) || !nzchar(cfg$maps_script)) {
+  stop("The v8 dependency script names cannot be blank.", call. = FALSE)
 }
 
 run_verifier <- function(selected_working_dir, base_cfg) {

@@ -37,21 +37,10 @@
 SCRIPT_VERSION <- "9"
 DEFAULT_OUTPUT_SUBDIR <- file.path("Out", "webmofuss_results_v9")
 
-# EDIT ONLY THIS BLOCK when changing the country/region analysis.
-# Each entry is one completed MoFuSS scenario folder. Metadata, full horizon,
-# available runs and output locations are read/inferred by the script.
-SCENARIO_DIRS <- c(
-  "D:/ken_1000m_bau1_2050_mc30_capped",
-  "D:/ken_1000m_bau1_2050_mc30_uncapped",
-  "D:/ken_1000m_ics3_2050_mc30_capped",
-  "D:/ken_1000m_ics3_2050_mc30_uncapped"
-)
-# SCENARIO_DIRS <- c(
-#   "E:/rwa_1000m_bau1_2050_mc30_capped",
-#   "E:/rwa_1000m_bau1_2050_mc30_uncapped",
-#   "E:/rwa_1000m_ics3_2050_mc30_capped",
-#   "E:/rwa_1000m_ics3_2050_mc30_uncapped"
-# )
+# Scenario folders are supplied centrally by 0post_emissions_pipeline_v1.R.
+# This empty fallback prevents a stale computer-specific path from being used
+# accidentally. Standalone Rscript execution accepts repeated --scenario-dir.
+SCENARIO_DIRS <- character()
 
 # RSTUDIO SOURCE SETTINGS. Leave PERIODS empty to use the script's inferred
 # schedule, or use values such as c("2026:2030"). CLEAN_REBUILD=TRUE fully
@@ -72,7 +61,7 @@ usage <- function() {
     "    [--period=START:END ...] (default: v3 STdyn windows after spin-up)",
     "    [--output-subdir=Out/webmofuss_results_v9] [--dry-run] [--overwrite]",
     "",
-    "Edit SCENARIO_DIRS and the RSTUDIO SOURCE SETTINGS near the top.",
+    "Normal use: configure and run 0post_emissions_pipeline_v1.R.",
     "--overwrite fully deletes each validated Stage 1 output directory first.",
     "",
     "Period semantics:",
