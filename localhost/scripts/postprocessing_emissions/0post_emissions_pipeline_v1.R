@@ -33,7 +33,7 @@
 # that root exists on the current computer.
 PIPELINE_BATCHES <- list(
   madagascar = list(
-    enabled = TRUE,
+    enabled = FALSE,
     root = "C:/Users/aghil/Documents/MoFuSS_localhost",
     folders = c(
       "mdg_1000m_bau1_2050_mc2_capped",
@@ -43,8 +43,8 @@ PIPELINE_BATCHES <- list(
     )
   ),
   kenya = list(
-    enabled = FALSE,
-    root = "",  # Set the folder containing these four runs before enabling.
+    enabled = TRUE,
+    root = "E:/",  # Set the folder containing these four runs before enabling.
     folders = c(
       "ken_1000m_bau1_2050_mc30_capped",
       "ken_1000m_bau1_2050_mc30_uncapped",
@@ -53,8 +53,8 @@ PIPELINE_BATCHES <- list(
     )
   ),
   rwanda = list(
-    enabled = FALSE,
-    root = "",  # Set the folder containing these four runs before enabling.
+    enabled = TRUE,
+    root = "E:/",  # Set the folder containing these four runs before enabling.
     folders = c(
       "rwa_1000m_bau1_2050_mc30_capped",
       "rwa_1000m_bau1_2050_mc30_uncapped",
