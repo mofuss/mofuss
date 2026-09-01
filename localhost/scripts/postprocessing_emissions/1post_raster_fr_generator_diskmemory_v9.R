@@ -303,6 +303,47 @@ parse_manifest_bool <- function(x, field, path) {
   stopf("Field '%s' is not boolean in %s: %s", field, path, x)
 }
 
+is_absolute_manifest_path <- function(path) {
+  grepl("^(?:[A-Za-z]:[/\\\\]|/)", path)
+}
+
+manifest_path_key <- function(path) {
+  path <- gsub("\\\\", "/", path)
+  path <- sub("/+$", "", path)
+  if (.Platform$OS.type == "windows") tolower(path) else path
+}
+
+resolve_relocated_manifest_dir <- function(recorded, expected, field, manifest_path) {
+  recorded <- trimws(as.character(recorded))
+  if (length(recorded) != 1L || is.na(recorded) || !nzchar(recorded)) {
+    stopf("Field '%s' is blank in %s", field, manifest_path)
+  }
+  recorded_path <- if (is_absolute_manifest_path(recorded)) {
+    path.expand(recorded)
+  } else {
+    file.path(dirname(manifest_path), recorded)
+  }
+  recorded_path <- normalizePath(recorded_path, winslash = "/", mustWork = FALSE)
+  if (!dir.exists(expected)) {
+    stopf("Expected relocated directory for field '%s' does not exist: %s", field, expected)
+  }
+  expected <- normalizePath(expected, winslash = "/", mustWork = TRUE)
+  if (identical(manifest_path_key(recorded_path), manifest_path_key(expected))) {
+    return(list(path = expected, relocated = FALSE, recorded = recorded_path))
+  }
+  same_leaf <- identical(tolower(basename(recorded_path)), tolower(basename(expected)))
+  if (!file.exists(recorded_path) && same_leaf) {
+    return(list(path = expected, relocated = TRUE, recorded = recorded_path))
+  }
+  stopf(
+    paste0(
+      "MC bypass manifest field '%s' points to a different existing or ",
+      "differently named directory. Recorded: %s; selected: %s; manifest: %s"
+    ),
+    field, recorded_path, expected, manifest_path
+  )
+}
+
 read_pairing_provenance <- function(scenario_dir, scenario_ver) {
   is_bau <- grepl("^bau", scenario_ver, ignore.case = TRUE)
   path <- file.path(scenario_dir, "Temp", "mc_bypass_manifest.csv")
@@ -335,7 +376,8 @@ read_pairing_provenance <- function(scenario_dir, scenario_ver) {
   path <- normalizePath(path, winslash = "/", mustWork = TRUE)
   tab <- read_delimited_table(path)
   required <- c(
-    "status", "mode", "current_scenario_dir", "bau_source_dir",
+    "status", "mode", "current_scenario_dir", "current_scenario_ver",
+    "bau_source_dir", "bau_scenario_ver",
     "patcher_bypassed", "patcher_rng_paired"
   )
   missing <- setdiff(required, names(tab))
@@ -345,11 +387,47 @@ read_pairing_provenance <- function(scenario_dir, scenario_ver) {
       paste(required, collapse = ", "), path
     )
   }
-  current_dir <- normalizePath(
-    as.character(tab$current_scenario_dir[[1]]), winslash = "/", mustWork = FALSE
+  current_scenario_ver <- trimws(as.character(tab$current_scenario_ver[[1]]))
+  if (!identical(current_scenario_ver, scenario_ver)) {
+    stopf(
+      "MC bypass manifest scenario_ver '%s' does not match '%s': %s",
+      current_scenario_ver, scenario_ver, path
+    )
+  }
+  bau_scenario_ver <- trimws(as.character(tab$bau_scenario_ver[[1]]))
+  if (!grepl("^bau", bau_scenario_ver, ignore.case = TRUE)) {
+    stopf("MC bypass manifest bau_scenario_ver is not BAU: %s", path)
+  }
+  manifest_value <- function(primary, relative = NULL) {
+    if (!is.null(relative) && relative %in% names(tab)) {
+      value <- trimws(as.character(tab[[relative]][[1]]))
+      if (length(value) == 1L && !is.na(value) && nzchar(value)) return(value)
+    }
+    as.character(tab[[primary]][[1]])
+  }
+  current_ref <- resolve_relocated_manifest_dir(
+    manifest_value("current_scenario_dir", "current_scenario_rel"),
+    scenario_dir, "current_scenario_dir", path
   )
-  if (!identical(tolower(current_dir), tolower(scenario_dir))) {
-    stopf("MC bypass manifest points to a different scenario directory: %s", path)
+  recorded_bau <- manifest_value("bau_source_dir", "bau_source_rel")
+  recorded_bau_path <- if (is_absolute_manifest_path(recorded_bau)) {
+    path.expand(recorded_bau)
+  } else {
+    file.path(dirname(path), recorded_bau)
+  }
+  recorded_bau_path <- normalizePath(
+    recorded_bau_path, winslash = "/", mustWork = FALSE
+  )
+  bau_ref <- resolve_relocated_manifest_dir(
+    recorded_bau,
+    file.path(dirname(scenario_dir), basename(recorded_bau_path)),
+    "bau_source_dir", path
+  )
+  if (current_ref$relocated || bau_ref$relocated) {
+    message(
+      "MC bypass manifest relocation accepted after folder/scenario identity checks: ",
+      path
+    )
   }
   status <- trimws(as.character(tab$status[[1]]))
   mode <- trimws(as.character(tab$mode[[1]]))
@@ -365,9 +443,7 @@ read_pairing_provenance <- function(scenario_dir, scenario_ver) {
     mc_bypass_manifest_md5 = unname(as.character(tools::md5sum(path))),
     mc_bypass_status = status,
     mc_bypass_mode = mode,
-    mc_bau_source_dir = normalizePath(
-      as.character(tab$bau_source_dir[[1]]), winslash = "/", mustWork = FALSE
-    ),
+    mc_bau_source_dir = bau_ref$path,
     mc_tables_reused_from_bau = tables_reused,
     patcher_bypassed = patcher_bypassed,
     patcher_rng_paired = patcher_paired,

@@ -293,6 +293,30 @@ SCENARIO_DIRS <- character()
   if (.v9_is_absolute_path(path)) path else file.path(manifest_dir, path)
 }
 
+.v13_resolve_relocated_manifest_dir <- function(
+  recorded, expected, field, manifest_path
+) {
+  recorded <- trimws(as.character(recorded))
+  if (length(recorded) != 1L || is.na(recorded) || !nzchar(recorded)) {
+    .v9_stop("Field '", field, "' is blank in ", manifest_path)
+  }
+  recorded_path <- .v9_resolve_manifest_path(recorded, dirname(manifest_path))
+  recorded_path <- normalizePath(recorded_path, winslash = "/", mustWork = FALSE)
+  expected <- .v9_norm_existing(expected, paste0("selected ", field))
+  if (identical(.v9_path_key(recorded_path), .v9_path_key(expected))) {
+    return(list(path = expected, relocated = FALSE, recorded = recorded_path))
+  }
+  same_leaf <- identical(tolower(basename(recorded_path)), tolower(basename(expected)))
+  if (!file.exists(recorded_path) && same_leaf) {
+    return(list(path = expected, relocated = TRUE, recorded = recorded_path))
+  }
+  .v9_stop(
+    "CCTS MC bypass manifest field '", field,
+    "' points to a different existing or differently named directory. Recorded: ",
+    recorded_path, "; selected: ", expected, "; manifest: ", manifest_path
+  )
+}
+
 .v9_path_key <- function(path) {
   path <- gsub("\\\\", "/", path)
   path <- sub("/+$", "", path)
@@ -687,11 +711,32 @@ SCENARIO_DIRS <- character()
     )
   }
   value <- function(field) trimws(as.character(tab[[field]][[1]]))
-  current_dir <- .v9_norm_existing(value("current_scenario_dir"), "bypass current_scenario_dir")
-  source_dir <- .v9_norm_existing(value("bau_source_dir"), "bypass bau_source_dir")
+  manifest_value <- function(primary, relative = NULL) {
+    if (!is.null(relative) && relative %in% names(tab)) {
+      candidate <- value(relative)
+      if (length(candidate) == 1L && !is.na(candidate) && nzchar(candidate)) {
+        return(candidate)
+      }
+    }
+    value(primary)
+  }
+  current_ref <- .v13_resolve_relocated_manifest_dir(
+    manifest_value("current_scenario_dir", "current_scenario_rel"),
+    ics_root, "current_scenario_dir", path
+  )
+  source_ref <- .v13_resolve_relocated_manifest_dir(
+    manifest_value("bau_source_dir", "bau_source_rel"),
+    bau_root, "bau_source_dir", path
+  )
+  current_dir <- current_ref$path
+  source_dir <- source_ref$path
+  if (current_ref$relocated || source_ref$relocated) {
+    message(
+      "[v13] Accepted relocated MC bypass manifest after folder and metadata checks: ",
+      path
+    )
+  }
   exact_checks <- c(
-    current_scenario_dir = identical(.v9_path_key(current_dir), .v9_path_key(ics_root)),
-    bau_source_dir = identical(.v9_path_key(source_dir), .v9_path_key(bau_root)),
     current_scenario_ver = identical(value("current_scenario_ver"), ics_par$scenario),
     bau_scenario_ver = identical(value("bau_scenario_ver"), bau_par$scenario),
     geography = identical(toupper(value("geography")), toupper(ics_par$iso3)),

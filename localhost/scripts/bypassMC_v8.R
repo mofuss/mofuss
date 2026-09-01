@@ -492,6 +492,7 @@ prepare_stage <- function(
   file_manifest <- data.frame(
     file = selected_files,
     source_path = normalizePath(source_paths, winslash = "/", mustWork = TRUE),
+    source_rel = file.path("..", "..", basename(bau$root), "Temp", selected_files),
     source_md5 = source_hash,
     copied_md5 = staged_hash,
     bau_mc_batch_id = batch_ready$batch_id,
@@ -503,12 +504,17 @@ prepare_stage <- function(
     created_at = now,
     mode = "reuse_BAU_MC_tables",
     current_scenario_dir = ccts$root,
+    current_scenario_rel = "..",
     current_scenario_ver = ccts$scenario_ver,
     bau_source_dir = bau$root,
+    bau_source_rel = file.path("..", "..", basename(bau$root)),
     bau_scenario_ver = bau$scenario_ver,
     bau_mc_batch_id = batch_ready$batch_id,
     bau_mc_batch_created_utc = batch_ready$created_utc,
     bau_mc_batch_manifest = batch_ready$path,
+    bau_mc_batch_manifest_rel = file.path(
+      "..", "..", basename(bau$root), "Temp", mc_batch_ready_filename
+    ),
     bau_mc_batch_manifest_md5 = batch_ready$manifest_md5,
     geography = ccts$geography,
     start_year = ccts$start_year,

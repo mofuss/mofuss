@@ -193,17 +193,34 @@ manifest <- read.csv(
   file.path(ccts, "Temp", "mc_bypass_manifest.csv"),
   stringsAsFactors = FALSE
 )
+file_manifest <- read.csv(
+  file.path(ccts, "Temp", "mc_bypass_file_manifest.csv"),
+  stringsAsFactors = FALSE
+)
 stopifnot(
   nrow(manifest) == 1L,
   manifest$status == "complete",
   manifest$mode == "reuse_BAU_MC_tables",
+  identical(manifest$current_scenario_rel, ".."),
+  identical(
+    manifest$bau_source_rel,
+    file.path("..", "..", basename(bau))
+  ),
+  identical(
+    manifest$bau_mc_batch_manifest_rel,
+    file.path("..", "..", basename(bau), "Temp", "mc_batch_ready.csv")
+  ),
   identical(manifest$bau_mc_batch_id, batch_id),
   manifest$monte_carlo_runs == 30L,
   manifest$uncapped_regrowth == 0L,
   identical(manifest$bau_dynamics_complete, FALSE),
   manifest$bau_completed_run_count == 15L,
   identical(manifest$patcher_bypassed, TRUE),
-  identical(manifest$patcher_rng_paired, FALSE)
+  identical(manifest$patcher_rng_paired, FALSE),
+  identical(
+    file_manifest$source_rel,
+    file.path("..", "..", basename(bau), "Temp", file_manifest$file)
+  )
 )
 
 cat("BYPASS_MC_INTEGRATION_TEST_OK:", script_name, "\n")
