@@ -82,7 +82,8 @@ PIPELINE_PAIRING_POLICY <- "strict"
 PIPELINE_MAKE_DECOMPOSITION_PLOT <- TRUE
 
 # MC2 is suitable for mechanics testing, not manuscript uncertainty. Keeping
-# this at 30 makes Stage 4 label the current MC2 uncertainty as exploratory.
+# this at 30 makes Stage 4 publish only MC1 manuscript outputs for MC2 batches;
+# MC-all tables, figures, and rasters begin at this run-count threshold.
 PIPELINE_MIN_UNCERTAINTY_RUNS <- 30L
 
 # TRUE rebuilds each stage's exact, guarded output folder.

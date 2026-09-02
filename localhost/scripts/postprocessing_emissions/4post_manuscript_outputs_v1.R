@@ -27,8 +27,9 @@
 # Stage 3 outputs without rerunning MoFuSS or any emissions stage.
 # Inputs: A completed Stage 2/3 analysis root containing summary CSVs and
 # component rasters.
-# Outputs: MC01 and MC-all manuscript tables as CSV and 300-dpi PNG files,
-# 18 component rasters, and one 300-dpi MC01 emissions-map figure.
+# Outputs: MC01 manuscript tables, rasters, and a 300-dpi map figure. When the
+# Monte Carlo sample meets the configured uncertainty threshold, also writes
+# the MC-all table, mean/SD rasters, and a 300-dpi mean/uncertainty map figure.
 # Side effects: A clean rebuild fully deletes the exact validated
 # manuscript_outputs directory before recreating it.
 
@@ -116,7 +117,9 @@ v1_root_like <- function(path) {
     grepl("^//[^/]+/[^/]+/?$", key)
 }
 
-prepare_output_dir <- function(path, source_root, allow_overwrite) {
+prepare_output_dir <- function(
+  path, source_root, allow_overwrite, include_uncertainty
+) {
   target <- normalizePath(path, winslash = "/", mustWork = FALSE)
   expected <- normalizePath(
     file.path(source_root, "manuscript_outputs"),
@@ -153,7 +156,10 @@ prepare_output_dir <- function(path, source_root, allow_overwrite) {
       }
     }
   }
-  dirs <- c("figures/mc_1", "rasters/mc_1", "rasters/mc_all", "tables")
+  dirs <- c("figures/mc_1", "rasters/mc_1", "tables")
+  if (include_uncertainty) {
+    dirs <- c(dirs, "figures/mc_all", "rasters/mc_all")
+  }
   for (d in dirs) dir.create(file.path(target, d), recursive = TRUE, showWarnings = FALSE)
 }
 
@@ -345,9 +351,6 @@ agb_per_run_path <- select_one(
 agb_mc1_path <- select_one(
   file.path(agb_dir, "comparison_table_mc1_*.csv"), "Stage 3 MC1 comparison table"
 )
-agb_uncertainty_path <- select_one(
-  file.path(agb_dir, "uncertainty_summary_*.csv"), "Stage 3 uncertainty summary"
-)
 
 per_run <- read_csv_required(agb_per_run_path, "Stage 3 per-run decomposition")
 require_columns(
@@ -400,9 +403,10 @@ if (!identical(run_ids_by_configuration$capped, run_ids_by_configuration$uncappe
   stopf("Capped and uncapped configurations do not contain the same run IDs.")
 }
 run_ids <- run_ids_by_configuration$capped
-if (length(run_ids) < 2L) stopf("At least two Monte Carlo runs are required for an SD table.")
+if (!length(run_ids)) stopf("At least one Monte Carlo run is required.")
 if (!1L %in% run_ids) stopf("Run 1 is missing from the Stage 3 per-run decomposition.")
 n_runs <- length(run_ids)
+uncertainty_adequate <- n_runs >= min_uncertainty_runs
 
 display_labels <- vapply(CONFIGURATION_ORDER, function(configuration) {
   hits <- unique(as.character(per_run$display_label[per_run$regrowth_mode == configuration]))
@@ -448,7 +452,11 @@ source_mc1_labels <- c(
 )
 
 mc1_table <- data.frame(Metric = metric_labels, check.names = FALSE, stringsAsFactors = FALSE)
-mc_all_table <- data.frame(Metric = metric_labels, check.names = FALSE, stringsAsFactors = FALSE)
+mc_all_table <- if (uncertainty_adequate) {
+  data.frame(Metric = metric_labels, check.names = FALSE, stringsAsFactors = FALSE)
+} else {
+  NULL
+}
 format_metric <- function(x, digits) formatC(as.numeric(x), format = "f", digits = digits)
 plus_minus <- intToUtf8(177L)
 
@@ -459,16 +467,22 @@ for (configuration in CONFIGURATION_ORDER) {
   if (nrow(mc1_row) != 1L) stopf("Expected exactly one MC1 row for %s.", configuration)
 
   raw_mc1 <- vapply(unname(metric_fields), function(field) as.numeric(mc1_row[[field]][[1L]]), numeric(1)) * metric_scales
-  means <- vapply(unname(metric_fields), function(field) mean(as.numeric(rows[[field]])), numeric(1)) * metric_scales
-  sds <- vapply(unname(metric_fields), function(field) stats::sd(as.numeric(rows[[field]])), numeric(1)) * metric_scales
   mc1_table[[display_labels[[configuration]]]] <- vapply(
     seq_along(raw_mc1), function(i) round(raw_mc1[[i]], metric_digits[[i]]), numeric(1)
   )
-  mc_all_table[[display_labels[[configuration]]]] <- paste0(
-    vapply(seq_along(means), function(i) format_metric(means[[i]], metric_digits[[i]]), character(1)),
-    " ", plus_minus, " ",
-    vapply(seq_along(sds), function(i) format_metric(sds[[i]], metric_digits[[i]]), character(1))
-  )
+  if (uncertainty_adequate) {
+    means <- vapply(
+      unname(metric_fields), function(field) mean(as.numeric(rows[[field]])), numeric(1)
+    ) * metric_scales
+    sds <- vapply(
+      unname(metric_fields), function(field) stats::sd(as.numeric(rows[[field]])), numeric(1)
+    ) * metric_scales
+    mc_all_table[[display_labels[[configuration]]]] <- paste0(
+      vapply(seq_along(means), function(i) format_metric(means[[i]], metric_digits[[i]]), character(1)),
+      " ", plus_minus, " ",
+      vapply(seq_along(sds), function(i) format_metric(sds[[i]], metric_digits[[i]]), character(1))
+    )
+  }
 }
 
 # Validate MC1 values against the existing Stage 3 comparison table before rounding.
@@ -487,30 +501,44 @@ for (configuration in CONFIGURATION_ORDER) {
   }
 }
 
-# Validate Stage 3 ensemble metrics against the per-run means and sample SDs.
-uncertainty <- read_csv_required(agb_uncertainty_path, "Stage 3 uncertainty summary")
-require_columns(uncertainty, c("regrowth_mode", "metric", "runs", "mean", "sd"), "Stage 3 uncertainty summary")
-uncertainty_checks <- c(
-  period_delta_agb_mg = "period_delta_agb_mg",
-  period_avoided_loss_mg = "period_avoided_loss_mg",
-  period_regrowth_mg = "period_regrowth_mg",
-  period_avoided_loss_tco2e = "period_avoided_loss_tco2e",
-  period_regrowth_tco2e = "period_regrowth_tco2e",
-  agb_avoided_stage2_tco2e = "agb_avoided_stage2_tco2e",
-  enduse_avoided_tco2e = "enduse_avoided_tco2e",
-  total_avoided_tco2e = "total_avoided_tco2e"
-)
-for (configuration in CONFIGURATION_ORDER) {
-  rows <- per_run[per_run$regrowth_mode == configuration, , drop = FALSE]
-  for (metric in names(uncertainty_checks)) {
-    hit <- uncertainty[uncertainty$regrowth_mode == configuration & uncertainty$metric == metric, , drop = FALSE]
-    if (nrow(hit) != 1L || as.integer(hit$runs[[1L]]) != n_runs) {
-      stopf("Uncertainty summary row is missing or has the wrong run count: %s %s.", configuration, metric)
-    }
-    values <- as.numeric(rows[[uncertainty_checks[[metric]]]])
-    if (!same_number(mean(values), hit$mean[[1L]], tolerance = 1e-8) ||
-        !same_number(stats::sd(values), hit$sd[[1L]], tolerance = 1e-8)) {
-      stopf("Uncertainty summary does not reconcile: %s %s.", configuration, metric)
+# Validate Stage 3 ensemble metrics only when they will be published.
+if (uncertainty_adequate) {
+  agb_uncertainty_path <- select_one(
+    file.path(agb_dir, "uncertainty_summary_*.csv"), "Stage 3 uncertainty summary"
+  )
+  uncertainty <- read_csv_required(agb_uncertainty_path, "Stage 3 uncertainty summary")
+  require_columns(
+    uncertainty, c("regrowth_mode", "metric", "runs", "mean", "sd"),
+    "Stage 3 uncertainty summary"
+  )
+  uncertainty_checks <- c(
+    period_delta_agb_mg = "period_delta_agb_mg",
+    period_avoided_loss_mg = "period_avoided_loss_mg",
+    period_regrowth_mg = "period_regrowth_mg",
+    period_avoided_loss_tco2e = "period_avoided_loss_tco2e",
+    period_regrowth_tco2e = "period_regrowth_tco2e",
+    agb_avoided_stage2_tco2e = "agb_avoided_stage2_tco2e",
+    enduse_avoided_tco2e = "enduse_avoided_tco2e",
+    total_avoided_tco2e = "total_avoided_tco2e"
+  )
+  for (configuration in CONFIGURATION_ORDER) {
+    rows <- per_run[per_run$regrowth_mode == configuration, , drop = FALSE]
+    for (metric in names(uncertainty_checks)) {
+      hit <- uncertainty[
+        uncertainty$regrowth_mode == configuration & uncertainty$metric == metric,
+        , drop = FALSE
+      ]
+      if (nrow(hit) != 1L || as.integer(hit$runs[[1L]]) != n_runs) {
+        stopf(
+          "Uncertainty summary row is missing or has the wrong run count: %s %s.",
+          configuration, metric
+        )
+      }
+      values <- as.numeric(rows[[uncertainty_checks[[metric]]]])
+      if (!same_number(mean(values), hit$mean[[1L]], tolerance = 1e-8) ||
+          !same_number(stats::sd(values), hit$sd[[1L]], tolerance = 1e-8)) {
+        stopf("Uncertainty summary does not reconcile: %s %s.", configuration, metric)
+      }
     }
   }
 }
@@ -538,13 +566,17 @@ footnotes <- c(
 )
 for (note in footnotes) {
   mc1_note <- data.frame(Metric = note, check.names = FALSE, stringsAsFactors = FALSE)
-  mc_all_note <- data.frame(Metric = note, check.names = FALSE, stringsAsFactors = FALSE)
   for (configuration in CONFIGURATION_ORDER) {
     mc1_note[[display_labels[[configuration]]]] <- NA_real_
-    mc_all_note[[display_labels[[configuration]]]] <- NA_character_
   }
   mc1_table <- rbind(mc1_table, mc1_note)
-  mc_all_table <- rbind(mc_all_table, mc_all_note)
+  if (uncertainty_adequate) {
+    mc_all_note <- data.frame(Metric = note, check.names = FALSE, stringsAsFactors = FALSE)
+    for (configuration in CONFIGURATION_ORDER) {
+      mc_all_note[[display_labels[[configuration]]]] <- NA_character_
+    }
+    mc_all_table <- rbind(mc_all_table, mc_all_note)
+  }
 }
 
 table_mc1_path <- file.path(output_dir, "tables", sprintf("table_%s_%s_mc_1.csv", region_slug, period_tag))
@@ -563,23 +595,23 @@ find_pair_dir <- function(configuration) {
 records <- list()
 for (configuration in CONFIGURATION_ORDER) {
   emissions_dir <- file.path(find_pair_dir(configuration), "emissions")
-  records[[configuration]] <- list(
-    mc1 = c(
-      enduse = file.path(emissions_dir, "summary_mc1", "delta_co2_enduse.tif"),
-      harvest = file.path(emissions_dir, "summary_mc1", "delta_co2_harvest.tif"),
-      total = file.path(emissions_dir, "summary_mc1", "delta_co2.tif")
-    ),
-    mc_all_mean = c(
+  records[[configuration]] <- list(mc1 = c(
+    enduse = file.path(emissions_dir, "summary_mc1", "delta_co2_enduse.tif"),
+    harvest = file.path(emissions_dir, "summary_mc1", "delta_co2_harvest.tif"),
+    total = file.path(emissions_dir, "summary_mc1", "delta_co2.tif")
+  ))
+  if (uncertainty_adequate) {
+    records[[configuration]]$mc_all_mean <- c(
       enduse = file.path(emissions_dir, "enduse", "delta_co2_enduse.tif"),
       harvest = file.path(emissions_dir, "harvest", "delta_co2_mean.tif"),
       total = file.path(emissions_dir, "total", "delta_co2_mean.tif")
-    ),
-    mc_all_sd = c(
+    )
+    records[[configuration]]$mc_all_sd <- c(
       enduse = file.path(emissions_dir, "enduse", "delta_co2_enduse.tif"),
       harvest = file.path(emissions_dir, "harvest", "delta_co2_sd.tif"),
       total = file.path(emissions_dir, "total", "delta_co2_sd.tif")
     )
-  )
+  }
   missing <- unlist(records[[configuration]], use.names = FALSE)
   missing <- missing[!file.exists(missing)]
   if (length(missing)) stopf("Missing %s raster sources: %s", configuration, paste(missing, collapse = ", "))
@@ -587,19 +619,21 @@ for (configuration in CONFIGURATION_ORDER) {
 
 # All scalar and raster inputs have passed their preflight checks. Only now is
 # the exact manuscript_outputs directory removed and rebuilt.
-prepare_output_dir(output_dir, source_dir, overwrite)
+prepare_output_dir(output_dir, source_dir, overwrite, uncertainty_adequate)
 write_csv_utf8(mc1_table, table_mc1_path)
-write_csv_utf8(mc_all_table, table_mc_all_path)
 write_table_png(
   mc1_table, table_mc1_png_path,
   sprintf("%s MoFuSS results, %s", region_name, period_tag),
   "First Monte Carlo realization (MC1)"
 )
-write_table_png(
-  mc_all_table, table_mc_all_png_path,
-  sprintf("%s MoFuSS results, %s", region_name, period_tag),
-  sprintf("Mean %s sample SD across %d Monte Carlo realizations", plus_minus, n_runs)
-)
+if (uncertainty_adequate) {
+  write_csv_utf8(mc_all_table, table_mc_all_path)
+  write_table_png(
+    mc_all_table, table_mc_all_png_path,
+    sprintf("%s MoFuSS results, %s", region_name, period_tag),
+    sprintf("Mean %s sample SD across %d Monte Carlo realizations", plus_minus, n_runs)
+  )
+}
 
 raster_path <- function(scope, configuration, component, statistic = NULL) {
   suffix <- if (scope == "mc_1") {
@@ -610,7 +644,9 @@ raster_path <- function(scope, configuration, component, statistic = NULL) {
   file.path(output_dir, "rasters", scope, suffix)
 }
 
-raster_objects <- list()
+mc1_raster_objects <- list()
+mc_all_mean_raster_objects <- list()
+mc_all_sd_raster_objects <- list()
 for (configuration in CONFIGURATION_ORDER) {
   scalar_rows <- per_run[per_run$regrowth_mode == configuration, , drop = FALSE]
   scalar_fields <- c(enduse = "enduse_avoided_tco2e", harvest = "agb_avoided_stage2_tco2e", total = "total_avoided_tco2e")
@@ -624,31 +660,36 @@ for (configuration in CONFIGURATION_ORDER) {
     if (length(mc1_scalar) != 1L || abs(mc1_sum - mc1_scalar) > 0.05) {
       stopf("%s %s MC1 raster does not reconcile with the national scalar.", configuration, component)
     }
-    raster_objects[[paste(configuration, component, sep = "_")]] <- mc1_raster
+    key <- paste(configuration, component, sep = "_")
+    mc1_raster_objects[[key]] <- mc1_raster
 
-    mean_destination <- raster_path("mc_all", configuration, component, "mean")
-    copy_checked(records[[configuration]]$mc_all_mean[[component]], mean_destination)
-    mean_raster <- terra::rast(mean_destination)
-    mean_sum <- as.numeric(terra::global(mean_raster, "sum", na.rm = TRUE)[[1L]])
-    mean_scalar <- mean(as.numeric(scalar_rows[[scalar_fields[[component]]]]))
-    if (abs(mean_sum - mean_scalar) > 0.05) {
-      stopf("%s %s mean raster does not reconcile with the national scalar.", configuration, component)
-    }
-
-    sd_destination <- raster_path("mc_all", configuration, component, "sd")
-    if (component == "enduse") {
-      if (stats::sd(as.numeric(scalar_rows[[scalar_fields[[component]]]])) > 1e-9) {
-        stopf("End-use varies across runs, so a zero SD raster cannot be derived.")
+    if (uncertainty_adequate) {
+      mean_destination <- raster_path("mc_all", configuration, component, "mean")
+      copy_checked(records[[configuration]]$mc_all_mean[[component]], mean_destination)
+      mean_raster <- terra::rast(mean_destination)
+      mean_sum <- as.numeric(terra::global(mean_raster, "sum", na.rm = TRUE)[[1L]])
+      mean_scalar <- mean(as.numeric(scalar_rows[[scalar_fields[[component]]]]))
+      if (abs(mean_sum - mean_scalar) > 0.05) {
+        stopf("%s %s mean raster does not reconcile with the national scalar.", configuration, component)
       }
-      enduse_source <- terra::rast(records[[configuration]]$mc_all_sd[[component]])
-      enduse_sd <- terra::ifel(!is.na(enduse_source), 0, NA)
-      names(enduse_sd) <- "enduse_sd_tco2e"
-      terra::writeRaster(
-        enduse_sd, sd_destination, overwrite = TRUE, datatype = "FLT4S",
-        gdal = c("COMPRESS=DEFLATE", "PREDICTOR=3")
-      )
-    } else {
-      copy_checked(records[[configuration]]$mc_all_sd[[component]], sd_destination)
+      mc_all_mean_raster_objects[[key]] <- mean_raster
+
+      sd_destination <- raster_path("mc_all", configuration, component, "sd")
+      if (component == "enduse") {
+        if (stats::sd(as.numeric(scalar_rows[[scalar_fields[[component]]]])) > 1e-9) {
+          stopf("End-use varies across runs, so a zero SD raster cannot be derived.")
+        }
+        enduse_source <- terra::rast(records[[configuration]]$mc_all_sd[[component]])
+        enduse_sd <- terra::ifel(!is.na(enduse_source), 0, NA)
+        names(enduse_sd) <- "enduse_sd_tco2e"
+        terra::writeRaster(
+          enduse_sd, sd_destination, overwrite = TRUE, datatype = "FLT4S",
+          gdal = c("COMPRESS=DEFLATE", "PREDICTOR=3")
+        )
+      } else {
+        copy_checked(records[[configuration]]$mc_all_sd[[component]], sd_destination)
+      }
+      mc_all_sd_raster_objects[[key]] <- terra::rast(sd_destination)
     }
   }
 }
@@ -659,21 +700,21 @@ quantile_pair <- function(r) {
 map_scales <- list()
 for (component in COMPONENT_ORDER) {
   values <- unlist(lapply(CONFIGURATION_ORDER, function(configuration) {
-    quantile_pair(raster_objects[[paste(configuration, component, sep = "_")]])
+    quantile_pair(mc1_raster_objects[[paste(configuration, component, sep = "_")]])
   }))
   limit <- max(abs(values), na.rm = TRUE)
   if (!is.finite(limit) || limit <= 0) limit <- 1
   map_scales[[component]] <- c(-limit, limit)
 }
 
-extent_values <- lapply(raster_objects, function(r) as.vector(terra::ext(r)))
+extent_values <- lapply(mc1_raster_objects, function(r) as.vector(terra::ext(r)))
 full_extent <- terra::ext(
   min(vapply(extent_values, function(x) x[[1L]], numeric(1))),
   max(vapply(extent_values, function(x) x[[2L]], numeric(1))),
   min(vapply(extent_values, function(x) x[[3L]], numeric(1))),
   max(vapply(extent_values, function(x) x[[4L]], numeric(1)))
 )
-plot_rasters <- lapply(raster_objects, function(r) {
+plot_rasters <- lapply(mc1_raster_objects, function(r) {
   terra::aggregate(terra::extend(r, full_extent), fact = 4L, fun = "mean", na.rm = TRUE)
 })
 
@@ -716,21 +757,171 @@ grDevices::png(figure_path, width = 2400, height = 1600, res = 300)
 draw_mc1_map_figure()
 grDevices::dev.off()
 
+mc_all_figure_path <- file.path(
+  output_dir, "figures", "mc_all",
+  sprintf("figure_%s_%s_emissions_maps_wuncer.png", region_slug, period_tag)
+)
+if (uncertainty_adequate) {
+  mean_map_scales <- list()
+  for (component in COMPONENT_ORDER) {
+    values <- unlist(lapply(CONFIGURATION_ORDER, function(configuration) {
+      quantile_pair(mc_all_mean_raster_objects[[
+        paste(configuration, component, sep = "_")
+      ]])
+    }))
+    limit <- max(abs(values), na.rm = TRUE)
+    if (!is.finite(limit) || limit <= 0) limit <- 1
+    mean_map_scales[[component]] <- c(-limit, limit)
+  }
+
+  sd_components <- c("harvest", "total")
+  for (component in sd_components) {
+    rasters <- lapply(CONFIGURATION_ORDER, function(configuration) {
+      mc_all_sd_raster_objects[[paste(configuration, component, sep = "_")]]
+    })
+    minima <- vapply(rasters, function(r) {
+      as.numeric(terra::global(r, "min", na.rm = TRUE)[[1L]])
+    }, numeric(1))
+    if (any(minima < -1e-9, na.rm = TRUE)) {
+      stopf("%s SD raster contains negative values.", COMPONENT_LABELS[[component]])
+    }
+  }
+
+  # Stage 2 harvest rasters use Web Mercator, while End-use and Total use
+  # longitude/latitude. Raw numeric extents therefore cannot be combined for
+  # plotting. Align display-only copies to the capped Total grid so every map
+  # has the same CRS, extent, resolution, and panel footprint. Published
+  # rasters remain unchanged in their native geometry.
+  mc_all_map_reference <- mc_all_mean_raster_objects[["capped_total"]]
+  mc_all_plot_reference <- terra::aggregate(
+    mc_all_map_reference, fact = 4L, fun = "mean", na.rm = TRUE
+  )
+  align_mc_all_plot_raster <- function(r) {
+    same_native_grid <- terra::compareGeom(
+      r, mc_all_map_reference, lyrs = FALSE, crs = TRUE, ext = TRUE,
+      rowcol = TRUE, res = TRUE, stopOnError = FALSE
+    )
+    if (same_native_grid) {
+      return(terra::aggregate(r, fact = 4L, fun = "mean", na.rm = TRUE))
+    }
+    if (terra::same.crs(r, mc_all_plot_reference)) {
+      return(terra::resample(r, mc_all_plot_reference, method = "bilinear"))
+    }
+    terra::project(r, mc_all_plot_reference, method = "bilinear")
+  }
+  mc_all_mean_plot_rasters <- lapply(
+    mc_all_mean_raster_objects, align_mc_all_plot_raster
+  )
+  mc_all_sd_plot_rasters <- lapply(
+    mc_all_sd_raster_objects, align_mc_all_plot_raster
+  )
+  plot_geometry_ok <- vapply(
+    c(mc_all_mean_plot_rasters, mc_all_sd_plot_rasters),
+    function(r) terra::compareGeom(
+      r, mc_all_plot_reference, lyrs = FALSE, crs = TRUE, ext = TRUE,
+      rowcol = TRUE, res = TRUE, stopOnError = FALSE
+    ),
+    logical(1)
+  )
+  if (!all(plot_geometry_ok)) {
+    stopf("Could not align all MC-all rasters to one plotting geometry.")
+  }
+  mc_all_panel_layout <- data.frame(
+    statistic = c("mean", "sd", "mean", "mean", "sd"),
+    component = c("harvest", "harvest", "enduse", "total", "total"),
+    stringsAsFactors = FALSE
+  )
+
+  draw_mc_all_map_figure <- function() {
+    op <- graphics::par(
+      mfrow = c(length(CONFIGURATION_ORDER), 5L),
+      mar = c(1.3, 1.3, 3.1, 4.8), oma = c(3.5, 1.0, 5.1, 1.0),
+      xaxs = "i", yaxs = "i"
+    )
+    on.exit(graphics::par(op), add = TRUE)
+    colours <- grDevices::hcl.colors(255, "Blue-Red 3")
+    for (configuration in CONFIGURATION_ORDER) {
+      for (panel_index in seq_len(nrow(mc_all_panel_layout))) {
+        statistic <- mc_all_panel_layout$statistic[[panel_index]]
+        component <- mc_all_panel_layout$component[[panel_index]]
+        statistic_label <- if (statistic == "sd") "SD" else "Mean"
+        key <- paste(configuration, component, sep = "_")
+        raster <- if (statistic == "mean") {
+          mc_all_mean_plot_rasters[[key]]
+        } else {
+          mc_all_sd_plot_rasters[[key]]
+        }
+        terra::plot(
+          raster,
+          col = colours, range = mean_map_scales[[component]],
+          axes = FALSE, maxcell = 50000,
+          main = sprintf(
+            "%s: %s %s", tools::toTitleCase(configuration),
+            statistic_label,
+            COMPONENT_LABELS[[component]]
+          ),
+          cex.main = 0.82, plg = list(cex = 0.58)
+        )
+      }
+    }
+    graphics::mtext(
+      sprintf(
+        "%s placeholder: BAU - CCTS emissions differences, %s",
+        region_name, period_tag
+      ),
+      side = 3, outer = TRUE, line = 2.7, font = 2, cex = 1.15
+    )
+    graphics::mtext(
+      sprintf(
+        paste0(
+          "Monte Carlo mean and sample SD across %d realizations; capped and ",
+          "uncapped configurations; units are tCO2e per cell."
+        ),
+        n_runs
+      ),
+      side = 3, outer = TRUE, line = 1.0, cex = 0.75
+    )
+    graphics::mtext(
+      paste0(
+        "Mean maps show full-period totals (positive values indicate avoided emissions). ",
+        "Each adjacent Mean/SD pair uses the same palette and scale. End-use SD is zero ",
+        "across runs and is omitted."
+      ),
+      side = 1, outer = TRUE, line = 1.2, cex = 0.67
+    )
+  }
+
+  grDevices::png(mc_all_figure_path, width = 4000, height = 1600, res = 300)
+  draw_mc_all_map_figure()
+  grDevices::dev.off()
+}
+
 expected_files <- c(
   file.path("figures", "mc_1", basename(figure_path)),
   file.path("tables", basename(table_mc1_path)),
-  file.path("tables", basename(table_mc_all_path)),
-  file.path("tables", basename(table_mc1_png_path)),
-  file.path("tables", basename(table_mc_all_png_path))
+  file.path("tables", basename(table_mc1_png_path))
 )
+if (uncertainty_adequate) {
+  expected_files <- c(
+    expected_files,
+    file.path("figures", "mc_all", basename(mc_all_figure_path)),
+    file.path("tables", basename(table_mc_all_path)),
+    file.path("tables", basename(table_mc_all_png_path))
+  )
+}
 for (configuration in CONFIGURATION_ORDER) {
   for (component in COMPONENT_ORDER) {
     expected_files <- c(
       expected_files,
-      file.path("rasters", "mc_1", basename(raster_path("mc_1", configuration, component))),
-      file.path("rasters", "mc_all", basename(raster_path("mc_all", configuration, component, "mean"))),
-      file.path("rasters", "mc_all", basename(raster_path("mc_all", configuration, component, "sd")))
+      file.path("rasters", "mc_1", basename(raster_path("mc_1", configuration, component)))
     )
+    if (uncertainty_adequate) {
+      expected_files <- c(
+        expected_files,
+        file.path("rasters", "mc_all", basename(raster_path("mc_all", configuration, component, "mean"))),
+        file.path("rasters", "mc_all", basename(raster_path("mc_all", configuration, component, "sd")))
+      )
+    }
   }
 }
 actual_files <- list.files(output_dir, recursive = TRUE, all.files = FALSE)
@@ -738,9 +929,12 @@ if (!setequal(gsub("\\\\", "/", actual_files), gsub("\\\\", "/", expected_files)
   stopf("Final package inventory differs from the expected %d files.", length(expected_files))
 }
 
-if (n_runs < min_uncertainty_runs) {
+if (!uncertainty_adequate) {
   warning(sprintf(
-    "Only %d runs are available (<%d); MC-all mean +/- SD values and SD rasters are exploratory placeholders.",
+    paste0(
+      "Only %d runs are available (<%d); the manuscript package contains MC1 ",
+      "outputs only. MC-all tables, figures, and rasters were omitted."
+    ),
     n_runs, min_uncertainty_runs
   ), call. = FALSE)
 }
@@ -750,5 +944,5 @@ cat(sprintf("SCRIPT_VERSION=%d\n", SCRIPT_VERSION))
 cat(sprintf("REGION=%s\n", region_iso))
 cat(sprintf("PERIOD=%s\n", period_tag))
 cat(sprintf("MC_RUNS=%d\n", n_runs))
-cat(sprintf("UNCERTAINTY_ADEQUATE=%s\n", n_runs >= min_uncertainty_runs))
+cat(sprintf("UNCERTAINTY_ADEQUATE=%s\n", uncertainty_adequate))
 cat(sprintf("FILE_COUNT=%d\n", length(actual_files)))
