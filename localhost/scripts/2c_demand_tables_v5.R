@@ -422,7 +422,7 @@ setwd(demanddir)
       required_global_years <- 2000L:2050L
       missing_global_years <- setdiff(
         required_global_years,
-        intersect(unique(global_bau$year), unique(global_ics3$year))
+        base::intersect(unique(global_bau$year), unique(global_ics3$year))
       )
       if (length(missing_global_years) > 0L) {
         stop(
