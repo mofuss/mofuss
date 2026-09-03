@@ -19,189 +19,37 @@
 # 1-km raster. Countries without native ADM1/ADM2 use the fallback geometries
 # created below.
 #
-# Version 9 supports independent regionalization scenarios for SSA, LATAM,
-# ASIA, OCEANIA and Northern Africa. The initial directional-trade scenario
-# groups Tanzania and Uganda as one SSA region; the other major regions remain
-# on the default (UNFCCC) regionalization until their directional CSVs change.
+# Version 9 uses M67_GME_V2 as the sole Global South regionalization: 67
+# evidence-led regions across 111 demand-ready countries. Its five major-region
+# adapters are loaded together so one run builds the complete global regional
+# vector. The first downstream model test focuses on the nine-country Great
+# Lakes-East Africa region (RunCode GLEA).
 #
-# To add or change a scenario later:
-# 1. Edit or create its CSV in admin_regions.
-# 2. Register the CSV in regionalization_files below.
-# 3. Select it in regionalization_scenario.
-# 4. Add any brand-new Subregion label to the corresponding *_region_map with
-#    a unique, filesystem-safe suffix.
+# Future re-regionalization should start from regionalization_M67_GME_V2.csv,
+# produce a new complete set of five adapter CSVs, and update the versioned
+# filenames and candidate constants below. Each adapter must supply a unique,
+# filesystem-safe RunCode for every region.
 # 
 # ============================================================================
 # Internal parameters
 # ============================================================================
 run_ms <- "Yes"  # Run ms_simplify?
+regionalization_candidate <- "M67_GME_V2"
+expected_regionalization_countries <- 111L
+expected_regionalization_regions <- 67L
 
-# >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-# Select one scenario independently for each major region.
-# The supplied non-SSA mofuss_directions CSVs currently equal their defaults.
-regionalization_scenario <- c(
-  SSA     = "mofuss_directions",
-  LATAM   = "default",
-  ASIA    = "default",
-  OCEANIA = "default",
-  NorAfr  = "default"
-)
-# >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-
-regionalization_files <- list(
-  SSA = c(
-    default           = "subregionsSSA_v4.csv",
-    mofuss_directions = "subregionsSSA_v5mofussdirections.csv",
-    fao               = "subregionsSSA_v5FAO.csv",
-    tnc_congo         = "subregionsSSA_v5TNC_congo.csv",
-    tnc_kaza          = "subregionsSSA_v5TNC_kaza.csv",
-    enabel            = "subregionsSSA_v5ENABEL.csv"
-  ),
-  LATAM = c(
-    default           = "subregionsLATAM_v3.csv",
-    mofuss_directions = "subregionsLATAM_v3mofussdirections.csv"
-  ),
-  ASIA = c(
-    default           = "subregionsASIA_v5.csv",
-    mofuss_directions = "subregionsASIA_v5mofussdirections.csv"
-  ),
-  OCEANIA = c(
-    default           = "subregionsOCEANIA.csv",
-    mofuss_directions = "subregionsOCEANIA_v1mofussdirections.csv"
-  ),
-  NorAfr = c(
-    default           = "subregionsNorAfri_v3.csv",
-    mofuss_directions = "subregionsNorAfri_v3mofussdirections.csv"
-  )
-)
-
-if (!identical(names(regionalization_scenario), names(regionalization_files))) {
-  stop("regionalization_scenario and regionalization_files must name the same major regions in the same order.")
-}
-
-resolve_regionalization_file <- function(major_region) {
-  selected <- unname(regionalization_scenario[[major_region]])
-  available <- regionalization_files[[major_region]]
-  if (!selected %in% names(available)) {
-    stop(sprintf(
-      "Unknown %s scenario '%s'. Available scenarios: %s",
-      major_region, selected, paste(names(available), collapse = ", ")
-    ))
-  }
-  selected_file <- unname(available[[selected]])
-  message(sprintf("%s scenario: %s -> %s", major_region, selected, selected_file))
-  selected_file
-}
-
-regionalization_inputs <- vapply(
-  names(regionalization_scenario), resolve_regionalization_file, character(1)
+regionalization_inputs <- c(
+  SSA     = "subregionsSSA_v6_M67_GME_V2.csv",
+  LATAM   = "subregionsLATAM_v4_M67_GME_V2.csv",
+  ASIA    = "subregionsASIA_v6_M67_GME_V2.csv",
+  OCEANIA = "subregionsOCEANIA_v2_M67_GME_V2.csv",
+  NorAfr  = "subregionsNorAfri_v4_M67_GME_V2.csv"
 )
 subregionsSSA_v     <- regionalization_inputs[["SSA"]]
 subregionsLATAM_v   <- regionalization_inputs[["LATAM"]]
 subregionsASIA_v    <- regionalization_inputs[["ASIA"]]
 subregionsOCEANIA_v <- regionalization_inputs[["OCEANIA"]]
 subregionsNorAfri_v <- regionalization_inputs[["NorAfr"]]
-
-# ----------------------------------------------------------------------------
-# Region maps (single source of truth per major region)
-# ----------------------------------------------------------------------------
-# SSA: covers labels across all registered scenarios. New scenarios add rows here
-# only if they introduce a brand-new Subregion label.
-ssa_region_map <- tibble::tribble(
-  ~Subregion,                ~suffix,
-  # --- Labels common to multiple scenarios ---
-  "Eastern Africa",          "eastern",
-  "Southern Africa",         "southern",
-  "Western Africa",          "western",
-  "Madagascar",              "madagascar",
-  "São Tomé and Príncipe",   "stp",
-  "Comoros",                 "comoros",
-  "Mauritius",               "mauritius",
-  "Central Africa",          "central",
-  "Northcentral Africa",     "northcentral",
-  "Kenya",                   "kenya",
-  "Uganda",                  "uganda",
-  "Mali",                    "mali",
-  "Chad",                    "chad",
-  "Niger",                   "niger",
-  "Cabo Verde",              "caboverde",
-  "Westcentral Africa",      "westcentral",
-  "Westsouthern Africa",     "westsouthern",
-  "Mauritania",              "mauritania",
-  "Benin",                   "benin",
-  "Burkina Faso",            "burkinafaso",
-  "Côte d'Ivoire",           "cdivoire",
-  "Ghana",                   "ghana",
-  "Senegambia",              "senegambia",
-  "Togo",                    "togo",
-  # --- Default (v4) only ---
-  "Angola",                  "angola",
-  "Malambique",              "malambique",
-  "Tanzania",                "tanzania",
-  "Tanzania-Uganda",         "tzauga",
-  "Zambia",                  "zambia",
-  "Zimbabwe",                "zimbabwe",
-  # --- FAO ---
-  "Miombo Mopane",           "miombo_mopane",
-  # --- TNC Congo ---
-  "Congo Basin",             "congo_basin",
-  # --- TNC KAZA ---
-  "KAZA",                    "kaza",
-  # --- ENABEL ---
-  "MOZ ZMB MWI TZA",         "moz_zmb_mwi_tza"
-)
-
-latam_region_map <- tibble::tribble(
-  ~Subregion,           ~suffix,
-  "Southern LATAM",     "southern",
-  "Central America",    "CA",
-  "Espanhola",          "espanhola",
-  "Jamaica",            "jamaica",
-  "Western LATAM",      "western",
-  "Brazil",             "brazil",
-  "Mexico",             "mexico",
-  "Bolivia",            "bolivia",
-  "Colombia",           "colombia",
-  "Guyana",             "guyana",
-  "El Salvador",        "salvador"
-)
-asia_region_map <- tibble::tribble(
-  ~Subregion,     ~suffix,
-  "Central Asia", "central",
-  "India",        "india",
-  "SEAsia",       "seasia",
-  "China",        "china",
-  "Mongolia",     "mongolia",
-  "Middle East",  "middleeast",
-  "Sri Lanka",    "srilanka",
-  "Indonesia",    "indonesia",
-  "Malaysia",     "malaysia",
-  "Philippines",  "philippines",
-  "Timor-Leste",  "timorleste",
-  "Bangladesh",   "bangladesh",
-  "Bhutan",       "bhutan",
-  "Nepal",        "nepal",
-  "Myanmar",      "myanmar",
-  "Pakistan",     "pakistan"
-)
-
-# The active WorldPop raster has no positive cells for the 11 Pacific countries
-# listed in worldpop_no_coverage_iso below. Of those, 9 occur in the Oceania CSV
-# and are dropped explicitly; Samoa and Vanuatu are not present in that CSV.
-oceania_region_map <- tibble::tribble(
-  ~Subregion,         ~suffix,
-  "Papua New Guinea", "papuanewguinea"
-)
-oceania_drop_labels <- c("Cook Islands","Fiji","Micronesia","Kiribati",
-                         "Marshall Islands","Niue","Solomon Islands",
-                         "Tonga","Tuvalu")
-
-# NorAfri uses the suffix "west" — kept as-is for downstream compatibility,
-# even though it is the only NorAfri region and now contains 4 countries.
-norafr_region_map <- tibble::tribble(
-  ~Subregion,        ~suffix,
-  "Northern Africa", "west"
-)
 
 # ============================================================================
 # Load packages
@@ -412,14 +260,11 @@ setwd(admindir)
 #   region_map     : tibble(Subregion, suffix)  -- one row per built region
 #   pcs            : projected EPSG (epsg_pcs)
 #   proj_auth      : "EPSG" etc.
-#   drop_labels    : character vector of Subregion labels to drop before build
-#                    (default character(0)); used for raster-uncovered Oceania.
 #
 # Returns: invisibly a named list of the per-region adm0 sf objects.
 build_and_write_regions <- function(prefix, subregions_df, adm0_sf,
                                     adm1_sf, adm2_sf,
-                                    region_map, pcs, proj_auth,
-                                    drop_labels = character(0)) {
+                                    region_map, pcs, proj_auth) {
   
   required_cols <- c("Subregion", "GID_0", "NAME_0")
   missing_cols <- setdiff(required_cols, names(subregions_df))
@@ -428,10 +273,6 @@ build_and_write_regions <- function(prefix, subregions_df, adm0_sf,
                  prefix, paste(missing_cols, collapse = ", ")))
   }
 
-  # Drop rows the caller deliberately excludes from the generated regions.
-  if (length(drop_labels) > 0) {
-    subregions_df <- subregions_df %>% filter(!Subregion %in% drop_labels)
-  }
   if (nrow(subregions_df) == 0) {
     stop(sprintf("[%s] The selected regionalization contains no countries.", prefix))
   }
@@ -453,7 +294,7 @@ build_and_write_regions <- function(prefix, subregions_df, adm0_sf,
   csv_labels <- unique(subregions_df$Subregion)
   unknown    <- setdiff(csv_labels, region_map$Subregion)
   if (length(unknown) > 0) {
-    stop(sprintf("[%s] Subregion labels missing from region_map: %s\n  Add them to the map or to drop_labels.",
+    stop(sprintf("[%s] Subregion labels missing from region_map: %s",
                  prefix, paste(unknown, collapse = ", ")))
   }
 
@@ -522,21 +363,125 @@ read_subregions <- function(path, major_region) {
   )
 }
 
+# M67 adapters carry their stable output suffix in RunCode; no separate map is
+# maintained in code.
+region_map_from_run_codes <- function(subregions_df, major_region) {
+  configured_map <- subregions_df %>%
+    dplyr::transmute(
+      Subregion = trimws(as.character(Subregion)),
+      suffix = trimws(as.character(RunCode))
+    ) %>%
+    dplyr::distinct()
+
+  if (anyNA(configured_map) ||
+      any(configured_map$Subregion == "") ||
+      any(configured_map$suffix == "")) {
+    stop(sprintf("[%s] Subregion and RunCode must not be missing or blank.",
+                 major_region))
+  }
+  if (any(!grepl("^[A-Za-z0-9_]+$", configured_map$suffix))) {
+    stop(sprintf(
+      "[%s] RunCode values may contain only letters, numbers and underscores.",
+      major_region
+    ))
+  }
+
+  labels_with_multiple_codes <- configured_map %>%
+    dplyr::count(Subregion) %>%
+    dplyr::filter(n != 1L) %>%
+    dplyr::pull(Subregion)
+  codes_with_multiple_labels <- configured_map %>%
+    dplyr::count(suffix) %>%
+    dplyr::filter(n != 1L) %>%
+    dplyr::pull(suffix)
+  if (length(labels_with_multiple_codes) > 0 ||
+      length(codes_with_multiple_labels) > 0) {
+    stop(sprintf(
+      paste0(
+        "[%s] RunCode must map one-to-one with Subregion. ",
+        "Repeated labels: %s; repeated codes: %s"
+      ),
+      major_region,
+      paste(labels_with_multiple_codes, collapse = ", "),
+      paste(codes_with_multiple_labels, collapse = ", ")
+    ))
+  }
+
+  message(sprintf(
+    "[%s] Using %d CSV-supplied RunCode values.",
+    major_region, nrow(configured_map)
+  ))
+  configured_map
+}
+
+validate_m67_adapter <- function(subregions_df, major_region) {
+  required_cols <- c(
+    "Subregion", "GID_0", "NAME_0", "RunCode", "CandidateID",
+    "CandidateRegionID", "ImporterV", "EvidenceConfidence", "Status"
+  )
+  missing_cols <- setdiff(required_cols, names(subregions_df))
+  if (length(missing_cols) > 0) {
+    stop(sprintf("[%s] Missing M67 adapter columns: %s",
+                 major_region, paste(missing_cols, collapse = ", ")))
+  }
+
+  for (field in setdiff(required_cols, "ImporterV")) {
+    values <- trimws(as.character(subregions_df[[field]]))
+    if (anyNA(values) || any(values == "")) {
+      stop(sprintf("[%s] %s must not be missing or blank.",
+                   major_region, field))
+    }
+  }
+
+  importer_values <- trimws(as.character(subregions_df$ImporterV))
+  if (anyNA(importer_values) || any(!importer_values %in% c("0", "1"))) {
+    stop(sprintf("[%s] ImporterV must contain only 0 or 1.", major_region))
+  }
+  if (!identical(unique(trimws(as.character(subregions_df$CandidateID))),
+                 regionalization_candidate)) {
+    stop(sprintf("[%s] CandidateID must be %s.",
+                 major_region, regionalization_candidate))
+  }
+  invisible(subregions_df)
+}
+
 subregionsSSA <- read_subregions(subregionsSSA_v, "SSA")
 subregionsLATAM <- read_subregions(subregionsLATAM_v, "LATAM")
 subregionsASIA <- read_subregions(subregionsASIA_v, "ASIA")
 subregionsOCEANIA <- read_subregions(subregionsOCEANIA_v, "OCEANIA")
 subregionsNorAfr <- read_subregions(subregionsNorAfri_v, "NorAfr")
 
-# Validate the scenario-wide country extent before writing any regional files.
+validate_m67_adapter(subregionsSSA, "SSA")
+validate_m67_adapter(subregionsLATAM, "LATAM")
+validate_m67_adapter(subregionsASIA, "ASIA")
+validate_m67_adapter(subregionsOCEANIA, "OCEANIA")
+validate_m67_adapter(subregionsNorAfr, "NorAfr")
+
+region_maps <- list(
+  SSA = region_map_from_run_codes(subregionsSSA, "SSA"),
+  LATAM = region_map_from_run_codes(subregionsLATAM, "LATAM"),
+  ASIA = region_map_from_run_codes(subregionsASIA, "ASIA"),
+  OCEANIA = region_map_from_run_codes(subregionsOCEANIA, "OCEANIA"),
+  NorAfr = region_map_from_run_codes(subregionsNorAfr, "NorAfr")
+)
+
+# Validate the complete M67 country and region extent before writing files.
 selected_extent <- dplyr::bind_rows(
-  subregionsSSA %>% dplyr::transmute(major_region = "SSA", GID_0),
-  subregionsLATAM %>% dplyr::transmute(major_region = "LATAM", GID_0),
-  subregionsASIA %>% dplyr::transmute(major_region = "ASIA", GID_0),
-  subregionsOCEANIA %>%
-    dplyr::filter(!Subregion %in% oceania_drop_labels) %>%
-    dplyr::transmute(major_region = "OCEANIA", GID_0),
-  subregionsNorAfr %>% dplyr::transmute(major_region = "NorAfr", GID_0)
+  subregionsSSA %>% dplyr::transmute(
+    major_region = "SSA", GID_0, CandidateRegionID, RunCode, Subregion
+  ),
+  subregionsLATAM %>% dplyr::transmute(
+    major_region = "LATAM", GID_0, CandidateRegionID, RunCode, Subregion
+  ),
+  subregionsASIA %>% dplyr::transmute(
+    major_region = "ASIA", GID_0, CandidateRegionID, RunCode, Subregion
+  ),
+  subregionsOCEANIA %>% dplyr::transmute(
+    major_region = "OCEANIA", GID_0, CandidateRegionID, RunCode, Subregion
+  ),
+  subregionsNorAfr %>% dplyr::transmute(
+    major_region = "NorAfr", GID_0, CandidateRegionID, RunCode, Subregion
+  )
 )
 
 duplicate_extent_iso <- selected_extent %>%
@@ -545,22 +490,35 @@ duplicate_extent_iso <- selected_extent %>%
   dplyr::pull(GID_0)
 missing_extent_iso <- setdiff(demand_ready_iso, selected_extent$GID_0)
 unexpected_extent_iso <- setdiff(selected_extent$GID_0, demand_ready_iso)
-if (length(duplicate_extent_iso) > 0 ||
+region_definitions <- selected_extent %>%
+  dplyr::distinct(major_region, CandidateRegionID, RunCode, Subregion)
+if (length(demand_ready_iso) != expected_regionalization_countries ||
+    nrow(selected_extent) != expected_regionalization_countries ||
+    nrow(region_definitions) != expected_regionalization_regions ||
+    dplyr::n_distinct(region_definitions$CandidateRegionID) !=
+      expected_regionalization_regions ||
+    dplyr::n_distinct(region_definitions$RunCode) !=
+      expected_regionalization_regions ||
+    length(duplicate_extent_iso) > 0 ||
     length(missing_extent_iso) > 0 ||
     length(unexpected_extent_iso) > 0) {
   stop(sprintf(
     paste0(
-      "Selected regionalizations do not match the demand-ready extent. ",
-      "Duplicated: %s; missing: %s; unexpected: %s"
+      "%s must contain %d countries and %d one-to-one region definitions ",
+      "matching the demand-ready extent. Duplicated: %s; missing: %s; ",
+      "unexpected: %s"
     ),
+    regionalization_candidate,
+    expected_regionalization_countries,
+    expected_regionalization_regions,
     paste(duplicate_extent_iso, collapse = ", "),
     paste(missing_extent_iso, collapse = ", "),
     paste(unexpected_extent_iso, collapse = ", ")
   ))
 }
 message(sprintf(
-  "Demand-ready extent validated: %d countries across 5 major regions.",
-  length(demand_ready_iso)
+  "%s validated: %d countries and %d regions across 5 major regions.",
+  regionalization_candidate, nrow(selected_extent), nrow(region_definitions)
 ))
 
 # --- SSA ---
@@ -569,36 +527,35 @@ print(sort(unique(subregionsSSA$Subregion)))
 ssa_built <- build_and_write_regions(
   prefix = "SSA", subregions_df = subregionsSSA, adm0_sf = SSA_adm0,
   adm1_sf = gadm_adm1_sel, adm2_sf = gadm_adm2_sel,
-  region_map = ssa_region_map, pcs = epsg_pcs, proj_auth = proj_authority
+  region_map = region_maps$SSA, pcs = epsg_pcs, proj_auth = proj_authority
 )
 
 # --- LATAM ---
 latam_built <- build_and_write_regions(
   prefix = "LATAM", subregions_df = subregionsLATAM, adm0_sf = LATAM_adm0,
   adm1_sf = gadm_adm1_sel, adm2_sf = gadm_adm2_sel,
-  region_map = latam_region_map, pcs = epsg_pcs, proj_auth = proj_authority
+  region_map = region_maps$LATAM, pcs = epsg_pcs, proj_auth = proj_authority
 )
 
 # --- ASIA ---
 asia_built <- build_and_write_regions(
   prefix = "ASIA", subregions_df = subregionsASIA, adm0_sf = ASIA_adm0,
   adm1_sf = gadm_adm1_sel, adm2_sf = gadm_adm2_sel,
-  region_map = asia_region_map, pcs = epsg_pcs, proj_auth = proj_authority
+  region_map = region_maps$ASIA, pcs = epsg_pcs, proj_auth = proj_authority
 )
 
-# --- OCEANIA (WorldPop-covered countries only) ---
+# --- OCEANIA ---
 oceania_built <- build_and_write_regions(
   prefix = "OCEANIA", subregions_df = subregionsOCEANIA, adm0_sf = OCEANIA_adm0,
   adm1_sf = gadm_adm1_sel, adm2_sf = gadm_adm2_sel,
-  region_map = oceania_region_map, pcs = epsg_pcs, proj_auth = proj_authority,
-  drop_labels = oceania_drop_labels
+  region_map = region_maps$OCEANIA, pcs = epsg_pcs, proj_auth = proj_authority
 )
 
 # --- NorAfri ---
 norafr_built <- build_and_write_regions(
   prefix = "NorAfr", subregions_df = subregionsNorAfr, adm0_sf = NorAfr_adm0,
   adm1_sf = gadm_adm1_sel, adm2_sf = gadm_adm2_sel,
-  region_map = norafr_region_map, pcs = epsg_pcs, proj_auth = proj_authority
+  region_map = region_maps$NorAfr, pcs = epsg_pcs, proj_auth = proj_authority
 )
 
 # ============================================================================

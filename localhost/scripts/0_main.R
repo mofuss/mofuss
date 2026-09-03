@@ -109,7 +109,7 @@ scripts <- list(
   "2_copy_files_v1.R",
   #"2b_oneschema_fix_v4.R",
   "2c_demand_tables_v5.R",
-  "3_demand4IDW_v8.R",
+  "3_demand4IDW_v9.R",
   "4_produce_growth_and_stock_csv_v2.R",
   "5_harmonizer_v5.R",
   "6a_scenarios.R"
