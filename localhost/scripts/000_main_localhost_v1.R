@@ -400,7 +400,8 @@ scripts <- list(
   "6a_scenarios.R",
   # if (runplantations == 1) "6b_plantations_v0.R",
   # "6c_demand_maps_v1.R"
-  "6d_parameters_dinamica_v1.R"
+  "6d_parameters_dinamica_v1.R",
+  "6e_prepare_directional_IDW_inputs_v1.R"
 )
 
 all_successful <- TRUE
