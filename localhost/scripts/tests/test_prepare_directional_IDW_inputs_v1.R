@@ -32,6 +32,49 @@ fixture <- tempfile("prepare_directional_idw_")
 dir.create(fixture, recursive = TRUE)
 on.exit(unlink(fixture, recursive = TRUE, force = TRUE), add = TRUE)
 
+# Script 6e is sourced for every run by the main driver. A valid run without a
+# directional HC_jobs directory must therefore be a successful no-op, while an
+# HC_jobs directory missing its harmonized manifest remains an error.
+non_directional_run <- file.path(fixture, "non_directional_run")
+dir.create(file.path(non_directional_run, "In"), recursive = TRUE)
+invisible(file.create(file.path(
+  non_directional_run,
+  "In",
+  c("fricc_w.tif", "fricc_v.tif")
+)))
+had_countrydir <- exists("countrydir", envir = .GlobalEnv, inherits = FALSE)
+old_countrydir <- get0("countrydir", envir = .GlobalEnv, inherits = FALSE)
+assign("countrydir", non_directional_run, envir = .GlobalEnv)
+resolved_run <- .idw_resolve_run_root()
+if (had_countrydir) {
+  assign("countrydir", old_countrydir, envir = .GlobalEnv)
+} else {
+  rm("countrydir", envir = .GlobalEnv)
+}
+stopifnot(identical(
+  resolved_run,
+  normalizePath(non_directional_run, winslash = "/", mustWork = TRUE)
+))
+no_jobs <- prepare_directional_idw_inputs(non_directional_run)
+stopifnot(is.data.frame(no_jobs), nrow(no_jobs) == 0L)
+
+incomplete_directional_run <- file.path(fixture, "incomplete_directional_run")
+dir.create(
+  file.path(incomplete_directional_run, "In", "DemandScenarios", "HC_jobs"),
+  recursive = TRUE
+)
+incomplete_error <- tryCatch(
+  {
+    prepare_directional_idw_inputs(incomplete_directional_run)
+    NULL
+  },
+  error = identity
+)
+stopifnot(
+  inherits(incomplete_error, "error"),
+  grepl("Harmonized HC-job manifest does not exist", conditionMessage(incomplete_error))
+)
+
 template <- terra::rast(
   nrows = 3,
   ncols = 3,

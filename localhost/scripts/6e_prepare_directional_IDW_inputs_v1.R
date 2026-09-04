@@ -55,13 +55,16 @@ suppressPackageStartupMessages(library(terra))
     getwd()
   ))
   candidates <- candidates[nzchar(candidates)]
-  required_relative <- file.path(
-    "In", "DemandScenarios", "HC_jobs", "HC_job_manifest_harmonized.csv"
-  )
-  matches <- candidates[file.exists(file.path(candidates, required_relative))]
+  required_relative <- file.path("In", c("fricc_w.tif", "fricc_v.tif"))
+  matches <- candidates[vapply(
+    candidates,
+    function(candidate) all(file.exists(file.path(candidate, required_relative))),
+    logical(1)
+  )]
   if (length(matches) == 0L) {
     .idw_stop(
-      "Could not locate a MoFuSS run containing ", required_relative,
+      "Could not locate a MoFuSS run containing ",
+      paste(required_relative, collapse = " and "),
       ". Define `countrydir` or set the working directory to the run root."
     )
   }
@@ -762,6 +765,13 @@ prepare_directional_idw_inputs <- function(
   run_root <- .idw_normalize(run_root)
   hc_root <- file.path(run_root, "In", "DemandScenarios", "HC_jobs")
   manifest_path <- file.path(hc_root, "HC_job_manifest_harmonized.csv")
+  if (!dir.exists(hc_root)) {
+    message(
+      "No directional HC jobs found; no directional IDW inputs are needed for ",
+      basename(run_root), "."
+    )
+    return(invisible(data.frame()))
+  }
   if (!file.exists(manifest_path)) {
     .idw_stop("Harmonized HC-job manifest does not exist: ", manifest_path)
   }
