@@ -14,7 +14,7 @@
 # limitations under the License.
 
 # MoFuSS ----
-# Script: 6a_scenarios_v4.R
+# Script: 6_scenarios_v4.R
 # Version: 4
 # Date: Sep 2026
 # Execution: Source from RStudio; Dinamica EGO does not invoke this script directly.

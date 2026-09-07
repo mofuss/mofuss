@@ -14,7 +14,7 @@
 # limitations under the License.
 
 # MoFuSS ----
-# Script: 6d_parameters_dinamica_v1.R
+# Script: 7_parameters_dinamica_v1.R
 # Version: 1
 # Date: Jul 2026
 # Execution: Source from RStudio; Dinamica EGO does not invoke this script directly.

@@ -104,15 +104,17 @@ source_script <- function(script_path, script_name) {
 scripts <- list(
   #"00_webmofuss.R",
   "0_set_directories_and_region_v3.R",
-  if (runGADM == 1) "preprocessing4globaldatasets/0apre_GADM_admin_wp_v7.R",
+  if (runGADM == 1) "preprocessing/0apre_GADM_admin_wp_v9.R",
   #"1_erase_all_v1.R",
-  "2_copy_files_v1.R",
+  "2_copy_files_v4.R",
   #"2b_oneschema_fix_v4.R",
   "2c_demand_tables_v5.R",
-  "3_demand4IDW_v9.R",
+  "3_demand4IDW_v11.R",
   "4_produce_growth_and_stock_csv_v2.R",
-  "5_harmonizer_v5.R",
-  "6a_scenarios.R"
+  "5_harmonizer_v8.R",
+  "6_scenarios_v4.R",
+  "7_parameters_dinamica_v1.R",
+  "8_prepare_directional_IDW_inputs_v3.R"
 )
 inicio <- Sys.time()
 all_successful <- TRUE

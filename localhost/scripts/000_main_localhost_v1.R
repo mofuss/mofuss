@@ -30,7 +30,6 @@
 
 # Internal parameters ----
 runGADM <- 0
-runplantations <- 0
 telegram_msgs <- 1
 personal_demand <- 1
 
@@ -390,18 +389,16 @@ scripts <- list(
   "0_set_directories_and_region_v3.R",
   if (runGADM == 1) "preprocessing/0apre_GADM_admin_wp_v9.R",
   "1_erase_all_v1.R",
-  "2_copy_files_v1.R",
+  "2_copy_files_v4.R",
   # "2a_ics_constructor_v7.R",
   if (personal_demand != 1) "2b_oneschema_fix_v5.R",
   "2c_demand_tables_v5.R",
-  "3_demand4IDW_v9.R",
+  "3_demand4IDW_v11.R",
   "4_produce_growth_and_stock_csv_v2.R",
-  "5_harmonizer_v6.R",
-  "6a_scenarios.R",
-  # if (runplantations == 1) "6b_plantations_v0.R",
-  # "6c_demand_maps_v1.R"
-  "6d_parameters_dinamica_v1.R",
-  "6e_prepare_directional_IDW_inputs_v1.R"
+  "5_harmonizer_v8.R",
+  "6_scenarios_v4.R",
+  "7_parameters_dinamica_v1.R",
+  "8_prepare_directional_IDW_inputs_v3.R"
 )
 
 all_successful <- TRUE
@@ -419,7 +416,7 @@ for (script in scripts) {
     }
     
     # After copying files, ask user for personal demand CSV
-    if (script == "2_copy_files_v1.R") {
+    if (script == "2_copy_files_v4.R") {
       copy_personal_demand_csv()
     }
   }
