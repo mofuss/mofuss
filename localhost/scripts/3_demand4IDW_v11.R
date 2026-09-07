@@ -2550,12 +2550,12 @@ if (identical(byregion, "Regional") && as.integer(aoi_poly) == 0L) {
         "W demand; every W job may use the full ", region_run_code,
         " source domain through the W border-friction surface."
       ),
-      "Do not sum W components before MoFuSS; version 10 normalizes each origin separately after annual biomass eligibility and then sums them.",
+      "Do not sum W components before MoFuSS; version 11 normalizes each origin separately after annual biomass eligibility and then sums them.",
       paste0(
         "V importer demand may use every country in ", region_run_code,
         "; each non-importer V job is restricted to its own country."
       ),
-      "Do not sum V components before MoFuSS; version 10 normalizes each directional component to its own demand after annual biomass eligibility and then sums them.",
+      "Do not sum V components before MoFuSS; version 11 normalizes each directional component to its own demand after annual biomass eligibility and then sums them.",
       "Apply source_domain_mask_raw.tif to the corresponding source/friction domain.",
       "Do not add either top-level compatibility bundle to the W or V components.",
       "The top-level to_idw files are retained only for the legacy single-job workflow.",

@@ -11,7 +11,7 @@ The active post-harmonization sequence is:
 2. `7_parameters_dinamica_v1.R`
 3. `8_prepare_directional_IDW_inputs_v3.R`
 4. External CostDistance_IDW processing on the HPC cluster
-5. `9_install_directional_IDW_outputs_v3.R`
+5. `9_install_directional_IDW_outputs_v4.R`
 6. `10_dyn_Sc17_webmofuss_ctrees_g_v11.egoml`
 
 The active upstream scripts are `2_copy_files_v4.R`,

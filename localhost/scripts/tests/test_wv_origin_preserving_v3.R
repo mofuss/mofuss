@@ -17,7 +17,7 @@ contract_files <- c(
   "3_demand4IDW_v11.R",
   "5_harmonizer_v8.R",
   "8_prepare_directional_IDW_inputs_v3.R",
-  "9_install_directional_IDW_outputs_v3.R"
+  "9_install_directional_IDW_outputs_v4.R"
 )
 for (filename in contract_files) {
   path <- file.path(scripts_root, filename)
@@ -149,8 +149,9 @@ stopifnot(
   !grepl("v7_r_dependencies", deployment_text, fixed = TRUE)
 )
 
-# Exercise the installer with two W origins, two V directional jobs, two
-# decennial IDW periods, and eleven annual origin-demand lookup tables.
+# Exercise the installer with two W origins, two V directional jobs, three
+# decennial IDW periods, and twenty-one annual origin-demand lookup tables.
+# The terminal period has exactly zero demand and all-zero HC outputs.
 old_autorun <- Sys.getenv("MOFUSS_6F_NO_AUTORUN", unset = NA_character_)
 Sys.setenv(MOFUSS_6F_NO_AUTORUN = "1")
 on.exit({
@@ -160,7 +161,7 @@ on.exit({
     Sys.setenv(MOFUSS_6F_NO_AUTORUN = old_autorun)
   }
 }, add = TRUE)
-source(file.path(scripts_root, "9_install_directional_IDW_outputs_v3.R"))
+source(file.path(scripts_root, "9_install_directional_IDW_outputs_v4.R"))
 
 fixture <- tempfile("w_origin_preserving_")
 dir.create(fixture, recursive = TRUE)
@@ -188,9 +189,9 @@ jobs <- data.frame(
   Channel = c("W", "W", "V", "V"),
   Status = "IDW_READY",
   PeriodStart = 1L,
-  PeriodEnd = 11L,
+  PeriodEnd = 21L,
   YearStart = 2000L,
-  YearEnd = 2010L,
+  YearEnd = 2020L,
   SourceDomainMask = NA_character_,
   CombineOperation = c(
     "runtime_normalize_by_origin_then_sum",
@@ -225,14 +226,14 @@ mask_values <- list(
   V_IMPORTERS = c(1, 1, 1, 1, NA, NA),
   V_DOMESTIC = c(NA, NA, NA, NA, 1, 1)
 )
-annual_years <- 2000:2010
+annual_years <- 2000:2020
 w_demand <- list(
-  W_AAA_ORIGIN = seq(10, 20),
-  W_BBB_ORIGIN = seq(30, 40)
+  W_AAA_ORIGIN = c(seq(10, 29), 0),
+  W_BBB_ORIGIN = c(seq(30, 49), 0)
 )
 v_demand <- list(
-  V_IMPORTERS = seq(100, 110),
-  V_DOMESTIC = seq(50, 60)
+  V_IMPORTERS = c(seq(100, 119), 0),
+  V_DOMESTIC = c(seq(50, 69), 0)
 )
 
 for (row_index in seq_len(nrow(jobs))) {
@@ -311,15 +312,24 @@ for (year_index in seq_along(annual_years)) {
   )
 }
 
-periods <- c(1L, 11L)
+periods <- c(1L, 11L, 21L)
 for (period in periods) {
   increment <- if (period == 1L) 0 else 10
-  rasters <- list(
-    W_AAA_ORIGIN = c(1, 2, 3, 4, 5, 6) + increment,
-    W_BBB_ORIGIN = c(6, 5, 4, 3, 2, 1) + increment,
-    V_IMPORTERS = c(1, 2, 3, 4, NA, NA) + increment,
-    V_DOMESTIC = c(NA, NA, NA, NA, 5, 6) + increment
-  )
+  rasters <- if (period == 21L) {
+    list(
+      W_AAA_ORIGIN = rep(0, 6),
+      W_BBB_ORIGIN = rep(0, 6),
+      V_IMPORTERS = rep(0, 6),
+      V_DOMESTIC = rep(0, 6)
+    )
+  } else {
+    list(
+      W_AAA_ORIGIN = c(1, 2, 3, 4, 5, 6) + increment,
+      W_BBB_ORIGIN = c(6, 5, 4, 3, 2, 1) + increment,
+      V_IMPORTERS = c(1, 2, 3, 4, NA, NA) + increment,
+      V_DOMESTIC = c(NA, NA, NA, NA, 5, 6) + increment
+    )
+  }
   for (row_index in seq_len(nrow(jobs))) {
     job_id <- jobs$JobID[[row_index]]
     channel <- tolower(jobs$Channel[[row_index]])
@@ -336,10 +346,66 @@ for (period in periods) {
   }
 }
 
+# A zero output remains an error when demand is positive.
+positive_demand_path <- file.path(
+  hc_root, "idw_W_AAA_ORIGIN", "IDW_C++_fw_w11.tif"
+)
+positive_demand_original <- terra::values(
+  terra::rast(positive_demand_path),
+  mat = FALSE
+)
+terra::writeRaster(
+  terra::setValues(terra::rast(template), rep(0, 6)),
+  positive_demand_path,
+  overwrite = TRUE
+)
+positive_demand_error <- tryCatch(
+  {
+    install_directional_idw_outputs(fixture, dry_run = TRUE)
+    NULL
+  },
+  error = identity
+)
+stopifnot(
+  inherits(positive_demand_error, "error"),
+  grepl("positive demand", conditionMessage(positive_demand_error))
+)
+terra::writeRaster(
+  terra::setValues(terra::rast(template), positive_demand_original),
+  positive_demand_path,
+  overwrite = TRUE
+)
+
+# A positive output remains an error when demand is exactly zero.
+zero_demand_path <- file.path(
+  hc_root, "idw_W_AAA_ORIGIN", "IDW_C++_fw_w21.tif"
+)
+terra::writeRaster(
+  terra::setValues(terra::rast(template), 1:6),
+  zero_demand_path,
+  overwrite = TRUE
+)
+zero_demand_error <- tryCatch(
+  {
+    install_directional_idw_outputs(fixture, dry_run = TRUE)
+    NULL
+  },
+  error = identity
+)
+stopifnot(
+  inherits(zero_demand_error, "error"),
+  grepl("must be an all-zero raster", conditionMessage(zero_demand_error))
+)
+terra::writeRaster(
+  terra::setValues(terra::rast(template), rep(0, 6)),
+  zero_demand_path,
+  overwrite = TRUE
+)
+
 dry <- install_directional_idw_outputs(fixture, dry_run = TRUE)
 stopifnot(
-  nrow(dry$components) == 8L,
-  nrow(dry$outputs) == 12L,
+  nrow(dry$components) == 12L,
+  nrow(dry$outputs) == 18L,
   nrow(dry$w_component_index) == 2L,
   nrow(dry$v_component_index) == 2L,
   identical(dry$w_component_index$DemandISO3, c("AAA", "BBB")),
@@ -351,9 +417,9 @@ stopifnot(
 
 installed <- install_directional_idw_outputs(fixture)
 stopifnot(
-  nrow(installed$outputs) == 12L,
-  nrow(installed$w_demand_audit) == 11L,
-  nrow(installed$v_demand_audit) == 11L
+  nrow(installed$outputs) == 18L,
+  nrow(installed$w_demand_audit) == 21L,
+  nrow(installed$v_demand_audit) == 21L
 )
 
 for (period in periods) {
@@ -384,20 +450,31 @@ for (period in periods) {
     "V_origin_components",
     sprintf("IDW_C++_fw_v002_%02d.tif", period)
   )), mat = FALSE)
-  stopifnot(
-    isTRUE(all.equal(component_1, as.numeric(1:6 + increment))),
-    isTRUE(all.equal(component_2, as.numeric(6:1 + increment))),
-    isTRUE(all.equal(combined_w, component_1 + component_2)),
-    isTRUE(all.equal(
-      v_component_1,
-      as.numeric(c(1, 2, 3, 4, NA, NA) + increment)
-    )),
-    isTRUE(all.equal(
-      v_component_2,
-      as.numeric(c(NA, NA, NA, NA, 5, 6) + increment)
-    )),
-    isTRUE(all.equal(combined_v, as.numeric(1:6 + increment)))
-  )
+  if (period == 21L) {
+    stopifnot(
+      all(component_1 == 0),
+      all(component_2 == 0),
+      all(combined_w == 0),
+      all(v_component_1 == 0),
+      all(v_component_2 == 0),
+      all(combined_v == 0)
+    )
+  } else {
+    stopifnot(
+      isTRUE(all.equal(component_1, as.numeric(1:6 + increment))),
+      isTRUE(all.equal(component_2, as.numeric(6:1 + increment))),
+      isTRUE(all.equal(combined_w, component_1 + component_2)),
+      isTRUE(all.equal(
+        v_component_1,
+        as.numeric(c(1, 2, 3, 4, NA, NA) + increment)
+      )),
+      isTRUE(all.equal(
+        v_component_2,
+        as.numeric(c(NA, NA, NA, NA, 5, 6) + increment)
+      )),
+      isTRUE(all.equal(combined_v, as.numeric(1:6 + increment)))
+    )
+  }
 }
 
 lookup_2005 <- read.csv(
@@ -427,7 +504,7 @@ stopifnot(
   identical(v_lookup_2005$Key, 1:2),
   identical(as.numeric(v_lookup_2005$Value), c(105, 55)),
   identical(v_component_index$DemandISO3, c("AAA;CCC", "BBB")),
-  nrow(audit) == 12L,
+  nrow(audit) == 18L,
   all(nzchar(audit$OutputSHA256)),
   all(file.exists(audit$TargetPath))
 )
@@ -444,4 +521,4 @@ stopifnot(
   grepl("Refusing to overwrite", conditionMessage(existing_error))
 )
 
-cat("WV_ORIGIN_PRESERVING_V3_OK\n")
+cat("WV_ORIGIN_PRESERVING_V4_OK\n")
