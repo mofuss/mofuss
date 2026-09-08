@@ -30,6 +30,16 @@
 # Declare its common parent once in `root`; keep placeholders disabled until
 # that root exists on the current computer.
 PIPELINE_BATCHES <- list(
+  GOG = list(
+    enabled = TRUE,
+    root = "E:/",
+    folders = c(
+      "GOG_1000m_bau1_2050_mc2_capped",
+      "GOG_1000m_bau1_2050_mc2_uncapped",
+      "GOG_1000m_ics3_2050_mc2_capped",
+      "GOG_1000m_ics3_2050_mc2_uncapped"
+    )
+  ),
   madagascar = list(
     enabled = FALSE,
     root = "C:/Users/aghil/Documents/MoFuSS_localhost",
@@ -41,7 +51,7 @@ PIPELINE_BATCHES <- list(
     )
   ),
   kenya = list(
-    enabled = TRUE,
+    enabled = FALSE,
     root = "E:/",  # Set the folder containing these four runs before enabling.
     folders = c(
       "ken_1000m_bau1_2050_mc30_capped",
@@ -51,7 +61,7 @@ PIPELINE_BATCHES <- list(
     )
   ),
   rwanda = list(
-    enabled = TRUE,
+    enabled = FALSE,
     root = "E:/",  # Set the folder containing these four runs before enabling.
     folders = c(
       "rwa_1000m_bau1_2050_mc30_capped",
@@ -84,6 +94,10 @@ PIPELINE_AGB_OBS_DIR <- paste0(
   "ctrees_dic2025_agb_cr/1km_agco2_2000_2025/agb_projected_ha"
 )
 
+# NULL writes beside the working-folder parent in mofuss_postprocessing.
+# Set an explicit directory only for a controlled alternate output root.
+PIPELINE_POSTPROCESSING_ROOT <- NULL
+
 # Stage 1: pixel-wise mechanics verification.
 PIPELINE_GROWTH_MODEL <- "auto"
 PIPELINE_DEPLETED_RESET_MG_CELL <- 2
@@ -98,7 +112,7 @@ PIPELINE_NRB_START_YEAR <- 2010L
 PIPELINE_NRB_END_YEAR <- 2020L
 PIPELINE_NRB_RESOLUTION <- "1km"
 PIPELINE_NRB_AGG_FACTOR <- 1L
-PIPELINE_NRB_AOI_MODE <- "country"  # country or full for non-interactive pipeline runs
+PIPELINE_NRB_AOI_MODE <- "analysis" # complete Regional/Country analysis area; full is also accepted
 PIPELINE_NRB_SQUARE_DRAW_AOI <- TRUE
 PIPELINE_NRB_THRESHOLD_MG_PIXEL <- 100
 PIPELINE_CTREES_UNITS <- "CO2"      # CO2 or C for *_AGC rasters
@@ -107,7 +121,7 @@ PIPELINE_CTREES_UNITS <- "CO2"      # CO2 or C for *_AGC rasters
 PIPELINE_AGB_BASE_YEAR <- 2000L
 PIPELINE_AGB_END_YEAR <- 2025L
 PIPELINE_AGB_SIM_END_YEAR <- 2050L
-PIPELINE_CLIP_OBS_TO_COUNTRY <- TRUE
+PIPELINE_CLIP_OBS_TO_ANALYSIS_AREA <- TRUE
 PIPELINE_EXCLUDE_HYDROLAKES <- TRUE
 # NULL auto-finds hydrolakes_pcs.tif inside each scenario pair.
 PIPELINE_HYDROLAKES_RASTER <- NULL
@@ -211,6 +225,16 @@ pipeline_integer <- function(x, label, minimum = 0L) {
   integer_value
 }
 
+pipeline_safe_id <- function(x) {
+  x <- tolower(trimws(as.character(x)))
+  x <- gsub("[^a-z0-9]+", "_", x)
+  x <- gsub("^_+|_+$", "", x)
+  if (length(x) != 1L || is.na(x) || !nzchar(x)) {
+    pipeline_stop("Could not construct an analysis identifier from scenario metadata.")
+  }
+  x
+}
+
 pipeline_parameters_file <- function(working_dir) {
   root <- file.path(working_dir, "LULCC", "DownloadedDatasets")
   files <- list.files(
@@ -245,10 +269,43 @@ pipeline_metadata <- function(working_dir) {
   } else {
     pipeline_stop("Cannot classify scenario_ver '%s' in %s.", scenario, path)
   }
+  byregion <- trimws(value("byregion"))
+  aoi_poly <- int_value("aoi_poly")
+  if (!aoi_poly %in% c(0L, 1L)) {
+    pipeline_stop("aoi_poly must be 0 or 1 in %s.", path)
+  }
+  iso3 <- toupper(value("region2BprocessedCtry_iso"))
+  country <- value("region2BprocessedCtry")
+  region <- value("region2BprocessedReg")
+  aoi_poly_file <- value("aoi_poly_file")
+  scope <- if (aoi_poly == 1L) {
+    aoi_name <- tools::file_path_sans_ext(basename(aoi_poly_file))
+    if (!nzchar(aoi_name)) pipeline_stop("Own-polygon run has an empty aoi_poly_file in %s.", path)
+    list(kind = "OwnPolygon", id = paste0("AOI_", aoi_name), name = paste0("Own polygon: ", aoi_name))
+  } else if (identical(tolower(byregion), "country")) {
+    list(kind = "Country", id = iso3, name = country)
+  } else if (identical(tolower(byregion), "regional")) {
+    if (!nzchar(region)) pipeline_stop("Regional run has an empty region2BprocessedReg in %s.", path)
+    list(kind = "Regional", id = region, name = region)
+  } else {
+    pipeline_stop("Unsupported byregion value '%s' in %s; expected Country or Regional.", byregion, path)
+  }
+  boundary_path <- file.path(working_dir, "LULCC", "TempVector", "userarea1.gpkg")
+  if (!file.exists(boundary_path) || dir.exists(boundary_path)) {
+    pipeline_stop("Model-native analysis boundary is missing: %s", boundary_path)
+  }
   data.frame(
     working_dir = working_dir,
-    iso3 = toupper(value("region2BprocessedCtry_iso")),
-    country = value("region2BprocessedCtry"),
+    iso3 = iso3,
+    country = country,
+    byregion = byregion,
+    region = region,
+    aoi_poly = aoi_poly,
+    aoi_poly_file = aoi_poly_file,
+    analysis_area_kind = scope$kind,
+    analysis_area_id = scope$id,
+    analysis_area_name = scope$name,
+    analysis_boundary = normalizePath(boundary_path, winslash = "/", mustWork = TRUE),
     scenario = scenario,
     role = role,
     mode = if (uncapped == 1L) "uncapped" else "capped",
@@ -289,7 +346,10 @@ pipeline_validate <- function(script_dir) {
 
   batch_configs <- lapply(batch_selection$enabled, function(batch) {
     metadata <- do.call(rbind, lapply(batch$working_dirs, pipeline_metadata))
-    common_fields <- c("iso3", "country", "model_start", "model_end", "mc_runs")
+    common_fields <- c(
+      "analysis_area_kind", "analysis_area_id", "analysis_area_name",
+      "model_start", "model_end", "mc_runs"
+    )
     for (field in common_fields) {
       if (length(unique(tolower(as.character(metadata[[field]])))) != 1L) {
         pipeline_stop("Batch '%s' working folders disagree on '%s'.", batch$name, field)
@@ -316,9 +376,10 @@ pipeline_validate <- function(script_dir) {
     pipeline_stop("PIPELINE_NRB_RESOLUTION must be 1km or 100m.")
   }
   nrb_aoi <- tolower(as.character(PIPELINE_NRB_AOI_MODE))
-  if (length(nrb_aoi) != 1L || !nrb_aoi %in% c("country", "full")) {
-    pipeline_stop("Pipeline AOI mode must be country or full; use Stage 2 directly for interactive draw mode.")
+  if (length(nrb_aoi) != 1L || !nrb_aoi %in% c("analysis", "country", "full")) {
+    pipeline_stop("Pipeline AOI mode must be analysis or full; use Stage 2 directly for interactive draw mode.")
   }
+  if (identical(nrb_aoi, "country")) nrb_aoi <- "analysis"
   ctrees_units <- toupper(as.character(PIPELINE_CTREES_UNITS))
   if (length(ctrees_units) != 1L || !ctrees_units %in% c("CO2", "C")) {
     pipeline_stop("PIPELINE_CTREES_UNITS must be CO2 or C.")
@@ -371,18 +432,35 @@ pipeline_validate <- function(script_dir) {
     hydrolakes <- NULL
   }
 
+  explicit_postprocessing_root <- PIPELINE_POSTPROCESSING_ROOT
+  if (!is.null(explicit_postprocessing_root)) {
+    explicit_postprocessing_root <- trimws(as.character(explicit_postprocessing_root))
+    if (length(explicit_postprocessing_root) != 1L || is.na(explicit_postprocessing_root) ||
+        !nzchar(explicit_postprocessing_root)) {
+      pipeline_stop("PIPELINE_POSTPROCESSING_ROOT must be NULL or one non-empty directory path.")
+    }
+    if (!dir.exists(explicit_postprocessing_root)) {
+      pipeline_stop("PIPELINE_POSTPROCESSING_ROOT does not exist: %s", explicit_postprocessing_root)
+    }
+    explicit_postprocessing_root <- normalizePath(
+      explicit_postprocessing_root, winslash = "/", mustWork = TRUE
+    )
+  }
   for (batch_name in names(batch_configs)) {
     batch <- batch_configs[[batch_name]]
     metadata <- batch$metadata
     analysis_id <- paste(
-      tolower(metadata$iso3[[1L]]),
+      pipeline_safe_id(metadata$analysis_area_id[[1L]]),
       metadata$model_start[[1L]] + spinup_years,
       metadata$model_end[[1L]],
       paste0("mc", metadata$mc_runs[[1L]]),
       sep = "_"
     )
     batch$analysis_root <- normalizePath(
-      file.path(batch$root, "mofuss_postprocessing", analysis_id),
+      file.path(
+        if (is.null(explicit_postprocessing_root)) file.path(batch$root, "mofuss_postprocessing") else explicit_postprocessing_root,
+        analysis_id
+      ),
       winslash = "/", mustWork = FALSE
     )
     batch_configs[[batch_name]] <- batch
@@ -416,7 +494,11 @@ pipeline_validate <- function(script_dir) {
     hydrolakes = hydrolakes,
     dry_run = pipeline_bool(PIPELINE_DRY_RUN, "PIPELINE_DRY_RUN"),
     square_draw = pipeline_bool(PIPELINE_NRB_SQUARE_DRAW_AOI, "PIPELINE_NRB_SQUARE_DRAW_AOI"),
-    clip_obs = pipeline_bool(PIPELINE_CLIP_OBS_TO_COUNTRY, "PIPELINE_CLIP_OBS_TO_COUNTRY"),
+    postprocessing_root = explicit_postprocessing_root,
+    clip_obs = pipeline_bool(
+      PIPELINE_CLIP_OBS_TO_ANALYSIS_AREA,
+      "PIPELINE_CLIP_OBS_TO_ANALYSIS_AREA"
+    ),
     exclude_lakes = pipeline_bool(PIPELINE_EXCLUDE_HYDROLAKES, "PIPELINE_EXCLUDE_HYDROLAKES")
   )
 }
@@ -490,6 +572,10 @@ pipeline_main <- function(args = commandArgs(trailingOnly = TRUE)) {
     cat(sprintf("\n  Batch %d/%d: %s\n", i, length(config$batches), batch$name))
     cat(sprintf("    root: %s\n", batch$root))
     cat(sprintf("    working folders: %s\n", paste(basename(batch$working_dirs), collapse = ", ")))
+    cat(sprintf(
+      "    analysis area: %s (%s)\n",
+      batch$metadata$analysis_area_id[[1L]], batch$metadata$analysis_area_kind[[1L]]
+    ))
     cat(sprintf("    analysis root: %s\n", batch$analysis_root))
   }
   if (check_only) {
@@ -519,6 +605,11 @@ pipeline_main <- function(args = commandArgs(trailingOnly = TRUE)) {
       pipeline_stop("Could not create batch scratch folder: %s", batch_temp_dir)
     }
     working_args <- paste0("--working-dir=", batch$working_dirs)
+    postprocessing_arg <- if (!is.null(config$postprocessing_root)) {
+      paste0("--postprocessing-root=", config$postprocessing_root)
+    } else {
+      character()
+    }
     stage_args <- list(
       c(
         working_args,
@@ -534,6 +625,7 @@ pipeline_main <- function(args = commandArgs(trailingOnly = TRUE)) {
       ),
       c(
         working_args,
+        postprocessing_arg,
         paste0("--spinup-years=", config$spinup_years),
         paste0("--ctrees-dir=", config$fnrb_obs_dir),
         paste0("--admin-vector=", config$admin_vector),
@@ -549,6 +641,7 @@ pipeline_main <- function(args = commandArgs(trailingOnly = TRUE)) {
       ),
       c(
         working_args,
+        postprocessing_arg,
         paste0("--spinup-years=", config$spinup_years),
         paste0("--obs-type=", config$agb_type),
         paste0("--obs-dir=", config$agb_obs_dir),
@@ -556,7 +649,7 @@ pipeline_main <- function(args = commandArgs(trailingOnly = TRUE)) {
         paste0("--base-year=", config$agb_base),
         paste0("--end-year=", config$agb_end),
         paste0("--sim-end-year=", config$agb_sim_end),
-        paste0("--clip-obs-to-country=", tolower(config$clip_obs)),
+        paste0("--clip-obs-to-analysis-area=", tolower(config$clip_obs)),
         paste0("--exclude-hydrolakes=", tolower(config$exclude_lakes)),
         hydrolakes_arg,
         paste0("--carbon-fraction=", PIPELINE_CARBON_FRACTION),

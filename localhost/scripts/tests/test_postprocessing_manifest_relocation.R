@@ -68,21 +68,25 @@ stage3 <- load_stage(stage_files[["stage3"]])
 
 bau_v13 <- list(
   scenario = "BaU1_v2", iso3 = "KEN", model_start_year = 2000L,
-  model_end_year = 2050L, mc_runs = 30L, uncapped_regrowth = 0L
+  model_end_year = 2050L, mc_runs = 30L, uncapped_regrowth = 0L,
+  byregion = "Country", region = "SSA_adm0_GOG"
 )
 ics_v13 <- list(
   scenario = "ICS3_v2", iso3 = "KEN", model_start_year = 2000L,
-  model_end_year = 2050L, mc_runs = 30L, uncapped_regrowth = 0L
+  model_end_year = 2050L, mc_runs = 30L, uncapped_regrowth = 0L,
+  byregion = "Country", region = "SSA_adm0_GOG"
 )
 bau_v5 <- list(
   scenario_ver = "BaU1_v2", country_iso = "KEN",
   simulation_start_year = 2000L, simulation_end_year = 2050L,
-  monte_carlo_runs = 30L, uncapped_regrowth = 0L
+  monte_carlo_runs = 30L, uncapped_regrowth = 0L,
+  byregion = "Country", region = "SSA_adm0_GOG"
 )
 ics_v5 <- list(
   scenario_ver = "ICS3_v2", country_iso = "KEN",
   simulation_start_year = 2000L, simulation_end_year = 2050L,
-  monte_carlo_runs = 30L, uncapped_regrowth = 0L
+  monte_carlo_runs = 30L, uncapped_regrowth = 0L,
+  byregion = "Country", region = "SSA_adm0_GOG"
 )
 cfg_v5 <- list(label = "ken_test", bau_dir = bau_dir, ics_dir = ics_dir)
 
@@ -111,6 +115,41 @@ manifest$current_scenario_rel <- ".."
 manifest$bau_source_rel <- file.path("..", "..", basename(bau_dir))
 write.csv(manifest, manifest_path, row.names = FALSE)
 check_all_consumers()
+
+# Regional runs validate the region identifier rather than the unused country
+# placeholder retained in parameters.csv for other AoI branches.
+manifest$geography <- "SSA_adm0_GOG"
+write.csv(manifest, manifest_path, row.names = FALSE)
+bau_v13_regional <- modifyList(
+  bau_v13,
+  list(iso3 = "RWA", byregion = "Regional", region = "SSA_adm0_GOG")
+)
+ics_v13_regional <- modifyList(
+  ics_v13,
+  list(iso3 = "RWA", byregion = "Regional", region = "SSA_adm0_GOG")
+)
+bau_v5_regional <- modifyList(
+  bau_v5,
+  list(country_iso = "RWA", byregion = "Regional", region = "SSA_adm0_GOG")
+)
+ics_v5_regional <- modifyList(
+  ics_v5,
+  list(country_iso = "RWA", byregion = "Regional", region = "SSA_adm0_GOG")
+)
+regional_stage2 <- stage2$.v13_read_bypass_provenance(
+  bau_dir, ics_dir, bau_v13_regional, ics_v13_regional
+)
+regional_stage3 <- stage3$read_pairing_provenance(
+  cfg_v5, bau_v5_regional, ics_v5_regional, "strict"
+)
+stopifnot(
+  isTRUE(regional_stage2$metadata_validated),
+  isTRUE(regional_stage3$comparison_validated)
+)
+
+# Restore the country fixture for the relocation-rejection checks below.
+manifest$geography <- "KEN"
+write.csv(manifest, manifest_path, row.names = FALSE)
 
 # A stale path with a different folder identity must remain a hard failure.
 manifest$current_scenario_rel <- NULL

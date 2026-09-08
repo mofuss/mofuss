@@ -14,9 +14,9 @@
 # limitations under the License.
 
 # MoFuSS ----
-# Script: 3post_agb_decomposition_v5.R
-# Version: 5
-# Date: August 2026
+# Script: 3post_agb_decomposition_v6.R
+# Version: 6
+# Date: September 2026
 # Execution: Use regular RStudio Source, RStudio Source as Background Job, or
 # run directly with Rscript from PowerShell/a terminal. Dinamica EGO does not
 # invoke this script directly.
@@ -25,8 +25,9 @@
 # avoided-loss and enhanced-regrowth components across Monte Carlo runs.
 # Inputs: SCENARIO_DIRS, parameters.csv, Stage 2 emissions outputs, scenario AGB
 # rasters, and pairing provenance.
-# Outputs: AGB-decomposition rasters, tables, uncertainty summaries, and plots
-# in the guarded agb_decomposition output directory.
+# Outputs: Regional and country AGB-decomposition tables, rasters, uncertainty
+# summaries, country boundaries, and plots in the guarded agb_decomposition
+# output directory.
 # Side effects: A clean rebuild fully deletes the exact validated decomposition
 # directory before writing its replacement products.
 
@@ -92,7 +93,7 @@ pairing_design_status <- function(
   )
 }
 
-# Scenario folders are supplied centrally by 0post_emissions_pipeline_v1.R.
+# Scenario folders are supplied centrally by 0post_emissions_pipeline_v2.R.
 # This empty fallback prevents stale computer-specific paths from being used.
 SCENARIO_DIRS <- character()
 
@@ -114,12 +115,12 @@ V5_RSTUDIO_MAKE_PLOT <- TRUE
 usage <- function() {
   cat(paste0(
     "Usage:\n",
-    "  Rscript 3post_agb_decomposition_v5.R ",
+    "  Rscript 3post_agb_decomposition_v6.R ",
     "[--scenario-dir=DIR ...] [--output-dir=DIR] [--spinup-years=N] ",
     "[--period=auto|START:END] ",
     "[--run-ids=all|LIST] [--dry-run] ",
     "[--pairing-policy=strict|diagnostic] [--overwrite] [--no-plot]\n\n",
-    "Default input: repeated --scenario-dir options from 0post_emissions_pipeline_v1.R.\n",
+    "Default input: repeated --scenario-dir options from 0post_emissions_pipeline_v2.R.\n",
     "RStudio: edit the RSTUDIO SOURCE SETTINGS block, then use Source or Source as Background Job.\n",
     "Pairings, post-spin-up period, stage-2 inputs and output directory are inferred.\n",
     "Default --run-ids=all writes both nominal MC1 and MC1:n uncertainty analyses.\n",
@@ -467,6 +468,8 @@ read_parameters <- function(scenario_dir, role = NULL) {
     country_iso = toupper(get_one("region2BprocessedCtry_iso")),
     country_name = get_one("region2BprocessedCtry"),
     subcountry = get_one("subcountry"),
+    aoi_poly = strict_integer(get_one("aoi_poly"), "aoi_poly", path),
+    aoi_poly_file = get_one("aoi_poly_file"),
     epsg_pcs = get_one("epsg_pcs"),
     gee_scale = strict_numeric(get_one("GEE_scale"), "GEE_scale", path),
     efchratio = strict_numeric(get_one("efchratio"), "efchratio", path)
@@ -493,6 +496,11 @@ read_parameters <- function(scenario_dir, role = NULL) {
 }
 
 parameter_geography <- function(parameters) {
+  if (isTRUE(as.integer(parameters$aoi_poly) == 1L)) {
+    aoi_name <- tools::file_path_sans_ext(basename(parameters$aoi_poly_file))
+    if (!nzchar(aoi_name)) stopf("Own-polygon parameters contain an empty aoi_poly_file.")
+    return(paste0("AOI_", aoi_name))
+  }
   scope_type <- tolower(trimws(as.character(parameters$byregion)))
   if (length(scope_type) != 1L || is.na(scope_type)) {
     stopf("Scenario parameters contain an invalid byregion value.")
@@ -548,14 +556,14 @@ v5_script_path <- function() {
     command_files,
     frame_files,
     rstudio_file,
-    file.path(getwd(), "3post_agb_decomposition_v5.R"),
+    file.path(getwd(), "3post_agb_decomposition_v6.R"),
     file.path(
       getwd(), "localhost", "scripts", "postprocessing_emissions",
-      "3post_agb_decomposition_v5.R"
+      "3post_agb_decomposition_v6.R"
     )
   ))
   candidates <- candidates[nzchar(candidates) & file.exists(candidates)]
-  candidates <- candidates[basename(candidates) == "3post_agb_decomposition_v5.R"]
+  candidates <- candidates[basename(candidates) == "3post_agb_decomposition_v6.R"]
   if (!length(candidates)) return(NA_character_)
   normalizePath(candidates[[1]], winslash = "/", mustWork = TRUE)
 }
@@ -586,6 +594,8 @@ v5_internal_pairs <- function(scenario_dirs = SCENARIO_DIRS) {
     continent = vapply(parameters, `[[`, character(1), "continent"),
     region = vapply(parameters, `[[`, character(1), "region"),
     subcountry = vapply(parameters, `[[`, character(1), "subcountry"),
+    aoi_poly = vapply(parameters, `[[`, integer(1), "aoi_poly"),
+    aoi_poly_file = vapply(parameters, `[[`, character(1), "aoi_poly_file"),
     start_year = vapply(parameters, `[[`, integer(1), "simulation_start_year"),
     end_year = vapply(parameters, `[[`, integer(1), "simulation_end_year"),
     mc_runs = vapply(parameters, `[[`, integer(1), "monte_carlo_runs"),
@@ -597,6 +607,7 @@ v5_internal_pairs <- function(scenario_dirs = SCENARIO_DIRS) {
   )
   key_fields <- c(
     "iso3", "country", "byregion", "continent", "region", "subcountry",
+    "aoi_poly", "aoi_poly_file",
     "start_year", "end_year", "mc_runs", "uncapped", "gee_scale",
     "epsg_pcs", "efchratio"
   )
@@ -620,7 +631,9 @@ v5_internal_pairs <- function(scenario_dirs = SCENARIO_DIRS) {
     scope_name <- parameter_geography(list(
       byregion = a$byregion,
       country_iso = a$iso3,
-      region = a$region
+      region = a$region,
+      aoi_poly = a$aoi_poly,
+      aoi_poly_file = a$aoi_poly_file
     ))
     scope_id <- v5_safe_id(scope_name)
     label <- paste(
@@ -676,7 +689,8 @@ validate_parameter_pair <- function(cfg, bau, ics, run_id, period) {
   same_fields <- c(
     "simulation_start_year", "simulation_end_year", "monte_carlo_runs",
     "uncapped_regrowth", "byregion", "continent", "region", "country_iso",
-    "country_name", "subcountry", "epsg_pcs", "gee_scale"
+    "country_name", "subcountry", "aoi_poly", "aoi_poly_file",
+    "epsg_pcs", "gee_scale"
   )
   for (field in same_fields) {
     if (!isTRUE(all.equal(bau[[field]], ics[[field]], tolerance = 0))) {
@@ -838,7 +852,7 @@ read_pairing_provenance <- function(cfg, bau, ics, pairing_policy) {
     source_dir <- source_ref$path
     if (current_ref$relocated || source_ref$relocated) {
       message(
-        "[v5] Accepted relocated MC bypass manifest after folder and metadata checks: ",
+        "[v6] Accepted relocated MC bypass manifest after folder and metadata checks: ",
         path
       )
     }
@@ -1049,6 +1063,158 @@ read_enduse_total <- function(emissions_dir, period) {
     per_fuel = checked,
     ignored_blank_fuel_rows = sum(!keep),
     max_abs_residual_tco2e = max(abs(checked$residual_tco2e))
+  )
+}
+
+read_country_partition <- function(cfg, parameters, raster_template, run_id, period) {
+  scope_path <- file.path(cfg$emissions_dir, "country", "country_scope.csv")
+  incidence_path <- file.path(
+    cfg$emissions_dir, "country", "country_spatial_incidence_by_run.csv"
+  )
+  if (!file.exists(scope_path)) stopf("Missing Stage-2 country scope: %s", scope_path)
+  if (!file.exists(incidence_path)) {
+    stopf("Missing Stage-2 country incidence table: %s", incidence_path)
+  }
+  scope <- readr::read_csv(
+    scope_path, show_col_types = FALSE, name_repair = "minimal"
+  )
+  incidence <- readr::read_csv(
+    incidence_path, show_col_types = FALSE, name_repair = "minimal"
+  )
+  scope_required <- c(
+    "analysis_area_kind", "analysis_area_id", "analysis_area_name",
+    "country_id", "country_iso", "country_name", "spatial_accounting"
+  )
+  incidence_required <- c(
+    scope_required, "label", "run_id", "period_start_year", "period_end_year",
+    "harvest_avoided_tCO2e", "enduse_avoided_tCO2e", "total_avoided_tCO2e"
+  )
+  missing_scope <- setdiff(scope_required, names(scope))
+  missing_incidence <- setdiff(incidence_required, names(incidence))
+  if (length(missing_scope)) {
+    stopf("Country scope lacks %s: %s", paste(missing_scope, collapse = ", "), scope_path)
+  }
+  if (length(missing_incidence)) {
+    stopf(
+      "Country incidence table lacks %s: %s",
+      paste(missing_incidence, collapse = ", "), incidence_path
+    )
+  }
+  scope$country_id <- strict_integer(scope$country_id, "country_id", scope_path)
+  if (any(scope$country_id <= 0L) || anyDuplicated(scope$country_id) ||
+      anyDuplicated(toupper(trimws(as.character(scope$country_iso))))) {
+    stopf("Country scope IDs or ISO3 codes are invalid or duplicated: %s", scope_path)
+  }
+  scope$country_iso <- toupper(trimws(as.character(scope$country_iso)))
+  scope$country_name <- trimws(as.character(scope$country_name))
+  scope <- scope[order(scope$country_id), , drop = FALSE]
+
+  saved_area <- unique(trimws(as.character(scope$analysis_area_id)))
+  expected_area <- parameter_geography(parameters)
+  if (length(saved_area) != 1L || !identical(toupper(saved_area), toupper(expected_area))) {
+    stopf("Stage-2 country scope does not match scenario geography '%s': %s", expected_area, scope_path)
+  }
+  incidence$run_id <- strict_integer(incidence$run_id, "run_id", incidence_path)
+  incidence$period_start_year <- strict_integer(
+    incidence$period_start_year, "period_start_year", incidence_path
+  )
+  incidence$period_end_year <- strict_integer(
+    incidence$period_end_year, "period_end_year", incidence_path
+  )
+  selected <- incidence[
+    incidence$run_id == run_id &
+      incidence$period_start_year == period$start &
+      incidence$period_end_year == period$end,
+    , drop = FALSE
+  ]
+  selected$country_id <- strict_integer(selected$country_id, "country_id", incidence_path)
+  selected <- selected[order(selected$country_id), , drop = FALSE]
+  if (nrow(selected) != nrow(scope) ||
+      !identical(selected$country_id, scope$country_id) ||
+      !identical(
+        toupper(trimws(as.character(selected$country_iso))), scope$country_iso
+      )) {
+    stopf(
+      "Stage-2 country incidence does not contain one row per scoped country for run %d: %s",
+      run_id, incidence_path
+    )
+  }
+  numeric_fields <- c(
+    "harvest_avoided_tCO2e", "enduse_avoided_tCO2e", "total_avoided_tCO2e"
+  )
+  for (field in numeric_fields) {
+    selected[[field]] <- strict_numeric(selected[[field]], field, incidence_path)
+  }
+  component_residual <- selected$total_avoided_tCO2e -
+    (selected$harvest_avoided_tCO2e + selected$enduse_avoided_tCO2e)
+  if (any(abs(component_residual) > 0.05)) {
+    stopf("Stage-2 country harvest + end-use != total: %s", incidence_path)
+  }
+
+  zone_path <- file.path(
+    cfg$emissions_dir, "country", "country_harvest_zones.tif"
+  )
+  if (!file.exists(zone_path) || dir.exists(zone_path)) {
+    stopf("Missing Stage-2 country harvest-zone raster: %s", zone_path)
+  }
+  zone_path <- normalizePath(zone_path, winslash = "/", mustWork = TRUE)
+  zones <- terra::rast(zone_path)
+  if (terra::nlyr(zones) != 1L ||
+      !terra::compareGeom(zones, raster_template, stopOnError = FALSE)) {
+    stopf("Stage-2 country harvest zones do not match the AGB grid for config '%s'.", cfg$label)
+  }
+  frequency <- terra::freq(zones)
+  zone_ids <- if (is.null(frequency) || !nrow(frequency)) integer() else {
+    sort(unique(suppressWarnings(as.integer(frequency[[2L]]))))
+  }
+  if (!identical(zone_ids, sort(scope$country_id))) {
+    stopf("Stage-2 country harvest-zone IDs do not match country scope for config '%s'.", cfg$label)
+  }
+
+  boundary_path <- file.path(
+    cfg$emissions_dir, "country", "country_boundaries.gpkg"
+  )
+  if (!file.exists(boundary_path) || dir.exists(boundary_path)) {
+    stopf("Missing Stage-2 country boundary vector: %s", boundary_path)
+  }
+  boundary_path <- normalizePath(boundary_path, winslash = "/", mustWork = TRUE)
+  boundaries <- terra::vect(boundary_path)
+  if (!all(c("ID", "GID_0", "NAME_0") %in% names(boundaries))) {
+    stopf("Stage-2 country boundary file lacks ID/GID_0/NAME_0: %s", boundary_path)
+  }
+  boundary_ids <- suppressWarnings(as.integer(boundaries$ID))
+  boundaries <- boundaries[boundary_ids %in% scope$country_id, ]
+  boundary_lookup <- data.frame(
+    country_id = suppressWarnings(as.integer(boundaries$ID)),
+    country_iso = toupper(trimws(as.character(boundaries$GID_0))),
+    country_name = trimws(as.character(boundaries$NAME_0)),
+    stringsAsFactors = FALSE
+  )
+  boundary_lookup <- boundary_lookup[order(boundary_lookup$country_id), , drop = FALSE]
+  expected_lookup <- as.data.frame(
+    scope[, c("country_id", "country_iso", "country_name")]
+  )
+  rownames(boundary_lookup) <- NULL
+  rownames(expected_lookup) <- NULL
+  if (!identical(boundary_lookup, expected_lookup)) {
+    stopf("Stage-2 boundary attributes do not match country scope: %s", boundary_path)
+  }
+
+  list(
+    scope = scope,
+    incidence = selected,
+    zones = zones,
+    admin_path = zone_path,
+    admin_md5 = file_md5(zone_path),
+    boundaries = boundaries,
+    boundary_path = boundary_path,
+    boundary_md5 = file_md5(boundary_path),
+    scope_path = normalizePath(scope_path, winslash = "/", mustWork = TRUE),
+    scope_md5 = file_md5(scope_path),
+    incidence_path = normalizePath(
+      incidence_path, winslash = "/", mustWork = TRUE
+    ),
+    incidence_md5 = file_md5(incidence_path)
   )
 }
 
@@ -1316,6 +1482,9 @@ preflight_config <- function(cfg, run_id, period, output_dir, pairing_policy) {
     timing$baseline_source, timing$baseline_timing, timing$end_code
   )
   enduse <- read_enduse_total(cfg$emissions_dir, period)
+  country_partition <- read_country_partition(
+    cfg, bau_params, terra::rast(paths$bau_baseline), run_id, period
+  )
   prefix <- sprintf("%s_run%03d_%s", cfg$safe_label, run_id, period$label)
   out_files <- list(
     delta_mg = file.path(output_dir, paste0(prefix, "_period_delta_agb_mg.tif")),
@@ -1342,6 +1511,7 @@ preflight_config <- function(cfg, run_id, period, output_dir, pairing_policy) {
     stage2_manifest = stage2_manifest,
     harvest = harvest,
     enduse = enduse,
+    country_partition = country_partition,
     output_prefix = prefix,
     out_files = out_files
   ))
@@ -1385,6 +1555,220 @@ decompose_state <- function(bau, ics, reference, eps) {
     gate = gate,
     exceedance = ics > (reference + eps)
   )
+}
+
+v6_indicator <- function(condition) {
+  terra::ifel(condition, 1, NA)
+}
+
+v6_signed_part <- function(value, condition, support) {
+  terra::ifel(support, terra::ifel(condition, value, 0), NA)
+}
+
+v6_country_zonal_values <- function(metrics, zones, scope, label) {
+  if (!terra::compareGeom(metrics, zones, lyrs = FALSE, stopOnError = FALSE)) {
+    stopf("Country-zone geometry mismatch for %s.", label)
+  }
+  result <- terra::zonal(metrics, zones, fun = "sum", na.rm = TRUE)
+  if (is.null(result) || !nrow(result)) stopf("Country zonal result is empty for %s.", label)
+  ids <- suppressWarnings(as.integer(result[[1L]]))
+  if (anyNA(ids) || anyDuplicated(ids) || any(!ids %in% scope$country_id)) {
+    stopf("Country zonal result contains invalid IDs for %s.", label)
+  }
+  order_match <- match(scope$country_id, ids)
+  if (anyNA(order_match)) stopf("Country zonal result omits scoped IDs for %s.", label)
+  values <- as.data.frame(result[order_match, -1L, drop = FALSE])
+  names(values) <- names(metrics)
+  values[] <- lapply(values, function(x) {
+    x <- as.numeric(x)
+    x[!is.finite(x)] <- 0
+    x
+  })
+  cbind(scope, values)
+}
+
+v6_country_decomposition_rows <- function(
+  meta, run_id, period, co2_factor, eps, r, pair_valid, period_valid,
+  b0, i0, b1, i1, state0, state1, pair_period_delta,
+  period_delta, period_avoided, period_regrowth, regional_row
+) {
+  support <- is.finite(period_delta)
+  metric_layers <- c(
+    b0, i0, b1, i1,
+    state0$delta, state1$delta, pair_period_delta, period_delta,
+    v6_signed_part(period_delta, period_delta > eps, support),
+    v6_signed_part(period_delta, period_delta < -eps, support),
+    period_avoided,
+    v6_signed_part(period_avoided, period_avoided > eps, support),
+    v6_signed_part(period_avoided, period_avoided < -eps, support),
+    period_regrowth,
+    v6_signed_part(period_regrowth, period_regrowth > eps, support),
+    v6_signed_part(period_regrowth, period_regrowth < -eps, support),
+    v6_indicator(is.finite(r$ref_bau)),
+    v6_indicator(is.finite(r$bau_baseline)),
+    v6_indicator(is.finite(r$ics_baseline)),
+    v6_indicator(is.finite(r$bau_end)),
+    v6_indicator(is.finite(r$ics_end)),
+    v6_indicator(pair_valid),
+    v6_indicator(period_valid),
+    v6_indicator(state0$gate),
+    v6_indicator(state1$gate),
+    v6_indicator(state0$exceedance),
+    v6_indicator(state1$exceedance),
+    v6_indicator(period_delta > eps),
+    v6_indicator(period_delta < -eps),
+    v6_indicator(abs(period_delta) <= eps),
+    v6_indicator(period_avoided > eps),
+    v6_indicator(period_avoided < -eps),
+    v6_indicator(abs(period_avoided) <= eps),
+    v6_indicator(period_regrowth > eps),
+    v6_indicator(period_regrowth < -eps),
+    v6_indicator(abs(period_regrowth) <= eps)
+  )
+  names(metric_layers) <- c(
+    "bau_baseline_agb_mg", "ics_baseline_agb_mg",
+    "bau_end_agb_mg", "ics_end_agb_mg",
+    "baseline_delta_agb_mg", "end_delta_agb_mg",
+    "pair_period_delta_agb_mg", "period_delta_agb_mg",
+    "period_delta_positive_mg", "period_delta_negative_mg",
+    "period_avoided_loss_mg", "period_avoided_loss_positive_mg",
+    "period_avoided_loss_negative_mg", "period_regrowth_mg",
+    "period_regrowth_positive_mg", "period_regrowth_negative_mg",
+    "n_reference_valid", "n_bau_baseline_valid", "n_ics_baseline_valid",
+    "n_bau_end_valid", "n_ics_end_valid", "n_pair_period_common",
+    "n_decomposition_period_common", "n_gated_baseline", "n_gated_end",
+    "n_ics_exceeds_reference_baseline", "n_ics_exceeds_reference_end",
+    "n_period_delta_positive", "n_period_delta_negative",
+    "n_period_delta_near_zero", "n_period_avoided_positive",
+    "n_period_avoided_negative", "n_period_avoided_near_zero",
+    "n_period_regrowth_positive", "n_period_regrowth_negative",
+    "n_period_regrowth_near_zero"
+  )
+  rows <- v6_country_zonal_values(
+    metric_layers,
+    meta$country_partition$zones,
+    meta$country_partition$scope,
+    paste0(meta$label, " run ", run_id)
+  )
+  incidence <- meta$country_partition$incidence
+  incidence <- incidence[match(rows$country_id, incidence$country_id), , drop = FALSE]
+  if (anyNA(incidence$country_id)) {
+    stopf("Stage-2 country incidence is incomplete for %s run %d.", meta$label, run_id)
+  }
+
+  rows$label <- meta$label
+  rows$display_label <- paste(
+    meta$regrowth_mode, v5_safe_id(meta$ics_params$scenario_ver), sep = "_"
+  )
+  rows$safe_label <- meta$safe_label
+  rows$regrowth_mode <- meta$regrowth_mode
+  rows$pairing_policy <- meta$pairing$pairing_policy
+  rows$mc_table_rows_paired <- meta$mc_table_pairing_validated
+  rows$patcher_bypassed <- meta$pairing$patcher_bypassed
+  rows$patcher_rng_paired <- meta$pairing$patcher_rng_paired
+  rows$comparison_validated <- meta$pairing$comparison_validated
+  rows$full_stochastic_pairing_validated <-
+    meta$pairing$full_stochastic_pairing_validated
+  rows$pairing_design <- meta$pairing$pairing_design
+  rows$independent_patcher_rng_included <-
+    meta$pairing$independent_patcher_rng_included
+  rows$uncertainty_status <- meta$pairing$uncertainty_status
+  rows$run_id <- run_id
+  rows$period_start_year <- period$start
+  rows$period_end_year <- period$end
+  rows$baseline_year <- meta$baseline_year
+  rows$simulation_start_year <- meta$bau_params$simulation_start_year
+  rows$baseline_year_code <- meta$baseline_code
+  rows$baseline_source <- meta$baseline_source
+  rows$baseline_timing <- meta$baseline_timing
+  rows$end_year_code <- meta$end_code
+  rows$spatial_accounting <- "spatial_incidence"
+  rows$period_delta_tco2e <- rows$period_delta_agb_mg * co2_factor
+  rows$period_avoided_loss_tco2e <- rows$period_avoided_loss_mg * co2_factor
+  rows$period_regrowth_tco2e <- rows$period_regrowth_mg * co2_factor
+  rows$agb_avoided_stage2_tco2e <- incidence$harvest_avoided_tCO2e
+  rows$enduse_avoided_tco2e <- incidence$enduse_avoided_tCO2e
+  rows$total_avoided_tco2e <- incidence$total_avoided_tCO2e
+  rows$common_fraction_reference <- ifelse(
+    rows$n_reference_valid > 0,
+    rows$n_decomposition_period_common / rows$n_reference_valid,
+    NA_real_
+  )
+  rows$split_residual_mg <-
+    (rows$period_avoided_loss_mg + rows$period_regrowth_mg) -
+    rows$period_delta_agb_mg
+  rows$split_tolerance_mg <- pmax(1e-3, abs(rows$period_delta_agb_mg) * 1e-10)
+  rows$raster_identity_max_mg <- max_abs0(
+    (period_avoided + period_regrowth) - period_delta
+  )
+  rows$raster_tolerance_mg <- 1e-5
+  rows$reference_excluded_delta_mg <-
+    rows$pair_period_delta_agb_mg - rows$period_delta_agb_mg
+  rows$reference_excluded_tolerance_mg <- pmax(
+    1e-3, abs(rows$pair_period_delta_agb_mg) * 1e-10
+  )
+  rows$period_state_residual_mg <-
+    (rows$end_delta_agb_mg - rows$baseline_delta_agb_mg) -
+    rows$period_delta_agb_mg
+  rows$harvest_residual_tco2e <-
+    rows$period_delta_tco2e - rows$agb_avoided_stage2_tco2e
+  rows$harvest_tolerance_tco2e <- pmax(
+    2.0, abs(rows$agb_avoided_stage2_tco2e) * 1e-6
+  )
+  rows$enduse_max_abs_residual_tco2e <- 0
+  rows$split_ok <- abs(rows$split_residual_mg) <= rows$split_tolerance_mg
+  rows$raster_identity_ok <- rows$raster_identity_max_mg <= rows$raster_tolerance_mg
+  rows$reference_coverage_ok <-
+    abs(rows$reference_excluded_delta_mg) <= rows$reference_excluded_tolerance_mg
+  rows$period_state_ok <-
+    abs(rows$period_state_residual_mg) <= rows$split_tolerance_mg
+  rows$harvest_recon_ok <-
+    abs(rows$harvest_residual_tco2e) <= rows$harvest_tolerance_tco2e
+  rows$enduse_recon_ok <- TRUE
+  rows$all_invariants_ok <- rows$split_ok & rows$raster_identity_ok &
+    rows$reference_coverage_ok & rows$period_state_ok &
+    rows$harvest_recon_ok & rows$enduse_recon_ok
+  if (any(!rows$all_invariants_ok)) {
+    failed <- rows$country_iso[!rows$all_invariants_ok]
+    stopf(
+      "Country decomposition invariant failed for %s run %d: %s.",
+      meta$label, run_id, paste(failed, collapse = ", ")
+    )
+  }
+
+  additive_fields <- c(
+    "bau_baseline_agb_mg", "ics_baseline_agb_mg", "bau_end_agb_mg",
+    "ics_end_agb_mg", "baseline_delta_agb_mg", "end_delta_agb_mg",
+    "period_delta_agb_mg", "period_delta_positive_mg",
+    "period_delta_negative_mg", "period_avoided_loss_mg",
+    "period_avoided_loss_positive_mg", "period_avoided_loss_negative_mg",
+    "period_regrowth_mg", "period_regrowth_positive_mg",
+    "period_regrowth_negative_mg", "period_delta_tco2e",
+    "period_avoided_loss_tco2e", "period_regrowth_tco2e",
+    "agb_avoided_stage2_tco2e", "enduse_avoided_tco2e",
+    "total_avoided_tco2e", "n_reference_valid", "n_bau_baseline_valid",
+    "n_ics_baseline_valid", "n_bau_end_valid", "n_ics_end_valid",
+    "n_pair_period_common", "n_decomposition_period_common",
+    "n_gated_baseline", "n_gated_end", "n_ics_exceeds_reference_baseline",
+    "n_ics_exceeds_reference_end", "n_period_delta_positive",
+    "n_period_delta_negative", "n_period_delta_near_zero",
+    "n_period_avoided_positive", "n_period_avoided_negative",
+    "n_period_avoided_near_zero", "n_period_regrowth_positive",
+    "n_period_regrowth_negative", "n_period_regrowth_near_zero"
+  )
+  failed_reconciliation <- additive_fields[vapply(additive_fields, function(field) {
+    expected <- as.numeric(regional_row[[field]][[1L]])
+    observed <- sum(as.numeric(rows[[field]]))
+    tolerance <- if (startsWith(field, "n_")) 0 else max(0.05, abs(expected) * 1e-9)
+    abs(observed - expected) > tolerance
+  }, logical(1))]
+  if (length(failed_reconciliation)) {
+    stopf(
+      "Country sums do not reconcile to the regional decomposition for %s run %d: %s.",
+      meta$label, run_id, paste(failed_reconciliation, collapse = ", ")
+    )
+  }
+  rows
 }
 
 process_config <- function(meta, run_id, period, co2_factor, eps) {
@@ -1469,6 +1853,17 @@ process_config <- function(meta, run_id, period, co2_factor, eps) {
   }
 
   n_ref_valid <- count_true(is.finite(r$ref_bau))
+  scope_value <- function(field) {
+    values <- unique(trimws(as.character(meta$country_partition$scope[[field]])))
+    values <- values[!is.na(values) & nzchar(values)]
+    if (length(values) != 1L) {
+      stopf("Country scope has inconsistent '%s' values for config '%s'.", field, meta$label)
+    }
+    values[[1L]]
+  }
+  analysis_area_kind <- scope_value("analysis_area_kind")
+  analysis_area_id <- scope_value("analysis_area_id")
+  analysis_area_name <- scope_value("analysis_area_name")
   row <- data.frame(
     label = meta$label,
     display_label = paste(
@@ -1477,8 +1872,11 @@ process_config <- function(meta, run_id, period, co2_factor, eps) {
       sep = "_"
     ),
     safe_label = meta$safe_label,
-    country_iso = meta$bau_params$country_iso,
-    country_name = meta$bau_params$country_name,
+    country_iso = analysis_area_id,
+    country_name = analysis_area_name,
+    analysis_area_kind = analysis_area_kind,
+    analysis_area_id = analysis_area_id,
+    analysis_area_name = analysis_area_name,
     regrowth_mode = meta$regrowth_mode,
     pairing_policy = meta$pairing$pairing_policy,
     mc_table_rows_paired = meta$mc_table_pairing_validated,
@@ -1562,6 +1960,27 @@ process_config <- function(meta, run_id, period, co2_factor, eps) {
     all_invariants_ok = TRUE,
     stringsAsFactors = FALSE
   )
+  country_rows <- v6_country_decomposition_rows(
+    meta = meta,
+    run_id = run_id,
+    period = period,
+    co2_factor = co2_factor,
+    eps = eps,
+    r = r,
+    pair_valid = pair_valid,
+    period_valid = period_valid,
+    b0 = b0,
+    i0 = i0,
+    b1 = b1,
+    i1 = i1,
+    state0 = state0,
+    state1 = state1,
+    pair_period_delta = pair_period_delta,
+    period_delta = period_delta,
+    period_avoided = period_avoided,
+    period_regrowth = period_regrowth,
+    regional_row = row
+  )
   cat(sprintf(
     "[%s] period delta=%0.6f Mg; avoided=%0.6f Mg; regrowth=%0.6f Mg; AGB=%0.6f tCO2e\n",
     meta$label, period_delta_sum, avoided_stats$net_mg, regrowth_stats$net_mg,
@@ -1569,6 +1988,7 @@ process_config <- function(meta, run_id, period, co2_factor, eps) {
   ))
   list(
     row = row,
+    country_rows = country_rows,
     rasters = list(
       delta_mg = period_delta,
       avoided_mg = period_avoided,
@@ -1652,7 +2072,7 @@ build_provenance <- function(processed, summary, manifest_path, output_dir,
         "DIAGNOSTIC_IDENTITIES_ONLY_UNVERIFIED_BYPASS_INPUTS"
       },
       created_utc = created,
-      script_version = "5",
+      script_version = "6",
       script_path = script_path,
       script_md5 = script_md5,
       runtime_versions = pkg_versions,
@@ -1663,7 +2083,12 @@ build_provenance <- function(processed, summary, manifest_path, output_dir,
       output_dir = output_dir,
       label = m$label,
       safe_label = m$safe_label,
-      country_iso = m$bau_params$country_iso,
+      country_iso = s$analysis_area_id,
+      country_name = s$analysis_area_name,
+      analysis_area_kind = s$analysis_area_kind,
+      analysis_area_id = s$analysis_area_id,
+      analysis_area_name = s$analysis_area_name,
+      country_accounting = "spatial_incidence",
       regrowth_mode = m$regrowth_mode,
       pairing_policy = m$pairing$pairing_policy,
       mc_table_rows_paired = m$mc_table_pairing_validated,
@@ -1725,6 +2150,14 @@ build_provenance <- function(processed, summary, manifest_path, output_dir,
       harvest_csv_md5 = m$harvest$md5,
       enduse_csv = m$enduse$path,
       enduse_csv_md5 = m$enduse$md5,
+      country_scope_csv = m$country_partition$scope_path,
+      country_scope_csv_md5 = m$country_partition$scope_md5,
+      country_incidence_csv = m$country_partition$incidence_path,
+      country_incidence_csv_md5 = m$country_partition$incidence_md5,
+      country_admin_raster = m$country_partition$admin_path,
+      country_admin_raster_md5 = m$country_partition$admin_md5,
+      country_boundary_vector = m$country_partition$boundary_path,
+      country_boundary_vector_md5 = m$country_partition$boundary_md5,
       period_delta_agb_mg = s$period_delta_agb_mg,
       period_avoided_loss_mg = s$period_avoided_loss_mg,
       period_regrowth_mg = s$period_regrowth_mg,
@@ -1840,6 +2273,94 @@ make_uncertainty_summary <- function(per_run_summary) {
         } else {
           "MC1_to_n_fully_paired_uncertainty"
         },
+        metric = field,
+        unit = unname(metric_fields[[field]]),
+        runs = length(values),
+        run_ids = paste(group$run_id, collapse = ","),
+        includes_mc1 = 1L %in% group$run_id,
+        uncertainty_estimable = length(values) >= 2L,
+        requested_minimum_uncertainty_runs = V5_MIN_UNCERTAINTY_RUNS,
+        uncertainty_sample_adequate = length(values) >= V5_MIN_UNCERTAINTY_RUNS,
+        mean = mean(values),
+        sd = if (length(values) >= 2L) stats::sd(values) else NA_real_,
+        se = if (length(values) >= 2L) stats::sd(values) / sqrt(length(values)) else NA_real_,
+        empirical_p025 = q[[1L]],
+        median = q[[2L]],
+        empirical_p975 = q[[3L]],
+        min = min(values),
+        max = max(values),
+        negative_runs = sum(values < 0),
+        zero_runs = sum(values == 0),
+        positive_runs = sum(values > 0),
+        probability_positive = mean(values > 0),
+        interval_type = if (length(values) >= 2L) {
+          if (all(group$independent_patcher_rng_included)) {
+            "empirical_central_95_percent_across_paired_mc_inputs_independent_patcher_runs"
+          } else {
+            "empirical_central_95_percent_across_fully_paired_runs"
+          }
+        } else {
+          "not_estimable_fewer_than_two_runs"
+        },
+        comparison_validated = all(group$comparison_validated),
+        full_stochastic_pairing_validated = all(
+          group$full_stochastic_pairing_validated
+        ),
+        pairing_design = paste(unique(group$pairing_design), collapse = ","),
+        independent_patcher_rng_included = all(
+          group$independent_patcher_rng_included
+        ),
+        cross_configuration_pooling = FALSE,
+        stringsAsFactors = FALSE
+      )
+    }
+  }
+  do.call(rbind, rows)
+}
+
+make_country_uncertainty_summary <- function(per_run_summary) {
+  metric_fields <- c(
+    bau_end_agb_mg = "Mg",
+    ics_end_agb_mg = "Mg",
+    period_delta_agb_mg = "Mg",
+    period_avoided_loss_mg = "Mg",
+    period_regrowth_mg = "Mg",
+    period_delta_tco2e = "tCO2e",
+    period_avoided_loss_tco2e = "tCO2e",
+    period_regrowth_tco2e = "tCO2e",
+    agb_avoided_stage2_tco2e = "tCO2e",
+    enduse_avoided_tco2e = "tCO2e",
+    total_avoided_tco2e = "tCO2e",
+    n_decomposition_period_common = "cells"
+  )
+  group_key <- interaction(
+    per_run_summary$label,
+    per_run_summary$country_id,
+    drop = TRUE,
+    lex.order = TRUE
+  )
+  groups <- split(per_run_summary, group_key)
+  rows <- list()
+  for (group in groups) {
+    group <- group[order(group$run_id), , drop = FALSE]
+    for (field in names(metric_fields)) {
+      values <- strict_numeric(group[[field]], field, "country per-run decomposition")
+      q <- if (length(values) >= 2L) {
+        as.numeric(stats::quantile(values, c(0.025, 0.5, 0.975), names = FALSE))
+      } else {
+        c(NA_real_, values[[1L]], NA_real_)
+      }
+      rows[[length(rows) + 1L]] <- data.frame(
+        analysis_area_kind = group$analysis_area_kind[[1L]],
+        analysis_area_id = group$analysis_area_id[[1L]],
+        analysis_area_name = group$analysis_area_name[[1L]],
+        country_id = group$country_id[[1L]],
+        country_iso = group$country_iso[[1L]],
+        country_name = group$country_name[[1L]],
+        spatial_accounting = "spatial_incidence",
+        label = group$label[[1L]],
+        display_label = group$display_label[[1L]],
+        regrowth_mode = group$regrowth_mode[[1L]],
         metric = field,
         unit = unname(metric_fields[[field]]),
         runs = length(values),
@@ -2050,7 +2571,7 @@ main <- function(args = commandArgs(trailingOnly = TRUE), source_mode = interact
     configs <- configs_from_pairs(pairs)
     internal_path <- v5_script_path()
     manifest_path <- if (is.na(internal_path)) {
-      "embedded_SCENARIO_DIRS_in_stage3_v5"
+      "embedded_SCENARIO_DIRS_in_stage3_v6"
     } else {
       internal_path
     }
@@ -2136,7 +2657,7 @@ main <- function(args = commandArgs(trailingOnly = TRUE), source_mode = interact
 
   cat(sprintf(
     paste0(
-      "MoFuSS AGB decomposition v5 | configs=%d | runs=%s | period=%s | ",
+      "MoFuSS AGB decomposition v6 | configs=%d | runs=%s | period=%s | ",
       "pairing_policy=%s | dry_run=%s\n"
     ),
     length(configs), paste(run_ids, collapse = ","), period$label,
@@ -2154,13 +2675,62 @@ main <- function(args = commandArgs(trailingOnly = TRUE), source_mode = interact
   })
   names(metas_by_run) <- as.character(run_ids)
 
+  country_partitions <- unlist(lapply(
+    metas_by_run,
+    function(run_metas) lapply(run_metas, `[[`, "country_partition")
+  ), recursive = FALSE)
+  reference_partition <- country_partitions[[1L]]
+  reference_scope_key <- paste(
+    reference_partition$scope$country_id,
+    reference_partition$scope$country_iso,
+    reference_partition$scope$country_name,
+    reference_partition$scope$analysis_area_kind,
+    reference_partition$scope$analysis_area_id,
+    reference_partition$scope$analysis_area_name,
+    sep = "|", collapse = ";"
+  )
+  for (partition in country_partitions[-1L]) {
+    scope_key <- paste(
+      partition$scope$country_id,
+      partition$scope$country_iso,
+      partition$scope$country_name,
+      partition$scope$analysis_area_kind,
+      partition$scope$analysis_area_id,
+      partition$scope$analysis_area_name,
+      sep = "|", collapse = ";"
+    )
+    same_boundary_geometry <- terra::same.crs(
+      partition$boundaries, reference_partition$boundaries
+    ) && isTRUE(all.equal(
+      terra::geom(partition$boundaries),
+      terra::geom(reference_partition$boundaries),
+      tolerance = 0
+    ))
+    if (!identical(scope_key, reference_scope_key) ||
+        !identical(partition$admin_md5, reference_partition$admin_md5) ||
+        !same_boundary_geometry) {
+      stopf("Country partition differs across runs/configurations.")
+    }
+  }
+
   aggregate_files <- list(
     per_run = file.path(output_dir, paste0("agb_decomposition_per_run_", tag, ".csv")),
+    country_per_run = file.path(
+      output_dir, paste0("agb_decomposition_by_country_per_run_", tag, ".csv")
+    ),
     deterministic = file.path(output_dir, paste0("deterministic_mc1_summary_", period$label, ".csv")),
+    country_deterministic = file.path(
+      output_dir, paste0("country_deterministic_mc1_summary_", period$label, ".csv")
+    ),
     uncertainty = file.path(output_dir, paste0("uncertainty_summary_", tag, ".csv")),
+    country_uncertainty = file.path(
+      output_dir, paste0("country_uncertainty_summary_", tag, ".csv")
+    ),
     comparison = file.path(output_dir, paste0("comparison_table_mc1_", period$label, ".csv")),
     provenance = file.path(output_dir, paste0("provenance_", tag, ".csv")),
     enduse_validation = file.path(output_dir, paste0("enduse_validation_", tag, ".csv")),
+    country_scope = file.path(output_dir, "country_scope.csv"),
+    country_boundaries = file.path(output_dir, "country_boundaries.gpkg"),
     plot_mc1 = file.path(output_dir, paste0("agb_decomposition_plot_mc1_", period$label, ".png")),
     plot_uncertainty = file.path(output_dir, paste0("agb_decomposition_plot_", tag, ".png")),
     run_manifest = file.path(output_dir, paste0("run_manifest_", tag, ".csv"))
@@ -2170,11 +2740,16 @@ main <- function(args = commandArgs(trailingOnly = TRUE), source_mode = interact
     function(run_metas) unlist(lapply(run_metas, `[[`, "out_files"), use.names = FALSE)
   ), use.names = FALSE)
   planned_aggregates <- unlist(aggregate_files[c(
-    "per_run", "uncertainty", "provenance", "enduse_validation", "run_manifest"
+    "per_run", "country_per_run", "uncertainty", "country_uncertainty",
+    "provenance", "enduse_validation", "country_scope", "country_boundaries",
+    "run_manifest"
   )], use.names = FALSE)
   if (1L %in% run_ids) {
     planned_aggregates <- c(
       planned_aggregates, aggregate_files$deterministic, aggregate_files$comparison
+    )
+    planned_aggregates <- c(
+      planned_aggregates, aggregate_files$country_deterministic
     )
     if (opts$make_plot) planned_aggregates <- c(planned_aggregates, aggregate_files$plot_mc1)
   }
@@ -2226,7 +2801,7 @@ main <- function(args = commandArgs(trailingOnly = TRUE), source_mode = interact
   }
 
   wopt <- list(gdal = c("COMPRESS=DEFLATE", "TILED=YES", "BIGTIFF=IF_SAFER"))
-  summary_rows <- provenance_rows <- enduse_rows <- list()
+  summary_rows <- country_rows <- provenance_rows <- enduse_rows <- list()
   mc1_comparison <- NULL
   mc1_summary <- NULL
   all_comparisons_valid <- TRUE
@@ -2259,6 +2834,9 @@ main <- function(args = commandArgs(trailingOnly = TRUE), source_mode = interact
     }
     run_summary$footprint_comparability <- footprint_note
     summary_rows[[length(summary_rows) + 1L]] <- run_summary
+    run_country <- do.call(rbind, lapply(processed, `[[`, "country_rows"))
+    run_country$footprint_comparability <- footprint_note
+    country_rows[[length(country_rows) + 1L]] <- run_country
     run_enduse <- do.call(rbind, lapply(processed, `[[`, "enduse_by_fuel"))
     run_enduse$run_id <- run_id
     enduse_rows[[length(enduse_rows) + 1L]] <- run_enduse
@@ -2284,13 +2862,34 @@ main <- function(args = commandArgs(trailingOnly = TRUE), source_mode = interact
   }
 
   per_run_summary <- do.call(rbind, summary_rows)
+  country_per_run_summary <- do.call(rbind, country_rows)
   provenance <- do.call(rbind, provenance_rows)
   enduse_validation <- do.call(rbind, enduse_rows)
   uncertainty <- make_uncertainty_summary(per_run_summary)
+  country_uncertainty <- make_country_uncertainty_summary(
+    country_per_run_summary
+  )
   deterministic <- if (1L %in% run_ids) {
     out <- make_uncertainty_summary(per_run_summary[per_run_summary$run_id == 1L, , drop = FALSE])
     out$analysis <- if (all(
       per_run_summary$patcher_bypassed[per_run_summary$run_id == 1L]
+    )) {
+      "MC1_deterministic_nominal_parameters"
+    } else {
+      "MC1_nominal_parameters_with_patcher_spatial_rng"
+    }
+    out
+  } else {
+    NULL
+  }
+  country_deterministic <- if (1L %in% run_ids) {
+    out <- make_country_uncertainty_summary(
+      country_per_run_summary[country_per_run_summary$run_id == 1L, , drop = FALSE]
+    )
+    out$analysis <- if (all(
+      country_per_run_summary$patcher_bypassed[
+        country_per_run_summary$run_id == 1L
+      ]
     )) {
       "MC1_deterministic_nominal_parameters"
     } else {
@@ -2324,18 +2923,32 @@ main <- function(args = commandArgs(trailingOnly = TRUE), source_mode = interact
     }
     return(invisible(list(
       per_run = per_run_summary, deterministic = deterministic,
-      uncertainty = uncertainty, provenance = provenance
+      uncertainty = uncertainty, country_per_run = country_per_run_summary,
+      country_deterministic = country_deterministic,
+      country_uncertainty = country_uncertainty, provenance = provenance
     )))
   }
 
   readr::write_csv(per_run_summary, aggregate_files$per_run)
+  readr::write_csv(country_per_run_summary, aggregate_files$country_per_run)
   if (!is.null(deterministic)) {
     readr::write_csv(deterministic, aggregate_files$deterministic)
     readr::write_csv(mc1_comparison, aggregate_files$comparison)
+    readr::write_csv(
+      country_deterministic, aggregate_files$country_deterministic
+    )
   }
   readr::write_csv(uncertainty, aggregate_files$uncertainty)
+  readr::write_csv(country_uncertainty, aggregate_files$country_uncertainty)
   readr::write_csv(provenance, aggregate_files$provenance)
   readr::write_csv(enduse_validation, aggregate_files$enduse_validation)
+  readr::write_csv(reference_partition$scope, aggregate_files$country_scope)
+  terra::writeVector(
+    reference_partition$boundaries,
+    aggregate_files$country_boundaries,
+    filetype = "GPKG",
+    overwrite = opts$overwrite
+  )
   write_mc_raster_summaries(
     metas_by_run, run_ids, run_tag, output_dir, opts$overwrite, uncertainty
   )
@@ -2347,7 +2960,7 @@ main <- function(args = commandArgs(trailingOnly = TRUE), source_mode = interact
   }
   script_path <- v5_script_path()
   run_manifest <- data.frame(
-    script_version = 5L,
+    script_version = 6L,
     script_path = script_path,
     script_md5 = if (!is.na(script_path) && file.exists(script_path)) file_md5(script_path) else NA_character_,
     analysis_products = if (any(!per_run_summary$patcher_bypassed)) {
@@ -2394,8 +3007,18 @@ main <- function(args = commandArgs(trailingOnly = TRUE), source_mode = interact
     capped_uncapped_relationship = "independent_simulation_units",
     output_dir = output_dir,
     per_run_summary = aggregate_files$per_run,
+    country_per_run_summary = aggregate_files$country_per_run,
     deterministic_summary = if (!is.null(deterministic)) aggregate_files$deterministic else NA_character_,
+    country_deterministic_summary = if (!is.null(country_deterministic)) {
+      aggregate_files$country_deterministic
+    } else {
+      NA_character_
+    },
     uncertainty_summary = aggregate_files$uncertainty,
+    country_uncertainty_summary = aggregate_files$country_uncertainty,
+    country_scope = aggregate_files$country_scope,
+    country_boundaries = aggregate_files$country_boundaries,
+    country_accounting = "spatial_incidence",
     stage2_script_md5 = paste(unique(provenance$stage2_script_md5), collapse = ","),
     completed_at_utc = format(Sys.time(), tz = "UTC", usetz = TRUE),
     status = if (all_comparisons_valid) {
@@ -2424,7 +3047,9 @@ main <- function(args = commandArgs(trailingOnly = TRUE), source_mode = interact
   if (!is.null(mc1_comparison)) print_comparison_table(mc1_comparison)
   invisible(list(
     per_run = per_run_summary, deterministic = deterministic,
-    uncertainty = uncertainty, provenance = provenance,
+    uncertainty = uncertainty, country_per_run = country_per_run_summary,
+    country_deterministic = country_deterministic,
+    country_uncertainty = country_uncertainty, provenance = provenance,
     run_manifest = run_manifest
   ))
 }

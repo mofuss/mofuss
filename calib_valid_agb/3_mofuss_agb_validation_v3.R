@@ -36,17 +36,17 @@
 ###############################################################################
 ##  MoFuSS simulated  vs  CTrees observed  ABOVEGROUND BIOMASS (AGB) validation
 ##  -------------------------------------------------------------------------
-##  * national AGB trajectories (observed vs capped vs uncapped regrowth)
+##  * complete analysis-area AGB trajectories (observed vs capped vs uncapped)
 ##  * spatial maps of AGB change BASE_YEAR-END_YEAR
 ##  * pixel-level agreement (r / RMSE / bias)
 ##
 ##  Design notes (important):
-##   - Observed maps are CLIPPED to the country outline (userarea1.gpkg) so they
+##   - Observed maps are clipped to the exact model area (userarea1.gpkg) so they
 ##     match the MoFuSS domain (the projected CTrees mosaic is NOT pre-clipped and
 ##     otherwise leaks ~1/3 extra cells from neighbouring countries).
 ##   - Each simulation configuration retains its own non-NULL footprint. Observed
 ##     and capped use their shared mask; uncapped keeps its smaller valid mask.
-##     National figures show one observed series (on the capped/observed mask), so
+##     Analysis-area figures show one observed series (on the capped/observed mask), so
 ##     uncapped's lower absolute baseline explicitly includes its smaller coverage.
 ##   - If a run has several Monte-Carlo folders (debugging_1..N) ALL trajectories
 ##     are drawn; the maps and pixel scatter use debugging_1.
@@ -54,7 +54,7 @@
 ##     BASE_YEAR, code 02 is BASE_YEAR+1, etc. They must never be bilinearly
 ##     resampled. CTrees is intensive (MgDM/ha), so bilinear alignment is valid.
 ##   - Gross NRB is sum(max(AGB_start - AGB_end, 0)) by pixel. Net NRB is
-##     max(0, sum(AGB_start - AGB_end)) over the requested national footprint.
+##     max(0, sum(AGB_start - AGB_end)) over the requested analysis footprint.
 ##     Intermediate years do not enter either calculation.
 ##   - HydroLAKES cells are excluded from the validation domain for all sources.
 ##     This affects maps, trajectories, NRB totals, and pixel statistics equally.
@@ -88,7 +88,7 @@ OBS_DIR_INPUT <- ""
 ADMIN_VECTOR <- ""
 POSTPROCESSING_ROOT <- ""    # inferred from the common working-folder parent
 DRY_RUN <- FALSE
-CLIP_OBS_TO_COUNTRY <- TRUE
+CLIP_OBS_TO_ANALYSIS_AREA <- TRUE
 EXCLUDE_HYDROLAKES <- TRUE
 HYDROLAKES_RASTER <- ""
 BASE_YEAR <- 2000L
@@ -133,10 +133,11 @@ for (arg in commandArgs(trailingOnly = TRUE)) {
       "Usage: Rscript 3_mofuss_agb_validation_v3.R [options]\n",
       "  --working-dir=DIR       Repeat exactly four times\n",
       "  --spinup-years=N\n",
+      "  --postprocessing-root=DIR\n",
       "  --obs-type=projected|latlong --obs-dir=DIR\n",
       "  --admin-vector=GPKG\n",
       "  --base-year=YYYY --end-year=YYYY --sim-end-year=YYYY\n",
-      "  --clip-obs-to-country=true|false\n",
+      "  --clip-obs-to-analysis-area=true|false\n",
       "  --exclude-hydrolakes=true|false [--hydrolakes-raster=FILE]\n",
       "  --carbon-fraction=N --dry-run\n"
     ))
@@ -145,6 +146,8 @@ for (arg in commandArgs(trailingOnly = TRUE)) {
     WORKING_DIRS <- c(WORKING_DIRS, value("--working-dir="))
   } else if (startsWith(arg, "--spinup-years=")) {
     SPINUP_YEARS <- parse_integer(value("--spinup-years="), "--spinup-years")
+  } else if (startsWith(arg, "--postprocessing-root=")) {
+    POSTPROCESSING_ROOT <- value("--postprocessing-root=")
   } else if (startsWith(arg, "--obs-type=")) {
     OBS_TYPE <- tolower(value("--obs-type="))
   } else if (startsWith(arg, "--obs-dir=")) {
@@ -157,8 +160,14 @@ for (arg in commandArgs(trailingOnly = TRUE)) {
     END_YEAR <- parse_integer(value("--end-year="), "--end-year")
   } else if (startsWith(arg, "--sim-end-year=")) {
     SIM_END_YEAR <- parse_integer(value("--sim-end-year="), "--sim-end-year")
+  } else if (startsWith(arg, "--clip-obs-to-analysis-area=")) {
+    CLIP_OBS_TO_ANALYSIS_AREA <- parse_bool(
+      value("--clip-obs-to-analysis-area="), "--clip-obs-to-analysis-area"
+    )
   } else if (startsWith(arg, "--clip-obs-to-country=")) {
-    CLIP_OBS_TO_COUNTRY <- parse_bool(value("--clip-obs-to-country="), "--clip-obs-to-country")
+    CLIP_OBS_TO_ANALYSIS_AREA <- parse_bool(
+      value("--clip-obs-to-country="), "--clip-obs-to-country"
+    )
   } else if (startsWith(arg, "--exclude-hydrolakes=")) {
     EXCLUDE_HYDROLAKES <- parse_bool(value("--exclude-hydrolakes="), "--exclude-hydrolakes")
   } else if (startsWith(arg, "--hydrolakes-raster=")) {
@@ -237,10 +246,41 @@ read_run_metadata <- function(workdir) {
   }
   gee_scale <- suppressWarnings(as.numeric(value("GEE_scale")))
   if (!is.finite(gee_scale)) stopf("GEE_scale is not numeric in %s.", path)
+  byregion <- trimws(value("byregion"))
+  aoi_poly <- int_value("aoi_poly")
+  if (!aoi_poly %in% c(0L, 1L)) stopf("aoi_poly must be 0 or 1 in %s.", path)
+  iso3 <- toupper(value("region2BprocessedCtry_iso"))
+  country <- value("region2BprocessedCtry")
+  region <- value("region2BprocessedReg")
+  aoi_poly_file <- value("aoi_poly_file")
+  scope <- if (aoi_poly == 1L) {
+    aoi_name <- tools::file_path_sans_ext(basename(aoi_poly_file))
+    if (!nzchar(aoi_name)) stopf("Own-polygon run has an empty aoi_poly_file in %s.", path)
+    list(kind = "OwnPolygon", id = paste0("AOI_", aoi_name), name = paste0("Own polygon: ", aoi_name))
+  } else if (identical(tolower(byregion), "country")) {
+    list(kind = "Country", id = iso3, name = country)
+  } else if (identical(tolower(byregion), "regional")) {
+    if (!nzchar(region)) stopf("Regional run has an empty region2BprocessedReg in %s.", path)
+    list(kind = "Regional", id = region, name = region)
+  } else {
+    stopf("Unsupported byregion value '%s' in %s; expected Country or Regional.", byregion, path)
+  }
+  boundary_path <- file.path(workdir, "LULCC", "TempVector", "userarea1.gpkg")
+  if (!file.exists(boundary_path) || dir.exists(boundary_path)) {
+    stopf("Model-native analysis boundary is missing: %s", boundary_path)
+  }
   data.frame(
     working_dir = workdir,
-    iso3 = toupper(value("region2BprocessedCtry_iso")),
-    country = value("region2BprocessedCtry"),
+    iso3 = iso3,
+    country = country,
+    byregion = byregion,
+    region = region,
+    aoi_poly = aoi_poly,
+    aoi_poly_file = aoi_poly_file,
+    analysis_area_kind = scope$kind,
+    analysis_area_id = scope$id,
+    analysis_area_name = scope$name,
+    analysis_boundary = normalizePath(boundary_path, winslash = "/", mustWork = TRUE),
     scenario = scenario,
     role = role,
     mode = if (uncapped == 1L) "uncapped" else "capped",
@@ -254,7 +294,10 @@ read_run_metadata <- function(workdir) {
 WORKING_DIRS <- unique(as.character(WORKING_DIRS[nzchar(WORKING_DIRS)]))
 if (length(WORKING_DIRS) != 4L) stopf("This batch requires exactly four working folders; received %d.", length(WORKING_DIRS))
 run_metadata <- do.call(rbind, lapply(WORKING_DIRS, read_run_metadata))
-common_fields <- c("iso3", "country", "model_start", "model_end", "mc_runs", "gee_scale")
+common_fields <- c(
+  "analysis_area_kind", "analysis_area_id", "analysis_area_name",
+  "model_start", "model_end", "mc_runs", "gee_scale"
+)
 for (field in common_fields) {
   if (length(unique(tolower(as.character(run_metadata[[field]])))) != 1L) {
     stopf("The four working folders disagree on '%s'.", field)
@@ -276,19 +319,24 @@ if (anyDuplicated(paste(run_metadata$scenario, run_metadata$mode, sep = "/"))) {
 common_parent <- unique(path_key(dirname(run_metadata$working_dir)))
 if (length(common_parent) != 1L) stop("All four working folders must share one parent.", call. = FALSE)
 working_parent <- dirname(run_metadata$working_dir[[1]])
-postprocessing_root <- if (nzchar(POSTPROCESSING_ROOT)) POSTPROCESSING_ROOT else
+postprocessing_root <- if (nzchar(POSTPROCESSING_ROOT)) {
+  if (!dir.exists(POSTPROCESSING_ROOT)) stopf("Postprocessing root does not exist: %s", POSTPROCESSING_ROOT)
+  normalizePath(POSTPROCESSING_ROOT, winslash = "/", mustWork = TRUE)
+} else {
   file.path(working_parent, "mofuss_postprocessing")
+}
 analysis_id <- paste(
-  safe_id(run_metadata$iso3[[1]]), run_metadata$model_start[[1]] + SPINUP_YEARS,
+  safe_id(run_metadata$analysis_area_id[[1]]), run_metadata$model_start[[1]] + SPINUP_YEARS,
   run_metadata$model_end[[1]], paste0("mc", run_metadata$mc_runs[[1]]), sep = "_"
 )
 analysis_root <- normalizePath(file.path(postprocessing_root, analysis_id), winslash = "/", mustWork = FALSE)
 validation_root <- file.path(analysis_root, "validation", "3_mofuss_agb_validation")
 
-run_validation_pair <- function(COUNTRY, COUNTRY_ISO3, SCENARIO_LABEL, MODEL_END_YEAR, MC_RUNS,
+run_validation_pair <- function(ANALYSIS_AREA_NAME, ANALYSIS_AREA_ID, ANALYSIS_AREA_KIND,
+                                SCENARIO_LABEL, MODEL_END_YEAR, MC_RUNS,
                                 CAPPED_DIR, UNCAPPED_DIR, OUT_DIR) {
-FILE_PREFIX <- paste(safe_id(COUNTRY_ISO3), safe_id(SCENARIO_LABEL), sep = "_")
-DISPLAY_NAME <- paste(COUNTRY, "-", SCENARIO_LABEL)
+FILE_PREFIX <- paste(safe_id(ANALYSIS_AREA_ID), safe_id(SCENARIO_LABEL), sep = "_")
+DISPLAY_NAME <- paste(ANALYSIS_AREA_NAME, "-", SCENARIO_LABEL)
 if (!identical(path_key(dirname(OUT_DIR)), path_key(validation_root)) ||
     !identical(basename(OUT_DIR), safe_id(SCENARIO_LABEL))) {
   stop("Refusing unsafe validation output path: ", OUT_DIR, call. = FALSE)
@@ -319,7 +367,7 @@ if (END_YEAR <= BASE_YEAR) stop("END_YEAR must be later than BASE_YEAR.")
 OBS_DIR  <- if (OBS_TYPE == "latlong") OBS_LL_DIR else OBS_PROJ_DIR
 if (!dir.exists(OBS_DIR)) stop("Observed AGB folder not found: ", OBS_DIR)
 obs_name <- if (OBS_TYPE == "latlong") obs_ll_name else obs_proj_name
-admin_path <- ADMIN_VECTOR
+analysis_boundary_path <- file.path(CAPPED_DIR, "LULCC", "TempVector", "userarea1.gpkg")
 hydrolakes_rel <- file.path("LULCC", "DownloadedDatasets", "SourceDataGlobal",
                             "InRaster", "hydrolakes_pcs.tif")
 hydrolakes_candidates <- unique(c(
@@ -332,12 +380,12 @@ if (EXCLUDE_HYDROLAKES && (length(hydrolakes_path) == 0L || is.na(hydrolakes_pat
   stop("HydroLAKES display mask not found. Checked:\n  ",
        paste(hydrolakes_candidates, collapse = "\n  "))
 
-cat("\nCountry      :", COUNTRY,
+cat("\nAnalysis area:", ANALYSIS_AREA_NAME, "(", ANALYSIS_AREA_KIND, ")",
     "\nScenario     :", SCENARIO_LABEL,
     "\nCapped dir   :", CAPPED_DIR,
     "\nUncapped dir :", if (nzchar(UNCAPPED_DIR)) UNCAPPED_DIR else "(none)",
     "\nObserved     :", OBS_TYPE, "->", OBS_DIR,
-    "\nBoundary     :", admin_path,
+    "\nBoundary     :", analysis_boundary_path,
     "\nWater mask  :", if (EXCLUDE_HYDROLAKES) hydrolakes_path else "(disabled)",
     "\nOutput       :", OUT_DIR, "\n\n")
 
@@ -350,15 +398,52 @@ pad_ext <- function(e, f = 0.02) {
   terra::ext(terra::xmin(e) - dx, terra::xmax(e) + dx,
              terra::ymin(e) - dy, terra::ymax(e) + dy)
 }
-load_country_boundary <- function(path, iso3) {
-  if (!file.exists(path)) stop("Country boundary not found: ", path)
-  x <- terra::vect(path)
-  if ("GID_0" %in% names(x)) x <- x[as.character(x$GID_0) == iso3, ]
-  if (nrow(x) != 1L) {
-    stop("Expected one country polygon for ", iso3, " in ", path,
-         "; found ", nrow(x), ".")
+load_analysis_boundary <- function(path, outlines = FALSE) {
+  if (!file.exists(path) || dir.exists(path)) {
+    stop("Model-native analysis boundary not found: ", path)
+  }
+  x <- terra::makeValid(terra::vect(path))
+  empty <- terra::is.empty(x)
+  if (length(empty) == nrow(x) && any(empty)) x <- x[!empty, ]
+  if (!nrow(x)) stop("Model-native analysis boundary is empty: ", path)
+  if (ANALYSIS_AREA_KIND %in% c("Country", "Regional") && "GID_0" %in% names(x)) {
+    model_isos <- sort(unique(toupper(trimws(as.character(x$GID_0)))))
+    if (identical(ANALYSIS_AREA_KIND, "Country")) {
+      expected_isos <- toupper(ANALYSIS_AREA_ID)
+    } else {
+      reference <- terra::vect(ADMIN_VECTOR)
+      if (!all(c("GID_0", "mofuss_reg") %in% names(reference))) {
+        stop("Regional admin vector must contain GID_0 and mofuss_reg: ", ADMIN_VECTOR)
+      }
+      values <- as.data.frame(reference)
+      expected_isos <- sort(unique(toupper(trimws(as.character(
+        values$GID_0[tolower(trimws(as.character(values$mofuss_reg))) ==
+                       tolower(trimws(ANALYSIS_AREA_ID))]
+      )))))
+    }
+    expected_isos <- expected_isos[!is.na(expected_isos) & nzchar(expected_isos)]
+    if (!length(expected_isos) || !identical(model_isos, expected_isos)) {
+      stop(
+        "Model-native boundary countries do not match ", ANALYSIS_AREA_ID,
+        ". Model: ", paste(model_isos, collapse = ", "),
+        "; expected: ", paste(expected_isos, collapse = ", "), "."
+      )
+    }
+  }
+  if (isTRUE(outlines) && identical(ANALYSIS_AREA_KIND, "Regional") &&
+      "GID_0" %in% names(x)) {
+    return(terra::aggregate(x, by = "GID_0"))
+  }
+  x <- terra::aggregate(x)
+  if (nrow(x) != 1L || any(terra::is.empty(x))) {
+    stop("Could not dissolve the model-native boundary to one analysis area: ", path)
   }
   x
+}
+extents_overlap <- function(left, right) {
+  a <- terra::ext(left); b <- terra::ext(right)
+  terra::xmin(a) < terra::xmax(b) && terra::xmax(a) > terra::xmin(b) &&
+    terra::ymin(a) < terra::ymax(b) && terra::ymax(a) > terra::ymin(b)
 }
 list_mc <- function(workdir) {
   if (!dir.exists(workdir)) stop("MoFuSS folder not found: ", workdir)
@@ -390,6 +475,7 @@ align_obs <- function(year, ref) {   # -> MgDM/ha SpatRaster on the reference gr
   if (terra::nlyr(r) != 1L) stop("Expected a single-band observed raster: ", f)
   if (!nzchar(terra::crs(r))) stop("Observed raster has no CRS; refusing to assume one: ", f)
   if (terra::same.crs(r, ref)) {
+    if (!extents_overlap(r, ref)) stop("Observed raster does not overlap analysis grid: ", f)
     r <- terra::crop(r, pad_ext(terra::ext(ref), 0.02), snap = "out")
     a <- terra::resample(r, ref, method = "bilinear")
   } else {
@@ -397,6 +483,7 @@ align_obs <- function(year, ref) {   # -> MgDM/ha SpatRaster on the reference gr
       terra::as.polygons(terra::ext(ref), crs = terra::crs(ref)),
       terra::crs(r)
     )
+    if (!extents_overlap(r, box)) stop("Observed raster does not overlap analysis grid: ", f)
     r <- terra::crop(r, pad_ext(terra::ext(box), 0.05), snap = "out")
     a <- terra::project(r, ref, method = "bilinear")
   }
@@ -408,6 +495,7 @@ water_mask_vec <- function(path, ref) { # TRUE for HydroLAKES cells on ref grid
   if (terra::nlyr(r) != 1L) stop("Expected a single-band HydroLAKES raster: ", path)
   if (!nzchar(terra::crs(r))) stop("HydroLAKES raster has no CRS: ", path)
   if (terra::same.crs(r, ref)) {
+    if (!extents_overlap(r, ref)) stop("HydroLAKES raster does not overlap analysis grid: ", path)
     r <- terra::crop(r, pad_ext(terra::ext(ref), 0.02), snap = "out")
     a <- terra::resample(r, ref, method = "near")
   } else {
@@ -415,6 +503,7 @@ water_mask_vec <- function(path, ref) { # TRUE for HydroLAKES cells on ref grid
       terra::as.polygons(terra::ext(ref), crs = terra::crs(ref)),
       terra::crs(r)
     )
+    if (!extents_overlap(r, box)) stop("HydroLAKES raster does not overlap analysis grid: ", path)
     r <- terra::crop(r, pad_ext(terra::ext(box), 0.05), snap = "out")
     a <- terra::project(r, ref, method = "near")
   }
@@ -438,7 +527,7 @@ sim_valid_all <- function(mcdirs, sim_years) { # common finite cells across ever
 }
 
 ###############################################################################
-## 4. REFERENCE GRID, COUNTRY MASK, OBSERVED SERIES, PER-CONFIG MASKS
+## 4. REFERENCE GRID, ANALYSIS-AREA MASK, OBSERVED SERIES, PER-CONFIG MASKS
 ###############################################################################
 ref <- terra::rast(ref_sim_file()); terra::NAflag(ref) <- NODATA
 if (!nzchar(terra::crs(ref))) stop("Reference MoFuSS raster has no CRS.")
@@ -463,28 +552,56 @@ cat(sprintf(paste0("Reference grid: %d x %d cells | pixel = %.2f x %.2f m | ",
 cat(sprintf("  planar x*y area = %.3f ha | geodesic ground area = %.3f-%.3f ha (mean %.3f)\n",
             grid_cell_ha, ground_stats$min, ground_stats$max, ground_stats$mean))
 
-## country mask (rasterise the boundary onto the reference grid)
-country_vec <- rep(TRUE, terra::ncell(ref))
-if (CLIP_OBS_TO_COUNTRY && file.exists(admin_path)) {
-  adm <- load_country_boundary(admin_path, COUNTRY_ISO3)
+## Analysis mask (rasterise the exact model-native boundary onto the grid).
+analysis_area_vec <- rep(TRUE, terra::ncell(ref))
+if (CLIP_OBS_TO_ANALYSIS_AREA && file.exists(analysis_boundary_path)) {
+  adm <- load_analysis_boundary(analysis_boundary_path)
   if (!terra::same.crs(adm, ref)) adm <- terra::project(adm, terra::crs(ref))
   adm$burnval <- 1L
-  country_vec <- !is.na(as.numeric(terra::values(
+  analysis_area_vec <- !is.na(as.numeric(terra::values(
     terra::rasterize(adm, ref, field = "burnval", background = NA)
   )))
-  cat(sprintf("Observed clipped to country outline: %d cells inside (%s)\n", sum(country_vec), basename(admin_path)))
-} else if (CLIP_OBS_TO_COUNTRY) {
-  stop("Country boundary not found; national aggregation would be invalid: ", admin_path)
+  cat(sprintf(
+    "Observed clipped to complete %s area: %d cells inside (%s)\n",
+    ANALYSIS_AREA_KIND, sum(analysis_area_vec), basename(analysis_boundary_path)
+  ))
+} else if (CLIP_OBS_TO_ANALYSIS_AREA) {
+  stop("Analysis boundary not found; aggregation would be invalid: ", analysis_boundary_path)
+}
+
+if (DRY_RUN) {
+  check_years <- unique(c(BASE_YEAR, END_YEAR))
+  for (year in check_years) {
+    f <- file.path(OBS_DIR, obs_name(year))
+    if (!file.exists(f)) stop("Missing observed AGB raster: ", f)
+    observed_header <- terra::rast(f)
+    ref_in_observed <- if (terra::same.crs(observed_header, ref)) {
+      ref
+    } else {
+      terra::project(
+        terra::as.polygons(terra::ext(ref), crs = terra::crs(ref)),
+        terra::crs(observed_header)
+      )
+    }
+    if (!extents_overlap(observed_header, ref_in_observed)) {
+      stop("Observed AGB raster does not overlap analysis grid: ", f)
+    }
+  }
+  cat(sprintf(
+    "DRY RUN spatial preflight passed: %s (%s), %d model-grid cells.\n",
+    ANALYSIS_AREA_ID, ANALYSIS_AREA_KIND, sum(analysis_area_vec)
+  ))
+  return(invisible(TRUE))
 }
 
 ## One common land domain for observed and every simulation configuration.
-## Keeping country_vec separate preserves the true administrative footprint for
+## Keeping analysis_area_vec separate preserves the true analysis footprint for
 ## diagnostics; validation_domain_vec additionally removes HydroLAKES cells.
 water_vec <- rep(FALSE, terra::ncell(ref))
 if (EXCLUDE_HYDROLAKES) water_vec <- water_mask_vec(hydrolakes_path, ref)
-validation_domain_vec <- country_vec & !water_vec
-cat(sprintf("HydroLAKES excluded from validation: %s cells inside country\n",
-            format(sum(country_vec & water_vec), big.mark = ",", scientific = FALSE)))
+validation_domain_vec <- analysis_area_vec & !water_vec
+cat(sprintf("HydroLAKES excluded from validation: %s cells inside analysis area\n",
+            format(sum(analysis_area_vec & water_vec), big.mark = ",", scientific = FALSE)))
 
 cat("Loading observed CTrees maps ...\n")
 obs_ha <- list()
@@ -519,9 +636,9 @@ obs_start <- obs_ha[[as.character(BASE_YEAR)]]
 obs_end   <- obs_ha[[as.character(END_YEAR)]]
 
 ###############################################################################
-## 5. NATIONAL TRAJECTORIES (one observed series; each config keeps its footprint)
+## 5. ANALYSIS-AREA TRAJECTORIES (one observed series; each config keeps its footprint)
 ###############################################################################
-cat("Computing national trajectories (all Monte-Carlo runs) ...\n")
+cat("Computing analysis-area trajectories (all Monte-Carlo runs) ...\n")
 obs_total <- function(y, m)                                                        # geodesic Mt
   sum(obs_ha[[as.character(y)]][m] * ground_cell_ha[m]) / 1e6
 sim_total <- function(vec, m) {                                                   # Mt (vec = per-cell MgDM)
@@ -549,6 +666,9 @@ traj$change_Mt <- stats::ave(
   FUN = function(x) x - x[1]
 )
 traj$scenario <- SCENARIO_LABEL
+traj$analysis_area_kind <- ANALYSIS_AREA_KIND
+traj$analysis_area_id <- ANALYSIS_AREA_ID
+traj$analysis_area_name <- ANALYSIS_AREA_NAME
 
 # All required observed and simulation inputs have now passed validation. Only
 # now replace the exact scenario output folder, preserving older results when
@@ -562,7 +682,7 @@ if (dir.exists(OUT_DIR)) {
 if (!dir.create(OUT_DIR, recursive = TRUE, showWarnings = FALSE) && !dir.exists(OUT_DIR)) {
   stop("Could not create validation output folder: ", OUT_DIR, call. = FALSE)
 }
-utils::write.csv(traj, file.path(OUT_DIR, paste0(FILE_PREFIX, "_national_trajectory_allMC.csv")), row.names = FALSE)
+utils::write.csv(traj, file.path(OUT_DIR, paste0(FILE_PREFIX, "_analysis_area_trajectory_allMC.csv")), row.names = FALSE)
 
 ###############################################################################
 ## 6. PIXEL-LEVEL CHANGE (debugging_1) -> per-config stats (pairwise masks)
@@ -624,7 +744,7 @@ nrb_metrics <- function(start, end, domain, source, config, scope, mc, value_uni
   gross_mg   <- sum(pmax(loss_mg, 0))             # only pixels lower at END_YEAR
   gain_mg    <- sum(pmax(-loss_mg, 0))
   balance_mg <- sum(loss_mg)                      # gross loss minus gross gain
-  net_mg     <- max(0, balance_mg)                # national net gain -> zero NRB
+  net_mg     <- max(0, balance_mg)                # analysis-area net gain -> zero NRB
 
   model_loss_mg    <- start_model_mg - end_model_mg
   model_gross_mg   <- sum(pmax(model_loss_mg, 0))
@@ -633,6 +753,9 @@ nrb_metrics <- function(start, end, domain, source, config, scope, mc, value_uni
   model_net_mg     <- max(0, model_balance_mg)
 
   data.frame(
+    analysis_area_kind = ANALYSIS_AREA_KIND,
+    analysis_area_id = ANALYSIS_AREA_ID,
+    analysis_area_name = ANALYSIS_AREA_NAME,
     source = source, config = config, scope = scope, mc = as.integer(mc),
     start_year = BASE_YEAR, end_year = END_YEAR,
     cells = sum(keep), area_ha_geodesic = sum(area),
@@ -640,25 +763,25 @@ nrb_metrics <- function(start, end, domain, source, config, scope, mc, value_uni
     AGB_start_Mg = sum(start_mg), AGB_end_Mg = sum(end_mg),
     gross_NRB_Mg = gross_mg, gross_NRB_Mt = gross_mg / 1e6,
     gross_AGB_gain_Mg = gain_mg,
-    country_balance_Mg = balance_mg,
+    analysis_area_balance_Mg = balance_mg,
     net_NRB_Mg = net_mg, net_NRB_Mt = net_mg / 1e6,
     model_area_AGB_start_Mg = sum(start_model_mg),
     model_area_AGB_end_Mg = sum(end_model_mg),
     model_area_gross_NRB_Mg = model_gross_mg,
     model_area_gross_AGB_gain_Mg = model_gain_mg,
-    model_area_country_balance_Mg = model_balance_mg,
+    model_area_analysis_balance_Mg = model_balance_mg,
     model_area_net_NRB_Mg = model_net_mg,
     loss_pixels = sum(loss_mg > 0), gain_pixels = sum(loss_mg < 0),
     stringsAsFactors = FALSE
   )
 }
 
-## National/end-point values: observed on all valid CTrees country cells; each
+## Analysis-area endpoint values: observed on all valid CTrees cells; each
 ## MoFuSS configuration on its own valid model domain. These are the values to
 ## retain for later demand comparisons (demand must use the same scope and an
 ## explicitly chosen geodesic-vs-model-native accounting convention).
-nrb_all <- nrb_metrics(obs_start, obs_end, validation_domain_vec, "Observed", "Country",
-                       "country_endpoint", 0L, "MgDM_ha")
+nrb_all <- nrb_metrics(obs_start, obs_end, validation_domain_vec, "Observed", "AnalysisArea",
+                       "analysis_area_endpoint", 0L, "MgDM_ha")
 append_model_nrb <- function(out, mcdirs, cfg) {
   for (i in seq_along(mcdirs)) {
     s0 <- sim_vec(mcdirs[i], BASE_YEAR); s1 <- sim_vec(mcdirs[i], END_YEAR)
@@ -693,7 +816,10 @@ summarise_nrb <- function(d) {
   key <- interaction(d$source, d$config, d$scope, drop = TRUE, lex.order = TRUE)
   rows <- lapply(split(d, key), function(z) {
     sd1 <- function(x) if (length(x) > 1L) stats::sd(x) else NA_real_
-    data.frame(source = z$source[1], config = z$config[1], scope = z$scope[1],
+    data.frame(analysis_area_kind = ANALYSIS_AREA_KIND,
+               analysis_area_id = ANALYSIS_AREA_ID,
+               analysis_area_name = ANALYSIS_AREA_NAME,
+               source = z$source[1], config = z$config[1], scope = z$scope[1],
                mass_area_method = "geodesic_cellSize",
                n_runs = nrow(z), cells_min = min(z$cells), cells_max = max(z$cells),
                area_ha_geodesic_mean = mean(z$area_ha_geodesic),
@@ -702,7 +828,7 @@ summarise_nrb <- function(d) {
                gross_NRB_Mg_mean = mean(z$gross_NRB_Mg),
                gross_NRB_Mt_mean = mean(z$gross_NRB_Mt),
                gross_NRB_Mt_sd = sd1(z$gross_NRB_Mt),
-               country_balance_Mg_mean = mean(z$country_balance_Mg),
+               analysis_area_balance_Mg_mean = mean(z$analysis_area_balance_Mg),
                net_NRB_Mg_mean = mean(z$net_NRB_Mg),
                net_NRB_Mt_mean = mean(z$net_NRB_Mt),
                net_NRB_Mt_sd = sd1(z$net_NRB_Mt),
@@ -723,7 +849,7 @@ utils::write.csv(nrb_pairwise, file.path(OUT_DIR, paste0(FILE_PREFIX, "_NRB_aggr
 print(nrb_summary, row.names = FALSE, digits = 5)
 
 ###############################################################################
-## 7. FIGURE 1 : national AGB change RELATIVE TO BASE_YEAR (single panel, %)
+## 7. FIGURE 1 : analysis-area AGB change relative to base year
 ##    All series start at 0% in BASE_YEAR. Percent change divides by each series'
 ##    own BASE_YEAR baseline. Observed/capped share a mask; uncapped retains its
 ##    smaller non-NULL footprint.
@@ -760,7 +886,7 @@ g1 <- ggplot2::ggplot() +
   ggplot2::theme_bw(base_size = 12) +
   ggplot2::theme(legend.position = "bottom", plot.title = ggplot2::element_text(size = 12),
         plot.subtitle = ggplot2::element_text(size = 9))
-ggplot2::ggsave(file.path(OUT_DIR, paste0(FILE_PREFIX, "_fig1_national_trajectory.png")), g1,
+ggplot2::ggsave(file.path(OUT_DIR, paste0(FILE_PREFIX, "_fig1_analysis_area_trajectory.png")), g1,
        width = 8.6, height = 5.2, dpi = 150)
 
 ###############################################################################
@@ -883,8 +1009,8 @@ divpal <- grDevices::colorRampPalette(c("#a50026","#d73027","#f46d43","#fdae61",
                                          "#ffffbf","#d9ef8b","#a6d96a","#66bd63","#1a9850","#006837"))(100)
 
 adm_layer <- NULL
-if (file.exists(admin_path)) {
-  adm2 <- load_country_boundary(admin_path, COUNTRY_ISO3)
+if (file.exists(analysis_boundary_path)) {
+  adm2 <- load_analysis_boundary(analysis_boundary_path, outlines = TRUE)
   if (!terra::same.crs(adm2, ref)) adm2 <- terra::project(adm2, terra::crs(ref))
   gdf  <- as.data.frame(terra::geom(adm2))
   adm_layer <- ggplot2::geom_polygon(
@@ -963,7 +1089,14 @@ summ <- rbind(summ_row("Observed", "Observed", sum(mask_cap)),
               summ_row("Capped", "Simulated", sum(mask_cap)))
 if (length(uncMC)) summ <- rbind(summ, summ_row("Uncapped", "Simulated", sum(mask_unc)))
 summ$scenario <- SCENARIO_LABEL
-utils::write.csv(summ, file.path(OUT_DIR, paste0(FILE_PREFIX, "_national_summary.csv")), row.names = FALSE)
+summ$analysis_area_kind <- ANALYSIS_AREA_KIND
+summ$analysis_area_id <- ANALYSIS_AREA_ID
+summ$analysis_area_name <- ANALYSIS_AREA_NAME
+utils::write.csv(
+  summ,
+  file.path(OUT_DIR, paste0(FILE_PREFIX, "_analysis_area_summary.csv")),
+  row.names = FALSE
+)
 
 cat("\n================  SUMMARY  (", DISPLAY_NAME, ", ", BASE_YEAR, "-", END_YEAR, ")  ================\n", sep = "")
 print(summ, row.names = FALSE)
@@ -985,41 +1118,42 @@ run_metadata$output_dir <- file.path(validation_root, run_metadata$scenario_id)
 message("\nResolved four-run AGB validation batch:")
 print(run_metadata[, c("scenario", "role", "mode", "working_dir", "output_dir")], row.names = FALSE)
 failures <- character()
+for (scenario_id in scenario_ids) {
+  pair <- run_metadata[run_metadata$scenario_id == scenario_id, , drop = FALSE]
+  if (nrow(pair) != 2L || !setequal(pair$mode, c("capped", "uncapped"))) {
+    failures <- c(failures, sprintf("%s: expected exactly one capped and one uncapped folder", scenario_id))
+    next
+  }
+  capped_dir <- pair$working_dir[pair$mode == "capped"][[1]]
+  uncapped_dir <- pair$working_dir[pair$mode == "uncapped"][[1]]
+  scenario_label <- pair$scenario[[1]]
+  message("\n=== AGB validation pair: ", scenario_label, " ===")
+  result <- tryCatch(
+    run_validation_pair(
+      ANALYSIS_AREA_NAME = run_metadata$analysis_area_name[[1]],
+      ANALYSIS_AREA_ID = run_metadata$analysis_area_id[[1]],
+      ANALYSIS_AREA_KIND = run_metadata$analysis_area_kind[[1]],
+      SCENARIO_LABEL = scenario_label,
+      MODEL_END_YEAR = run_metadata$model_end[[1]],
+      MC_RUNS = run_metadata$mc_runs[[1]],
+      CAPPED_DIR = capped_dir,
+      UNCAPPED_DIR = uncapped_dir,
+      OUT_DIR = pair$output_dir[[1]]
+    ),
+    error = function(e) e
+  )
+  if (inherits(result, "error")) {
+    failure <- sprintf("%s: %s", scenario_label, conditionMessage(result))
+    failures <- c(failures, failure)
+    message("FAILED: ", failure)
+  }
+}
+if (length(failures)) {
+  stop("One or more AGB validation pairs failed:\n  ", paste(failures, collapse = "\n  "), call. = FALSE)
+}
 if (DRY_RUN) {
-  message("DRY RUN complete; no validation outputs were changed.")
+  message("\nDRY RUN complete: Regional/Country spatial preflights passed; no outputs were changed.")
 } else {
-  for (scenario_id in scenario_ids) {
-    pair <- run_metadata[run_metadata$scenario_id == scenario_id, , drop = FALSE]
-    if (nrow(pair) != 2L || !setequal(pair$mode, c("capped", "uncapped"))) {
-      failures <- c(failures, sprintf("%s: expected exactly one capped and one uncapped folder", scenario_id))
-      next
-    }
-    capped_dir <- pair$working_dir[pair$mode == "capped"][[1]]
-    uncapped_dir <- pair$working_dir[pair$mode == "uncapped"][[1]]
-    scenario_label <- pair$scenario[[1]]
-    message("\n=== AGB validation pair: ", scenario_label, " ===")
-    result <- tryCatch(
-      run_validation_pair(
-        COUNTRY = run_metadata$country[[1]],
-        COUNTRY_ISO3 = run_metadata$iso3[[1]],
-        SCENARIO_LABEL = scenario_label,
-        MODEL_END_YEAR = run_metadata$model_end[[1]],
-        MC_RUNS = run_metadata$mc_runs[[1]],
-        CAPPED_DIR = capped_dir,
-        UNCAPPED_DIR = uncapped_dir,
-        OUT_DIR = pair$output_dir[[1]]
-      ),
-      error = function(e) e
-    )
-    if (inherits(result, "error")) {
-      failure <- sprintf("%s: %s", scenario_label, conditionMessage(result))
-      failures <- c(failures, failure)
-      message("FAILED: ", failure)
-    }
-  }
-  if (length(failures)) {
-    stop("One or more AGB validation pairs failed:\n  ", paste(failures, collapse = "\n  "), call. = FALSE)
-  }
   message("\nAll BAU and intervention AGB validation pairs completed: ", validation_root)
 }
 ###############################################################################

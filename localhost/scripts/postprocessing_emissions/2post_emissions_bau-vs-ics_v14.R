@@ -14,9 +14,9 @@
 # limitations under the License.
 
 # MoFuSS ----
-# Script: 2post_emissions_bau-vs-ics_v13.R
-# Version: 13
-# Date: August 2026
+# Script: 2post_emissions_bau-vs-ics_v14.R
+# Version: 14
+# Date: September 2026
 # Execution: Use regular RStudio Source, RStudio Source as Background Job, or
 # run directly with Rscript from PowerShell/a terminal. Dinamica EGO does not
 # invoke this script directly.
@@ -25,15 +25,15 @@
 # end-use, and total emissions across Monte Carlo realizations.
 # Inputs: SCENARIO_DIRS, parameters.csv, BAU/CCTS output rasters, paired Monte
 # Carlo tables, and fuel/emission-factor tables.
-# Outputs: Emissions rasters, tables, uncertainty summaries, and manifests in
-# the guarded pair-analysis root.
+# Outputs: Emissions rasters, regional and country spatial-incidence tables,
+# uncertainty summaries, and manifests in the guarded pair-analysis root.
 # Side effects: In RStudio clean-rebuild mode, the validated inferred analysis
 # root is fully deleted and rebuilt; the working directory may be moved outside
 # that root first.
 
 # Accounting and pairing notes ----
 #
-# Normal use is through 0post_emissions_pipeline_v1.R, which supplies the
+# Normal use is through 0post_emissions_pipeline_v2.R, which supplies the
 # scenario folders once for every stage. Standalone Rscript execution accepts
 # repeated --scenario-dir options.
 # By default, every configured MoFuSS run (including nominal MC01) is
@@ -110,7 +110,7 @@
   )
 }
 
-# Scenario folders are supplied centrally by 0post_emissions_pipeline_v1.R.
+# Scenario folders are supplied centrally by 0post_emissions_pipeline_v2.R.
 # This empty fallback prevents stale computer-specific paths from being used.
 SCENARIO_DIRS <- character()
 
@@ -141,7 +141,7 @@ SCENARIO_DIRS <- character()
   if (length(missing)) {
     .v9_stop(
       "Missing required R packages: ", paste(missing, collapse = ", "),
-      ". Install them before running v13; this script never installs packages."
+      ". Install them before running v14; this script never installs packages."
     )
   }
   invisible(TRUE)
@@ -204,9 +204,9 @@ SCENARIO_DIRS <- character()
 .v9_usage <- function() {
   cat(
     paste0(
-      "MoFuSS avoided-emissions post-processing v13\n\n",
+      "MoFuSS avoided-emissions post-processing v14\n\n",
       "Default input:\n",
-      "  repeated --scenario-dir options supplied by 0post_emissions_pipeline_v1.R\n\n",
+      "  repeated --scenario-dir options supplied by 0post_emissions_pipeline_v2.R\n\n",
       "RStudio Source or Source as Background Job:\n",
       "  validates inputs, deletes the entire inferred analysis root, and rebuilds it\n\n",
       "Options:\n",
@@ -400,6 +400,8 @@ SCENARIO_DIRS <- character()
     continent = get_chr("region2BprocessedCont"),
     region = get_chr("region2BprocessedReg"),
     subcountry = get_chr("subcountry"),
+    aoi_poly = get_int("aoi_poly"),
+    aoi_poly_file = get_chr("aoi_poly_file"),
     scenario = get_chr("scenario_ver"),
     model_start_year = get_int("start_year"),
     model_end_year = get_int("end_year"),
@@ -412,6 +414,11 @@ SCENARIO_DIRS <- character()
 }
 
 .v13_parameter_geography <- function(parameters) {
+  if (isTRUE(as.integer(parameters$aoi_poly) == 1L)) {
+    aoi_name <- tools::file_path_sans_ext(basename(parameters$aoi_poly_file))
+    if (!nzchar(aoi_name)) .v9_stop("Own-polygon parameters contain an empty aoi_poly_file.")
+    return(paste0("AOI_", aoi_name))
+  }
   scope_type <- tolower(trimws(as.character(parameters$byregion)))
   if (length(scope_type) != 1L || is.na(scope_type)) {
     .v9_stop("Scenario parameters contain an invalid byregion value.")
@@ -467,15 +474,15 @@ SCENARIO_DIRS <- character()
     command_files,
     frame_files,
     rstudio_file,
-    file.path(getwd(), "2post_emissions_bau-vs-ics_v13.R"),
+    file.path(getwd(), "2post_emissions_bau-vs-ics_v14.R"),
     file.path(
       getwd(), "localhost", "scripts", "postprocessing_emissions",
-      "2post_emissions_bau-vs-ics_v13.R"
+      "2post_emissions_bau-vs-ics_v14.R"
     )
   ))
   candidates <- candidates[nzchar(candidates) & file.exists(candidates)]
   candidates <- candidates[
-    basename(candidates) == "2post_emissions_bau-vs-ics_v13.R"
+    basename(candidates) == "2post_emissions_bau-vs-ics_v14.R"
   ]
   if (!length(candidates)) return(NA_character_)
   normalizePath(candidates[[1]], winslash = "/", mustWork = TRUE)
@@ -506,6 +513,8 @@ SCENARIO_DIRS <- character()
     continent = vapply(parameters, `[[`, character(1), "continent"),
     region = vapply(parameters, `[[`, character(1), "region"),
     subcountry = vapply(parameters, `[[`, character(1), "subcountry"),
+    aoi_poly = vapply(parameters, `[[`, integer(1), "aoi_poly"),
+    aoi_poly_file = vapply(parameters, `[[`, character(1), "aoi_poly_file"),
     start_year = vapply(parameters, `[[`, integer(1), "model_start_year"),
     end_year = vapply(parameters, `[[`, integer(1), "model_end_year"),
     mc_runs = vapply(parameters, `[[`, integer(1), "mc_runs"),
@@ -517,6 +526,7 @@ SCENARIO_DIRS <- character()
   )
   key_fields <- c(
     "iso3", "country", "byregion", "continent", "region", "subcountry",
+    "aoi_poly", "aoi_poly_file",
     "start_year", "end_year", "mc_runs", "uncapped", "gee_scale",
     "epsg_pcs", "efchratio"
   )
@@ -744,7 +754,7 @@ SCENARIO_DIRS <- character()
   source_dir <- source_ref$path
   if (current_ref$relocated || source_ref$relocated) {
     message(
-      "[v13] Accepted relocated MC bypass manifest after folder and metadata checks: ",
+      "[v14] Accepted relocated MC bypass manifest after folder and metadata checks: ",
       path
     )
   }
@@ -910,14 +920,14 @@ SCENARIO_DIRS <- character()
     output_dir, all.files = TRUE, no.. = TRUE, recursive = TRUE
   ))
   message(
-    "[v13] --overwrite clean rebuild: deleting ", output_dir,
+    "[v14] --overwrite clean rebuild: deleting ", output_dir,
     " (", entry_count, " entries)"
   )
   status <- unlink(output_dir, recursive = TRUE, force = TRUE)
   if (status != 0L || dir.exists(output_dir) || file.exists(output_dir)) {
     .v9_stop("Could not fully delete emissions_dir before processing: ", output_dir)
   }
-  message("[v13] clean output ready label=", target$label, " -> ", output_dir)
+  message("[v14] clean output ready label=", target$label, " -> ", output_dir)
   invisible(TRUE)
 }
 
@@ -1001,7 +1011,7 @@ SCENARIO_DIRS <- character()
     safe_wd <- normalizePath(dirname(root), winslash = "/", mustWork = TRUE)
     setwd(safe_wd)
     message(
-      "[v13] R working directory was inside the analysis root; moved it to ",
+      "[v14] R working directory was inside the analysis root; moved it to ",
       safe_wd, " before cleanup"
     )
   }
@@ -1009,7 +1019,7 @@ SCENARIO_DIRS <- character()
     root, all.files = TRUE, no.. = TRUE, recursive = TRUE
   ))
   message(
-    "[v13] clean rebuild: deleting entire analysis root ", root,
+    "[v14] clean rebuild: deleting entire analysis root ", root,
     " (", entry_count, " entries)"
   )
   status <- 1L
@@ -1022,7 +1032,7 @@ SCENARIO_DIRS <- character()
   if (status != 0L || file.exists(root)) {
     .v9_stop("Could not fully delete analysis output root before processing: ", root)
   }
-  message("[v13] analysis root removed: ", target$label)
+  message("[v14] analysis root removed: ", target$label)
   invisible(TRUE)
 }
 
@@ -1043,6 +1053,7 @@ SCENARIO_DIRS <- character()
   ics_par <- .v9_read_scenario_parameters(ics_dir)
   comparable <- c(
     "iso3", "country", "byregion", "continent", "region", "subcountry",
+    "aoi_poly", "aoi_poly_file",
     "model_start_year", "model_end_year", "mc_runs", "uncapped_regrowth",
     "gee_scale", "epsg_pcs", "efchratio"
   )
@@ -1383,6 +1394,320 @@ SCENARIO_DIRS <- character()
   as.numeric(terra::global(x, "sum", na.rm = TRUE)[1, 1])
 }
 
+.v14_finite_sum <- function(x) {
+  value <- .v9_global_sum(x)
+  if (length(value) != 1L || !is.finite(value)) 0 else value
+}
+
+.v14_country_boundary_path <- function(root, parameters) {
+  source_dir <- paste0("SourceData", parameters$source_name)
+  candidates <- unique(c(
+    file.path(
+      root, "LULCC", "DownloadedDatasets", source_dir, "demand",
+      "demand_in", "mofuss_regions0.gpkg"
+    ),
+    file.path(
+      root, "LULCC", "DownloadedDatasets", "SourceDataGlobal", "demand",
+      "demand_in", "mofuss_regions0.gpkg"
+    ),
+    file.path(root, "Out", "webmofuss_results", "mofuss_adm0_fr.gpkg")
+  ))
+  hits <- candidates[file.exists(candidates) & !dir.exists(candidates)]
+  if (!length(hits)) {
+    .v9_stop(
+      "Could not find an ADM0 boundary file for country disaggregation under ",
+      root, ". Expected mofuss_regions0.gpkg or mofuss_adm0_fr.gpkg."
+    )
+  }
+  normalizePath(hits[[1L]], winslash = "/", mustWork = TRUE)
+}
+
+.v14_country_context <- function(preflight, harvest_template, enduse_template) {
+  own_polygon <- isTRUE(as.integer(preflight$bau_parameters$aoi_poly) == 1L)
+  if (own_polygon) {
+    find_aoi <- function(root, parameters) {
+      pattern <- file.path(
+        root, "LULCC", "DownloadedDatasets", "SourceDataGlobal",
+        "InVector_GCS", parameters$aoi_poly_file
+      )
+      hits <- Sys.glob(pattern)
+      hits <- hits[file.exists(hits) & !dir.exists(hits)]
+      if (length(hits) != 1L) {
+        .v9_stop(
+          "Expected exactly one own-polygon file matching ", pattern,
+          "; found ", length(hits), "."
+        )
+      }
+      normalizePath(hits[[1L]], winslash = "/", mustWork = TRUE)
+    }
+    aoi_paths <- c(
+      BAU = find_aoi(preflight$bau_dir, preflight$bau_parameters),
+      ICS = find_aoi(preflight$ics_dir, preflight$ics_parameters)
+    )
+    aoi_md5 <- unname(as.character(tools::md5sum(aoi_paths)))
+    if (!identical(aoi_md5[[1L]], aoi_md5[[2L]])) {
+      .v9_stop("BAU and CCTS own-polygon files differ for ", preflight$label, ".")
+    }
+    boundaries <- terra::aggregate(terra::makeValid(terra::vect(aoi_paths[["BAU"]])))
+    if (nrow(boundaries) != 1L || terra::is.empty(boundaries)) {
+      .v9_stop("Own-polygon geometry could not be dissolved to one valid analysis area.")
+    }
+    aoi_base <- tools::file_path_sans_ext(basename(aoi_paths[["BAU"]]))
+    scope_id <- paste0("AOI_", aoi_base)
+    scope_name <- paste0("Own polygon: ", aoi_base)
+    boundaries$ID <- 1L
+    boundaries$GID_0 <- scope_id
+    boundaries$NAME_0 <- scope_name
+    lookup <- data.frame(
+      country_id = 1L,
+      country_iso = scope_id,
+      country_name = scope_name,
+      analysis_area_kind = "OwnPolygon",
+      analysis_area_id = scope_id,
+      analysis_area_name = scope_name,
+      spatial_accounting = "spatial_incidence",
+      harvest_assignment = "analysis_area_containing_harvest_cell",
+      enduse_assignment = "analysis_area_containing_demand_cooking_cell",
+      stringsAsFactors = FALSE
+    )
+    harvest_zones <- terra::ifel(is.finite(harvest_template), 1L, NA)
+    enduse_zones <- terra::ifel(is.finite(enduse_template), 1L, NA)
+    names(harvest_zones) <- "country_id"
+    names(enduse_zones) <- "country_id"
+    return(list(
+      lookup = lookup,
+      harvest_zones = harvest_zones,
+      enduse_zones = enduse_zones,
+      boundaries = boundaries,
+      admin_path = NA_character_,
+      admin_md5 = NA_character_,
+      boundary_path = aoi_paths[["BAU"]],
+      boundary_md5 = aoi_md5[[1L]],
+      analysis_area_kind = "OwnPolygon",
+      analysis_area_id = scope_id,
+      analysis_area_name = scope_name
+    ))
+  }
+
+  admin_paths <- c(
+    BAU = file.path(preflight$bau_dir, "LULCC", "TempRaster", "admin_c.tif"),
+    ICS = file.path(preflight$ics_dir, "LULCC", "TempRaster", "admin_c.tif")
+  )
+  missing_admin <- admin_paths[!file.exists(admin_paths) | dir.exists(admin_paths)]
+  if (length(missing_admin)) {
+    .v9_stop("Missing model-grid ADM0 raster(s): ", paste(missing_admin, collapse = ", "))
+  }
+  admin_paths <- vapply(
+    admin_paths, normalizePath, character(1), winslash = "/", mustWork = TRUE
+  )
+  admin_md5 <- unname(as.character(tools::md5sum(admin_paths)))
+  if (!identical(admin_md5[[1L]], admin_md5[[2L]])) {
+    .v9_stop("BAU and CCTS admin_c.tif files differ for ", preflight$label, ".")
+  }
+  harvest_zones <- terra::rast(admin_paths[["BAU"]])
+  if (terra::nlyr(harvest_zones) != 1L ||
+      !terra::compareGeom(harvest_zones, harvest_template, stopOnError = FALSE)) {
+    .v9_stop("admin_c.tif is not a one-layer match for the harvest grid in ", preflight$label, ".")
+  }
+
+  boundary_paths <- c(
+    BAU = .v14_country_boundary_path(preflight$bau_dir, preflight$bau_parameters),
+    ICS = .v14_country_boundary_path(preflight$ics_dir, preflight$ics_parameters)
+  )
+  read_scope <- function(path, parameters) {
+    boundaries <- terra::vect(path)
+    required <- c("ID", "GID_0", "NAME_0")
+    missing <- setdiff(required, names(boundaries))
+    if (length(missing)) {
+      .v9_stop("ADM0 boundary file lacks ", paste(missing, collapse = ", "), ": ", path)
+    }
+    scope_type <- tolower(trimws(parameters$byregion))
+    if (identical(scope_type, "regional")) {
+      if (!"mofuss_reg" %in% names(boundaries)) {
+        .v9_stop("Regional ADM0 boundary file lacks mofuss_reg: ", path)
+      }
+      boundaries <- boundaries[
+        trimws(as.character(boundaries$mofuss_reg)) == trimws(parameters$region),
+      ]
+    } else if (identical(scope_type, "country")) {
+      boundaries <- boundaries[
+        toupper(trimws(as.character(boundaries$GID_0))) == toupper(parameters$iso3),
+      ]
+    } else {
+      .v9_stop("Unsupported byregion value for country disaggregation: ", parameters$byregion)
+    }
+    if (!nrow(boundaries)) .v9_stop("ADM0 boundary selection is empty in ", path, ".")
+    boundaries
+  }
+  bau_boundaries <- read_scope(boundary_paths[["BAU"]], preflight$bau_parameters)
+  ics_boundaries <- read_scope(boundary_paths[["ICS"]], preflight$ics_parameters)
+
+  make_lookup <- function(boundaries) {
+    values <- as.data.frame(boundaries)
+    out <- data.frame(
+      country_id = suppressWarnings(as.integer(values$ID)),
+      country_iso = toupper(trimws(as.character(values$GID_0))),
+      country_name = trimws(as.character(values$NAME_0)),
+      stringsAsFactors = FALSE
+    )
+    if (anyNA(out$country_id) || any(out$country_id <= 0L) ||
+        anyNA(out$country_iso) || any(!nzchar(out$country_iso)) ||
+        anyNA(out$country_name) || any(!nzchar(out$country_name)) ||
+        anyDuplicated(out$country_id) || anyDuplicated(out$country_iso)) {
+      .v9_stop("ADM0 country IDs, ISO3 codes, or names are invalid or duplicated.")
+    }
+    out[order(out$country_id), , drop = FALSE]
+  }
+  lookup <- make_lookup(bau_boundaries)
+  ics_lookup <- make_lookup(ics_boundaries)
+  if (!identical(lookup, ics_lookup)) {
+    .v9_stop("BAU and CCTS ADM0 country crosswalks differ for ", preflight$label, ".")
+  }
+
+  admin_frequency <- terra::freq(harvest_zones)
+  admin_ids <- if (is.null(admin_frequency) || !nrow(admin_frequency)) {
+    integer()
+  } else {
+    sort(unique(suppressWarnings(as.integer(admin_frequency[[2L]]))))
+  }
+  if (!identical(admin_ids, sort(lookup$country_id))) {
+    .v9_stop(
+      "admin_c.tif IDs do not match the selected ADM0 boundary IDs for ",
+      preflight$label, "."
+    )
+  }
+  harvest_unassigned <- .v14_finite_sum(terra::ifel(
+    is.finite(harvest_template) & is.na(harvest_zones), 1, NA
+  ))
+  if (harvest_unassigned != 0) {
+    .v9_stop("Harvest grid has ", harvest_unassigned, " valid cell(s) without an ADM0 country.")
+  }
+
+  enduse_boundaries <- terra::project(bau_boundaries, terra::crs(enduse_template))
+  centre_zones <- terra::rasterize(
+    enduse_boundaries, enduse_template, field = "ID", touches = FALSE
+  )
+  touch_zones <- terra::rasterize(
+    enduse_boundaries, enduse_template, field = "ID", touches = TRUE
+  )
+  enduse_zones <- terra::cover(centre_zones, touch_zones)
+  enduse_unassigned <- .v14_finite_sum(terra::ifel(
+    is.finite(enduse_template) & is.na(enduse_zones), 1, NA
+  ))
+  if (enduse_unassigned != 0) {
+    .v9_stop("End-use grid has ", enduse_unassigned, " valid cell(s) without an ADM0 country.")
+  }
+
+  scope_type <- trimws(preflight$bau_parameters$byregion)
+  scope_id <- .v13_parameter_geography(preflight$bau_parameters)
+  scope_name <- if (identical(tolower(scope_type), "country")) {
+    lookup$country_name[[1L]]
+  } else if ("Subregion" %in% names(bau_boundaries)) {
+    names_found <- unique(trimws(as.character(bau_boundaries$Subregion)))
+    names_found <- names_found[!is.na(names_found) & nzchar(names_found)]
+    if (length(names_found) == 1L) names_found[[1L]] else scope_id
+  } else {
+    scope_id
+  }
+
+  lookup$analysis_area_kind <- scope_type
+  lookup$analysis_area_id <- scope_id
+  lookup$analysis_area_name <- scope_name
+  lookup$spatial_accounting <- "spatial_incidence"
+  lookup$harvest_assignment <- "country_containing_harvest_cell"
+  lookup$enduse_assignment <- "country_containing_demand_cooking_cell"
+  list(
+    lookup = lookup,
+    harvest_zones = harvest_zones,
+    enduse_zones = enduse_zones,
+    boundaries = bau_boundaries,
+    admin_path = admin_paths[["BAU"]],
+    admin_md5 = admin_md5[[1L]],
+    boundary_path = boundary_paths[["BAU"]],
+    boundary_md5 = unname(as.character(tools::md5sum(boundary_paths[["BAU"]]))),
+    analysis_area_kind = scope_type,
+    analysis_area_id = scope_id,
+    analysis_area_name = scope_name
+  )
+}
+
+.v14_zonal_sum <- function(raster, zones, lookup, label) {
+  if (!terra::compareGeom(raster, zones, stopOnError = FALSE)) {
+    .v9_stop("Country-zone geometry mismatch for ", label, ".")
+  }
+  unassigned <- .v14_finite_sum(terra::ifel(
+    is.finite(raster) & is.na(zones), 1, NA
+  ))
+  if (unassigned != 0) {
+    .v9_stop(label, " has ", unassigned, " valid cell(s) without a country assignment.")
+  }
+  zonal <- terra::zonal(raster, zones, fun = "sum", na.rm = TRUE)
+  values <- rep(0, nrow(lookup))
+  if (!is.null(zonal) && nrow(zonal)) {
+    zone_ids <- suppressWarnings(as.integer(zonal[[1L]]))
+    if (anyNA(zone_ids) || any(!zone_ids %in% lookup$country_id)) {
+      .v9_stop("Unexpected country zone ID while aggregating ", label, ".")
+    }
+    values[match(zone_ids, lookup$country_id)] <- as.numeric(zonal[[2L]])
+  }
+  regional <- .v14_finite_sum(raster)
+  residual <- regional - sum(values)
+  if (abs(residual) > .v9_tolerance(regional, relative = 1e-9, absolute = 0.05)) {
+    .v9_stop(
+      "Country sums do not reconcile for ", label, ": regional=", regional,
+      ", countries=", sum(values), ", residual=", residual, "."
+    )
+  }
+  values
+}
+
+.v14_country_mc_summary <- function(country_table, preflight) {
+  components <- c(
+    harvest = "harvest_avoided_tCO2e",
+    enduse_demand = "enduse_avoided_tCO2e",
+    total = "total_avoided_tCO2e"
+  )
+  rows <- list()
+  for (country_id in sort(unique(country_table$country_id))) {
+    country <- country_table[country_table$country_id == country_id, , drop = FALSE]
+    for (component in names(components)) {
+      values <- as.numeric(country[[components[[component]]]])
+      quantiles <- if (length(values) >= 2L) {
+        as.numeric(stats::quantile(values, c(0.025, 0.5, 0.975), names = FALSE))
+      } else {
+        c(NA_real_, values[[1L]], NA_real_)
+      }
+      rows[[length(rows) + 1L]] <- tibble::tibble(
+        analysis_area_kind = country$analysis_area_kind[[1L]],
+        analysis_area_id = country$analysis_area_id[[1L]],
+        analysis_area_name = country$analysis_area_name[[1L]],
+        country_id = country_id,
+        country_iso = country$country_iso[[1L]],
+        country_name = country$country_name[[1L]],
+        spatial_accounting = "spatial_incidence",
+        component = component,
+        runs = length(values),
+        run_ids = paste(country$run_id, collapse = ","),
+        uncertainty_estimable = length(values) >= 2L,
+        requested_minimum_uncertainty_runs = .V13_MIN_UNCERTAINTY_RUNS,
+        uncertainty_sample_adequate = length(values) >= .V13_MIN_UNCERTAINTY_RUNS,
+        mean_tCO2e = mean(values),
+        sd_tCO2e = if (length(values) >= 2L) stats::sd(values) else NA_real_,
+        se_tCO2e = if (length(values) >= 2L) stats::sd(values) / sqrt(length(values)) else NA_real_,
+        empirical_p025_tCO2e = quantiles[[1L]],
+        median_tCO2e = quantiles[[2L]],
+        empirical_p975_tCO2e = quantiles[[3L]],
+        min_tCO2e = min(values),
+        max_tCO2e = max(values),
+        probability_positive = mean(values > 0),
+        pairing_design = preflight$pairing_design,
+        uncertainty_status = preflight$uncertainty_status
+      )
+    }
+  }
+  dplyr::bind_rows(rows)
+}
+
 .v9_sum_rasters_na <- function(rasters) {
   if (!length(rasters)) .v9_stop("Cannot sum an empty raster list.")
   if (length(rasters) == 1L) return(rasters[[1]])
@@ -1634,7 +1959,8 @@ SCENARIO_DIRS <- character()
     root = output,
     harvest = file.path(output, "harvest"),
     enduse = file.path(output, "enduse"),
-    total = file.path(output, "total")
+    total = file.path(output, "total"),
+    country = file.path(output, "country")
   )
   include_mc1 <- 1L %in% preflight$run_ids
   if (include_mc1) dirs$summary_mc1 <- file.path(output, "summary_mc1")
@@ -1691,10 +2017,68 @@ SCENARIO_DIRS <- character()
     .v9_write_raster(enduse$raster, file.path(dirs$summary_mc1, "delta_co2_enduse.tif"), overwrite)
   }
 
+  country_context <- .v14_country_context(
+    preflight,
+    terra::rast(preflight$selected_runs$bau_baseline_file[[1L]]),
+    enduse$raster
+  )
+  country_context$source_admin_path <- country_context$admin_path
+  country_context$source_admin_md5 <- country_context$admin_md5
+  country_context$source_boundary_path <- country_context$boundary_path
+  country_context$source_boundary_md5 <- country_context$boundary_md5
+  country_harvest_zones_path <- file.path(dirs$country, "country_harvest_zones.tif")
+  country_enduse_zones_path <- file.path(dirs$country, "country_enduse_zones.tif")
+  country_boundaries_path <- file.path(dirs$country, "country_boundaries.gpkg")
+  .v9_write_raster(
+    country_context$harvest_zones, country_harvest_zones_path, overwrite
+  )
+  .v9_write_raster(
+    country_context$enduse_zones, country_enduse_zones_path, overwrite
+  )
+  if (file.exists(country_boundaries_path) && !overwrite) {
+    .v9_stop("Refusing to overwrite: ", country_boundaries_path)
+  }
+  terra::writeVector(
+    country_context$boundaries,
+    country_boundaries_path,
+    filetype = "GPKG",
+    overwrite = overwrite
+  )
+  country_context$admin_path <- normalizePath(
+    country_harvest_zones_path, winslash = "/", mustWork = TRUE
+  )
+  country_context$admin_md5 <- unname(as.character(tools::md5sum(
+    country_harvest_zones_path
+  )))
+  country_context$enduse_zone_path <- normalizePath(
+    country_enduse_zones_path, winslash = "/", mustWork = TRUE
+  )
+  country_context$enduse_zone_md5 <- unname(as.character(tools::md5sum(
+    country_enduse_zones_path
+  )))
+  country_context$boundary_path <- normalizePath(
+    country_boundaries_path, winslash = "/", mustWork = TRUE
+  )
+  country_context$boundary_md5 <- unname(as.character(tools::md5sum(
+    country_boundaries_path
+  )))
+  .v9_write_csv(
+    country_context$lookup,
+    file.path(dirs$country, "country_scope.csv"),
+    overwrite
+  )
+  enduse_country_values <- .v14_zonal_sum(
+    enduse$raster,
+    country_context$enduse_zones,
+    country_context$lookup,
+    paste0(preflight$label, " end-use avoided emissions")
+  )
+
   harvest_state <- list(sum = NULL, sumsq = NULL, n = 0L)
   total_state <- list(sum = NULL, sumsq = NULL, n = 0L)
   harvest_rows <- list()
   total_rows <- list()
+  country_rows <- list()
 
   for (j in seq_len(nrow(preflight$selected_runs))) {
     row <- preflight$selected_runs[j, ]
@@ -1782,6 +2166,24 @@ SCENARIO_DIRS <- character()
       paste0(preflight$label, "_total")
     )
 
+    harvest_country_values <- .v14_zonal_sum(
+      delta_co2_written,
+      country_context$harvest_zones,
+      country_context$lookup,
+      paste0(preflight$label, " run ", run_id, " harvest avoided emissions")
+    )
+    country_run <- country_context$lookup
+    country_run$label <- preflight$label
+    country_run$run_id <- run_id
+    country_run$period_start_year <- preflight$period[[1L]]
+    country_run$period_end_year <- preflight$period[[2L]]
+    country_run$harvest_avoided_tCO2e <- harvest_country_values
+    country_run$enduse_avoided_tCO2e <- enduse_country_values
+    country_run$total_avoided_tCO2e <- harvest_country_values + enduse_country_values
+    country_run$total_definition <-
+      "within_country_harvest_incidence_plus_within_country_enduse_incidence"
+    country_rows[[length(country_rows) + 1L]] <- country_run
+
     harvest_rows[[length(harvest_rows) + 1L]] <- tibble::tibble(
       run_id = run_id,
       mc01_nominal_debug_case = run_id == 1L,
@@ -1832,8 +2234,41 @@ SCENARIO_DIRS <- character()
 
   harvest_table <- dplyr::bind_rows(harvest_rows)
   total_table <- dplyr::bind_rows(total_rows)
+  country_table <- dplyr::bind_rows(country_rows)
+  for (run_id in preflight$run_ids) {
+    country_run <- country_table[country_table$run_id == run_id, , drop = FALSE]
+    regional_run <- total_table[total_table$run_id == run_id, , drop = FALSE]
+    if (nrow(regional_run) != 1L) {
+      .v9_stop("Expected one regional total for country reconciliation, run ", run_id, ".")
+    }
+    checks <- c(
+      harvest = sum(country_run$harvest_avoided_tCO2e) - regional_run$harvest_tCO2e,
+      enduse = sum(country_run$enduse_avoided_tCO2e) - regional_run$enduse_tCO2e,
+      total = sum(country_run$total_avoided_tCO2e) - regional_run$total_tCO2e
+    )
+    references <- c(
+      harvest = regional_run$harvest_tCO2e,
+      enduse = regional_run$enduse_tCO2e,
+      total = regional_run$total_tCO2e
+    )
+    failed <- names(checks)[vapply(names(checks), function(component) {
+      abs(checks[[component]]) > .v9_tolerance(
+        references[[component]], relative = 1e-9, absolute = 0.05
+      )
+    }, logical(1))]
+    if (length(failed)) {
+      .v9_stop(
+        "Country-to-region reconciliation failed for run ", run_id,
+        " component(s): ", paste(failed, collapse = ", "), "."
+      )
+    }
+  }
   .v9_write_csv(harvest_table, file.path(dirs$harvest, "per_run_sumco2.csv"), overwrite)
   .v9_write_csv(total_table, file.path(output, "total_by_run.csv"), overwrite)
+  country_per_run_path <- file.path(
+    dirs$country, "country_spatial_incidence_by_run.csv"
+  )
+  .v9_write_csv(country_table, country_per_run_path, overwrite)
   deterministic_summary <- NULL
   if (include_mc1) {
     mc01_harvest <- harvest_table[harvest_table$run_id == 1L, , drop = FALSE]
@@ -1961,6 +2396,11 @@ SCENARIO_DIRS <- character()
     scalar_summary(total_table$total_tCO2e, "total")
   )
   .v9_write_csv(mc_summary, file.path(output, "summary_mc.csv"), overwrite)
+  country_summary <- .v14_country_mc_summary(country_table, preflight)
+  country_summary_path <- file.path(
+    dirs$country, "country_spatial_incidence_summary.csv"
+  )
+  .v9_write_csv(country_summary, country_summary_path, overwrite)
   paired_summary <- tibble::tibble(
     analysis = if (preflight$independent_patcher_rng_included) {
       "MC1_to_n_paired_mc_inputs_independent_patcher_uncertainty"
@@ -2029,6 +2469,31 @@ SCENARIO_DIRS <- character()
     continent = preflight$bau_parameters$continent,
     region = preflight$bau_parameters$region,
     subcountry = preflight$bau_parameters$subcountry,
+    analysis_area_kind = country_context$analysis_area_kind,
+    analysis_area_id = country_context$analysis_area_id,
+    analysis_area_name = country_context$analysis_area_name,
+    country_accounting = "spatial_incidence",
+    country_scope_file = normalizePath(
+      file.path(dirs$country, "country_scope.csv"), winslash = "/", mustWork = TRUE
+    ),
+    country_per_run_file = normalizePath(
+      country_per_run_path, winslash = "/", mustWork = TRUE
+    ),
+    country_summary_file = normalizePath(
+      country_summary_path, winslash = "/", mustWork = TRUE
+    ),
+    country_admin_raster = country_context$admin_path,
+    country_admin_raster_md5 = country_context$admin_md5,
+    country_harvest_zone_raster = country_context$admin_path,
+    country_harvest_zone_raster_md5 = country_context$admin_md5,
+    country_enduse_zone_raster = country_context$enduse_zone_path,
+    country_enduse_zone_raster_md5 = country_context$enduse_zone_md5,
+    country_boundary_vector = country_context$boundary_path,
+    country_boundary_vector_md5 = country_context$boundary_md5,
+    country_source_admin_raster = country_context$source_admin_path,
+    country_source_admin_raster_md5 = country_context$source_admin_md5,
+    country_source_boundary_vector = country_context$source_boundary_path,
+    country_source_boundary_vector_md5 = country_context$source_boundary_md5,
     gee_scale = preflight$bau_parameters$gee_scale,
     epsg_pcs = preflight$bau_parameters$epsg_pcs,
     uncapped_regrowth = preflight$bau_parameters$uncapped_regrowth,
@@ -2114,6 +2579,7 @@ SCENARIO_DIRS <- character()
     manifest_md5 = preflight$manifest_md5,
     parameters_bau = preflight$bau_parameters$parameter_file,
     parameters_ics = preflight$ics_parameters$parameter_file,
+    stage2_script_version = 14L,
     stage2_script = stage2_script,
     stage2_script_md5 = stage2_script_md5,
     terra_version = as.character(utils::packageVersion("terra")),
@@ -2127,11 +2593,11 @@ SCENARIO_DIRS <- character()
   )
   .v9_write_csv(manifest_row, file.path(output, "run_manifest.csv"), overwrite)
   completion_tag <- if (!preflight$comparison_validated) {
-    "[v13] DIAGNOSTIC OUTPUT ONLY (bypass inputs unverified)"
+    "[v14] DIAGNOSTIC OUTPUT ONLY (bypass inputs unverified)"
   } else if (preflight$full_stochastic_pairing_validated) {
-    "[v13] Completed fully paired"
+    "[v14] Completed fully paired"
   } else {
-    "[v13] Completed valid semi-paired comparison (independent Patcher RNG)"
+    "[v14] Completed valid semi-paired comparison (independent Patcher RNG)"
   }
   message(completion_tag, " ", preflight$label, " -> ", output)
   invisible(list(
@@ -2139,6 +2605,8 @@ SCENARIO_DIRS <- character()
     harvest = harvest_table,
     enduse = enduse$post_table,
     total = total_table,
+    country = country_table,
+    country_summary = country_summary,
     diagnostic = diagnostic
   ))
 }
@@ -2158,7 +2626,7 @@ run_emissions_manifest <- function(
 ) {
   .v9_require_packages()
   if (!identical(tolower(enduse_basis), "demand")) {
-    .v9_stop("Only --enduse-basis=demand is implemented in v13.")
+    .v9_stop("Only --enduse-basis=demand is implemented in v14.")
   }
   pairing_policy <- tolower(trimws(as.character(pairing_policy)))
   if (length(pairing_policy) != 1L || is.na(pairing_policy) ||
@@ -2193,7 +2661,7 @@ run_emissions_manifest <- function(
     }
     run_ids <- sort(run_ids)
     if (!1L %in% run_ids) {
-      .v9_stop("MC01 must remain in every selected MoFuSS batch in v13.")
+      .v9_stop("MC01 must remain in every selected MoFuSS batch in v14.")
     }
   }
   temp_dir <- .v9_norm_existing(temp_dir, "temp directory")
@@ -2205,7 +2673,7 @@ run_emissions_manifest <- function(
   if (is.null(manifest)) {
     script_path <- .v13_script_path()
     manifest_path <- if (is.na(script_path)) {
-      "embedded_SCENARIO_DIRS_in_stage2_v13"
+      "embedded_SCENARIO_DIRS_in_stage2_v14"
     } else {
       script_path
     }
@@ -2282,16 +2750,16 @@ run_emissions_manifest <- function(
 
   if (dry_run) {
     if (!is.null(analysis_clean_target)) {
-      message("[v13 dry-run] entire analysis root would be deleted: ", analysis_clean_target$path)
+      message("[v14 dry-run] entire analysis root would be deleted: ", analysis_clean_target$path)
     }
     for (preflight in preflights) {
       message(
         if (preflight$full_stochastic_pairing_validated) {
-          "[v13 dry-run] FULL PAIRING OK label="
+          "[v14 dry-run] FULL PAIRING OK label="
         } else if (preflight$comparison_validated) {
-          "[v13 dry-run] VALID SEMI-PAIRED COMPARISON label="
+          "[v14 dry-run] VALID SEMI-PAIRED COMPARISON label="
         } else {
-          "[v13 dry-run] DIAGNOSTIC ONLY label="
+          "[v14 dry-run] DIAGNOSTIC ONLY label="
         },
         preflight$label,
         " | BAU=", preflight$bau_parameters$scenario,

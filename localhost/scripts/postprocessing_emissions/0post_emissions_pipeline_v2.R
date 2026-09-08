@@ -19,12 +19,12 @@
 # This is the normal entry point for Stages 1-4. Edit only the USER INPUTS
 # block, then use RStudio Source / Source as Background Job, or run:
 #
-#   Rscript 0post_emissions_pipeline_v1.R
+#   Rscript 0post_emissions_pipeline_v2.R
 #
 # Each stage runs in a fresh R process. Enabled batches run sequentially, and
 # each batch completes its selected stages before the next batch starts. This
 # releases raster memory between stages and keeps country outputs isolated.
-# Use `Rscript 0post_emissions_pipeline_v1.R --check` for a read-only plan.
+# Use `Rscript 0post_emissions_pipeline_v2.R --check` for a read-only plan.
 
 # USER INPUTS: edit this block only -----------------------------------------
 
@@ -129,12 +129,12 @@ pipeline_script_path <- function() {
 
   candidate <- file.path(
     getwd(), "localhost", "scripts", "postprocessing_emissions",
-    "0post_emissions_pipeline_v1.R"
+    "0post_emissions_pipeline_v2.R"
   )
   if (file.exists(candidate)) {
     return(normalizePath(candidate, winslash = "/", mustWork = TRUE))
   }
-  pipeline_stop("Could not locate 0post_emissions_pipeline_v1.R.")
+  pipeline_stop("Could not locate 0post_emissions_pipeline_v2.R.")
 }
 
 pipeline_bool <- function(x, label) {
@@ -210,9 +210,9 @@ pipeline_validate_inputs <- function(script_dir) {
 
   stage_scripts <- file.path(script_dir, c(
     "1post_raster_fr_generator_diskmemory_v9.R",
-    "2post_emissions_bau-vs-ics_v13.R",
-    "3post_agb_decomposition_v5.R",
-    "4post_manuscript_outputs_v1.R"
+    "2post_emissions_bau-vs-ics_v14.R",
+    "3post_agb_decomposition_v6.R",
+    "4post_manuscript_outputs_v2.R"
   ))
   missing_scripts <- stage_scripts[!file.exists(stage_scripts)]
   if (length(missing_scripts)) {

@@ -135,7 +135,7 @@ agg_factor <- 1L             # set to 10 only for genuine 100 m simulations
 
 START_YEAR <- 2010L
 END_YEAR <- 2020L
-aoi_mode <- "country"
+aoi_mode <- "analysis"
 square_draw_aoi <- TRUE
 nrb_threshold <- 100
 ctrees_units <- "CO2"
@@ -175,11 +175,12 @@ for (arg in commandArgs(trailingOnly = TRUE)) {
       "Usage: Rscript 2_sim-nrb_vs_obs-nrb_v1.R [options]\n",
       "  --working-dir=DIR       Repeat exactly four times\n",
       "  --spinup-years=N\n",
+      "  --postprocessing-root=DIR\n",
       "  --ctrees-dir=DIR         CTrees fNRB observation folder\n",
       "  --admin-vector=GPKG\n",
       "  --start-year=YYYY --end-year=YYYY\n",
       "  --resolution=1km|100m --agg-factor=N\n",
-      "  --aoi-mode=country|full|draw\n",
+      "  --aoi-mode=analysis|full|draw  ('country' is a legacy alias)\n",
       "  --square-draw-aoi=true|false\n",
       "  --nrb-threshold=N --ctrees-units=CO2|C\n",
       "  --dry-run\n"
@@ -189,6 +190,8 @@ for (arg in commandArgs(trailingOnly = TRUE)) {
     WORKING_DIRS <- c(WORKING_DIRS, value("--working-dir="))
   } else if (startsWith(arg, "--spinup-years=")) {
     SPINUP_YEARS <- parse_integer(value("--spinup-years="), "--spinup-years")
+  } else if (startsWith(arg, "--postprocessing-root=")) {
+    POSTPROCESSING_ROOT <- value("--postprocessing-root=")
   } else if (startsWith(arg, "--ctrees-dir=")) {
     CTREES_DIR <- value("--ctrees-dir=")
   } else if (startsWith(arg, "--admin-vector=")) {
@@ -226,9 +229,10 @@ if (!file.exists(ADMIN_VECTOR) || dir.exists(ADMIN_VECTOR)) {
 }
 ADMIN_VECTOR <- normalizePath(ADMIN_VECTOR, winslash = "/", mustWork = TRUE)
 if (!resolution %in% c("1km", "100m")) stop("--resolution must be 1km or 100m.", call. = FALSE)
-if (!aoi_mode %in% c("country", "full", "draw")) {
-  stop("--aoi-mode must be country, full or draw.", call. = FALSE)
+if (!aoi_mode %in% c("analysis", "country", "full", "draw")) {
+  stop("--aoi-mode must be analysis, full or draw.", call. = FALSE)
 }
+if (identical(aoi_mode, "country")) aoi_mode <- "analysis"
 if (!is.finite(nrb_threshold) || nrb_threshold < 0) {
   stop("--nrb-threshold must be a non-negative number.", call. = FALSE)
 }
@@ -274,10 +278,41 @@ read_run_metadata <- function(workdir) {
   }
   gee_scale <- suppressWarnings(as.numeric(value("GEE_scale")))
   if (!is.finite(gee_scale)) stopf("GEE_scale is not numeric in %s.", path)
+  byregion <- trimws(value("byregion"))
+  aoi_poly <- int_value("aoi_poly")
+  if (!aoi_poly %in% c(0L, 1L)) stopf("aoi_poly must be 0 or 1 in %s.", path)
+  iso3 <- toupper(value("region2BprocessedCtry_iso"))
+  country <- value("region2BprocessedCtry")
+  region <- value("region2BprocessedReg")
+  aoi_poly_file <- value("aoi_poly_file")
+  scope <- if (aoi_poly == 1L) {
+    aoi_name <- tools::file_path_sans_ext(basename(aoi_poly_file))
+    if (!nzchar(aoi_name)) stopf("Own-polygon run has an empty aoi_poly_file in %s.", path)
+    list(kind = "OwnPolygon", id = paste0("AOI_", aoi_name), name = paste0("Own polygon: ", aoi_name))
+  } else if (identical(tolower(byregion), "country")) {
+    list(kind = "Country", id = iso3, name = country)
+  } else if (identical(tolower(byregion), "regional")) {
+    if (!nzchar(region)) stopf("Regional run has an empty region2BprocessedReg in %s.", path)
+    list(kind = "Regional", id = region, name = region)
+  } else {
+    stopf("Unsupported byregion value '%s' in %s; expected Country or Regional.", byregion, path)
+  }
+  boundary_path <- file.path(workdir, "LULCC", "TempVector", "userarea1.gpkg")
+  if (!file.exists(boundary_path) || dir.exists(boundary_path)) {
+    stopf("Model-native analysis boundary is missing: %s", boundary_path)
+  }
   data.frame(
     working_dir = workdir,
-    iso3 = toupper(value("region2BprocessedCtry_iso")),
-    country = value("region2BprocessedCtry"),
+    iso3 = iso3,
+    country = country,
+    byregion = byregion,
+    region = region,
+    aoi_poly = aoi_poly,
+    aoi_poly_file = aoi_poly_file,
+    analysis_area_kind = scope$kind,
+    analysis_area_id = scope$id,
+    analysis_area_name = scope$name,
+    analysis_boundary = normalizePath(boundary_path, winslash = "/", mustWork = TRUE),
     scenario = scenario,
     role = role,
     mode = if (uncapped == 1L) "uncapped" else "capped",
@@ -294,7 +329,10 @@ if (length(WORKING_DIRS) != 4L) {
   stopf("This batch requires exactly four working folders; received %d.", length(WORKING_DIRS))
 }
 run_metadata <- do.call(rbind, lapply(WORKING_DIRS, read_run_metadata))
-common_fields <- c("iso3", "country", "model_start", "model_end", "mc_runs", "gee_scale")
+common_fields <- c(
+  "analysis_area_kind", "analysis_area_id", "analysis_area_name",
+  "model_start", "model_end", "mc_runs", "gee_scale"
+)
 for (field in common_fields) {
   if (length(unique(tolower(as.character(run_metadata[[field]])))) != 1L) {
     stopf("The four working folders disagree on '%s'.", field)
@@ -310,14 +348,20 @@ scenario_count_by_role <- vapply(split(run_metadata$scenario, run_metadata$role)
 if (any(scenario_count_by_role != 1L)) {
   stop("Capped and uncapped folders must use the same scenario_ver within BAU and CCTS.", call. = FALSE)
 }
-country_iso3 <- run_metadata$iso3[[1]]
+analysis_area_kind <- run_metadata$analysis_area_kind[[1]]
+analysis_area_id <- run_metadata$analysis_area_id[[1]]
+analysis_area_name <- run_metadata$analysis_area_name[[1]]
 common_parent <- unique(path_key(dirname(run_metadata$working_dir)))
 if (length(common_parent) != 1L) stop("All four working folders must share one parent.", call. = FALSE)
 working_parent <- dirname(run_metadata$working_dir[[1]])
-postprocessing_root <- if (nzchar(POSTPROCESSING_ROOT)) POSTPROCESSING_ROOT else
+postprocessing_root <- if (nzchar(POSTPROCESSING_ROOT)) {
+  if (!dir.exists(POSTPROCESSING_ROOT)) stopf("Postprocessing root does not exist: %s", POSTPROCESSING_ROOT)
+  normalizePath(POSTPROCESSING_ROOT, winslash = "/", mustWork = TRUE)
+} else {
   file.path(working_parent, "mofuss_postprocessing")
+}
 analysis_id <- paste(
-  safe_id(country_iso3), run_metadata$model_start[[1]] + SPINUP_YEARS,
+  safe_id(analysis_area_id), run_metadata$model_start[[1]] + SPINUP_YEARS,
   run_metadata$model_end[[1]], paste0("mc", run_metadata$mc_runs[[1]]), sep = "_"
 )
 analysis_root <- normalizePath(file.path(postprocessing_root, analysis_id), winslash = "/", mustWork = FALSE)
@@ -393,14 +437,80 @@ ctrees_label <- function(fname) {
   if (length(y)) y else tools::file_path_sans_ext(basename(fname))
 }
 
-# Load one CTrees AGB map, crop + mask to country, convert AGC -> AGB --------
-load_ctrees_agb <- function(fname, country_vect) {
+# Confirm two projected extents overlap before terra::crop so failures explain
+# the incompatible source rather than surfacing as a generic crop error.
+extents_overlap <- function(left, right) {
+  a <- terra::ext(left); b <- terra::ext(right)
+  terra::xmin(a) < terra::xmax(b) && terra::xmax(a) > terra::xmin(b) &&
+    terra::ymin(a) < terra::ymax(b) && terra::ymax(a) > terra::ymin(b)
+}
+
+load_model_analysis_scope <- function(workdir, target = NULL) {
+  path <- file.path(workdir, "LULCC", "TempVector", "userarea1.gpkg")
+  if (!file.exists(path) || dir.exists(path)) {
+    stop("Model-native analysis boundary not found: ", path)
+  }
+  units <- terra::makeValid(terra::vect(path))
+  empty_units <- terra::is.empty(units)
+  if (length(empty_units) == nrow(units) && any(empty_units)) units <- units[!empty_units, ]
+  if (!nrow(units)) {
+    stop("Model-native analysis boundary is empty: ", path)
+  }
+  if (analysis_area_kind %in% c("Country", "Regional") && "GID_0" %in% names(units)) {
+    model_isos <- sort(unique(toupper(trimws(as.character(units$GID_0)))))
+    if (identical(analysis_area_kind, "Country")) {
+      expected_isos <- toupper(analysis_area_id)
+    } else {
+      reference <- terra::vect(ADMIN_VECTOR)
+      if (!all(c("GID_0", "mofuss_reg") %in% names(reference))) {
+        stop("Regional admin vector must contain GID_0 and mofuss_reg: ", ADMIN_VECTOR)
+      }
+      values <- as.data.frame(reference)
+      expected_isos <- sort(unique(toupper(trimws(as.character(
+        values$GID_0[tolower(trimws(as.character(values$mofuss_reg))) ==
+                       tolower(trimws(analysis_area_id))]
+      )))))
+    }
+    expected_isos <- expected_isos[!is.na(expected_isos) & nzchar(expected_isos)]
+    if (!length(expected_isos) || !identical(model_isos, expected_isos)) {
+      stop(
+        "Model-native boundary countries do not match ", analysis_area_id,
+        ". Model: ", paste(model_isos, collapse = ", "),
+        "; expected: ", paste(expected_isos, collapse = ", "), "."
+      )
+    }
+  }
+  if (!is.null(target) && !terra::same.crs(units, target)) {
+    units <- terra::project(units, terra::crs(target))
+  }
+  boundary <- terra::aggregate(units)
+  if (nrow(boundary) != 1L || any(terra::is.empty(boundary))) {
+    stop("Could not dissolve the model-native boundary to one analysis area: ", path)
+  }
+  outlines <- if (identical(analysis_area_kind, "Regional") && "GID_0" %in% names(units)) {
+    terra::aggregate(units, by = "GID_0")
+  } else {
+    boundary
+  }
+  list(path = normalizePath(path, winslash = "/", mustWork = TRUE),
+       boundary = boundary, outlines = outlines, units = units)
+}
+
+# Load one CTrees AGB map, crop + mask to the complete model analysis area.
+load_ctrees_agb <- function(fname, analysis_vect) {
   r <- terra::rast(file.path(ctrees_dir, fname))
-  country_r_crs <- country_vect
-  if (!terra::same.crs(country_r_crs, r))
-    country_r_crs <- terra::project(country_r_crs, terra::crs(r))
-  r <- terra::crop(r, country_r_crs)
-  r <- terra::mask(r, country_r_crs)
+  analysis_r_crs <- analysis_vect
+  if (!terra::same.crs(analysis_r_crs, r))
+    analysis_r_crs <- terra::project(analysis_r_crs, terra::crs(r))
+  if (!extents_overlap(r, analysis_r_crs)) {
+    stop(
+      "CTrees raster does not overlap the model analysis area ", analysis_area_id,
+      ": ", file.path(ctrees_dir, fname),
+      ". Check the observation dataset and scenario byregion metadata."
+    )
+  }
+  r <- terra::crop(r, analysis_r_crs)
+  r <- terra::mask(r, analysis_r_crs)
   r <- r * agc_to_agb
   r[r < 0] <- NA               # -9999 nodata and any negatives
   r
@@ -417,6 +527,9 @@ mask_region <- function(r, region) {
   region_r_crs <- region
   if (!terra::same.crs(region_r_crs, r))
     region_r_crs <- terra::project(region_r_crs, terra::crs(r))
+  if (!extents_overlap(r, region_r_crs)) {
+    stop("Raster does not overlap selected analysis area ", analysis_area_id, ".")
+  }
   terra::mask(terra::crop(r, region_r_crs), region_r_crs)
 }
 
@@ -518,15 +631,19 @@ nrb_mofuss  <- mofuss_mc1$nrb
 harv_mofuss <- mofuss_mc1$harvest
 target_crs  <- terra::crs(nrb_mofuss)          # World Mercator for this dataset
 
-# --- Country polygon --------------------------------------------------------
-ctry     <- terra::vect(ADMIN_VECTOR)
-ctry_sel <- ctry[ctry$GID_0 == country_iso3, ]
-if (nrow(ctry_sel) != 1L)
-  stop("Expected one country polygon for ", country_iso3, "; found ", nrow(ctry_sel), ".")
+# --- Model-native analysis boundary ----------------------------------------
+# userarea1.gpkg is the exact Country/Regional/OwnPolygon area used to build
+# this run. Country placeholders are deliberately ignored for Regional runs.
+analysis_scope <- load_model_analysis_scope(mofuss_dir, nrb_mofuss)
+analysis_boundary <- analysis_scope$boundary
+analysis_outlines <- analysis_scope$outlines
+if (!extents_overlap(nrb_mofuss, analysis_boundary)) {
+  stop("Model raster does not overlap its model-native analysis boundary: ", analysis_scope$path)
+}
 
 # --- CTrees observed AGB, two maps ------------------------------------------
-agb_y1 <- load_ctrees_agb(ctrees_file1, ctry_sel)
-agb_y2 <- load_ctrees_agb(ctrees_file2, ctry_sel)
+agb_y1 <- load_ctrees_agb(ctrees_file1, analysis_boundary)
+agb_y2 <- load_ctrees_agb(ctrees_file2, analysis_boundary)
 
 # years parsed from the file names, used for plot titles and output names
 ctrees_year1 <- ctrees_label(ctrees_file1)
@@ -547,21 +664,21 @@ loss_mgha_proj <- terra::project(loss_mgha, target_crs) # density in the MoFuSS 
 # =============================================================================
 # 5. AOI  -  pick the comparison area
 # =============================================================================
-# Country bounds in lon/lat, used only to zoom the draw map.
+# Analysis-area bounds in lon/lat, used only to zoom the draw map.
 # NOTE: use the accessor functions xmin()/xmax()/ymin()/ymax() rather than
 # `e$xmin` - `$` on a SpatExtent returns NULL on some terra versions, which
 # would silently drop the names and trigger "subscript out of bounds" later.
-ctry_ll   <- terra::project(ctry_sel, "EPSG:4326")
-e_ll      <- terra::ext(ctry_ll)
+analysis_ll <- terra::project(analysis_boundary, "EPSG:4326")
+e_ll      <- terra::ext(analysis_ll)
 zoom_bbox <- c(xmin = terra::xmin(e_ll), ymin = terra::ymin(e_ll),
                xmax = terra::xmax(e_ll), ymax = terra::ymax(e_ll))
 
 aoi_region <- switch(
   aoi_mode,
   draw    = select_aoi_draw(zoom_bbox, target_crs),
-  country = terra::project(ctry_sel, target_crs),
+  analysis = terra::project(analysis_boundary, target_crs),
   full    = NULL,
-  stop("aoi_mode must be 'draw', 'country' or 'full'")
+  stop("aoi_mode must be 'draw', 'analysis' or 'full'")
 )
 
 # NULL means the full MoFuSS x CTrees overlap, either by configuration or
@@ -716,7 +833,9 @@ fnrb_mofuss_pct       <- 100 * modelled_nrb       / mofuss_harvest
 fnrb_summary <- data.frame(
   Run = run_label,
   Working.Directory = mofuss_dir,
-  Country = country_iso3,
+  Analysis.Area.Kind = analysis_area_kind,
+  Analysis.Area = analysis_area_id,
+  Analysis.Area.Name = analysis_area_name,
   Start.Year = START_YEAR,
   End.Year = END_YEAR,
   AOI.Mode = aoi_mode,
@@ -745,14 +864,16 @@ if (!dir.create(out_dir, recursive = TRUE, showWarnings = FALSE) && !dir.exists(
 
 fnrb_csv_path <- file.path(
   out_dir,
-  sprintf("fNRB_comparison_%s_%d_%d_MC1.csv", country_iso3, START_YEAR, END_YEAR)
+  sprintf("fNRB_comparison_%s_%d_%d_MC1.csv", safe_id(analysis_area_id), START_YEAR, END_YEAR)
 )
 utils::write.csv(fnrb_summary, fnrb_csv_path, row.names = FALSE)
 
 agreement_summary <- data.frame(
   Run = run_label,
   Working.Directory = mofuss_dir,
-  Country = country_iso3,
+  Analysis.Area.Kind = analysis_area_kind,
+  Analysis.Area = analysis_area_id,
+  Analysis.Area.Name = analysis_area_name,
   Start.Year = START_YEAR,
   End.Year = END_YEAR,
   AOI.Mode = aoi_mode,
@@ -775,11 +896,11 @@ agreement_summary <- data.frame(
 )
 agreement_csv_path <- file.path(
   out_dir,
-  sprintf("NRB_pixel_agreement_%s_%d_%d_MC1.csv", country_iso3, START_YEAR, END_YEAR)
+  sprintf("NRB_pixel_agreement_%s_%d_%d_MC1.csv", safe_id(analysis_area_id), START_YEAR, END_YEAR)
 )
 utils::write.csv(agreement_summary, agreement_csv_path, row.names = FALSE)
 
-cat("\n================  NRB / fNRB comparison  (", country_iso3,
+cat("\n================  NRB / fNRB comparison  (", analysis_area_id,
     " ", START_YEAR, "-", END_YEAR, ", MC1)",
     "  res =", resolution, " AOI =", aoi_mode, "\n")
 cat("  -- magnitude, co-detected pixels only --\n")
@@ -792,7 +913,7 @@ cat(sprintf("  common pixels      : %d\n",       n_dom))
 cat(sprintf("  hits / miss / f.a. : %d / %d / %d\n", hits, misses, falarm))
 cat(sprintf("  overall agreement  : %.1f%%\n",   100 * agreement))
 cat(sprintf("  POD / FAR / CSI    : %.2f / %.2f / %.2f\n", pod, far, csi))
-cat("  -- unthresholded regional totals and fNRB --\n")
+cat("  -- unthresholded analysis-area totals and fNRB --\n")
 cat(sprintf("  CTrees common endpoint cells : %.0f\n", ctrees_common_cells))
 cat(sprintf("  CTrees gross NRB (Mg)        : %.0f\n", observed_gross_nrb))
 cat(sprintf("  CTrees signed balance (Mg)   : %.0f\n", observed_balance))
@@ -821,7 +942,7 @@ cat("\n")
 # --- 8a. Scatter (observed vs modelled), 1:1 line ---------------------------
 scatter_path <- file.path(
   out_dir,
-  sprintf("NRB_scatter_%s_%d_%d_MC1.png", country_iso3, START_YEAR, END_YEAR)
+  sprintf("NRB_scatter_%s_%d_%d_MC1.png", safe_id(analysis_area_id), START_YEAR, END_YEAR)
 )
 grDevices::png(scatter_path, width = 7, height = 7, units = "in", res = 300,
                type = if (capabilities("cairo")) "cairo" else getOption("bitmapType"))
@@ -843,13 +964,13 @@ harv_colors <- colorRampPalette(c("white", "yellowgreen", "darkgreen"))(100)
 
 rng_nrb <- range(terra::minmax(nrb_ctrees_plot), na.rm = TRUE)
 
-ctry_r <- terra::project(ctry_sel, nrb_ctrees_plot)   # country outline in map CRS
+analysis_outline_r <- terra::project(analysis_outlines, nrb_ctrees_plot)
 
 # Draw the boundary as lines rather than calling plot(..., add = TRUE). The
 # latter can reset the raster panel's graphics transform for tall countries,
 # making correctly computed annotation coordinates appear outside the panel.
-add_country_outline <- function() {
-  terra::lines(ctry_r, col = "black", lwd = 1)
+add_analysis_outline <- function() {
+  terra::lines(analysis_outline_r, col = "black", lwd = 1)
 }
 
 period_text <- sprintf("%d-%d", START_YEAR, END_YEAR)
@@ -895,34 +1016,34 @@ add_metric_box <- function(lines, panel_lim, cex = 0.82, inset = 0.035) {
 
 png_path <- file.path(
   out_dir,
-  sprintf("NRB_comparison_%s_%d_%d_MC1.png", country_iso3, START_YEAR, END_YEAR)
+  sprintf("NRB_comparison_%s_%d_%d_MC1.png", safe_id(analysis_area_id), START_YEAR, END_YEAR)
 )
 png(png_path, width = 10, height = 10, units = "in", res = 300, type = "cairo")
 op <- par(mfrow = c(2, 2))
 
 pinfo <- plot(nrb_ctrees_plot, main = "Observed gross NRB",
               col = nrb_colors, range = rng_nrb)
-add_country_outline()
+add_analysis_outline()
 add_metric_box(c(period_text,
-                 paste("Regional gross fNRB:", percent_text(fnrb_ctrees_gross_pct))),
+                 paste("Analysis-area gross fNRB:", percent_text(fnrb_ctrees_gross_pct))),
                pinfo$lim)
 
 pinfo <- plot(nrb_mofuss_plot, main = "MoFuSS MC1 NRB",
               col = nrb_colors, range = rng_nrb)
-add_country_outline()
+add_analysis_outline()
 add_metric_box(c(period_text,
                  paste("MoFuSS fNRB:", percent_text(fnrb_mofuss_pct))),
                pinfo$lim)
 
 pinfo <- plot(gains_ctrees_plot, main = "Observed AGB gains")
-add_country_outline()
+add_analysis_outline()
 add_metric_box(c(period_text,
-                 paste("Regional net fNRB:", percent_text(fnrb_ctrees_net_pct))),
+                 paste("Analysis-area net fNRB:", percent_text(fnrb_ctrees_net_pct))),
                pinfo$lim)
 
 # harvest: its own auto-scale (no shared range) and its own palette
 pinfo <- plot(harv_mofuss_plot, main = "MoFuSS MC1 harvest", col = harv_colors)
-add_country_outline()
+add_analysis_outline()
 add_metric_box(c(period_text, "Shared demand denominator:",
                  paste0(formatC(mofuss_harvest / 1e6, format = "f", digits = 1), " million Mg")),
                pinfo$lim)
