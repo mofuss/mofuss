@@ -16,7 +16,7 @@
 
 # MoFuSS emissions post-processing pipeline ----
 #
-# This is the normal entry point for Stages 1-4. Edit only the USER INPUTS
+# This is the normal entry point for Stages 1-5. Edit only the USER INPUTS
 # block, then use RStudio Source / Source as Background Job, or run:
 #
 #   Rscript 0post_emissions_pipeline_v2.R
@@ -36,10 +36,10 @@ PIPELINE_BATCHES <- list(
     enabled = TRUE,
     root = "E:/",
     folders = c(
-      "GOG_1000m_bau1_2050_mc2_capped",
-      "GOG_1000m_bau1_2050_mc2_uncapped",
-      "GOG_1000m_ics3_2050_mc2_capped",
-      "GOG_1000m_ics3_2050_mc2_uncapped"
+      "GOG_1000m_bau1_2050_mc30_capped",
+      "GOG_1000m_bau1_2050_mc30_uncapped",
+      "GOG_1000m_ics3_2050_mc30_capped",
+      "GOG_1000m_ics3_2050_mc30_uncapped"
     )
   ),
   madagascar = list(
@@ -75,7 +75,7 @@ PIPELINE_BATCHES <- list(
 )
 
 # Run all stages in order. Use, for example, 3:4 to resume at Stage 3.
-PIPELINE_STAGES <- 1:4
+PIPELINE_STAGES <- 2:5
 
 # Stage 1: character() retains the v9 default multi-period/snapshot schedule.
 # Otherwise supply one or more explicit periods, for example c("2026:2050").
@@ -99,14 +99,28 @@ PIPELINE_MIN_UNCERTAINTY_RUNS <- 30L
 # TRUE rebuilds each stage's exact, guarded output folder.
 PIPELINE_CLEAN_REBUILD <- TRUE
 
-# TRUE performs the available Stage 1-3 dry runs and skips Stage 4, which has
-# no no-write mode. FALSE performs the complete pipeline.
+# TRUE performs the available Stage 1-3 dry runs and skips Stages 4-5, which
+# have no no-write mode. FALSE performs the complete pipeline.
 PIPELINE_DRY_RUN <- FALSE
 
 # Optional disposable raster scratch override. NULL is portable and uses a
 # session-specific folder under R's tempdir(). Supply a path only when a
 # particular computer needs a dedicated scratch disk.
 PIPELINE_TEMP_DIR <- NULL
+
+# Stage 5 combines all included analysis roots once, after every selected
+# regional batch has finished. The manifest may include additional completed
+# roots that are not enabled above. Relative manifest paths resolve beside this
+# pipeline script; output and scratch paths should normally be absolute.
+PIPELINE_GLOBAL_MANIFEST <- "global_south_postprocessing_manifest_partial_v1.csv"
+PIPELINE_GLOBAL_OUTPUT_DIR <-
+  "E:/mofuss_postprocessing/global_south_2026_2050_mc30/manuscript_outputs"
+PIPELINE_GLOBAL_TEMP_DIR <-
+  "E:/MoFuSS_Active/global_manuscript_outputs_v1_dev"
+PIPELINE_GLOBAL_MODE <- "partial"
+PIPELINE_GLOBAL_MC_COMBINATION <- "independent"
+PIPELINE_GLOBAL_RESAMPLES <- 10000L
+PIPELINE_GLOBAL_RANDOM_SEED <- 20260910L
 
 # END USER INPUTS -----------------------------------------------------------
 
@@ -144,7 +158,30 @@ pipeline_bool <- function(x, label) {
   x
 }
 
-pipeline_resolve_batches <- function() {
+pipeline_resolve_path <- function(path, base_dir, label, must_work = FALSE) {
+  value <- trimws(as.character(path))
+  if (length(value) != 1L || is.na(value) || !nzchar(value)) {
+    pipeline_stop("%s must be one non-blank path.", label)
+  }
+  is_absolute <- grepl("^[A-Za-z]:[/\\\\]", value) ||
+    grepl("^[/\\\\]{2}", value) || startsWith(value, "/")
+  if (!is_absolute) value <- file.path(base_dir, value)
+  normalizePath(path.expand(value), winslash = "/", mustWork = must_work)
+}
+
+pipeline_path_key <- function(path, must_work = FALSE) {
+  tolower(gsub("/+$", "", normalizePath(
+    path, winslash = "/", mustWork = must_work
+  )))
+}
+
+pipeline_is_descendant <- function(path, parent) {
+  path_key <- paste0(pipeline_path_key(path), "/")
+  parent_key <- paste0(pipeline_path_key(parent), "/")
+  startsWith(path_key, parent_key) && !identical(path_key, parent_key)
+}
+
+pipeline_resolve_batches <- function(require_enabled = TRUE) {
   batches <- PIPELINE_BATCHES
   if (!is.list(batches) || !length(batches) || is.null(names(batches)) ||
       anyNA(names(batches)) || any(!nzchar(trimws(names(batches)))) ||
@@ -190,7 +227,9 @@ pipeline_resolve_batches <- function() {
       name = batch_name, root = root, scenario_dirs = unname(scenario_dirs)
     )
   }
-  if (!length(resolved)) pipeline_stop("PIPELINE_BATCHES has no enabled batches.")
+  if (require_enabled && !length(resolved)) {
+    pipeline_stop("PIPELINE_BATCHES has no enabled batches for Stages 1-4.")
+  }
 
   all_dirs <- tolower(unlist(lapply(resolved, `[[`, "scenario_dirs"), use.names = FALSE))
   if (anyDuplicated(all_dirs)) {
@@ -200,19 +239,21 @@ pipeline_resolve_batches <- function() {
 }
 
 pipeline_validate_inputs <- function(script_dir) {
-  batch_selection <- pipeline_resolve_batches()
-
   stages <- suppressWarnings(as.integer(PIPELINE_STAGES))
-  if (!length(stages) || anyNA(stages) || any(!stages %in% 1:4) ||
+  if (!length(stages) || anyNA(stages) || any(!stages %in% 1:5) ||
       anyDuplicated(stages) || !identical(stages, sort(stages))) {
-    pipeline_stop("PIPELINE_STAGES must be an increasing subset of 1:4.")
+    pipeline_stop("PIPELINE_STAGES must be an increasing subset of 1:5.")
   }
+  batch_selection <- pipeline_resolve_batches(
+    require_enabled = any(stages %in% 1:4)
+  )
 
   stage_scripts <- file.path(script_dir, c(
     "1post_raster_fr_generator_diskmemory_v9.R",
     "2post_emissions_bau-vs-ics_v14.R",
     "3post_agb_decomposition_v6.R",
-    "4post_manuscript_outputs_v2.R"
+    "4post_manuscript_outputs_v3.R",
+    "5post_manuscript_outputsGLOBAL_v1.R"
   ))
   missing_scripts <- stage_scripts[!file.exists(stage_scripts)]
   if (length(missing_scripts)) {
@@ -265,6 +306,96 @@ pipeline_validate_inputs <- function(script_dir) {
     pipeline_stop("PIPELINE_TEMP_DIR exists and is not a folder: %s", temp_dir)
   }
 
+  global_config <- NULL
+  if (5L %in% stages) {
+    global_manifest <- pipeline_resolve_path(
+      PIPELINE_GLOBAL_MANIFEST, script_dir,
+      "PIPELINE_GLOBAL_MANIFEST", must_work = TRUE
+    )
+    global_output_dir <- pipeline_resolve_path(
+      PIPELINE_GLOBAL_OUTPUT_DIR, script_dir,
+      "PIPELINE_GLOBAL_OUTPUT_DIR", must_work = FALSE
+    )
+    global_temp_dir <- pipeline_resolve_path(
+      PIPELINE_GLOBAL_TEMP_DIR, script_dir,
+      "PIPELINE_GLOBAL_TEMP_DIR", must_work = FALSE
+    )
+    global_mode <- tolower(trimws(as.character(PIPELINE_GLOBAL_MODE)))
+    if (length(global_mode) != 1L || is.na(global_mode) ||
+        !global_mode %in% c("partial", "strict")) {
+      pipeline_stop("PIPELINE_GLOBAL_MODE must be 'partial' or 'strict'.")
+    }
+    global_mc_combination <- tolower(trimws(as.character(
+      PIPELINE_GLOBAL_MC_COMBINATION
+    )))
+    if (length(global_mc_combination) != 1L ||
+        is.na(global_mc_combination) ||
+        !global_mc_combination %in% c("independent", "aligned")) {
+      pipeline_stop(
+        "PIPELINE_GLOBAL_MC_COMBINATION must be 'independent' or 'aligned'."
+      )
+    }
+    global_resamples_numeric <- suppressWarnings(as.numeric(
+      PIPELINE_GLOBAL_RESAMPLES
+    ))
+    global_resamples <- suppressWarnings(as.integer(
+      PIPELINE_GLOBAL_RESAMPLES
+    ))
+    if (length(global_resamples) != 1L || is.na(global_resamples) ||
+        !is.finite(global_resamples_numeric) ||
+        global_resamples_numeric != global_resamples ||
+        global_resamples < 1000L) {
+      pipeline_stop("PIPELINE_GLOBAL_RESAMPLES must be an integer >= 1000.")
+    }
+    global_seed_numeric <- suppressWarnings(as.numeric(
+      PIPELINE_GLOBAL_RANDOM_SEED
+    ))
+    global_seed <- suppressWarnings(as.integer(
+      PIPELINE_GLOBAL_RANDOM_SEED
+    ))
+    if (length(global_seed) != 1L || is.na(global_seed) ||
+        !is.finite(global_seed_numeric) || global_seed_numeric != global_seed) {
+      pipeline_stop("PIPELINE_GLOBAL_RANDOM_SEED must be one integer.")
+    }
+    if (!identical(tolower(basename(global_output_dir)),
+                   "manuscript_outputs")) {
+      pipeline_stop(
+        "PIPELINE_GLOBAL_OUTPUT_DIR must end in manuscript_outputs: %s",
+        global_output_dir
+      )
+    }
+    if (file.exists(global_output_dir) && !dir.exists(global_output_dir)) {
+      pipeline_stop(
+        "PIPELINE_GLOBAL_OUTPUT_DIR exists and is not a folder: %s",
+        global_output_dir
+      )
+    }
+    expected_global_temp_root <- normalizePath(
+      "E:/MoFuSS_Active", winslash = "/", mustWork = FALSE
+    )
+    if (!pipeline_is_descendant(global_temp_dir, expected_global_temp_root)) {
+      pipeline_stop(
+        "PIPELINE_GLOBAL_TEMP_DIR must be below E:/MoFuSS_Active: %s",
+        global_temp_dir
+      )
+    }
+    if (file.exists(global_temp_dir) && !dir.exists(global_temp_dir)) {
+      pipeline_stop(
+        "PIPELINE_GLOBAL_TEMP_DIR exists and is not a folder: %s",
+        global_temp_dir
+      )
+    }
+    global_config <- list(
+      manifest = global_manifest,
+      output_dir = global_output_dir,
+      temp_dir = global_temp_dir,
+      mode = global_mode,
+      mc_combination = global_mc_combination,
+      resamples = global_resamples,
+      random_seed = global_seed
+    )
+  }
+
   list(
     batches = batch_selection$enabled,
     disabled_batches = batch_selection$disabled,
@@ -278,8 +409,57 @@ pipeline_validate_inputs <- function(script_dir) {
     dry_run = pipeline_bool(PIPELINE_DRY_RUN, "PIPELINE_DRY_RUN"),
     make_plot = pipeline_bool(
       PIPELINE_MAKE_DECOMPOSITION_PLOT, "PIPELINE_MAKE_DECOMPOSITION_PLOT"
+    ),
+    global = global_config
+  )
+}
+
+pipeline_manifest_analysis_roots <- function(
+  path, allowed_missing_roots = character()
+) {
+  manifest <- tryCatch(
+    utils::read.csv(
+      path, stringsAsFactors = FALSE, check.names = FALSE,
+      na.strings = c("", "NA")
+    ),
+    error = function(error) pipeline_stop(
+      "Could not read PIPELINE_GLOBAL_MANIFEST: %s", conditionMessage(error)
     )
   )
+  required <- c("include", "analysis_root")
+  missing <- setdiff(required, names(manifest))
+  if (length(missing)) {
+    pipeline_stop(
+      "PIPELINE_GLOBAL_MANIFEST is missing columns: %s",
+      paste(missing, collapse = ", ")
+    )
+  }
+  include <- as.logical(manifest$include)
+  if (anyNA(include)) {
+    pipeline_stop("PIPELINE_GLOBAL_MANIFEST include values must be TRUE or FALSE.")
+  }
+  roots <- trimws(as.character(manifest$analysis_root[include]))
+  if (!length(roots) || anyNA(roots) || any(!nzchar(roots))) {
+    pipeline_stop(
+      "PIPELINE_GLOBAL_MANIFEST must contain at least one included analysis_root."
+    )
+  }
+  root_keys <- vapply(
+    roots, pipeline_path_key, character(1), must_work = FALSE
+  )
+  missing_roots <- !dir.exists(roots)
+  unexpected_missing <- missing_roots &
+    !root_keys %in% allowed_missing_roots
+  if (any(unexpected_missing)) {
+    pipeline_stop(
+      paste0(
+        "PIPELINE_GLOBAL_MANIFEST analysis root(s) are missing and will not ",
+        "be created by the selected stages: %s"
+      ),
+      paste(roots[unexpected_missing], collapse = ", ")
+    )
+  }
+  root_keys
 }
 
 pipeline_infer_analysis_root <- function(stage2_script, scenario_dirs, spinup_years) {
@@ -317,7 +497,7 @@ pipeline_quote_args <- function(args) {
 }
 
 pipeline_run_stage <- function(number, script, args, rscript, temp_dir) {
-  cat(sprintf("\n========== MoFuSS emissions Stage %d/4 ==========\n", number))
+  cat(sprintf("\n========== MoFuSS emissions Stage %d/5 ==========\n", number))
   cat(sprintf("Script: %s\n", script))
 
   # system2(env=...) is not portable on Windows. Temporarily export the three
@@ -378,10 +558,47 @@ pipeline_main <- function(args = commandArgs(trailingOnly = TRUE)) {
   if (anyDuplicated(analysis_roots)) {
     pipeline_stop("Enabled batches must resolve to different analysis roots.")
   }
+  if (!is.null(config$global)) {
+    allowed_missing_manifest_roots <- if (2L %in% config$stages) {
+      analysis_roots
+    } else {
+      character()
+    }
+    manifest_roots <- pipeline_manifest_analysis_roots(
+      config$global$manifest,
+      allowed_missing_roots = allowed_missing_manifest_roots
+    )
+    missing_batch_roots <- setdiff(analysis_roots, manifest_roots)
+    if (length(missing_batch_roots)) {
+      pipeline_stop(
+        paste0(
+          "Stage 5 manifest does not include enabled batch analysis root(s): %s. ",
+          "Add them to the manifest or disable Stage 5."
+        ),
+        paste(missing_batch_roots, collapse = ", ")
+      )
+    }
+    regional_outputs <- tolower(vapply(
+      config$batches, `[[`, character(1), "manuscript_output"
+    ))
+    if (pipeline_path_key(config$global$output_dir) %in% regional_outputs) {
+      pipeline_stop(
+        "Stage 5 global output must differ from every regional manuscript output."
+      )
+    }
+  }
 
   cat("MoFuSS emissions pipeline plan\n")
   cat(sprintf("  stages: %s\n", paste(config$stages, collapse = " -> ")))
-  cat(sprintf("  enabled batches: %d (%s)\n", length(config$batches), paste(names(config$batches), collapse = ", ")))
+  enabled_batch_label <- if (length(config$batches)) {
+    paste(names(config$batches), collapse = ", ")
+  } else {
+    "none"
+  }
+  cat(sprintf(
+    "  enabled batches: %d (%s)\n",
+    length(config$batches), enabled_batch_label
+  ))
   cat(sprintf(
     "  disabled placeholders: %s\n",
     if (length(config$disabled_batches)) paste(config$disabled_batches, collapse = ", ") else "none"
@@ -394,8 +611,28 @@ pipeline_main <- function(args = commandArgs(trailingOnly = TRUE)) {
     cat(sprintf("\n  Batch %d/%d: %s\n", i, length(config$batches), batch$name))
     cat(sprintf("    root: %s\n", batch$root))
     cat(sprintf("    scenarios: %s\n", paste(basename(batch$scenario_dirs), collapse = ", ")))
-    cat(sprintf("    analysis root: %s\n", batch$analysis_root))
+    analysis_root_note <- if (!dir.exists(batch$analysis_root) &&
+                              2L %in% config$stages) {
+      " (will be created by Stage 2)"
+    } else {
+      ""
+    }
+    cat(sprintf(
+      "    analysis root: %s%s\n",
+      batch$analysis_root, analysis_root_note
+    ))
     cat(sprintf("    manuscript output: %s\n", batch$manuscript_output))
+  }
+  if (!is.null(config$global)) {
+    cat("\n  Stage 5 global aggregation:\n")
+    cat(sprintf("    manifest: %s\n", config$global$manifest))
+    cat(sprintf("    output: %s\n", config$global$output_dir))
+    cat(sprintf("    scratch: %s\n", config$global$temp_dir))
+    cat(sprintf(
+      "    mode: %s | MC combination: %s | resamples: %d | seed: %d\n",
+      config$global$mode, config$global$mc_combination,
+      config$global$resamples, config$global$random_seed
+    ))
   }
 
   if (check_only) {
@@ -418,6 +655,7 @@ pipeline_main <- function(args = commandArgs(trailingOnly = TRUE)) {
   }
   overwrite_arg <- if (config$clean_rebuild) "--overwrite" else character()
   dry_run_arg <- if (config$dry_run) "--dry-run" else character()
+  batch_stages <- intersect(config$stages, 1:4)
 
   for (batch_index in seq_along(config$batches)) {
     batch <- config$batches[[batch_index]]
@@ -473,7 +711,7 @@ pipeline_main <- function(args = commandArgs(trailingOnly = TRUE)) {
       "\n################ Emissions batch %d/%d: %s ################\n",
       batch_index, length(config$batches), batch$name
     ))
-    for (stage in config$stages) {
+    for (stage in batch_stages) {
       if (stage == 4L && config$dry_run) {
         cat("\nStage 4 skipped: PIPELINE_DRY_RUN=TRUE and Stage 4 has no no-write mode.\n")
         next
@@ -490,7 +728,48 @@ pipeline_main <- function(args = commandArgs(trailingOnly = TRUE)) {
     }
   }
 
-  cat(sprintf("\nPIPELINE COMPLETE: %d batch(es)\n", length(config$batches)))
+  if (5L %in% config$stages) {
+    if (config$dry_run) {
+      cat("\nStage 5 skipped: PIPELINE_DRY_RUN=TRUE and Stage 5 has no no-write mode.\n")
+    } else {
+      if (!dir.exists(config$global$temp_dir) &&
+          !dir.create(config$global$temp_dir, recursive = TRUE)) {
+        pipeline_stop(
+          "Could not create Stage 5 scratch folder: %s",
+          config$global$temp_dir
+        )
+      }
+      if (file.access(config$global$temp_dir, 2L) != 0L) {
+        pipeline_stop(
+          "Stage 5 scratch folder is not writable: %s",
+          config$global$temp_dir
+        )
+      }
+      global_args <- c(
+        paste0("--manifest=", config$global$manifest),
+        paste0("--output-dir=", config$global$output_dir),
+        paste0("--temp-dir=", config$global$temp_dir),
+        paste0("--mode=", config$global$mode),
+        paste0("--mc-combination=", config$global$mc_combination),
+        paste0("--min-runs=", config$min_runs),
+        paste0("--global-resamples=", config$global$resamples),
+        paste0("--random-seed=", config$global$random_seed),
+        overwrite_arg
+      )
+      pipeline_run_stage(
+        5L, config$stage_scripts[[5L]], global_args, rscript,
+        config$global$temp_dir
+      )
+      cat("\nGLOBAL STAGE COMPLETE\n")
+      cat(sprintf("GLOBAL_MANUSCRIPT_OUTPUT=%s\n", config$global$output_dir))
+    }
+  }
+
+  cat(sprintf(
+    "\nPIPELINE COMPLETE: %d regional batch(es); Stage 5 %s\n",
+    length(config$batches),
+    if (5L %in% config$stages && !config$dry_run) "completed" else "not run"
+  ))
   invisible(config)
 }
 

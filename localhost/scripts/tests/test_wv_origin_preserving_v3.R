@@ -14,7 +14,7 @@ scripts_root <- file.path(repository_root, "localhost", "scripts")
 
 # The R handoff stages must agree on the same origin-preserving contract.
 contract_files <- c(
-  "3_demand4IDW_v11.R",
+  "3_demand4IDW_v12.R",
   "5_harmonizer_v8.R",
   "8_prepare_directional_IDW_inputs_v3.R",
   "9_install_directional_IDW_outputs_v4.R"
@@ -27,7 +27,7 @@ for (filename in contract_files) {
 }
 
 demand_text <- paste(
-  readLines(file.path(scripts_root, "3_demand4IDW_v11.R"), warn = FALSE),
+  readLines(file.path(scripts_root, "3_demand4IDW_v12.R"), warn = FALSE),
   collapse = "\n"
 )
 stopifnot(
@@ -36,7 +36,47 @@ stopifnot(
   grepl("origin_country_demand_regional_sources", demand_text, fixed = TRUE),
   grepl("Origin-country W jobs do not exactly conserve", demand_text, fixed = TRUE),
   grepl("origin_preserving_", demand_text, fixed = TRUE),
-  grepl("runtime_normalize_by_origin_then_sum", demand_text, fixed = TRUE)
+  grepl("runtime_normalize_by_origin_then_sum", demand_text, fixed = TRUE),
+  grepl(".preserve_projected_stack_mass", demand_text, fixed = TRUE),
+  grepl("projection_mass_audit_w.csv", demand_text, fixed = TRUE),
+  grepl("projection_mass_audit_v.csv", demand_text, fixed = TRUE),
+  !grepl("proj_factor_2010w", demand_text, fixed = TRUE),
+  !grepl("proj_factor_2010v", demand_text, fixed = TRUE)
+)
+
+# Exercise the layer-specific projection correction without sourcing the full
+# demand workflow (which intentionally has run-level side effects).
+demand_path <- file.path(scripts_root, "3_demand4IDW_v12.R")
+demand_expressions <- parse(demand_path)
+mass_helper_index <- which(vapply(demand_expressions, function(expression) {
+  is.call(expression) && identical(expression[[1L]], as.name("<-")) &&
+    identical(expression[[2L]], as.name(".preserve_projected_stack_mass"))
+}, logical(1)))
+stopifnot(length(mass_helper_index) == 1L)
+eval(demand_expressions[[mass_helper_index]], envir = .GlobalEnv)
+
+mass_fixture <- tempfile("projection_mass_correction_")
+dir.create(mass_fixture, recursive = TRUE)
+on.exit(unlink(mass_fixture, recursive = TRUE, force = TRUE), add = TRUE)
+source_1 <- terra::rast(nrows = 2, ncols = 2, xmin = 0, xmax = 2, ymin = 0, ymax = 2)
+source_2 <- terra::rast(source_1)
+terra::values(source_1) <- c(1, 2, 3, 4)
+terra::values(source_2) <- c(2, 4, 6, 8)
+source_paths <- file.path(mass_fixture, c("source_1.tif", "source_2.tif"))
+terra::writeRaster(source_1, source_paths[[1L]], overwrite = TRUE)
+terra::writeRaster(source_2, source_paths[[2L]], overwrite = TRUE)
+biased_stack <- c(source_1 * 2, source_2 / 2)
+mass_result <- .preserve_projected_stack_mass(
+  biased_stack, source_paths, "Synthetic demand"
+)
+stopifnot(
+  isTRUE(all.equal(
+    as.numeric(terra::global(mass_result$raster, "sum", na.rm = TRUE)[, 1]),
+    c(10, 20),
+    tolerance = 1e-10
+  )),
+  isTRUE(all.equal(mass_result$audit$correction_factor, c(0.5, 2))),
+  all(abs(mass_result$audit$residual_Mg) < 1e-10)
 )
 
 scenario_text <- paste(

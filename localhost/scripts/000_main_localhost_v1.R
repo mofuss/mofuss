@@ -393,7 +393,7 @@ scripts <- list(
   # "2a_ics_constructor_v7.R",
   if (personal_demand != 1) "2b_oneschema_fix_v5.R",
   "2c_demand_tables_v5.R",
-  "3_demand4IDW_v11.R",
+  "3_demand4IDW_v12.R",
   "4_produce_growth_and_stock_csv_v2.R",
   "5_harmonizer_v8.R",
   "6_scenarios_v4.R",

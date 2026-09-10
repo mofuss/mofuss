@@ -1,0 +1,4 @@
+include,analysis_id,subregion_number,subregion_name,macroregion,partition_status,expected_country_count,analysis_root
+TRUE,KEN_DEV,8,Great Lakes-East Africa charcoal network,Sub-Saharan Africa,development_component,1,E:/mofuss_postprocessing/ken_2026_2050_mc30
+TRUE,RWA_DEV,8,Great Lakes-East Africa charcoal network,Sub-Saharan Africa,development_component,1,E:/mofuss_postprocessing/rwa_2026_2050_mc30
+TRUE,SSA_ADM0_GOG,5,Gulf of Guinea charcoal network,Sub-Saharan Africa,final,4,E:/mofuss_postprocessing/ssa_adm0_gog_2026_2050_mc30
