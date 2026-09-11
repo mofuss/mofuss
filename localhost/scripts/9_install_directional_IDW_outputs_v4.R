@@ -18,15 +18,16 @@
 # Script: 9_install_directional_IDW_outputs_v4.R
 # Version: 4
 # Date: Sep 2026
-# Execution: Source from RStudio only after every CostDistance_IDW HC job has
-# completed and its output directory has been returned to HC_jobs.
+# Execution: Source from RStudio after either the standard single-country IDW
+# outputs are in In, or every directional CostDistance_IDW HC job has completed
+# and its output directory has been returned to HC_jobs.
 #
-# Purpose: Validate, assemble and install the decennial directional IDW outputs
-# consumed by the Dinamica EGO model. W origin-country components and V
-# directional components remain separate for annual, post-eligibility
-# normalization in MoFuSS v11. Summed W and V rasters are installed only for
-# Patcher ranking and diagnostics. Component NA cells are treated as zero only
-# while those ranking surfaces are assembled.
+# Purpose: Install every IDW input consumed by the Dinamica EGO model. Country
+# and singleton-Regional runs reuse each standard W/V IDW as their sole runtime
+# component. Multi-country Regional runs retain separate W origin-country and V
+# directional components for annual, post-eligibility normalization in MoFuSS
+# v11. Summed regional W and V rasters are installed only for Patcher ranking
+# and diagnostics.
 #
 # Expected HC output layout:
 #   In/DemandScenarios/HC_jobs/idw_<JobID>/IDW_C++_fw_<w|v><NN>.tif
@@ -40,12 +41,14 @@
 #   In/DemandScenarios/V_origin_demand<SS>.csv
 #   In/DemandScenarios/W_origin_component_index.csv
 #   In/DemandScenarios/V_origin_component_index.csv
+#   In/DemandScenarios/SINGLE_COMPONENT_IDW_install_manifest.csv (single-country)
+#   In/DemandScenarios/README_SINGLE_COMPONENT_IDW_INSTALL.txt (single-country)
 #   In/DemandScenarios/HC_jobs/HC_IDW_install_manifest.csv
 #   In/DemandScenarios/HC_jobs/README_IDW_INSTALL.txt
 #
-# This script is fail-closed. It refuses incomplete jobs, geometry mismatches,
-# invalid values, source-domain leakage and pre-existing installed outputs.
-# It never runs CostDistance_IDW and never overwrites an installed IDW.
+# This script is fail-closed. It refuses incomplete inputs, geometry mismatches,
+# invalid values, source-domain leakage and pre-existing installed components.
+# It never runs CostDistance_IDW and never overwrites an installed product.
 
 suppressPackageStartupMessages(library(terra))
 
@@ -71,13 +74,21 @@ suppressPackageStartupMessages(library(terra))
     getwd()
   ))
   candidates <- candidates[nzchar(candidates)]
-  required_relative <- file.path(
+  directional_marker <- file.path(
     "In", "DemandScenarios", "HC_jobs", "HC_job_manifest_idw_ready.csv"
   )
-  matches <- candidates[file.exists(file.path(candidates, required_relative))]
+  standard_marker <- file.path("In", "DemandScenarios")
+  matches <- candidates[vapply(
+    candidates,
+    function(candidate) {
+      file.exists(file.path(candidate, directional_marker)) ||
+        dir.exists(file.path(candidate, standard_marker))
+    },
+    logical(1)
+  )]
   if (length(matches) == 0L) {
     .idw6f_stop(
-      "Could not locate a MoFuSS run containing ", required_relative,
+      "Could not locate a prepared MoFuSS run containing ", standard_marker,
       ". Define `countrydir` or set the working directory to the run root."
     )
   }
@@ -414,6 +425,591 @@ suppressPackageStartupMessages(library(terra))
   )
 }
 
+.idw6f_read_run_parameters <- function(run_root) {
+  parameters_root <- file.path(run_root, "LULCC", "DownloadedDatasets")
+  if (!dir.exists(parameters_root)) {
+    .idw6f_stop("DownloadedDatasets directory is missing: ", parameters_root)
+  }
+  parameter_paths <- list.files(
+    parameters_root,
+    pattern = "^parameters\\.csv$",
+    recursive = TRUE,
+    full.names = TRUE,
+    ignore.case = TRUE
+  )
+  if (length(parameter_paths) != 1L) {
+    .idw6f_stop(
+      "Expected exactly one parameters.csv below ", parameters_root,
+      "; found ", length(parameter_paths), "."
+    )
+  }
+  first_line <- readLines(parameter_paths[[1L]], n = 1L, warn = FALSE)
+  delimiter <- if (grepl(";", first_line, fixed = TRUE)) ";" else ","
+  parameters <- read.table(
+    parameter_paths[[1L]],
+    header = TRUE,
+    sep = delimiter,
+    quote = "\"",
+    comment.char = "",
+    stringsAsFactors = FALSE,
+    check.names = FALSE,
+    fill = TRUE
+  )
+  names(parameters) <- sub(
+    paste0("^", intToUtf8(0xfeff)), "", names(parameters)
+  )
+  if (!all(c("Var", "ParCHR") %in% names(parameters))) {
+    .idw6f_stop(
+      "parameters.csv must contain Var and ParCHR columns: ",
+      parameter_paths[[1L]]
+    )
+  }
+  attr(parameters, "path") <- .idw6f_normalize(parameter_paths[[1L]])
+  parameters
+}
+
+.idw6f_parameter_value <- function(parameters, variable, required = TRUE) {
+  values <- trimws(as.character(
+    parameters$ParCHR[trimws(as.character(parameters$Var)) == variable]
+  ))
+  values <- unique(values[!is.na(values) & nzchar(values)])
+  if (required && length(values) != 1L) {
+    .idw6f_stop(
+      "parameters.csv must contain exactly one non-empty ", variable,
+      " value."
+    )
+  }
+  if (!required && length(values) > 1L) {
+    .idw6f_stop(
+      "parameters.csv contains multiple non-empty ", variable, " values."
+    )
+  }
+  values
+}
+
+.idw6f_resolve_single_country_scope <- function(run_root) {
+  parameters <- .idw6f_read_run_parameters(run_root)
+  byregion <- .idw6f_parameter_value(parameters, "byregion")
+  start_year <- suppressWarnings(as.integer(
+    .idw6f_parameter_value(parameters, "start_year")
+  ))
+  end_year <- suppressWarnings(as.integer(
+    .idw6f_parameter_value(parameters, "end_year")
+  ))
+  if (is.na(start_year) || is.na(end_year) || end_year < start_year) {
+    .idw6f_stop("parameters.csv contains an invalid start_year/end_year range.")
+  }
+
+  if (identical(tolower(byregion), "country")) {
+    country_iso3 <- toupper(.idw6f_parameter_value(
+      parameters, "region2BprocessedCtry_iso"
+    ))
+  } else if (identical(tolower(byregion), "regional")) {
+    aoi_poly <- .idw6f_parameter_value(parameters, "aoi_poly")
+    parsed_aoi_poly <- suppressWarnings(as.integer(aoi_poly))
+    if (is.na(parsed_aoi_poly) || parsed_aoi_poly != 0L) {
+      .idw6f_stop(
+        "Single-component installation does not support a Regional polygon AoI."
+      )
+    }
+    regional_code <- .idw6f_parameter_value(
+      parameters, "region2BprocessedReg"
+    )
+    region_paths <- list.files(
+      file.path(run_root, "LULCC", "DownloadedDatasets"),
+      pattern = "^mofuss_regions0\\.gpkg$",
+      recursive = TRUE,
+      full.names = TRUE,
+      ignore.case = TRUE
+    )
+    normalized_region_paths <- normalizePath(
+      region_paths, winslash = "/", mustWork = FALSE
+    )
+    demand_region_paths <- region_paths[grepl(
+      "/demand_in/mofuss_regions0\\.gpkg$",
+      normalized_region_paths,
+      ignore.case = TRUE
+    )]
+    if (length(demand_region_paths) == 1L) {
+      region_path <- demand_region_paths[[1L]]
+    } else if (length(region_paths) == 1L) {
+      region_path <- region_paths[[1L]]
+    } else {
+      .idw6f_stop(
+        "Expected exactly one demand_in/mofuss_regions0.gpkg for the ",
+        "Regional singleton check; found ", length(region_paths), "."
+      )
+    }
+    region_index <- as.data.frame(terra::vect(region_path))
+    if (!all(c("GID_0", "mofuss_reg") %in% names(region_index))) {
+      .idw6f_stop(
+        "mofuss_regions0.gpkg must contain GID_0 and mofuss_reg fields: ",
+        region_path
+      )
+    }
+    selected <- !is.na(region_index$mofuss_reg) &
+      grepl(regional_code, region_index$mofuss_reg)
+    country_ids <- unique(toupper(trimws(as.character(
+      region_index$GID_0[selected]
+    ))))
+    country_ids <- country_ids[!is.na(country_ids) & nzchar(country_ids)]
+    if (length(country_ids) != 1L) {
+      if (length(country_ids) > 1L) {
+        .idw6f_stop(
+          "Regional scope ", regional_code, " contains ",
+          length(country_ids),
+          " countries; its directional HC manifest is required."
+        )
+      }
+      .idw6f_stop(
+        "Regional scope matched no countries in mofuss_regions0.gpkg: ",
+        regional_code
+      )
+    }
+    country_iso3 <- country_ids[[1L]]
+  } else {
+    .idw6f_stop(
+      "Single-component installation requires byregion=Country or a ",
+      "singleton byregion=Regional scope; found byregion=", byregion, "."
+    )
+  }
+
+  if (length(country_iso3) != 1L || is.na(country_iso3) ||
+      !grepl("^[A-Z]{3}$", country_iso3)) {
+    .idw6f_stop("Could not resolve one valid three-letter country ISO code.")
+  }
+  list(
+    byregion = byregion,
+    country_iso3 = country_iso3,
+    start_year = start_year,
+    end_year = end_year,
+    parameters_path = attr(parameters, "path")
+  )
+}
+
+.idw6f_numbered_files <- function(directory, pattern, label) {
+  paths <- list.files(directory, full.names = TRUE, recursive = FALSE)
+  filenames <- basename(paths)
+  selected <- grepl(pattern, filenames)
+  paths <- paths[selected]
+  filenames <- filenames[selected]
+  if (length(paths) == 0L) {
+    .idw6f_stop("No ", label, " files were found in ", directory, ".")
+  }
+  suffixes <- sub(pattern, "\\1", filenames)
+  if (anyDuplicated(suffixes)) {
+    .idw6f_stop("Duplicate two-digit suffixes were found for ", label, ".")
+  }
+  paths <- paths[order(as.integer(suffixes))]
+  suffixes <- suffixes[order(as.integer(suffixes))]
+  stats::setNames(paths, suffixes)
+}
+
+.idw6f_require_suffixes <- function(paths, expected_periods, label) {
+  expected_suffixes <- sprintf("%02d", expected_periods)
+  actual_suffixes <- names(paths)
+  if (!identical(actual_suffixes, expected_suffixes)) {
+    .idw6f_stop(
+      label, " suffixes do not match the required sequence. Expected: ",
+      paste(expected_suffixes, collapse = ", "), "; found: ",
+      paste(actual_suffixes, collapse = ", "), "."
+    )
+  }
+  unname(paths[expected_suffixes])
+}
+
+.idw6f_validate_standard_raster <- function(path, template, demand_tons, label) {
+  if (!file.exists(path)) {
+    .idw6f_stop(label, " is missing: ", path)
+  }
+  raster <- terra::rast(path)
+  .idw6f_assert_single_raster(raster, label)
+  .idw6f_assert_same_geometry(raster, template, label, "channel template")
+  values <- terra::values(raster, mat = FALSE)
+  if (any(!is.finite(values[!is.na(values)]))) {
+    .idw6f_stop(label, " contains non-finite values.")
+  }
+  if (any(values < 0, na.rm = TRUE)) {
+    .idw6f_stop(label, " contains negative values.")
+  }
+  stats <- .idw6f_raster_stats(raster)
+  .idw6f_validate_stats_for_demand(stats, demand_tons, label)
+  stats
+}
+
+.idw6f_install_single_component_outputs <- function(run_root, dry_run = FALSE) {
+  scope <- .idw6f_resolve_single_country_scope(run_root)
+  in_root <- file.path(run_root, "In")
+  demand_root <- file.path(in_root, "DemandScenarios")
+  number_of_years <- as.numeric(scope$end_year) - scope$start_year + 1
+  if (!is.finite(number_of_years) || number_of_years < 1 ||
+      number_of_years > 99) {
+    .idw6f_stop("Two-digit demand suffixes cannot represent this run period.")
+  }
+  annual_years <- seq.int(scope$start_year, scope$end_year)
+  annual_periods <- seq_len(as.integer(number_of_years))
+  idw_periods <- seq.int(1L, length(annual_periods), by = 10L)
+
+  lookup_paths <- list(
+    W = .idw6f_require_suffixes(
+      .idw6f_numbered_files(
+        demand_root, "^fwuse_W_ext_fwdef([0-9]{2})\\.csv$",
+        "annual W demand lookup"
+      ),
+      annual_periods,
+      "Annual W demand lookup"
+    ),
+    V = .idw6f_require_suffixes(
+      .idw6f_numbered_files(
+        demand_root, "^fwuse_V_ext_fwdef([0-9]{2})\\.csv$",
+        "annual V demand lookup"
+      ),
+      annual_periods,
+      "Annual V demand lookup"
+    )
+  )
+  demand_totals <- lapply(c("W", "V"), function(channel) {
+    vapply(
+      seq_along(annual_years),
+      function(index) .idw6f_read_lookup_total(
+        lookup_paths[[channel]][[index]],
+        paste0(channel, " demand for ", annual_years[[index]])
+      ),
+      numeric(1)
+    )
+  })
+  names(demand_totals) <- c("W", "V")
+
+  standard_paths <- list(
+    W = .idw6f_require_suffixes(
+      .idw6f_numbered_files(
+        in_root, "^IDW_C\\+\\+_fw_w([0-9]{2})\\.tif$",
+        "standard W IDW"
+      ),
+      idw_periods,
+      "Standard W IDW"
+    ),
+    V = .idw6f_require_suffixes(
+      .idw6f_numbered_files(
+        in_root, "^IDW_C\\+\\+_fw_v([0-9]{2})\\.tif$",
+        "standard V IDW"
+      ),
+      idw_periods,
+      "Standard V IDW"
+    )
+  )
+  template_paths <- c(
+    W = file.path(in_root, "fricc_w.tif"),
+    V = file.path(in_root, "fricc_v.tif")
+  )
+  missing_templates <- template_paths[!file.exists(template_paths)]
+  if (length(missing_templates) > 0L) {
+    .idw6f_stop(
+      "IDW template raster(s) are missing: ",
+      paste(missing_templates, collapse = ", ")
+    )
+  }
+  templates <- lapply(template_paths, terra::rast)
+  lapply(names(templates), function(channel) {
+    .idw6f_assert_single_raster(
+      templates[[channel]], paste0(channel, " template")
+    )
+  })
+  .idw6f_assert_same_geometry(
+    templates$W, templates$V, "W template", "V template"
+  )
+
+  component_roots <- c(
+    W = file.path(in_root, "W_origin_components"),
+    V = file.path(in_root, "V_origin_components")
+  )
+  component_targets <- list(
+    W = file.path(
+      component_roots[["W"]],
+      sprintf("IDW_C++_fw_w001_%02d.tif", idw_periods)
+    ),
+    V = file.path(
+      component_roots[["V"]],
+      sprintf("IDW_C++_fw_v001_%02d.tif", idw_periods)
+    )
+  )
+  origin_demand_targets <- list(
+    W = file.path(
+      demand_root, sprintf("W_origin_demand%02d.csv", annual_periods)
+    ),
+    V = file.path(
+      demand_root, sprintf("V_origin_demand%02d.csv", annual_periods)
+    )
+  )
+  component_index_targets <- c(
+    W = file.path(demand_root, "W_origin_component_index.csv"),
+    V = file.path(demand_root, "V_origin_component_index.csv")
+  )
+  audit_path <- file.path(
+    demand_root, "SINGLE_COMPONENT_IDW_install_manifest.csv"
+  )
+  readme_path <- file.path(
+    demand_root, "README_SINGLE_COMPONENT_IDW_INSTALL.txt"
+  )
+  install_targets <- c(
+    unlist(component_targets, use.names = FALSE),
+    unlist(origin_demand_targets, use.names = FALSE),
+    component_index_targets,
+    audit_path,
+    readme_path
+  )
+  existing <- install_targets[file.exists(install_targets)]
+  if (!dry_run && length(existing) > 0L) {
+    .idw6f_stop(
+      "Refusing to overwrite existing installed single-component product(s):\n",
+      paste(.idw6f_normalize(existing), collapse = "\n")
+    )
+  } else if (dry_run && length(existing) > 0L) {
+    message(
+      "Dry run is validating inputs beside ", length(existing),
+      " existing single-component product(s); nothing will be overwritten."
+    )
+  }
+
+  component_rows <- list()
+  for (channel in c("W", "V")) {
+    for (period_index in seq_along(idw_periods)) {
+      period <- idw_periods[[period_index]]
+      year <- annual_years[[period]]
+      source <- standard_paths[[channel]][[period_index]]
+      label <- paste0(
+        "Standard ", channel, " IDW for period ", sprintf("%02d", period)
+      )
+      stats <- .idw6f_validate_standard_raster(
+        source,
+        templates[[channel]],
+        demand_totals[[channel]][[period]],
+        label
+      )
+      component_rows[[length(component_rows) + 1L]] <- data.frame(
+        Channel = paste0(channel, "_COMPONENT"),
+        Period = period,
+        Year = year,
+        DemandTons = demand_totals[[channel]][[period]],
+        ZeroDemand = demand_totals[[channel]][[period]] == 0,
+        ComponentIndex = 1L,
+        DemandISO3 = scope$country_iso3,
+        InstallOperation = "copy_standard_single_country_idw_as_component",
+        ComponentJobs = paste0("STANDARD_", scope$country_iso3, "_", channel),
+        ComponentPaths = .idw6f_normalize(source),
+        ComponentSHA256 = .idw6f_sha256(source),
+        TargetPath = .idw6f_normalize(
+          component_targets[[channel]][[period_index]], must_work = FALSE
+        ),
+        OutputSHA256 = NA_character_,
+        NonNACells = stats$non_na,
+        PositiveCells = stats$positive,
+        Minimum = stats$minimum,
+        Maximum = stats$maximum,
+        Sum = stats$sum,
+        stringsAsFactors = FALSE,
+        check.names = FALSE
+      )
+    }
+  }
+  outputs <- do.call(rbind, component_rows)
+  outputs$CreatedUTC <- format(Sys.time(), tz = "UTC", usetz = TRUE)
+
+  component_indexes <- lapply(c("W", "V"), function(channel) {
+    data.frame(
+      ComponentIndex = 1L,
+      DemandISO3 = scope$country_iso3,
+      JobID = paste0("STANDARD_", scope$country_iso3, "_", channel),
+      DirectionRule = "single_country_standard_idw",
+      AllowedSourceISO3 = scope$country_iso3,
+      FirstYearDemandTons = demand_totals[[channel]][[1L]],
+      LastYearDemandTons = demand_totals[[channel]][[length(annual_years)]],
+      stringsAsFactors = FALSE,
+      check.names = FALSE
+    )
+  })
+  names(component_indexes) <- c("W", "V")
+  demand_matrices <- lapply(c("W", "V"), function(channel) {
+    matrix(
+      demand_totals[[channel]],
+      nrow = 1L,
+      dimnames = list(
+        paste0("STANDARD_", scope$country_iso3, "_", channel),
+        as.character(annual_years)
+      )
+    )
+  })
+  names(demand_matrices) <- c("W", "V")
+
+  if (dry_run) {
+    message(
+      "Single-component dry run passed for ", scope$country_iso3,
+      ". No files were installed."
+    )
+    return(invisible(list(
+      mode = "single_component",
+      scope = scope,
+      outputs = outputs,
+      w_component_index = component_indexes$W,
+      v_component_index = component_indexes$V,
+      w_demand_matrix = demand_matrices$W,
+      v_demand_matrix = demand_matrices$V
+    )))
+  }
+
+  staging_root <- tempfile("mofuss_single_component_install_")
+  if (!dir.create(staging_root, recursive = TRUE)) {
+    .idw6f_stop("Could not create staging directory: ", staging_root)
+  }
+  on.exit(unlink(staging_root, recursive = TRUE, force = TRUE), add = TRUE)
+  staged_paths <- character()
+  destinations <- character()
+
+  for (row_index in seq_len(nrow(outputs))) {
+    stage <- file.path(staging_root, basename(outputs$TargetPath[[row_index]]))
+    if (!isTRUE(file.copy(
+      outputs$ComponentPaths[[row_index]], stage, overwrite = FALSE
+    ))) {
+      .idw6f_stop(
+        "Could not stage standard IDW component: ",
+        outputs$ComponentPaths[[row_index]]
+      )
+    }
+    outputs$OutputSHA256[[row_index]] <- .idw6f_sha256(stage)
+    staged_paths <- c(staged_paths, stage)
+    destinations <- c(destinations, outputs$TargetPath[[row_index]])
+  }
+
+  demand_audits <- list()
+  for (channel in c("W", "V")) {
+    channel_audit <- vector("list", length(annual_years))
+    for (year_index in seq_along(annual_years)) {
+      stage <- file.path(
+        staging_root,
+        basename(origin_demand_targets[[channel]][[year_index]])
+      )
+      lookup <- data.frame(
+        Key = 1L,
+        Value = demand_totals[[channel]][[year_index]],
+        check.names = FALSE
+      )
+      write.csv(lookup, stage, row.names = FALSE, quote = TRUE, na = "")
+      staged_paths <- c(staged_paths, stage)
+      destinations <- c(
+        destinations, origin_demand_targets[[channel]][[year_index]]
+      )
+      channel_audit[[year_index]] <- data.frame(
+        Channel = channel,
+        Period = annual_periods[[year_index]],
+        Year = annual_years[[year_index]],
+        ComponentCount = 1L,
+        TotalDemandTons = lookup$Value,
+        TargetPath = .idw6f_normalize(
+          origin_demand_targets[[channel]][[year_index]], must_work = FALSE
+        ),
+        SHA256 = .idw6f_sha256(stage),
+        stringsAsFactors = FALSE,
+        check.names = FALSE
+      )
+    }
+    demand_audits[[channel]] <- do.call(rbind, channel_audit)
+  }
+
+  for (channel in c("W", "V")) {
+    stage <- file.path(staging_root, basename(component_index_targets[[channel]]))
+    write.csv(
+      component_indexes[[channel]], stage,
+      row.names = FALSE, quote = TRUE, na = ""
+    )
+    staged_paths <- c(staged_paths, stage)
+    destinations <- c(destinations, component_index_targets[[channel]])
+  }
+
+  staged_audit <- file.path(staging_root, basename(audit_path))
+  write.csv(outputs, staged_audit, row.names = FALSE, quote = TRUE, na = "")
+  staged_paths <- c(staged_paths, staged_audit)
+  destinations <- c(destinations, audit_path)
+
+  staged_readme <- file.path(staging_root, basename(readme_path))
+  writeLines(
+    c(
+      paste0(
+        "MoFuSS v11 single-component IDW installation for ",
+        scope$country_iso3
+      ),
+      "",
+      paste0("Configured scope: ", scope$byregion, "."),
+      paste0("Parameters: ", scope$parameters_path),
+      paste0(
+        "Installed standard IDW periods as component 001: ",
+        paste(sprintf("%02d", idw_periods), collapse = ", "), "."
+      ),
+      "No additional IDW calculation was performed.",
+      "Each component raster is a byte-for-byte copy of its standard top-level W or V IDW.",
+      "Annual W_origin_demandNN.csv and V_origin_demandNN.csv files contain one key and reproduce the standard demand lookup totals.",
+      "Use 10_dyn_Sc17_webmofuss_ctrees_g_v11.egoml with these installed single components."
+    ),
+    staged_readme,
+    useBytes = TRUE
+  )
+  staged_paths <- c(staged_paths, staged_readme)
+  destinations <- c(destinations, readme_path)
+
+  if (length(staged_paths) != length(destinations)) {
+    .idw6f_stop(
+      "Internal error: staged and destination file counts differ for ",
+      "single-component installation."
+    )
+  }
+  installed <- character()
+  staged_hashes <- vapply(staged_paths, .idw6f_sha256, character(1))
+  tryCatch(
+    {
+      for (index in seq_along(staged_paths)) {
+        dir.create(
+          dirname(destinations[[index]]),
+          recursive = TRUE,
+          showWarnings = FALSE
+        )
+        if (!isTRUE(file.copy(
+          staged_paths[[index]], destinations[[index]], overwrite = FALSE
+        ))) {
+          .idw6f_stop("Could not install: ", destinations[[index]])
+        }
+        installed <- c(installed, destinations[[index]])
+        if (!identical(
+          .idw6f_sha256(destinations[[index]]), staged_hashes[[index]]
+        )) {
+          .idw6f_stop(
+            "Installed checksum mismatch: ", destinations[[index]]
+          )
+        }
+      }
+    },
+    error = function(error) {
+      unlink(installed, force = TRUE)
+      stop(error)
+    }
+  )
+
+  message(
+    "Single-country IDW components installed successfully in ",
+    .idw6f_normalize(in_root), "."
+  )
+  message("Audit manifest: ", .idw6f_normalize(audit_path))
+  invisible(list(
+    mode = "single_component",
+    scope = scope,
+    outputs = outputs,
+    w_component_index = component_indexes$W,
+    v_component_index = component_indexes$V,
+    w_demand_matrix = demand_matrices$W,
+    v_demand_matrix = demand_matrices$V,
+    w_demand_audit = demand_audits$W,
+    v_demand_audit = demand_audits$V
+  ))
+}
+
 install_directional_idw_outputs <- function(
     run_root = .idw6f_resolve_run_root(),
     output_prefix = "idw_",
@@ -430,7 +1026,7 @@ install_directional_idw_outputs <- function(
   hc_root <- file.path(in_root, "DemandScenarios", "HC_jobs")
   manifest_path <- file.path(hc_root, "HC_job_manifest_idw_ready.csv")
   if (!file.exists(manifest_path)) {
-    .idw6f_stop("IDW-ready manifest does not exist: ", manifest_path)
+    return(.idw6f_install_single_component_outputs(run_root, dry_run))
   }
   manifest <- read.csv(
     manifest_path,

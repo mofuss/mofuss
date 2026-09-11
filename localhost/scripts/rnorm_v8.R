@@ -749,7 +749,9 @@ if (max_FOR!=0) {
         # Adjust the font size for the histogram titles
         cex_main1 <- 0.3 + (15 / max(nchar(lulc1_name), 15))
         
-        hist((r1*100),nclass=15,xlab="rmax",ylab="Frequency",main=lulc1_name,sub=expression("% yr"^{-1}*""),col="grey",cex.main = cex_main1)
+        if (CTrees == 0) {
+          hist((r1*100),nclass=15,xlab="rmax",ylab="Frequency",main=lulc1_name,sub=expression("% yr"^{-1}*""),col="grey",cex.main = cex_main1)
+        }
         
         r1<-as.data.frame(r1)
         colnames(r1)<-paste("LULC_rmax",LULC_ID_FOR,sep="")
@@ -794,7 +796,9 @@ if (max_FOR!=0) {
         # Adjust the font size for the histogram titles
         cex_main2 <- 0.3 + (15 / max(nchar(lulc2_name), 15))
         
-        hist(k1,nclass=15,xlab="K",ylab="Frequency",main=lulc2_name,sub=expression("tDM ha"^{-1}*""),col="grey",cex.main = cex_main2)
+        if (CTrees == 0) {
+          hist(k1,nclass=15,xlab="K",ylab="Frequency",main=lulc2_name,sub=expression("tDM ha"^{-1}*""),col="grey",cex.main = cex_main2)
+        }
         k1<-as.data.frame(k1)
         colnames(k1)<-paste("LULC_K",LULC_ID_FOR,sep="")
         k1=data.frame(Key=c(1:MC),k1) 
@@ -838,7 +842,9 @@ if (max_FOR!=0) {
         # Adjust the font size for the histogram titles
         cex_main3 <- 0.3 + (15 / max(nchar(lulc3_name), 15))
         
-        hist(st1,nclass=15,xlab="Initial Stock",ylab="Frequency",main=lulc3_name,sub=expression("tDM ha"^{-1}*""),col="grey", cex.main = cex_main3)
+        if (CTrees == 0) {
+          hist(st1,nclass=15,xlab="Initial Stock",ylab="Frequency",main=lulc3_name,sub=expression("tDM ha"^{-1}*""),col="grey", cex.main = cex_main3)
+        }
         st1<-as.data.frame(st1)
         colnames(st1)<-paste("LULC_IniSt",LULC_ID_FOR,sep="")
         st1=data.frame(Key=c(1:MC),st1) 

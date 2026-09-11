@@ -42,34 +42,24 @@ PIPELINE_BATCHES <- list(
       "GOG_1000m_ics3_2050_mc30_uncapped"
     )
   ),
-  madagascar = list(
-    enabled = FALSE,
-    root = "C:/Users/aghil/Documents/MoFuSS_localhost",
+  mdg = list(
+    enabled = TRUE,
+    root = "E:/",
     folders = c(
-      "mdg_1000m_bau1_2050_mc2_capped",
-      "mdg_1000m_bau1_2050_mc2_uncapped",
-      "mdg_1000m_ics3_2050_mc2_capped",
-      "mdg_1000m_ics3_2050_mc2_uncapped"
+      "mdg_1000m_bau1_2050_mc30_capped",
+      "mdg_1000m_bau1_2050_mc30_uncapped",
+      "mdg_1000m_ics3_2050_mc30_capped",
+      "mdg_1000m_ics3_2050_mc30_uncapped"
     )
   ),
-  kenya = list(
+  GLEA = list(
     enabled = FALSE,
-    root = "E:/",  # Set the folder containing these four runs before enabling.
+    root = "E:/",
     folders = c(
-      "ken_1000m_bau1_2050_mc30_capped",
-      "ken_1000m_bau1_2050_mc30_uncapped",
-      "ken_1000m_ics3_2050_mc30_capped",
-      "ken_1000m_ics3_2050_mc30_uncapped"
-    )
-  ),
-  rwanda = list(
-    enabled = FALSE,
-    root = "E:/",  # Set the folder containing these four runs before enabling.
-    folders = c(
-      "rwa_1000m_bau1_2050_mc30_capped",
-      "rwa_1000m_bau1_2050_mc30_uncapped",
-      "rwa_1000m_ics3_2050_mc30_capped",
-      "rwa_1000m_ics3_2050_mc30_uncapped"
+      "GLEA_1000m_bau1_2030_mc2_capped",
+      "GLEA_1000m_bau1_2030_mc2_uncapped",
+      "GLEA_1000m_ics3_2030_mc2_capped",
+      "GLEA_1000m_ics3_2030_mc2_uncapped"
     )
   )
 )

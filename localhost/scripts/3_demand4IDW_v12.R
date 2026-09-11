@@ -40,6 +40,52 @@ optimizeD = 0
 temdirdefined = 1
 cube_rasters = 0
 
+# Resolve the execution scope separately from the configured scope. A regional
+# label can legitimately contain only one country; in that case the demand
+# workflow must use the country path while preserving byregion == "Regional"
+# in the scenario configuration and metadata.
+.resolve_effective_demand_scope <- function(byregion, aoi_poly, mofuss_region,
+                                            regions0) {
+  result <- list(
+    effective_byregion = byregion,
+    mofuss_region = mofuss_region,
+    singleton_regional = FALSE,
+    country_ids = character()
+  )
+
+  if (!identical(byregion, "Regional") || as.integer(aoi_poly) != 0L) {
+    return(result)
+  }
+
+  required_fields <- c("GID_0", "mofuss_reg")
+  missing_fields <- setdiff(required_fields, names(regions0))
+  if (length(missing_fields) > 0L) {
+    stop(
+      "Cannot resolve the selected regional demand scope; missing fields: ",
+      paste(missing_fields, collapse = ", ")
+    )
+  }
+
+  selected_rows <- !is.na(regions0$mofuss_reg) &
+    grepl(mofuss_region, regions0$mofuss_reg)
+  country_ids <- unique(trimws(as.character(regions0$GID_0[selected_rows])))
+  country_ids <- country_ids[!is.na(country_ids) & nzchar(country_ids)]
+  if (length(country_ids) == 0L) {
+    stop(
+      "The selected regional demand scope matched no countries: ",
+      mofuss_region
+    )
+  }
+
+  result$country_ids <- country_ids
+  if (length(country_ids) == 1L) {
+    result$effective_byregion <- "Country"
+    result$mofuss_region <- country_ids[[1L]]
+    result$singleton_regional <- TRUE
+  }
+  result
+}
+
 # Load libraries ----
 library(conflicted)
 
@@ -146,9 +192,6 @@ urb_shift_factor <- country_parameters %>%
 country_parameters %>%
   dplyr::filter(Var == "byregion") %>%
   pull(ParCHR) -> byregion
-if (byregion != "Country") {
-  urb_shift_factor <- 1
-}
 
 country_parameters %>%
   dplyr::filter(Var == "subcountry") %>%
@@ -506,6 +549,27 @@ countries.list <- mofuss_regions0 %>%
   terra::unique() %>%
   arrange(NAME_0)
 
+effective_byregion <- byregion
+if (identical(byregion, "Regional") && as.integer(aoi_poly) == 0L) {
+  demand_scope <- .resolve_effective_demand_scope(
+    byregion = byregion,
+    aoi_poly = aoi_poly,
+    mofuss_region = mofuss_region,
+    regions0 = mofuss_regions0
+  )
+  effective_byregion <- demand_scope$effective_byregion
+  mofuss_region <- demand_scope$mofuss_region
+  if (isTRUE(demand_scope$singleton_regional)) {
+    message(
+      "Regional scope contains one country (", mofuss_region,
+      "); using Country demand behavior while keeping byregion = Regional."
+    )
+  }
+}
+if (!identical(effective_byregion, "Country")) {
+  urb_shift_factor <- 1
+}
+
 if (subcountry != 1) {
   
   totpopwfdb <- wfdb %>% 
@@ -584,7 +648,7 @@ if (aoi_poly == 1) {
   # lines(adm0_reg)
   # Sys.sleep(10)
   
-} else if (byregion == "Global" & aoi_poly == 0) {
+} else if (effective_byregion == "Global" & aoi_poly == 0) {
   print("***NOW RUNNING GLOBAL DEMAND SCENARIOS - Global***")
   adm0_reg <- mofuss_regions0_gpkg
   pop0_K <- crop(pop0, ext(adm0_reg) + .01)
@@ -597,7 +661,7 @@ if (aoi_poly == 1) {
   # plot(pop0_reg)
   # lines(adm0_reg)
   
-} else if (byregion == "Continental" & aoi_poly == 0) {
+} else if (effective_byregion == "Continental" & aoi_poly == 0) {
   print("***NOW RUNNING CONTINENTAL DEMAND SCENARIOS - Continental***")
   adm0_reg <- mofuss_regions0_gpkg %>%
     dplyr::filter(grepl(paste0(mofuss_region,"*"), mofuss_reg))
@@ -614,7 +678,7 @@ if (aoi_poly == 1) {
   # lines(adm0_reg)
   # Sys.sleep(10)
   
-} else if (byregion == "Regional" & aoi_poly == 0) {
+} else if (effective_byregion == "Regional" & aoi_poly == 0) {
   print("***NOW RUNNING REGION DEMAND SCENARIOS - Regional***")
   adm0_reg <- mofuss_regions0_gpkg %>% 
     dplyr::filter(grepl(mofuss_region, mofuss_reg))
@@ -631,7 +695,7 @@ if (aoi_poly == 1) {
   # lines(adm0_reg)
   # Sys.sleep(10)
   
-} else if (byregion == "Country" & aoi_poly == 0 & subcountry != 1) {
+} else if (effective_byregion == "Country" & aoi_poly == 0 & subcountry != 1) {
   print("***NOW RUNNING COUNTRY DEMAND SCENARIOS - Country***")
   adm0_reg <- mofuss_regions0_gpkg %>% 
     dplyr::filter(GID_0 == mofuss_region) # Check if multiple countries or values is doable
@@ -646,13 +710,13 @@ if (aoi_poly == 1) {
   # lines(adm0_reg)
   # Sys.sleep(10)
   
-} else if (byregion == "Country" & aoi_poly == 0 & subcountry == 1) { 
+} else if (effective_byregion == "Country" & aoi_poly == 0 & subcountry == 1) {
   print("***NOW RUNNING SUB-COUNTRY DEMAND SCENARIOS - Country***")
   # VERY IMPORTANT TO DEFINE A SOLID WORKFLOW FOR REGIONALIZING COUNTRIES, e.g. Zambia
   
-  country_parameters %>%
-    dplyr::filter(Var == "region2BprocessedCtry_iso") %>%
-    pull(ParCHR) -> region2BprocessedCtry_iso
+  # For an ordinary Country run this is the configured country ISO. For a
+  # singleton Regional run it is the ISO resolved from the regional boundary.
+  region2BprocessedCtry_iso <- mofuss_region
   
   mofuss_regions2_gpkg <- vect(st_read("demand_in/mofuss_regions2.gpkg"))
   mofuss_regions2 <- as.data.frame(mofuss_regions2_gpkg)
@@ -1693,7 +1757,8 @@ if (optimizeD == 1) {
   keep(annos, optimizeD, , country, countrydir, #endpath,
        githubdir, country, countrydir, demanddir, admindir, emissionsdir, rTempdir, 
        proj_gcs, epsg_gcs, proj_pcs, epsg_pcs, proj_authority, GEE_scale,
-       byregion, scenario_ver, pop_ver, mofuss_region, adm0_reg, aoi_poly,
+       byregion, effective_byregion, scenario_ver, pop_ver, mofuss_region,
+       adm0_reg, aoi_poly,
        rTempdir, .validate_location_id_raster, .preserve_projected_stack_mass,
        sure=TRUE) # shows you which variables will not be removed
   ls()
@@ -1842,7 +1907,8 @@ if (optimizeD == 1) {
   keep(annos, optimizeD, , country, countrydir, #endpath,
        githubdir, country, countrydir, demanddir, admindir, emissionsdir, rTempdir, 
        proj_gcs, epsg_gcs, proj_pcs, epsg_pcs, proj_authority, GEE_scale,
-       byregion, scenario_ver, pop_ver, mofuss_region, adm0_reg, aoi_poly,
+       byregion, effective_byregion, scenario_ver, pop_ver, mofuss_region,
+       adm0_reg, aoi_poly,
        wf_w_db4idw, target_colsw, rTempdir, .validate_location_id_raster,
        .preserve_projected_stack_mass,
        sure=TRUE)
@@ -2163,7 +2229,7 @@ wf_v_db4idw %>%
 directional_hc_jobs_created <- FALSE
 hc_jobs_dir <- file.path("to_idw", "HC_jobs")
 
-if (identical(byregion, "Regional") && as.integer(aoi_poly) == 0L) {
+if (identical(effective_byregion, "Regional") && as.integer(aoi_poly) == 0L) {
   required_direction_fields <- c(
     "GID_0", "NAME_0", "mofuss_reg", "Subregion", "RunCode", "CandidateID",
     "CandidateRegionID", "ImporterV", "EvidenceConfidence", "Status"

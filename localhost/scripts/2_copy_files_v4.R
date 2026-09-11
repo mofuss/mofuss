@@ -338,11 +338,52 @@ demandtables2copy <- list.files(
   pattern = "\\.csv$|\\.xlsx$|\\.ods$",
   full.names = TRUE)
 
-dir.create(paste0(demanddir,"/demand_in"), recursive =TRUE)
+.copy_admin_region_indexes <- function(admin_dir, demand_input_dir) {
+  region_filenames <- paste0("mofuss_regions", 0:2, ".gpkg")
+  region_sources <- file.path(
+    admin_dir,
+    paste0("regions_adm", 0:2),
+    region_filenames
+  )
+  missing_sources <- region_sources[!file.exists(region_sources)]
+  if (length(missing_sources) > 0L) {
+    stop(
+      "Missing required administrative region GeoPackage(s): ",
+      paste(missing_sources, collapse = ", ")
+    )
+  }
+
+  dir.create(demand_input_dir, recursive = TRUE, showWarnings = FALSE)
+  region_destinations <- file.path(demand_input_dir, region_filenames)
+  copy_succeeded <- file.copy(
+    from = region_sources,
+    to = region_destinations,
+    overwrite = TRUE,
+    copy.mode = TRUE
+  )
+  if (any(!copy_succeeded)) {
+    stop(
+      "Could not copy administrative region GeoPackage(s): ",
+      paste(region_sources[!copy_succeeded], collapse = ", ")
+    )
+  }
+
+  cat(
+    "Administrative region GeoPackages copied to demand_in:\n",
+    paste(region_destinations, collapse = "\n"),
+    "\n",
+    sep = ""
+  )
+  invisible(region_destinations)
+}
+
+demand_input_dir <- file.path(demanddir, "demand_in")
+dir.create(demand_input_dir, recursive = TRUE, showWarnings = FALSE)
+.copy_admin_region_indexes(admindir, demand_input_dir)
 for (dem in demandtables2copy) {
   file.copy(from=dem, 
             
-            to=paste0(demanddir,"/demand_in"), 
+            to=demand_input_dir,
             overwrite = TRUE, recursive = TRUE, copy.mode = TRUE)
 }
 

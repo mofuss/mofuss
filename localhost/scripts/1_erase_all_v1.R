@@ -46,6 +46,46 @@ demand_base <- if (dir.exists(file.path(base_path, "demand100m"))) {
 } else {
   file.path(base_path, "demand")
 }
+demand_input_dir <- file.path(demand_base, "demand_in")
+
+.clean_demand_input_preserving_wp <- function(path) {
+  if (!dir.exists(path)) {
+    return(invisible(character()))
+  }
+
+  entries <- list.files(
+    path,
+    all.files = TRUE,
+    full.names = TRUE,
+    no.. = TRUE
+  )
+  entries_to_remove <- entries[!startsWith(basename(entries), "wp_")]
+
+  if (length(entries_to_remove) > 0L) {
+    cat(
+      "Deleting demand-input entries (preserving names beginning with wp_):\n",
+      paste(entries_to_remove, collapse = "\n"),
+      "\n",
+      sep = ""
+    )
+    invisible(lapply(
+      entries_to_remove,
+      unlink,
+      recursive = TRUE,
+      force = TRUE
+    ))
+  }
+
+  failed_removals <- entries_to_remove[file.exists(entries_to_remove)]
+  if (length(failed_removals) > 0L) {
+    stop(
+      "Could not remove demand-input entry or entries: ",
+      paste(failed_removals, collapse = ", ")
+    )
+  }
+
+  invisible(entries_to_remove)
+}
 
 # Define directories to remove ----
 directories_to_remove <- c(
@@ -88,15 +128,9 @@ latex_patterns_to_remove <- c(
   "LaTeX//SimLength.txt", "LaTeX//MCruns.txt"
 )
 
-# detect demand folder level for LULCC patterns too
-lulcc_demand_path <- demand_base  # same auto-detected path
-
 lulcc_patterns_to_remove <- c(
   "LULCC//*.Rout", "LULCC//*.csv", "LULCC//*.egoml", 
-  "LULCC//*.bat", "LULCC//*.sh",
-  file.path(lulcc_demand_path, "demand_in", "*.xlsx"),
-  file.path(lulcc_demand_path, "demand_in", "*.csv"),
-  file.path(lulcc_demand_path, "demand_in", "*.ods")
+  "LULCC//*.bat", "LULCC//*.sh"
 )
 
 # Remove directories and files ----
@@ -105,6 +139,7 @@ lapply(existing_dirs, unlink, recursive = TRUE, force = TRUE)
 lapply(file_patterns_to_remove, unlink, force = TRUE)
 lapply(latex_patterns_to_remove, unlink, force = TRUE)
 lapply(lulcc_patterns_to_remove, unlink, force = TRUE)
+.clean_demand_input_preserving_wp(demand_input_dir)
 
 cat("✅ Cleanup completed successfully.\n")
 
