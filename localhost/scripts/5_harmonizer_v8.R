@@ -1030,6 +1030,144 @@ as_analysis_vector <- function(x, object_name) {
   x
 }
 
+.demand_origin_bounds_or_stop <- function(
+    location_path,
+    analysis_crs,
+    label) {
+  if (!file.exists(location_path)) {
+    stop(label, " does not exist: ", location_path)
+  }
+
+  location_raster <- terra::rast(location_path)
+  if (terra::nlyr(location_raster) != 1L) {
+    stop(label, " must contain exactly one raster layer.")
+  }
+  location_crs <- terra::crs(location_raster)
+  if (is.na(location_crs) || !nzchar(location_crs)) {
+    stop(label, " has no CRS; its origins cannot define the analysis grid.")
+  }
+
+  location_values <- terra::values(location_raster, mat = FALSE)
+  location_cells <- which(!is.na(location_values))
+  if (length(location_cells) == 0L) {
+    stop(label, " contains no demand origins.")
+  }
+  location_xy <- terra::xyFromCell(location_raster, location_cells)
+  if (!terra::same.crs(location_raster, analysis_crs)) {
+    location_xy <- terra::project(
+      location_xy,
+      location_crs,
+      analysis_crs
+    )
+  }
+  if (any(!is.finite(location_xy))) {
+    stop(label, " contains demand origins that cannot be projected safely.")
+  }
+
+  c(
+    xmin = min(location_xy[, 1L]),
+    xmax = max(location_xy[, 1L]),
+    ymin = min(location_xy[, 2L]),
+    ymax = max(location_xy[, 2L])
+  )
+}
+
+.analysis_extent_with_demand_origins <- function(
+    userarea_extent,
+    grid_origin,
+    resolution,
+    analysis_crs,
+    location_paths) {
+  if (length(location_paths) == 0L) {
+    stop("At least one demand-location raster is required to define the grid.")
+  }
+  location_labels <- names(location_paths)
+  if (is.null(location_labels)) {
+    location_labels <- basename(location_paths)
+  }
+  empty_labels <- is.na(location_labels) | !nzchar(location_labels)
+  location_labels[empty_labels] <- basename(location_paths[empty_labels])
+
+  location_bounds <- do.call(rbind, lapply(seq_along(location_paths), function(i) {
+    .demand_origin_bounds_or_stop(
+      location_paths[[i]],
+      analysis_crs,
+      location_labels[[i]]
+    )
+  }))
+
+  demand_bounds <- c(
+    xmin = min(location_bounds[, "xmin"]),
+    xmax = max(location_bounds[, "xmax"]),
+    ymin = min(location_bounds[, "ymin"]),
+    ymax = max(location_bounds[, "ymax"])
+  )
+  extent_overrun <- unname(c(
+    max(userarea_extent$xmin - demand_bounds[["xmin"]], 0),
+    max(demand_bounds[["xmax"]] - userarea_extent$xmax, 0),
+    max(userarea_extent$ymin - demand_bounds[["ymin"]], 0),
+    max(demand_bounds[["ymax"]] - userarea_extent$ymax, 0)
+  ))
+  names(extent_overrun) <- c("west", "east", "south", "north")
+  fringe_tolerance <- sqrt(2) * resolution * 1.01
+  if (any(extent_overrun > fringe_tolerance)) {
+    stop(
+      "Demand-origin extent exceeds the selected analysis area by more than ",
+      "the permitted one-cell diagonal (", round(fringe_tolerance, 2),
+      " map units): ",
+      paste(
+        names(extent_overrun), round(extent_overrun, 2),
+        collapse = ", "
+      ),
+      ". This indicates a region or raster alignment error."
+    )
+  }
+
+  align_extent <- function(xmin, xmax, ymin, ymax) {
+    terra::ext(
+      grid_origin[[1L]] +
+        floor((xmin - grid_origin[[1L]]) / resolution) * resolution,
+      grid_origin[[1L]] +
+        ceiling((xmax - grid_origin[[1L]]) / resolution) * resolution,
+      grid_origin[[2L]] +
+        floor((ymin - grid_origin[[2L]]) / resolution) * resolution,
+      grid_origin[[2L]] +
+        ceiling((ymax - grid_origin[[2L]]) / resolution) * resolution
+    )
+  }
+
+  aoi_aligned_extent <- align_extent(
+    userarea_extent$xmin,
+    userarea_extent$xmax,
+    userarea_extent$ymin,
+    userarea_extent$ymax
+  )
+  analysis_extent <- align_extent(
+    min(userarea_extent$xmin, demand_bounds[["xmin"]]),
+    max(userarea_extent$xmax, demand_bounds[["xmax"]]),
+    min(userarea_extent$ymin, demand_bounds[["ymin"]]),
+    max(userarea_extent$ymax, demand_bounds[["ymax"]])
+  )
+
+  added_cells <- unname(c(
+    round((aoi_aligned_extent$xmin - analysis_extent$xmin) / resolution),
+    round((analysis_extent$xmax - aoi_aligned_extent$xmax) / resolution),
+    round((aoi_aligned_extent$ymin - analysis_extent$ymin) / resolution),
+    round((analysis_extent$ymax - aoi_aligned_extent$ymax) / resolution)
+  ))
+  names(added_cells) <- c("west", "east", "south", "north")
+  if (any(added_cells > 0L)) {
+    message(
+      "Expanded the analysis-grid extent to retain one-cell-fringe demand ",
+      "origins (added cells: ",
+      paste(names(added_cells), added_cells, collapse = ", "),
+      ")."
+    )
+  }
+
+  analysis_extent
+}
+
 userarea_v <- as_analysis_vector(userarea, "userarea")
 mask_v <- as_analysis_vector(mask, "mask")
 ecoregions_v <- as_analysis_vector(ecoregions0, "ecoregions")
@@ -1062,11 +1200,17 @@ if (length(grid_reference_name) == 1L && file.exists(grid_reference_path)) {
 }
 
 userarea_extent <- terra::ext(userarea_v)
-aligned_extent <- terra::ext(
-  grid_origin[[1]] + floor((userarea_extent$xmin - grid_origin[[1]]) / resolution) * resolution,
-  grid_origin[[1]] + ceiling((userarea_extent$xmax - grid_origin[[1]]) / resolution) * resolution,
-  grid_origin[[2]] + floor((userarea_extent$ymin - grid_origin[[2]]) / resolution) * resolution,
-  grid_origin[[2]] + ceiling((userarea_extent$ymax - grid_origin[[2]]) / resolution) * resolution
+aligned_extent <- .analysis_extent_with_demand_origins(
+  userarea_extent = userarea_extent,
+  grid_origin = grid_origin,
+  resolution = resolution,
+  analysis_crs = analysis_crs,
+  location_paths = c(
+    "top-level W raw location raster" =
+      "In/DemandScenarios/locs_raster_w.tif",
+    "top-level V raw location raster" =
+      "In/DemandScenarios/locs_raster_v.tif"
+  )
 )
 
 # Convert vector to SpatRaster with the configured projected resolution.
@@ -1084,8 +1228,9 @@ userarea_ras <- rasterize(
     pull(ParCHR)
 )
 
-# Crop and mask the raster
-userarea_r_m <- mask(crop(userarea_ras, mask_v), mask_v)
+# Mask without cropping so any edge cells required by one-cell-fringe demand
+# origins remain part of the authoritative analysis-grid geometry.
+userarea_r_m <- mask(userarea_ras, mask_v)
 
 # # Ensure the CRS is maintained
 # crs(userarea_r_m) <- paste0("+",proj_pcs)
@@ -1154,7 +1299,7 @@ if (aoi_poly != 1) {
       pull(ParCHR)
   )
   
-  userarea_r_m1 <- mask(crop(userarea_ras1, mask_v), mask_v)
+  userarea_r_m1 <- mask(userarea_ras1, mask_v)
   userarea_r1 <- (userarea_r_m1 * 0) + 1
 
   writeRaster(userarea_r1, filename = "LULCC/TempRaster/mask_c1.tif", 
@@ -1180,7 +1325,7 @@ if (aoi_poly != 1) {
       pull(ParCHR)
   )
 
-  userarea_r_m2 <- mask(crop(userarea_ras2, mask_v), mask_v)
+  userarea_r_m2 <- mask(userarea_ras2, mask_v)
   userarea_r2 <- (userarea_r_m2 * 0) + 1
 
   writeRaster(userarea_r2, filename = "LULCC/TempRaster/mask_c2.tif", 

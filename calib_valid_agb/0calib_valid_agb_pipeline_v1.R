@@ -34,46 +34,36 @@ PIPELINE_BATCHES <- list(
     enabled = TRUE,
     root = "E:/",
     folders = c(
-      "GOG_1000m_bau1_2050_mc30_capped",
-      "GOG_1000m_bau1_2050_mc30_uncapped",
-      "GOG_1000m_ics3_2050_mc30_capped",
-      "GOG_1000m_ics3_2050_mc30_uncapped"
+      "GOG_1000m_bau1_2050_mc3_capped",
+      "GOG_1000m_bau1_2050_mc3_uncapped",
+      "GOG_1000m_ics3_2050_mc3_capped",
+      "GOG_1000m_ics3_2050_mc3_uncapped"
     )
   ),
-  madagascar = list(
-    enabled = FALSE,
-    root = "C:/Users/aghil/Documents/MoFuSS_localhost",
+  mdg = list(
+    enabled = TRUE,
+    root = "E:/",
     folders = c(
-      "mdg_1000m_bau1_2050_mc2_capped",
-      "mdg_1000m_bau1_2050_mc2_uncapped",
-      "mdg_1000m_ics3_2050_mc2_capped",
-      "mdg_1000m_ics3_2050_mc2_uncapped"
+      "mdg_1000m_bau1_2050_mc3_capped",
+      "mdg_1000m_bau1_2050_mc3_uncapped",
+      "mdg_1000m_ics3_2050_mc3_capped",
+      "mdg_1000m_ics3_2050_mc3_uncapped"
     )
   ),
-  kenya = list(
-    enabled = FALSE,
-    root = "E:/",  # Set the folder containing these four runs before enabling.
+  GLEA = list(
+    enabled = TRUE,
+    root = "E:/",
     folders = c(
-      "ken_1000m_bau1_2050_mc30_capped",
-      "ken_1000m_bau1_2050_mc30_uncapped",
-      "ken_1000m_ics3_2050_mc30_capped",
-      "ken_1000m_ics3_2050_mc30_uncapped"
-    )
-  ),
-  rwanda = list(
-    enabled = FALSE,
-    root = "E:/",  # Set the folder containing these four runs before enabling.
-    folders = c(
-      "rwa_1000m_bau1_2050_mc30_capped",
-      "rwa_1000m_bau1_2050_mc30_uncapped",
-      "rwa_1000m_ics3_2050_mc30_capped",
-      "rwa_1000m_ics3_2050_mc30_uncapped"
+      "GLEA_1000m_bau1_2050_mc3_capped",
+      "GLEA_1000m_bau1_2050_mc3_uncapped",
+      "GLEA_1000m_ics3_2050_mc3_capped",
+      "GLEA_1000m_ics3_2050_mc3_uncapped"
     )
   )
 )
 
 # Run all stages in order. Use 2:3, for example, to resume at Stage 2.
-PIPELINE_STAGES <- 2:3
+PIPELINE_STAGES <- 1:3
 
 # Used in the versioned analysis-root name and aligned with emissions
 # postprocessing. It does not define the empirical validation window.

@@ -36,36 +36,36 @@ PIPELINE_BATCHES <- list(
     enabled = TRUE,
     root = "E:/",
     folders = c(
-      "GOG_1000m_bau1_2050_mc30_capped",
-      "GOG_1000m_bau1_2050_mc30_uncapped",
-      "GOG_1000m_ics3_2050_mc30_capped",
-      "GOG_1000m_ics3_2050_mc30_uncapped"
+      "GOG_1000m_bau1_2050_mc3_capped",
+      "GOG_1000m_bau1_2050_mc3_uncapped",
+      "GOG_1000m_ics3_2050_mc3_capped",
+      "GOG_1000m_ics3_2050_mc3_uncapped"
     )
   ),
   mdg = list(
     enabled = TRUE,
     root = "E:/",
     folders = c(
-      "mdg_1000m_bau1_2050_mc30_capped",
-      "mdg_1000m_bau1_2050_mc30_uncapped",
-      "mdg_1000m_ics3_2050_mc30_capped",
-      "mdg_1000m_ics3_2050_mc30_uncapped"
+      "mdg_1000m_bau1_2050_mc3_capped",
+      "mdg_1000m_bau1_2050_mc3_uncapped",
+      "mdg_1000m_ics3_2050_mc3_capped",
+      "mdg_1000m_ics3_2050_mc3_uncapped"
     )
   ),
   GLEA = list(
-    enabled = FALSE,
+    enabled = TRUE,
     root = "E:/",
     folders = c(
-      "GLEA_1000m_bau1_2030_mc2_capped",
-      "GLEA_1000m_bau1_2030_mc2_uncapped",
-      "GLEA_1000m_ics3_2030_mc2_capped",
-      "GLEA_1000m_ics3_2030_mc2_uncapped"
+      "GLEA_1000m_bau1_2050_mc3_capped",
+      "GLEA_1000m_bau1_2050_mc3_uncapped",
+      "GLEA_1000m_ics3_2050_mc3_capped",
+      "GLEA_1000m_ics3_2050_mc3_uncapped"
     )
   )
 )
 
 # Run all stages in order. Use, for example, 3:4 to resume at Stage 3.
-PIPELINE_STAGES <- 2:5
+PIPELINE_STAGES <- 1:5
 
 # Stage 1: character() retains the v9 default multi-period/snapshot schedule.
 # Otherwise supply one or more explicit periods, for example c("2026:2050").
@@ -84,7 +84,7 @@ PIPELINE_MAKE_DECOMPOSITION_PLOT <- TRUE
 # MC2 is suitable for mechanics testing, not manuscript uncertainty. Keeping
 # this at 30 makes Stage 4 publish only MC1 manuscript outputs for MC2 batches;
 # MC-all tables, figures, and rasters begin at this run-count threshold.
-PIPELINE_MIN_UNCERTAINTY_RUNS <- 30L
+PIPELINE_MIN_UNCERTAINTY_RUNS <- 3L
 
 # TRUE rebuilds each stage's exact, guarded output folder.
 PIPELINE_CLEAN_REBUILD <- TRUE
