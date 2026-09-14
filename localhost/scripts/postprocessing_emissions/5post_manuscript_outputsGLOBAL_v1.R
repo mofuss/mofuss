@@ -24,14 +24,15 @@
 # into a Global South manuscript package without rerunning MoFuSS.
 #
 # Input contract:
-# - An explicit manifest with one row per included analysis root.
-# - Stage 3 country-per-run decomposition data. A legacy regional per-run file
-#   is accepted only for one-country analysis roots.
+# - An analysis parent whose immediate child folders are auto-discovered when
+#   they contain exactly one Stage 3 country-per-run decomposition table.
+# - Stage 3 country-per-run decomposition data for every discovered root.
 # - Stage 4 capped and uncapped MC-all Total mean rasters for spatial panels.
 # - The canonical M67/GME regionalization CSVs for coverage validation.
 #
 # Modes:
-# - partial: writes visibly labelled preliminary outputs and a coverage report.
+# - partial: writes visibly labelled preliminary outputs and records the
+#   resulting coverage gap.
 # - strict: requires complete canonical coverage, final partition inputs, and
 #   the configured minimum Monte Carlo run count.
 #
@@ -75,10 +76,11 @@ METRIC_LABELS <- c(
 )
 FIGURE_DPI <- 300L
 MAP_DISPLAY_CRS <- "EPSG:8857"
+MAP_EXTENT_PADDING_FRACTION <- 0.03
 
 # RStudio/source defaults are intentionally NULL so stale machine-specific
 # paths cannot be used accidentally.
-V1_RSTUDIO_MANIFEST <- NULL
+V1_RSTUDIO_ANALYSIS_PARENT <- NULL
 V1_RSTUDIO_OUTPUT_DIR <- NULL
 V1_RSTUDIO_TEMP_DIR <- NULL
 V1_RSTUDIO_MODE <- "partial"
@@ -121,7 +123,7 @@ repository_root <- normalizePath(
 )
 
 if (source_mode) {
-  manifest_arg <- V1_RSTUDIO_MANIFEST
+  analysis_parent_arg <- V1_RSTUDIO_ANALYSIS_PARENT
   output_dir_arg <- V1_RSTUDIO_OUTPUT_DIR
   temp_dir_arg <- V1_RSTUDIO_TEMP_DIR
   run_mode <- V1_RSTUDIO_MODE
@@ -132,7 +134,7 @@ if (source_mode) {
   overwrite <- isTRUE(V1_RSTUDIO_CLEAN_REBUILD)
   regionalization_dir_arg <- file.path(repository_root, "admin_regions")
 } else {
-  manifest_arg <- arg_value("manifest")
+  analysis_parent_arg <- arg_value("analysis-parent")
   output_dir_arg <- arg_value("output-dir")
   temp_dir_arg <- arg_value("temp-dir")
   run_mode <- tolower(arg_value("mode", "strict"))
@@ -146,9 +148,6 @@ if (source_mode) {
   )
 }
 
-if (is.null(manifest_arg) || !nzchar(manifest_arg)) {
-  stopf("Required argument missing: --manifest=<CSV>")
-}
 if (is.null(output_dir_arg) || !nzchar(output_dir_arg)) {
   stopf("Required argument missing: --output-dir=<manuscript_outputs>")
 }
@@ -169,8 +168,23 @@ if (!is.finite(global_resamples) || global_resamples < 1000L) {
 }
 if (!is.finite(random_seed)) stopf("--random-seed must be an integer.")
 
-manifest_path <- normalizePath(manifest_arg, winslash = "/", mustWork = TRUE)
 output_dir <- normalizePath(output_dir_arg, winslash = "/", mustWork = FALSE)
+analysis_parent_missing <- is.null(analysis_parent_arg) || (
+  length(analysis_parent_arg) == 1L && !is.na(analysis_parent_arg) &&
+    !nzchar(trimws(as.character(analysis_parent_arg)))
+)
+if (!analysis_parent_missing &&
+    (length(analysis_parent_arg) != 1L || is.na(analysis_parent_arg))) {
+  stopf("--analysis-parent must be one existing directory path.")
+}
+analysis_parent <- if (analysis_parent_missing) {
+  normalizePath(dirname(dirname(output_dir)), winslash = "/", mustWork = TRUE)
+} else {
+  normalizePath(
+    path.expand(trimws(as.character(analysis_parent_arg))),
+    winslash = "/", mustWork = TRUE
+  )
+}
 temp_dir <- normalizePath(temp_dir_arg, winslash = "/", mustWork = FALSE)
 regionalization_dir <- normalizePath(
   regionalization_dir_arg, winslash = "/", mustWork = TRUE
@@ -206,6 +220,9 @@ if (root_like(output_dir) || root_like(dirname(output_dir)) ||
 if (is_descendant(output_dir, repository_root)) {
   stopf("Global manuscript outputs must not be stored in the source repository: %s", output_dir)
 }
+if (!dir.exists(analysis_parent)) {
+  stopf("Analysis parent does not exist: %s", analysis_parent)
+}
 
 dir.create(temp_dir, recursive = TRUE, showWarnings = FALSE)
 if (!dir.exists(temp_dir)) stopf("Could not create temporary directory: %s", temp_dir)
@@ -232,65 +249,148 @@ same_number <- function(a, b, tolerance = 1e-7) {
   isTRUE(all.equal(as.numeric(a), as.numeric(b), tolerance = tolerance))
 }
 
-manifest <- read_csv_required(manifest_path, "global analysis manifest")
+regionalization_path <- file.path(
+  regionalization_dir, "regionalization_M67_GME_V2.csv"
+)
+regionalization <- read_csv_required(
+  regionalization_path, "canonical M67/GME regionalization"
+)
 require_columns(
-  manifest,
+  regionalization,
   c(
-    "include", "analysis_id", "subregion_number", "subregion_name",
-    "macroregion", "partition_status", "expected_country_count", "analysis_root"
+    "CandidateID", "MajorRegion", "CandidateRegionID", "RunCode",
+    "Subregion", "GID_0", "NAME_0", "ImporterV", "Status"
   ),
-  "Global analysis manifest"
+  "Canonical M67/GME regionalization"
 )
-manifest$include <- as.logical(manifest$include)
-if (anyNA(manifest$include)) stopf("Manifest include values must be TRUE or FALSE.")
-manifest <- manifest[manifest$include, , drop = FALSE]
-if (!nrow(manifest)) stopf("Manifest contains no included analysis roots.")
-manifest$subregion_number <- ifelse(
-  is.na(manifest$subregion_number), "", as.character(manifest$subregion_number)
-)
-if (any(!nzchar(trimws(manifest$analysis_id))) || anyDuplicated(manifest$analysis_id)) {
-  stopf("Included manifest analysis_id values must be nonempty and unique.")
-}
-manifest$analysis_root <- vapply(manifest$analysis_root, function(path) {
-  normalizePath(path, winslash = "/", mustWork = TRUE)
-}, character(1))
-if (anyDuplicated(vapply(manifest$analysis_root, path_key, character(1), TRUE))) {
-  stopf("The same analysis_root appears more than once in the manifest.")
-}
-manifest$expected_country_count <- suppressWarnings(as.integer(manifest$expected_country_count))
-if (any(!is.finite(manifest$expected_country_count)) ||
-    any(manifest$expected_country_count < 1L)) {
-  stopf("Manifest expected_country_count values must be positive integers.")
-}
-if (run_mode == "strict" && any(manifest$partition_status != "final")) {
-  stopf("Strict mode accepts only manifest rows with partition_status=final.")
-}
-
-regionalization_paths <- Sys.glob(file.path(
-  regionalization_dir, "subregions*_M67_GME_V2.csv"
+regionalization$GID_0 <- toupper(trimws(as.character(regionalization$GID_0)))
+regionalization$MajorRegion <- trimws(as.character(regionalization$MajorRegion))
+regionalization$CandidateRegionID <- trimws(as.character(
+  regionalization$CandidateRegionID
 ))
-if (!length(regionalization_paths)) {
-  stopf("No canonical M67/GME regionalization CSVs found in %s", regionalization_dir)
-}
-regionalization_optional_columns <- c(
-  "RunCode", "CandidateID", "CandidateRegionID", "ImporterV", "Status"
-)
-regionalization <- do.call(rbind, lapply(regionalization_paths, function(path) {
-  x <- read_csv_required(path, basename(path))
-  require_columns(x, c("Subregion", "GID_0", "NAME_0"), basename(path))
-  for (column in regionalization_optional_columns) {
-    if (!column %in% names(x)) x[[column]] <- NA_character_
-  }
-  x$regionalization_file <- basename(path)
-  x[c(
-    "Subregion", "GID_0", "NAME_0", regionalization_optional_columns,
-    "regionalization_file"
-  )]
-}))
+regionalization$RunCode <- trimws(as.character(regionalization$RunCode))
+regionalization$Subregion <- trimws(as.character(regionalization$Subregion))
+regionalization$regionalization_file <- basename(regionalization_path)
 if (anyDuplicated(regionalization$GID_0)) {
   duplicates <- unique(regionalization$GID_0[duplicated(regionalization$GID_0)])
   stopf("Canonical regionalization repeats country ISO codes: %s", paste(duplicates, collapse = ", "))
 }
+
+# Auto-discover completed regional/country analyses. An immediate child folder
+# qualifies only when Stage 3 has written exactly one country-per-run table.
+candidate_roots <- list.dirs(
+  analysis_parent, full.names = TRUE, recursive = FALSE
+)
+candidate_roots <- vapply(
+  candidate_roots, normalizePath, character(1), winslash = "/", mustWork = TRUE
+)
+country_per_run_candidates <- lapply(candidate_roots, function(root) {
+  Sys.glob(file.path(
+    root, "agb_decomposition", "agb_decomposition_by_country_per_run_*.csv"
+  ))
+})
+has_country_data <- lengths(country_per_run_candidates) > 0L
+candidate_roots <- candidate_roots[has_country_data]
+country_per_run_candidates <- country_per_run_candidates[has_country_data]
+if (!length(candidate_roots)) {
+  stopf(
+    "No completed Stage 3 analysis roots were discovered directly below %s",
+    analysis_parent
+  )
+}
+ambiguous_roots <- candidate_roots[lengths(country_per_run_candidates) != 1L]
+if (length(ambiguous_roots)) {
+  stopf(
+    "Discovered analysis root(s) do not contain exactly one country-per-run table: %s",
+    paste(ambiguous_roots, collapse = ", ")
+  )
+}
+
+major_region_labels <- c(
+  SSA = "Sub-Saharan Africa",
+  LATAM = "Latin America and the Caribbean",
+  ASIA = "Asia",
+  OCEANIA = "Oceania",
+  NorAfr = "North Africa"
+)
+manifest <- do.call(rbind, lapply(seq_along(candidate_roots), function(i) {
+  root <- candidate_roots[[i]]
+  per_run_path <- normalizePath(
+    country_per_run_candidates[[i]][[1L]], winslash = "/", mustWork = TRUE
+  )
+  preview <- read_csv_required(
+    per_run_path, sprintf("%s country per-run data", basename(root))
+  )
+  require_columns(
+    preview,
+    c("country_iso", "country_name", "analysis_area_id", "analysis_area_name"),
+    basename(per_run_path)
+  )
+  country_isos <- sort(unique(toupper(trimws(as.character(preview$country_iso)))))
+  if (!length(country_isos) || anyNA(country_isos) || any(!nzchar(country_isos))) {
+    stopf("Discovered analysis root has invalid country ISO codes: %s", root)
+  }
+  unknown <- setdiff(country_isos, regionalization$GID_0)
+  if (length(unknown)) {
+    stopf(
+      "Discovered analysis root %s contains countries absent from the canonical regionalization: %s",
+      root, paste(unknown, collapse = ", ")
+    )
+  }
+  metadata <- regionalization[match(country_isos, regionalization$GID_0), ]
+  metadata_fields <- c(
+    "MajorRegion", "CandidateRegionID", "RunCode", "Subregion"
+  )
+  metadata_values <- lapply(metadata[metadata_fields], unique)
+  if (any(vapply(metadata_values, length, integer(1)) != 1L)) {
+    stopf(
+      "Discovered analysis root spans more than one canonical subregion: %s",
+      root
+    )
+  }
+  analysis_ids <- unique(trimws(as.character(preview$analysis_area_id)))
+  if (length(analysis_ids) != 1L || is.na(analysis_ids) || !nzchar(analysis_ids)) {
+    stopf("Discovered analysis root has no unique analysis_area_id: %s", root)
+  }
+  candidate_region_id <- metadata_values$CandidateRegionID[[1L]]
+  subregion_number <- suppressWarnings(as.integer(sub(
+    "^M67_([0-9]+).*$", "\\1", candidate_region_id
+  )))
+  if (!is.finite(subregion_number)) subregion_number <- NA_integer_
+  canonical_members <- sort(regionalization$GID_0[
+    regionalization$CandidateRegionID == candidate_region_id
+  ])
+  major_region <- metadata_values$MajorRegion[[1L]]
+  macroregion <- unname(major_region_labels[[major_region]])
+  if (is.null(macroregion) || is.na(macroregion)) macroregion <- major_region
+  data.frame(
+    include = TRUE,
+    analysis_id = toupper(analysis_ids[[1L]]),
+    subregion_number = subregion_number,
+    subregion_name = metadata_values$Subregion[[1L]],
+    macroregion = macroregion,
+    partition_status = if (setequal(country_isos, canonical_members)) {
+      "final"
+    } else {
+      "development_component"
+    },
+    expected_country_count = length(country_isos),
+    analysis_root = root,
+    per_run_path = per_run_path,
+    discovery_source = "auto_discovered_country_per_run",
+    stringsAsFactors = FALSE
+  )
+}))
+manifest <- manifest[order(manifest$subregion_name, manifest$analysis_id), , drop = FALSE]
+rownames(manifest) <- NULL
+if (anyDuplicated(manifest$analysis_id)) {
+  duplicates <- unique(manifest$analysis_id[duplicated(manifest$analysis_id)])
+  stopf("Auto-discovery produced duplicate analysis IDs: %s", paste(duplicates, collapse = ", "))
+}
+message(sprintf(
+  "Auto-discovered %d analysis root(s) below %s: %s",
+  nrow(manifest), analysis_parent, paste(basename(manifest$analysis_root), collapse = ", ")
+))
 
 required_per_run_columns <- c(
   "country_iso", "country_name", "regrowth_mode", "run_id",
@@ -302,27 +402,8 @@ analysis_data <- vector("list", nrow(manifest))
 input_inventory <- vector("list", nrow(manifest))
 for (i in seq_len(nrow(manifest))) {
   row <- manifest[i, , drop = FALSE]
-  agb_dir <- file.path(row$analysis_root[[1L]], "agb_decomposition")
-  country_candidates <- Sys.glob(file.path(
-    agb_dir, "agb_decomposition_by_country_per_run_*.csv"
-  ))
-  source_kind <- if (length(country_candidates)) "country_per_run" else "single_country_fallback"
-  if (source_kind == "country_per_run") {
-    per_run_path <- select_one(country_candidates, sprintf(
-      "%s country per-run decomposition file", row$analysis_id[[1L]]
-    ))
-  } else {
-    if (row$expected_country_count[[1L]] != 1L) {
-      stopf(
-        "%s lacks country-per-run data and is not a one-country manifest row.",
-        row$analysis_id[[1L]]
-      )
-    }
-    per_run_path <- select_one(
-      Sys.glob(file.path(agb_dir, "agb_decomposition_per_run_*.csv")),
-      sprintf("%s regional per-run decomposition file", row$analysis_id[[1L]])
-    )
-  }
+  per_run_path <- row$per_run_path[[1L]]
+  source_kind <- "auto_discovered_country_per_run"
 
   x <- read_csv_required(per_run_path, sprintf("%s per-run data", row$analysis_id[[1L]]))
   require_columns(x, required_per_run_columns, basename(per_run_path))
@@ -755,7 +836,7 @@ prepare_output_dir <- function(path, allow_overwrite) {
       }
     }
   }
-  for (subdir in c("figures/main", "figures/supplement", "tables", "validation")) {
+  for (subdir in c("figures/main", "tables", "validation")) {
     dir.create(file.path(target, subdir), recursive = TRUE, showWarnings = FALSE)
   }
 }
@@ -775,7 +856,10 @@ validation_paths <- c(
   coverage = file.path(output_dir, "validation", paste0(output_prefix, "coverage_report.csv")),
   inventory = file.path(output_dir, "validation", paste0(output_prefix, "input_inventory.csv")),
   summary = file.path(output_dir, "validation", paste0(output_prefix, "validation_summary.csv")),
-  manifest = file.path(output_dir, "validation", paste0(output_prefix, "manifest_snapshot.csv"))
+  manifest = file.path(
+    output_dir, "validation",
+    paste0(output_prefix, "discovered_analysis_roots.csv")
+  )
 )
 
 readr::write_csv(country_draws, table_paths[["country_per_run"]], na = "")
@@ -929,13 +1013,280 @@ write_ranked_subregion_figure <- function(
   invisible(path)
 }
 
-ranked_figure_path <- file.path(
+# Main country contribution figure ----
+
+country_figure_keys <- unique(country_summary[c(
+  "country_iso", "country_name", "configuration"
+)])
+country_figure_data <- do.call(rbind, lapply(
+  seq_len(nrow(country_figure_keys)),
+  function(i) {
+    key <- country_figure_keys[i, , drop = FALSE]
+    rows <- country_summary[
+      country_summary$country_iso == key$country_iso[[1L]] &
+        country_summary$configuration == key$configuration[[1L]],
+      , drop = FALSE
+    ]
+    metric_row <- function(metric) {
+      hit <- rows[rows$metric == metric, , drop = FALSE]
+      if (nrow(hit) != 1L) {
+        stopf(
+          "Country summary is missing %s for %s (%s).",
+          metric, key$country_name[[1L]], key$configuration[[1L]]
+        )
+      }
+      hit
+    }
+    loss <- metric_row("avoided_loss")
+    regrowth <- metric_row("regrowth")
+    harvest <- metric_row("harvest")
+    enduse <- metric_row("enduse")
+    total <- metric_row("total")
+    data.frame(
+      country_iso = key$country_iso[[1L]],
+      country_name = key$country_name[[1L]],
+      country_label = sprintf(
+        "%s (%s)", key$country_name[[1L]], key$country_iso[[1L]]
+      ),
+      configuration = key$configuration[[1L]],
+      draws = total$draws[[1L]],
+      avoided_loss = loss$mean[[1L]],
+      regrowth = regrowth$mean[[1L]],
+      harvest = harvest$mean[[1L]],
+      enduse = enduse$mean[[1L]],
+      total = total$mean[[1L]],
+      total_p025 = total$empirical_p025[[1L]],
+      total_p975 = total$empirical_p975[[1L]],
+      stringsAsFactors = FALSE
+    )
+  }
+))
+country_figure_data <- country_figure_data[order(
+  match(country_figure_data$configuration, CONFIGURATION_ORDER),
+  country_figure_data$country_iso
+), , drop = FALSE]
+rownames(country_figure_data) <- NULL
+
+write_country_contribution_figure <- function(
+  x, path, mode, covered_countries, expected_countries, period_tag,
+  analysis_count
+) {
+  if (!nrow(x) || !setequal(unique(x$configuration), CONFIGURATION_ORDER)) {
+    stopf("Country contribution figure requires both configured panels.")
+  }
+  panel_counts <- table(x$configuration)
+  if (length(unique(as.integer(panel_counts))) != 1L) {
+    stopf("Country contribution figure panels have different country counts.")
+  }
+  ranking <- x[x$configuration == "uncapped", , drop = FALSE]
+  ranking <- ranking[order(ranking$total, decreasing = TRUE), , drop = FALSE]
+  country_order <- ranking$country_label
+  if (anyDuplicated(country_order)) {
+    stopf("Country contribution figure requires unique country labels.")
+  }
+  n_countries <- length(country_order)
+
+  endpoints <- c(
+    0, x$avoided_loss, x$avoided_loss + x$regrowth,
+    x$harvest, x$total, x$total_p025, x$total_p975
+  )
+  raw_limits <- range(endpoints, finite = TRUE)
+  raw_span <- diff(raw_limits)
+  if (!is.finite(raw_span) || raw_span <= 0) raw_span <- 1
+  plot_limits <- c(
+    raw_limits[[1L]] - 0.05 * raw_span,
+    raw_limits[[2L]] + 0.16 * raw_span
+  )
+  tick_values <- pretty(raw_limits, n = 5L)
+  tick_values <- tick_values[
+    tick_values >= plot_limits[[1L]] & tick_values <= plot_limits[[2L]]
+  ]
+  figure_height_in <- max(5.8, 3.9 + n_countries * 0.42)
+  png_args <- list(
+    filename = path, width = 12.5, height = figure_height_in,
+    units = "in", res = FIGURE_DPI, pointsize = 10, bg = "white"
+  )
+  if (isTRUE(capabilities("cairo"))) png_args$type <- "cairo"
+  do.call(grDevices::png, png_args)
+  on.exit(grDevices::dev.off(), add = TRUE)
+
+  colours <- c(
+    avoided_loss = "#0072B2", regrowth = "#009E73",
+    enduse = "#D55E00", total = "#172B4D", uncertainty = "#000000",
+    grid = "#E1E6EB", border = "#9AA5B1", text = "#1F2933",
+    muted = "#52616B"
+  )
+  graphics::layout(
+    matrix(c(1L, 1L, 2L, 3L), nrow = 2L, byrow = TRUE),
+    heights = c(1.25, 4)
+  )
+  graphics::par(oma = c(3.6, 0.4, 0.2, 0.4), family = "sans")
+  graphics::par(mar = c(0, 0, 0, 0))
+  graphics::plot.new()
+  graphics::plot.window(xlim = c(0, 1), ylim = c(0, 1), xaxs = "i", yaxs = "i")
+  graphics::text(
+    0.5, 0.88,
+    sprintf("Annual avoided emissions by country and configuration, %s", period_tag),
+    font = 2, cex = 1.30, col = colours[["total"]]
+  )
+  coverage_label <- if (mode == "partial") {
+    sprintf(
+      "PRELIMINARY PARTIAL COVERAGE: %d of %d countries from %d automatically discovered analyses",
+      covered_countries, expected_countries, analysis_count
+    )
+  } else {
+    sprintf(
+      "Complete Global South coverage: %d countries from %d automatically discovered analyses",
+      expected_countries, analysis_count
+    )
+  }
+  graphics::text(0.5, 0.64, coverage_label, cex = 0.82, col = colours[["muted"]])
+  graphics::legend(
+    "bottom", horiz = TRUE, bty = "n", xpd = NA, cex = 0.76,
+    legend = c(
+      "Avoided AGB loss", "Enhanced regrowth", "End-use adjustment",
+      "Total mean", "Empirical 95% interval"
+    ),
+    fill = c(colours[["avoided_loss"]], colours[["regrowth"]], NA, NA, NA),
+    border = NA,
+    lty = c(NA, NA, 1, NA, 1),
+    lwd = c(NA, NA, 3, NA, 1.4),
+    pch = c(NA, NA, NA, 21, NA),
+    col = c(
+      NA, NA, colours[["enduse"]], colours[["total"]],
+      colours[["uncertainty"]]
+    ),
+    pt.bg = c(NA, NA, NA, colours[["total"]], NA)
+  )
+
+  label_characters <- max(nchar(country_order, type = "width"))
+  left_margin_lines <- max(8.5, min(13.5, 4.8 + 0.36 * label_characters))
+  y_positions <- rev(seq_len(n_countries))
+  bar_half_height <- min(0.20, 0.34 / sqrt(max(1, n_countries / 8)))
+  lane_offset <- bar_half_height * 0.36
+  interval_cap_half_height <- bar_half_height * 0.31
+  label_offset <- bar_half_height * 0.42
+  label_cex <- max(0.58, min(0.82, 1.05 / sqrt(max(1, n_countries / 7))))
+
+  for (configuration in CONFIGURATION_ORDER) {
+    panel <- x[x$configuration == configuration, , drop = FALSE]
+    panel <- panel[match(country_order, panel$country_label), , drop = FALSE]
+    if (anyNA(panel$country_label)) {
+      stopf("Country contribution figure panels do not share the same countries.")
+    }
+    graphics::par(
+      mar = c(3.2, left_margin_lines, 2.8, 1.0), xaxs = "i", yaxs = "i"
+    )
+    graphics::plot.new()
+    graphics::plot.window(
+      xlim = plot_limits, ylim = c(0.45, n_countries + 0.55),
+      xaxs = "i", yaxs = "i"
+    )
+    graphics::abline(v = tick_values, col = colours[["grid"]], lwd = 0.8)
+    graphics::abline(h = y_positions, col = colours[["grid"]], lwd = 0.55)
+    graphics::abline(v = 0, col = colours[["border"]], lwd = 1.0)
+
+    for (i in seq_len(nrow(panel))) {
+      y <- y_positions[[i]]
+      arrow_y <- y - lane_offset
+      uncertainty_y <- y + lane_offset
+      loss_start <- 0
+      loss_end <- panel$avoided_loss[[i]]
+      regrowth_start <- loss_end
+      regrowth_end <- loss_end + panel$regrowth[[i]]
+      harvest_end <- panel$harvest[[i]]
+      total_end <- panel$total[[i]]
+      if (!same_number(loss_start, loss_end, tolerance = 1e-12)) {
+        graphics::rect(
+          min(loss_start, loss_end), y - bar_half_height,
+          max(loss_start, loss_end), y + bar_half_height,
+          col = colours[["avoided_loss"]], border = "white", lwd = 0.55
+        )
+      }
+      if (!same_number(regrowth_start, regrowth_end, tolerance = 1e-12)) {
+        graphics::rect(
+          min(regrowth_start, regrowth_end), y - bar_half_height,
+          max(regrowth_start, regrowth_end), y + bar_half_height,
+          col = colours[["regrowth"]], border = "white", lwd = 0.55
+        )
+      }
+      graphics::segments(
+        panel$total_p025[[i]], uncertainty_y,
+        panel$total_p975[[i]], uncertainty_y,
+        col = colours[["uncertainty"]], lwd = 1.35
+      )
+      graphics::segments(
+        c(panel$total_p025[[i]], panel$total_p975[[i]]),
+        uncertainty_y - interval_cap_half_height,
+        c(panel$total_p025[[i]], panel$total_p975[[i]]),
+        uncertainty_y + interval_cap_half_height,
+        col = colours[["uncertainty"]], lwd = 1.15
+      )
+      if (!same_number(harvest_end, total_end, tolerance = 1e-12)) {
+        graphics::arrows(
+          harvest_end, arrow_y, total_end, arrow_y,
+          length = 0.075, angle = 24, code = 2L,
+          col = colours[["enduse"]], lwd = 3.0
+        )
+      }
+      graphics::points(
+        total_end, uncertainty_y, pch = 21, cex = 1.0,
+        col = "white", bg = colours[["total"]], lwd = 0.8
+      )
+      graphics::text(
+        total_end, uncertainty_y + label_offset,
+        formatC(total_end, format = "f", digits = 1L),
+        adj = c(0.5, 0), cex = label_cex, font = 2,
+        col = colours[["text"]]
+      )
+    }
+    graphics::axis(
+      1, at = tick_values,
+      labels = format(tick_values, trim = TRUE, scientific = FALSE),
+      cex.axis = 0.74, col = colours[["border"]], col.axis = colours[["text"]],
+      tck = -0.025
+    )
+    graphics::axis(
+      2, at = y_positions, labels = country_order,
+      las = 1, tick = FALSE, cex.axis = label_cex,
+      col.axis = colours[["text"]], line = -0.35
+    )
+    graphics::box(col = colours[["border"]], lwd = 0.8)
+    graphics::title(
+      main = tools::toTitleCase(configuration), line = 1.05,
+      font.main = 2, cex.main = 1.02, col.main = colours[["total"]]
+    )
+  }
+  run_range <- range(x$draws)
+  run_note <- if (run_range[[1L]] == run_range[[2L]]) {
+    sprintf("Intervals use each country's %d Monte Carlo realizations.", run_range[[1L]])
+  } else {
+    sprintf(
+      "Intervals use each country's available Monte Carlo realizations (%d-%d runs).",
+      run_range[[1L]], run_range[[2L]]
+    )
+  }
+  graphics::mtext(
+    expression(paste("Annual avoided emissions (MtCO"[2], "e ", yr^{-1}, ")")),
+    side = 1, outer = TRUE, line = 0.7, cex = 0.88, col = colours[["text"]]
+  )
+  graphics::mtext(
+    paste0(
+      "Country values use spatial incidence. End-use arrows terminate at the total mean; ",
+      run_note
+    ),
+    side = 1, outer = TRUE, line = 2.35, cex = 0.64, col = colours[["muted"]]
+  )
+  invisible(path)
+}
+
+country_figure_path <- file.path(
   output_dir, "figures", "main",
-  paste0(output_prefix, "figure_global_south_subregion_totals_mc_all.png")
+  paste0(output_prefix, "figure_global_south_by_country_contributions_mc_all.png")
 )
-write_ranked_subregion_figure(
-  subregion_summary, subregion_coverage, ranked_figure_path, run_mode,
-  nrow(source_countries), nrow(regionalization), period_tag
+write_country_contribution_figure(
+  country_figure_data, country_figure_path, run_mode,
+  nrow(source_countries), nrow(regionalization), period_tag, nrow(manifest)
 )
 
 # Global contribution figure ----
@@ -996,7 +1347,7 @@ write_global_contribution_figure <- function(
 
   colours <- c(
     avoided_loss = "#0072B2", regrowth = "#009E73", enduse = "#D55E00",
-    total = "#172B4D", uncertainty = "#596775", grid = "#E1E6EB",
+    total = "#172B4D", uncertainty = "#000000", grid = "#E1E6EB",
     border = "#9AA5B1", text = "#1F2933", muted = "#52616B"
   )
   graphics::layout(
@@ -1043,43 +1394,48 @@ write_global_contribution_figure <- function(
     graphics::plot.window(xlim = plot_limits, ylim = c(0.55, 1.45), xaxs = "i", yaxs = "i")
     graphics::abline(v = tick_values, col = colours[["grid"]], lwd = 0.8)
     graphics::abline(v = 0, col = colours[["border"]], lwd = 1.0)
-    contribution_y <- 0.86
-    total_y <- 1.18
-    graphics::segments(
-      panel$total_p025, total_y, panel$total_p975, total_y,
-      col = colours[["uncertainty"]], lwd = 1.5
-    )
-    graphics::segments(
-      c(panel$total_p025, panel$total_p975), total_y - 0.06,
-      c(panel$total_p025, panel$total_p975), total_y + 0.06,
-      col = colours[["uncertainty"]], lwd = 1.2
-    )
+    bar_y <- 1.00
+    bar_half_height <- 0.18
+    arrow_y <- bar_y - 0.065
+    uncertainty_y <- bar_y + 0.065
+    interval_cap_half_height <- 0.055
     graphics::rect(
-      min(0, panel$avoided_loss), contribution_y - 0.10,
-      max(0, panel$avoided_loss), contribution_y + 0.10,
+      min(0, panel$avoided_loss), bar_y - bar_half_height,
+      max(0, panel$avoided_loss), bar_y + bar_half_height,
       col = colours[["avoided_loss"]], border = "white", lwd = 0.6
     )
     regrowth_end <- panel$avoided_loss + panel$regrowth
     graphics::rect(
-      min(panel$avoided_loss, regrowth_end), contribution_y - 0.10,
-      max(panel$avoided_loss, regrowth_end), contribution_y + 0.10,
+      min(panel$avoided_loss, regrowth_end), bar_y - bar_half_height,
+      max(panel$avoided_loss, regrowth_end), bar_y + bar_half_height,
       col = colours[["regrowth"]], border = "white", lwd = 0.6
+    )
+    graphics::segments(
+      panel$total_p025, uncertainty_y, panel$total_p975, uncertainty_y,
+      col = colours[["uncertainty"]], lwd = 1.5
+    )
+    graphics::segments(
+      c(panel$total_p025, panel$total_p975),
+      uncertainty_y - interval_cap_half_height,
+      c(panel$total_p025, panel$total_p975),
+      uncertainty_y + interval_cap_half_height,
+      col = colours[["uncertainty"]], lwd = 1.2
     )
     if (!same_number(panel$harvest, panel$total, tolerance = 1e-12)) {
       graphics::arrows(
-        panel$harvest, contribution_y, panel$total, contribution_y,
+        panel$harvest, arrow_y, panel$total, arrow_y,
         length = 0.075, angle = 24, code = 2L,
         col = colours[["enduse"]], lwd = 3.0
       )
     }
     graphics::points(
-      panel$total, total_y, pch = 21, cex = 1.05,
+      panel$total, uncertainty_y, pch = 21, cex = 1.05,
       col = "white", bg = colours[["total"]], lwd = 0.8
     )
     graphics::text(
-      max(panel$total, panel$total_p975) + 0.012 * raw_span,
-      total_y, formatC(panel$total, format = "f", digits = 1L),
-      adj = c(0, 0.5), cex = 0.78, font = 2, col = colours[["text"]]
+      panel$total, uncertainty_y + 0.075,
+      formatC(panel$total, format = "f", digits = 1L),
+      adj = c(0.5, 0), cex = 0.78, font = 2, col = colours[["text"]]
     )
     graphics::axis(
       1, at = tick_values,
@@ -1105,7 +1461,7 @@ write_global_contribution_figure <- function(
 }
 
 contribution_figure_path <- file.path(
-  output_dir, "figures", "supplement",
+  output_dir, "figures", "main",
   paste0(output_prefix, "figure_global_south_contributions_mc_all.png")
 )
 write_global_contribution_figure(
@@ -1174,7 +1530,7 @@ spatial_scale <- c(-spatial_limit, spatial_limit)
 
 write_global_map_figure <- function(
   rasters, summary, path, mode, mapped_countries, covered_countries,
-  expected_countries, period_tag, scale
+  expected_countries, period_tag, scale, assessment_country_ids
 ) {
   png_args <- list(
     filename = path, width = 13.5, height = 7.2,
@@ -1197,9 +1553,47 @@ write_global_map_figure <- function(
     world_geographic <- world_geographic[keep, ]
   }
   world <- terra::project(world_geographic, MAP_DISPLAY_CRS)
-  world_extent <- terra::ext(world)
-  map_xlim <- c(world_extent$xmin, world_extent$xmax)
-  map_ylim <- c(world_extent$ymin, world_extent$ymax)
+  assessment_country_ids <- sort(unique(toupper(trimws(as.character(
+    assessment_country_ids
+  )))))
+  assessment_geographic <- terra::vect(rnaturalearth::ne_countries(
+    scale = "medium", returnclass = "sf"
+  ))
+  assessment_attributes <- as.data.frame(assessment_geographic)
+  assessment_id_fields <- intersect(
+    c("adm0_a3", "iso_a3"), names(assessment_attributes)
+  )
+  if (!length(assessment_id_fields)) {
+    stopf("Natural Earth countries lack ISO fields for the map viewport.")
+  }
+  assessment_keep <- Reduce(`|`, lapply(assessment_id_fields, function(field) {
+    toupper(as.character(assessment_attributes[[field]])) %in%
+      assessment_country_ids
+  }))
+  matched_assessment_ids <- unique(unlist(lapply(
+    assessment_id_fields,
+    function(field) {
+      values <- toupper(as.character(assessment_attributes[[field]]))
+      values[values %in% assessment_country_ids]
+    }
+  )))
+  missing_assessment_ids <- setdiff(
+    assessment_country_ids, matched_assessment_ids
+  )
+  if (length(missing_assessment_ids)) {
+    stopf(
+      "Natural Earth map viewport is missing assessment countries: %s",
+      paste(missing_assessment_ids, collapse = ", ")
+    )
+  }
+  assessment_countries <- terra::project(
+    assessment_geographic[assessment_keep, ], MAP_DISPLAY_CRS
+  )
+  assessment_extent <- as.vector(terra::ext(assessment_countries))
+  x_padding <- diff(assessment_extent[1:2]) * MAP_EXTENT_PADDING_FRACTION
+  y_padding <- diff(assessment_extent[3:4]) * MAP_EXTENT_PADDING_FRACTION
+  map_xlim <- assessment_extent[1:2] + c(-x_padding, x_padding)
+  map_ylim <- assessment_extent[3:4] + c(-y_padding, y_padding)
   graphics::layout(
     matrix(c(1L, 1L, 2L, 3L, 4L, 4L), nrow = 3L, byrow = TRUE),
     heights = c(0.72, 4.3, 0.75)
@@ -1278,6 +1672,7 @@ write_global_map_figure <- function(
     mean(scale), 0.91,
     paste0(
       "Map projection: WGS 84 / Equal Earth Greenwich (EPSG:8857; equal-area). ",
+      "Viewport spans the canonical 111-country assessment with 3% padding. ",
       "Shared scale clipped to the combined 2nd-98th percentile range; blue is negative and red is positive."
     ),
     cex = 0.64, col = muted_colour
@@ -1293,15 +1688,15 @@ map_figure_path <- file.path(
 write_global_map_figure(
   display_rasters, global_summary, map_figure_path, run_mode,
   mapped_country_count, nrow(source_countries), nrow(regionalization),
-  period_tag, spatial_scale
+  period_tag, spatial_scale, regionalization$GID_0
 )
 
 # Final inventory ----
 
 expected_files <- c(
-  file.path("figures", "main", basename(ranked_figure_path)),
+  file.path("figures", "main", basename(country_figure_path)),
   file.path("figures", "main", basename(map_figure_path)),
-  file.path("figures", "supplement", basename(contribution_figure_path)),
+  file.path("figures", "main", basename(contribution_figure_path)),
   file.path("tables", basename(table_paths)),
   file.path("validation", basename(validation_paths))
 )
@@ -1318,6 +1713,7 @@ cat(sprintf("SCRIPT_VERSION=%d\n", SCRIPT_VERSION))
 cat(sprintf("MODE=%s\n", run_mode))
 cat(sprintf("MC_COMBINATION=%s\n", mc_combination))
 cat(sprintf("PERIOD=%s\n", period_tag))
+cat(sprintf("ANALYSIS_PARENT=%s\n", analysis_parent))
 cat(sprintf("ANALYSIS_ROOTS=%d\n", nrow(manifest)))
 cat(sprintf("INCLUDED_COUNTRIES=%d\n", nrow(source_countries)))
 cat(sprintf("EXPECTED_COUNTRIES=%d\n", nrow(regionalization)))

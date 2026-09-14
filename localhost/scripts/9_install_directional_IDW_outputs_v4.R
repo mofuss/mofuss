@@ -18,9 +18,13 @@
 # Script: 9_install_directional_IDW_outputs_v4.R
 # Version: 4
 # Date: Sep 2026
-# Execution: Source from RStudio after either the standard single-country IDW
-# outputs are in In, or every directional CostDistance_IDW HC job has completed
-# and its output directory has been returned to HC_jobs.
+# Execution: Edit only the USER INPUTS block, then source from RStudio after
+# either the standard single-country IDW outputs are in In, or every directional
+# CostDistance_IDW HC job has completed and its output directory has been
+# returned to HC_jobs. The configured scenario folders run sequentially. Use:
+#
+#   Rscript 9_install_directional_IDW_outputs_v4.R --check
+#   Rscript 9_install_directional_IDW_outputs_v4.R --dry-run
 #
 # Purpose: Install every IDW input consumed by the Dinamica EGO model. Country
 # and singleton-Regional runs reuse each standard W/V IDW as their sole runtime
@@ -49,6 +53,68 @@
 # This script is fail-closed. It refuses incomplete inputs, geometry mismatches,
 # invalid values, source-domain leakage and pre-existing installed components.
 # It never runs CostDistance_IDW and never overwrites an installed product.
+
+# USER INPUTS: edit this block only -----------------------------------------
+
+# Each enabled batch groups the four BAU/ICS x capped/uncapped run folders used
+# by the emissions and calibration pipelines. `analysis_folder` is retained as
+# the shared cross-pipeline label; this installer reads and writes only the run
+# folders declared in `folders` and does not write to mofuss_postprocessing.
+PIPELINE_BATCHES <- list(
+  GOG = list(
+    enabled = FALSE,
+    root = "E:/",
+    analysis_folder = "GOG_1000m_ics3_2050_mc30",
+    folders = c(
+      "GOG_1000m_bau1_2050_mc30_capped",
+      "GOG_1000m_bau1_2050_mc30_uncapped",
+      "GOG_1000m_ics3_2050_mc30_capped",
+      "GOG_1000m_ics3_2050_mc30_uncapped"
+    )
+  ),
+  mdg = list(
+    enabled = FALSE,
+    root = "E:/",
+    analysis_folder = "mdg_1000m_bau1_2050_mc3",
+    folders = c(
+      "mdg_1000m_bau1_2050_mc3_capped",
+      "mdg_1000m_bau1_2050_mc3_uncapped",
+      "mdg_1000m_ics3_2050_mc3_capped",
+      "mdg_1000m_ics3_2050_mc3_uncapped"
+    )
+  ),
+  lso = list(
+    enabled = TRUE,
+    root = "E:/",
+    analysis_folder = "mdg_1000m_bau1_2050_mc3",
+    folders = c(
+      "lso_1000m_bau1_2050_mc3_capped",
+      "lso_1000m_bau1_2050_mc3_uncapped",
+      "lso_1000m_ics3_2050_mc3_capped",
+      "lso_1000m_ics3_2050_mc3_uncapped"
+    )
+  ),
+  GLEA = list(
+    enabled = FALSE,
+    root = "E:/",
+    analysis_folder = "GLEA_1000m_ics3_2050_mc3",
+    folders = c(
+      "GLEA_1000m_bau1_2050_mc3_capped",
+      "GLEA_1000m_bau1_2050_mc3_uncapped",
+      "GLEA_1000m_ics3_2050_mc3_capped",
+      "GLEA_1000m_ics3_2050_mc3_uncapped"
+    )
+  )
+)
+
+# TRUE fully validates every enabled run without installing any files. The
+# command-line --dry-run flag enables the same behavior without editing here.
+PIPELINE_DRY_RUN <- FALSE
+
+# Prefix of each returned HC output directory below DemandScenarios/HC_jobs.
+PIPELINE_OUTPUT_PREFIX <- "idw_"
+
+# END USER INPUTS -----------------------------------------------------------
 
 suppressPackageStartupMessages(library(terra))
 
@@ -1745,6 +1811,253 @@ install_directional_idw_outputs <- function(
   ))
 }
 
+.idw6f_pipeline_bool <- function(value, label) {
+  if (!is.logical(value) || length(value) != 1L || is.na(value)) {
+    .idw6f_stop(label, " must be exactly TRUE or FALSE.")
+  }
+  value
+}
+
+.idw6f_pipeline_safe_folder <- function(value, label) {
+  value <- trimws(as.character(value))
+  if (length(value) != 1L || is.na(value) || !nzchar(value) ||
+      !grepl("^[A-Za-z0-9][A-Za-z0-9._-]*$", value) ||
+      value %in% c(".", "..")) {
+    .idw6f_stop(
+      label,
+      " must be one safe child-folder name using only letters, numbers, ",
+      "dot, underscore, or hyphen."
+    )
+  }
+  value
+}
+
+.idw6f_pipeline_resolve_batches <- function(batches = PIPELINE_BATCHES) {
+  batch_names <- names(batches)
+  if (!is.list(batches) || length(batches) == 0L || is.null(batch_names) ||
+      anyNA(batch_names) || any(!nzchar(trimws(batch_names))) ||
+      anyDuplicated(tolower(trimws(batch_names)))) {
+    .idw6f_stop("PIPELINE_BATCHES must be a non-empty, uniquely named list.")
+  }
+
+  enabled_batches <- list()
+  disabled_batches <- character()
+  for (batch_name in batch_names) {
+    entry <- batches[[batch_name]]
+    label <- paste0("PIPELINE_BATCHES[['", batch_name, "']]")
+    required_fields <- c("enabled", "root", "analysis_folder", "folders")
+    if (!is.list(entry) || !all(required_fields %in% names(entry))) {
+      .idw6f_stop(
+        label, " must contain enabled, root, analysis_folder, and folders."
+      )
+    }
+    enabled <- .idw6f_pipeline_bool(
+      entry$enabled, paste0(label, "$enabled")
+    )
+    analysis_folder <- .idw6f_pipeline_safe_folder(
+      entry$analysis_folder, paste0(label, "$analysis_folder")
+    )
+    folders <- trimws(as.character(entry$folders))
+    if (length(folders) != 4L || anyNA(folders) || any(!nzchar(folders)) ||
+        any(grepl("[/\\\\]", folders)) || any(folders %in% c(".", "..")) ||
+        anyDuplicated(tolower(folders))) {
+      .idw6f_stop(
+        label, "$folders must contain four unique child-folder names."
+      )
+    }
+    invalid_folders <- !grepl("^[A-Za-z0-9][A-Za-z0-9._-]*$", folders)
+    if (any(invalid_folders)) {
+      .idw6f_stop(
+        label, "$folders contains an unsafe folder name: ",
+        paste(folders[invalid_folders], collapse = ", ")
+      )
+    }
+    if (!enabled) {
+      disabled_batches <- c(disabled_batches, batch_name)
+      next
+    }
+
+    root <- trimws(as.character(entry$root))
+    if (length(root) != 1L || is.na(root) || !nzchar(root)) {
+      .idw6f_stop(label, "$root must be one non-blank directory path.")
+    }
+    if (!dir.exists(root)) {
+      .idw6f_stop("Batch '", batch_name, "' root does not exist: ", root)
+    }
+    root <- .idw6f_normalize(path.expand(root))
+    run_roots <- file.path(root, folders)
+    missing_runs <- run_roots[!dir.exists(run_roots)]
+    if (length(missing_runs) > 0L) {
+      .idw6f_stop(
+        "Batch '", batch_name, "' is missing run folder(s): ",
+        paste(missing_runs, collapse = ", ")
+      )
+    }
+    run_roots <- vapply(
+      run_roots, .idw6f_normalize, character(1), must_work = TRUE
+    )
+    missing_inputs <- run_roots[!dir.exists(file.path(
+      run_roots, "In", "DemandScenarios"
+    ))]
+    if (length(missing_inputs) > 0L) {
+      .idw6f_stop(
+        "Batch '", batch_name,
+        "' contains run folder(s) without In/DemandScenarios: ",
+        paste(missing_inputs, collapse = ", ")
+      )
+    }
+    enabled_batches[[batch_name]] <- list(
+      name = batch_name,
+      root = root,
+      analysis_folder = analysis_folder,
+      run_roots = unname(run_roots)
+    )
+  }
+  if (length(enabled_batches) == 0L) {
+    .idw6f_stop("PIPELINE_BATCHES has no enabled batches.")
+  }
+
+  all_run_roots <- tolower(unlist(lapply(
+    enabled_batches, `[[`, "run_roots"
+  ), use.names = FALSE))
+  if (anyDuplicated(all_run_roots)) {
+    .idw6f_stop("Enabled batches may not reuse the same run folder.")
+  }
+  list(enabled = enabled_batches, disabled = disabled_batches)
+}
+
+.idw6f_pipeline_validate <- function() {
+  selection <- .idw6f_pipeline_resolve_batches()
+  dry_run <- .idw6f_pipeline_bool(PIPELINE_DRY_RUN, "PIPELINE_DRY_RUN")
+  output_prefix <- trimws(as.character(PIPELINE_OUTPUT_PREFIX))
+  if (length(output_prefix) != 1L || is.na(output_prefix) ||
+      !grepl("^[A-Za-z0-9_]+$", output_prefix)) {
+    .idw6f_stop(
+      "PIPELINE_OUTPUT_PREFIX must contain only letters, numbers and underscores."
+    )
+  }
+  list(
+    batches = selection$enabled,
+    disabled_batches = selection$disabled,
+    dry_run = dry_run,
+    output_prefix = output_prefix
+  )
+}
+
+.idw6f_pipeline_main <- function(args = commandArgs(trailingOnly = TRUE)) {
+  allowed_args <- c("--check", "--dry-run")
+  unknown_args <- setdiff(args, allowed_args)
+  if (length(unknown_args) > 0L) {
+    .idw6f_stop(
+      "Unknown installer argument(s): ", paste(unknown_args, collapse = ", ")
+    )
+  }
+  check_only <- "--check" %in% args
+  config <- .idw6f_pipeline_validate()
+  if ("--dry-run" %in% args) config$dry_run <- TRUE
+
+  cat("MoFuSS directional IDW installation plan\n")
+  cat(sprintf(
+    "  enabled batches: %d (%s)\n",
+    length(config$batches), paste(names(config$batches), collapse = ", ")
+  ))
+  cat(sprintf(
+    "  disabled placeholders: %s\n",
+    if (length(config$disabled_batches) > 0L) {
+      paste(config$disabled_batches, collapse = ", ")
+    } else {
+      "none"
+    }
+  ))
+  cat(sprintf("  HC output prefix: %s\n", config$output_prefix))
+  cat(sprintf("  dry run: %s\n", config$dry_run))
+  for (batch_index in seq_along(config$batches)) {
+    batch <- config$batches[[batch_index]]
+    cat(sprintf(
+      "\n  Batch %d/%d: %s\n",
+      batch_index, length(config$batches), batch$name
+    ))
+    cat(sprintf("    root: %s\n", batch$root))
+    cat(sprintf("    analysis label: %s\n", batch$analysis_folder))
+    for (run_index in seq_along(batch$run_roots)) {
+      run_root <- batch$run_roots[[run_index]]
+      manifest_path <- file.path(
+        run_root, "In", "DemandScenarios", "HC_jobs",
+        "HC_job_manifest_idw_ready.csv"
+      )
+      mode <- if (file.exists(manifest_path)) "directional" else "single-component"
+      cat(sprintf(
+        "    run %d/%d [%s]: %s\n",
+        run_index, length(batch$run_roots), mode, run_root
+      ))
+    }
+  }
+  if (check_only) {
+    cat(paste0(
+      "\nCHECK COMPLETE: batch configuration and run roots are valid; ",
+      "IDW products were not inspected or written.\n"
+    ))
+    return(invisible(config))
+  }
+
+  results <- list()
+  for (batch_index in seq_along(config$batches)) {
+    batch <- config$batches[[batch_index]]
+    batch_results <- vector("list", length(batch$run_roots))
+    names(batch_results) <- basename(batch$run_roots)
+    cat(sprintf(
+      "\n############ IDW batch %d/%d: %s ############\n",
+      batch_index, length(config$batches), batch$name
+    ))
+    for (run_index in seq_along(batch$run_roots)) {
+      run_root <- batch$run_roots[[run_index]]
+      cat(sprintf(
+        "\n---------- Run %d/%d: %s ----------\n",
+        run_index, length(batch$run_roots), basename(run_root)
+      ))
+      batch_results[[run_index]] <- tryCatch(
+        install_directional_idw_outputs(
+          run_root = run_root,
+          output_prefix = config$output_prefix,
+          dry_run = config$dry_run
+        ),
+        error = function(error) {
+          .idw6f_stop(
+            "Batch '", batch$name, "', run '", basename(run_root),
+            "' failed: ", conditionMessage(error)
+          )
+        }
+      )
+      cat(sprintf(
+        "%s: %s\n",
+        if (config$dry_run) "RUN VALIDATED" else "RUN COMPLETE",
+        basename(run_root)
+      ))
+    }
+    results[[batch$name]] <- batch_results
+    cat(sprintf(
+      "\n%s: %s\n",
+      if (config$dry_run) "BATCH VALIDATED" else "BATCH COMPLETE",
+      batch$name
+    ))
+  }
+
+  cat(sprintf(
+    "\n%s: %d batch(es), %d run(s)\n",
+    if (config$dry_run) "DRY RUN COMPLETE" else "INSTALLATION COMPLETE",
+    length(config$batches),
+    sum(vapply(config$batches, function(batch) length(batch$run_roots), integer(1)))
+  ))
+  invisible(list(config = config, results = results))
+}
+
 if (!identical(Sys.getenv("MOFUSS_6F_NO_AUTORUN"), "1")) {
-  install_directional_idw_outputs()
+  tryCatch(
+    .idw6f_pipeline_main(),
+    error = function(error) {
+      message("IDW BATCH ERROR: ", conditionMessage(error))
+      if (!interactive()) quit(save = "no", status = 1L, runLast = FALSE)
+      invisible(NULL)
+    }
+  )
 }

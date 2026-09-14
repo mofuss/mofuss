@@ -1014,7 +1014,7 @@ write_country_contribution_figure <- function(
     regrowth = "#009E73",
     enduse = "#D55E00",
     total = "#172B4D",
-    uncertainty = "#596775",
+    uncertainty = "#000000",
     grid = "#E1E6EB",
     border = "#9AA5B1",
     text = "#1F2933",
@@ -1079,6 +1079,9 @@ write_country_contribution_figure <- function(
   left_margin_lines <- max(8.5, min(13.5, 4.8 + 0.36 * label_characters))
   y_positions <- rev(seq_len(n_countries))
   bar_half_height <- min(0.17, 0.32 / sqrt(max(1, n_countries / 8)))
+  lane_offset <- bar_half_height * 0.36
+  interval_cap_half_height <- bar_half_height * 0.31
+  label_offset <- bar_half_height * 0.42
   label_cex <- max(0.58, min(0.82, 1.05 / sqrt(max(1, n_countries / 7))))
 
   for (configuration in CONFIGURATION_ORDER) {
@@ -1103,8 +1106,8 @@ write_country_contribution_figure <- function(
 
     for (i in seq_len(nrow(panel))) {
       y <- y_positions[[i]]
-      contribution_y <- y - 0.17
-      total_y <- y + 0.18
+      arrow_y <- y - lane_offset
+      uncertainty_y <- y + lane_offset
       loss_start <- 0
       loss_end <- panel$avoided_loss[[i]]
       regrowth_start <- loss_end
@@ -1112,56 +1115,51 @@ write_country_contribution_figure <- function(
       harvest_end <- panel$harvest[[i]]
       total_end <- panel$total[[i]]
 
-      if (show_uncertainty) {
-        graphics::segments(
-          panel$total_p025[[i]], total_y, panel$total_p975[[i]], total_y,
-          col = colours[["uncertainty"]], lwd = 1.35
-        )
-        graphics::segments(
-          rep(c(panel$total_p025[[i]], panel$total_p975[[i]]), each = 1L),
-          total_y - 0.07,
-          rep(c(panel$total_p025[[i]], panel$total_p975[[i]]), each = 1L),
-          total_y + 0.07,
-          col = colours[["uncertainty"]], lwd = 1.15
-        )
-      }
-
       if (!same_number(loss_start, loss_end, tolerance = 1e-12)) {
         graphics::rect(
-          min(loss_start, loss_end), contribution_y - bar_half_height,
-          max(loss_start, loss_end), contribution_y + bar_half_height,
+          min(loss_start, loss_end), y - bar_half_height,
+          max(loss_start, loss_end), y + bar_half_height,
           col = colours[["avoided_loss"]], border = "white", lwd = 0.55
         )
       }
       if (!same_number(regrowth_start, regrowth_end, tolerance = 1e-12)) {
         graphics::rect(
-          min(regrowth_start, regrowth_end), contribution_y - bar_half_height,
-          max(regrowth_start, regrowth_end), contribution_y + bar_half_height,
+          min(regrowth_start, regrowth_end), y - bar_half_height,
+          max(regrowth_start, regrowth_end), y + bar_half_height,
           col = colours[["regrowth"]], border = "white", lwd = 0.55
+        )
+      }
+      if (show_uncertainty) {
+        graphics::segments(
+          panel$total_p025[[i]], uncertainty_y,
+          panel$total_p975[[i]], uncertainty_y,
+          col = colours[["uncertainty"]], lwd = 1.35
+        )
+        graphics::segments(
+          c(panel$total_p025[[i]], panel$total_p975[[i]]),
+          uncertainty_y - interval_cap_half_height,
+          c(panel$total_p025[[i]], panel$total_p975[[i]]),
+          uncertainty_y + interval_cap_half_height,
+          col = colours[["uncertainty"]], lwd = 1.15
         )
       }
       if (!same_number(harvest_end, total_end, tolerance = 1e-12)) {
         graphics::arrows(
-          harvest_end, contribution_y, total_end, contribution_y,
+          harvest_end, arrow_y, total_end, arrow_y,
           length = 0.075, angle = 24, code = 2L,
           col = colours[["enduse"]], lwd = 3.0
         )
       }
       graphics::points(
-        total_end, total_y, pch = 21, cex = 1.0,
+        total_end, uncertainty_y, pch = 21, cex = 1.0,
         col = "white", bg = colours[["total"]], lwd = 0.8
       )
 
-      if (total_end >= 0) {
-        label_x <- max(total_end, panel$total_p975[[i]]) + 0.012 * raw_span
-        label_adj <- c(0, 0.5)
-      } else {
-        label_x <- min(total_end, panel$total_p025[[i]]) - 0.012 * raw_span
-        label_adj <- c(1, 0.5)
-      }
       graphics::text(
-        label_x, total_y, formatC(total_end, format = "f", digits = 1L),
-        adj = label_adj, cex = label_cex, font = 2, col = colours[["text"]]
+        total_end, uncertainty_y + label_offset,
+        formatC(total_end, format = "f", digits = 1L),
+        adj = c(0.5, 0), cex = label_cex, font = 2,
+        col = colours[["text"]]
       )
     }
 

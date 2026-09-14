@@ -390,6 +390,33 @@ setwd(demanddir)
     if (file.exists(global_bau_path) && file.exists(global_ics3_path)) {
       global_bau <- read_wfdb(global_bau_path)
       global_ics3 <- read_wfdb(global_ics3_path)
+      global_scope_iso3 <- sort(unique(as.character(
+        read_region_index()$GID_0
+      )))
+      global_scope_iso3 <- global_scope_iso3[
+        !is.na(global_scope_iso3) & nzchar(global_scope_iso3)
+      ]
+      expected_global_country_count <- 111L
+      if (length(global_scope_iso3) != expected_global_country_count) {
+        stop(
+          "The global demand regionalization must contain exactly ",
+          expected_global_country_count, " countries; found ",
+          length(global_scope_iso3), "."
+        )
+      }
+      missing_global_bau <- setdiff(global_scope_iso3, unique(global_bau$iso3))
+      missing_global_ics3 <- setdiff(global_scope_iso3, unique(global_ics3$iso3))
+      if (length(missing_global_bau) > 0L || length(missing_global_ics3) > 0L) {
+        stop(
+          "The global demand tables are missing assessment countries. BaU1: ",
+          paste(missing_global_bau, collapse = ", "), "; ICS3: ",
+          paste(missing_global_ics3, collapse = ", ")
+        )
+      }
+      global_bau <- global_bau %>%
+        dplyr::filter(iso3 %in% global_scope_iso3)
+      global_ics3 <- global_ics3 %>%
+        dplyr::filter(iso3 %in% global_scope_iso3)
       comparison_keys <- c("iso3", "area", "fuel", "year")
 
       invalid_global_values <- function(source_df) {
@@ -540,6 +567,15 @@ setwd(demanddir)
       global_year_min <- min(global_channels$year)
       global_year_max <- max(global_channels$year)
       global_country_count <- dplyr::n_distinct(global_bau$iso3)
+      global_ics3_country_count <- dplyr::n_distinct(global_ics3$iso3)
+      if (global_country_count != expected_global_country_count ||
+          global_ics3_country_count != expected_global_country_count) {
+        stop(
+          "Global demand figures require exactly ", expected_global_country_count,
+          " countries in both BaU1 and ICS3; found ", global_country_count,
+          " and ", global_ics3_country_count, "."
+        )
+      }
       global_csv <- file.path(
         full_path,
         sprintf(
@@ -595,9 +631,205 @@ setwd(demanddir)
         )
       )
       ggsave(global_png, global_plot, width = 10, height = 12, dpi = 300, bg = "white")
+
+      # Global counterparts of the Regional/Country faceted demand figures ----
+      # Preserve the same two scenario rows, three area columns, palettes,
+      # charcoal conversion, dimensions and scales used by the local figures.
+      global_area_levels <- c("rural", "urban", "overall")
+      global_area_values <- sort(unique(c(
+        as.character(global_bau$area), as.character(global_ics3$area)
+      )))
+      missing_global_areas <- setdiff(global_area_levels, global_area_values)
+      if (length(missing_global_areas) > 0L) {
+        stop(
+          "Global demand figures are missing required area level(s): ",
+          paste(missing_global_areas, collapse = ", ")
+        )
+      }
+      global_scenario_levels <- c("BaU1_v2", "ICS3_v2")
+      global_scenario_caption <- paste(global_scenario_levels, collapse = " vs ")
+      global_analysis_label <- sprintf(
+        "Global South assessment (%d countries)", global_country_count
+      )
+      global_fuel_palette <- c(
+        "imp_fuelwood" = "#C9A27D",
+        "imp_charcoal" = "#7A7A7A",
+        "fuelwood" = "#8B4513",
+        "charcoal" = "#2B2B2B",
+        "coal" = "#4B4B4B",
+        "kerosene" = "#E69F00",
+        "gas" = "#56B4E9",
+        "electric" = "#F0E442",
+        "biogas" = "#A65628",
+        "pellets" = "#999999",
+        "ethanol" = "#CC79A7"
+      )
+
+      build_global_population <- function(source_df, scenario_label) {
+        source_df %>%
+          dplyr::filter(
+            year >= global_year_min, year <= global_year_max
+          ) %>%
+          dplyr::mutate(
+            pop = num_fuel_users_thousands * 1000,
+            area = factor(area, levels = global_area_levels),
+            scenario_panel = scenario_label
+          ) %>%
+          dplyr::group_by(scenario_panel, year, area, fuel) %>%
+          dplyr::summarise(pop = sum(pop, na.rm = TRUE), .groups = "drop")
+      }
+      global_population <- dplyr::bind_rows(
+        build_global_population(global_bau, global_scenario_levels[[1L]]),
+        build_global_population(global_ics3, global_scenario_levels[[2L]])
+      ) %>%
+        dplyr::mutate(
+          scenario_panel = factor(
+            scenario_panel, levels = global_scenario_levels
+          )
+        ) %>%
+        dplyr::arrange(scenario_panel, year, area, fuel)
+      global_population_ymax <- global_population %>%
+        dplyr::filter(area == "overall") %>%
+        dplyr::group_by(scenario_panel, year) %>%
+        dplyr::summarise(total = sum(pop, na.rm = TRUE), .groups = "drop") %>%
+        dplyr::summarise(ymax = max(total, na.rm = TRUE), .groups = "drop") %>%
+        dplyr::pull(ymax)
+      global_population_plot <- ggplot(
+        global_population, aes(x = year, y = pop, fill = fuel)
+      ) +
+        geom_area(alpha = 0.95, color = "grey30", linewidth = 0.2) +
+        labs(
+          title = paste0("Population using each fuel in ", global_analysis_label),
+          subtitle = sprintf(
+            "%d-%d | Faceted by area (common Y from Overall)",
+            global_year_min, global_year_max
+          ),
+          x = NULL, y = "People", fill = "Fuel",
+          caption = global_scenario_caption
+        ) +
+        scale_x_continuous(
+          breaks = seq(global_year_min, global_year_max, by = 5)
+        ) +
+        scale_y_continuous(
+          labels = scales::label_number(scale_cut = scales::cut_si("")),
+          expand = expansion(mult = c(0, .05))
+        ) +
+        coord_cartesian(ylim = c(0, global_population_ymax)) +
+        facet_grid(
+          rows = vars(scenario_panel), cols = vars(area), scales = "fixed"
+        ) +
+        scale_fill_manual(values = global_fuel_palette, na.value = "grey70") +
+        theme_bw(base_size = 13) +
+        theme(
+          panel.grid.minor = element_blank(),
+          plot.title.position = "plot",
+          legend.position = "bottom"
+        )
+      global_population_png <- file.path(
+        full_path,
+        sprintf(
+          "wfdb_v2_pop_stack_faceted_global_south_%d_%d.png",
+          global_year_min, global_year_max
+        )
+      )
+      ggsave(
+        global_population_png, global_population_plot,
+        width = 14, height = 11, dpi = 300, bg = "white"
+      )
+
+      build_global_woodfuel <- function(source_df, scenario_label) {
+        source_df %>%
+          dplyr::filter(
+            year >= global_year_min, year <= global_year_max,
+            fuel %in% wood_fuels
+          ) %>%
+          dplyr::mutate(
+            fuel = dplyr::case_when(
+              fuel %in% c("fuelwood", "imp_fuelwood") ~ "fuelwood",
+              fuel %in% c("charcoal", "imp_charcoal") ~ "charcoal",
+              TRUE ~ fuel
+            ),
+            area = factor(area, levels = global_area_levels),
+            scenario_panel = scenario_label
+          ) %>%
+          dplyr::group_by(scenario_panel, year, area, fuel) %>%
+          dplyr::summarise(
+            value_woodeq_t = sum(.data[[demand_col]], na.rm = TRUE),
+            .groups = "drop"
+          ) %>%
+          dplyr::mutate(
+            value_t = dplyr::if_else(
+              fuel == "charcoal", value_woodeq_t / efchratio, value_woodeq_t
+            ),
+            scenario_panel = factor(
+              scenario_panel, levels = global_scenario_levels
+            )
+          )
+      }
+      global_woodfuel <- dplyr::bind_rows(
+        build_global_woodfuel(global_bau, global_scenario_levels[[1L]]),
+        build_global_woodfuel(global_ics3, global_scenario_levels[[2L]])
+      ) %>%
+        dplyr::arrange(scenario_panel, year, area, fuel)
+      global_woodfuel_ymax <- global_woodfuel %>%
+        dplyr::filter(area == "overall") %>%
+        dplyr::group_by(scenario_panel, year) %>%
+        dplyr::summarise(
+          total = sum(value_t, na.rm = TRUE), .groups = "drop"
+        ) %>%
+        dplyr::summarise(ymax = max(total, na.rm = TRUE), .groups = "drop") %>%
+        dplyr::pull(ymax)
+      global_woodfuel_plot <- ggplot(
+        global_woodfuel, aes(x = year, y = value_t, fill = fuel)
+      ) +
+        geom_area(alpha = 0.95, color = "grey30", linewidth = 0.2) +
+        labs(
+          title = sprintf(
+            "Fuelwood & Charcoal demand in %s (tonnes, charcoal / %s)",
+            global_analysis_label, efchratio
+          ),
+          subtitle = sprintf(
+            "%d-%d | Faceted by area (Y from max stacked in Overall) | source col: %s",
+            global_year_min, global_year_max, demand_col
+          ),
+          x = NULL, y = "Tonnes", fill = "Fuel",
+          caption = global_scenario_caption
+        ) +
+        scale_x_continuous(
+          breaks = seq(global_year_min, global_year_max, by = 5)
+        ) +
+        scale_y_continuous(
+          labels = scales::label_number(scale_cut = scales::cut_si("")),
+          expand = expansion(mult = c(0, .05))
+        ) +
+        coord_cartesian(ylim = c(0, global_woodfuel_ymax)) +
+        facet_grid(
+          rows = vars(scenario_panel), cols = vars(area), scales = "fixed"
+        ) +
+        scale_fill_manual(
+          values = c("fuelwood" = "#8B4513", "charcoal" = "#2B2B2B")
+        ) +
+        theme_bw(base_size = 13) +
+        theme(
+          panel.grid.minor = element_blank(),
+          plot.title.position = "plot",
+          legend.position = "bottom"
+        )
+      global_woodfuel_png <- file.path(
+        full_path,
+        sprintf(
+          "wfdb_fw_char_stack_faceted_global_south_%s_%d_%d.png",
+          demand_col, global_year_min, global_year_max
+        )
+      )
+      ggsave(
+        global_woodfuel_png, global_woodfuel_plot,
+        width = 14, height = 11, dpi = 300, bg = "white"
+      )
       cat(
         "\033[32m[OK] Global BaU1/ICS3 validation passed; wrote:\n",
-        global_csv, "\n", global_png, "\033[0m\n",
+        global_csv, "\n", global_png, "\n",
+        global_population_png, "\n", global_woodfuel_png, "\033[0m\n",
         sep = ""
       )
     } else {

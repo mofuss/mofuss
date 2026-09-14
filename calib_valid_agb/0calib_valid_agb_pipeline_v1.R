@@ -27,22 +27,25 @@
 # USER INPUTS: edit this block only -----------------------------------------
 
 # Each enabled batch is one independent BAU/ICS x capped/uncapped analysis.
-# Declare its common parent once in `root`; keep placeholders disabled until
-# that root exists on the current computer.
+# Declare its common parent once in `root` and use the same exact
+# `analysis_folder` configured in the emissions postprocessing pipeline. The
+# validation pipeline requires that analysis root to exist before it can run.
 PIPELINE_BATCHES <- list(
   GOG = list(
     enabled = TRUE,
     root = "E:/",
+    analysis_folder = "GOG_1000m_ics3_2050_mc30",
     folders = c(
-      "GOG_1000m_bau1_2050_mc3_capped",
-      "GOG_1000m_bau1_2050_mc3_uncapped",
-      "GOG_1000m_ics3_2050_mc3_capped",
-      "GOG_1000m_ics3_2050_mc3_uncapped"
+      "GOG_1000m_bau1_2050_mc30_capped",
+      "GOG_1000m_bau1_2050_mc30_uncapped",
+      "GOG_1000m_ics3_2050_mc30_capped",
+      "GOG_1000m_ics3_2050_mc30_uncapped"
     )
   ),
   mdg = list(
     enabled = TRUE,
     root = "E:/",
+    analysis_folder = "mdg_1000m_bau1_2050_mc3",
     folders = c(
       "mdg_1000m_bau1_2050_mc3_capped",
       "mdg_1000m_bau1_2050_mc3_uncapped",
@@ -50,9 +53,21 @@ PIPELINE_BATCHES <- list(
       "mdg_1000m_ics3_2050_mc3_uncapped"
     )
   ),
-  GLEA = list(
+  lso = list(
     enabled = TRUE,
     root = "E:/",
+    analysis_folder = "lso_1000m_bau1_2050_mc3",
+    folders = c(
+      "lso_1000m_bau1_2050_mc3_capped",
+      "lso_1000m_bau1_2050_mc3_uncapped",
+      "lso_1000m_ics3_2050_mc3_capped",
+      "lso_1000m_ics3_2050_mc3_uncapped"
+    )
+  ),
+  GLEA = list(
+    enabled = FALSE,
+    root = "E:/",
+    analysis_folder = "GLEA_1000m_ics3_2050_mc3",
     folders = c(
       "GLEA_1000m_bau1_2050_mc3_capped",
       "GLEA_1000m_bau1_2050_mc3_uncapped",
@@ -63,7 +78,7 @@ PIPELINE_BATCHES <- list(
 )
 
 # Run all stages in order. Use 2:3, for example, to resume at Stage 2.
-PIPELINE_STAGES <- 1:3
+PIPELINE_STAGES <- 2:3 #1:3
 
 # Used in the versioned analysis-root name and aligned with emissions
 # postprocessing. It does not define the empirical validation window.
@@ -163,10 +178,26 @@ pipeline_resolve_batches <- function() {
   for (batch_name in names(batches)) {
     entry <- batches[[batch_name]]
     label <- sprintf("PIPELINE_BATCHES[['%s']]", batch_name)
-    if (!is.list(entry) || !all(c("enabled", "root", "folders") %in% names(entry))) {
-      pipeline_stop("%s must contain enabled, root, and folders.", label)
+    required_fields <- c("enabled", "root", "analysis_folder", "folders")
+    if (!is.list(entry) || !all(required_fields %in% names(entry))) {
+      pipeline_stop(
+        "%s must contain enabled, root, analysis_folder, and folders.", label
+      )
     }
     enabled <- pipeline_bool(entry$enabled, paste0(label, "$enabled"))
+    analysis_folder <- trimws(as.character(entry$analysis_folder))
+    if (length(analysis_folder) != 1L || is.na(analysis_folder) ||
+        !nzchar(analysis_folder) ||
+        !grepl("^[A-Za-z0-9][A-Za-z0-9._-]*$", analysis_folder) ||
+        analysis_folder %in% c(".", "..")) {
+      pipeline_stop(
+        paste0(
+          "%s$analysis_folder must be one safe folder name using only letters, ",
+          "numbers, dots, underscores, and hyphens."
+        ),
+        label
+      )
+    }
     folders <- trimws(as.character(entry$folders))
     if (length(folders) != 4L || anyNA(folders) || any(!nzchar(folders)) ||
         any(grepl("[/\\\\]", folders)) || any(folders %in% c(".", "..")) ||
@@ -193,7 +224,8 @@ pipeline_resolve_batches <- function() {
       working_dirs, normalizePath, character(1), winslash = "/", mustWork = TRUE
     )
     resolved[[batch_name]] <- list(
-      name = batch_name, root = root, working_dirs = unname(working_dirs)
+      name = batch_name, root = root, analysis_folder = analysis_folder,
+      working_dirs = unname(working_dirs)
     )
   }
   if (!length(resolved)) pipeline_stop("PIPELINE_BATCHES has no enabled batches.")
@@ -213,16 +245,6 @@ pipeline_integer <- function(x, label, minimum = 0L) {
     pipeline_stop("%s must be one integer >= %d.", label, minimum)
   }
   integer_value
-}
-
-pipeline_safe_id <- function(x) {
-  x <- tolower(trimws(as.character(x)))
-  x <- gsub("[^a-z0-9]+", "_", x)
-  x <- gsub("^_+|_+$", "", x)
-  if (length(x) != 1L || is.na(x) || !nzchar(x)) {
-    pipeline_stop("Could not construct an analysis identifier from scenario metadata.")
-  }
-  x
 }
 
 pipeline_guarded_remove_tree <- function(target, expected_parent, expected_leaf) {
@@ -498,20 +520,25 @@ pipeline_validate <- function(script_dir) {
   }
   for (batch_name in names(batch_configs)) {
     batch <- batch_configs[[batch_name]]
-    metadata <- batch$metadata
-    analysis_id <- paste(
-      pipeline_safe_id(metadata$analysis_area_id[[1L]]),
-      metadata$model_start[[1L]] + spinup_years,
-      metadata$model_end[[1L]],
-      paste0("mc", metadata$mc_runs[[1L]]),
-      sep = "_"
+    postprocessing_parent <- if (is.null(explicit_postprocessing_root)) {
+      file.path(batch$root, "mofuss_postprocessing")
+    } else {
+      explicit_postprocessing_root
+    }
+    analysis_root_candidate <- file.path(
+      postprocessing_parent, batch$analysis_folder
     )
+    if (!dir.exists(analysis_root_candidate)) {
+      pipeline_stop(
+        paste0(
+          "Batch '%s' canonical emissions analysis root does not exist: %s. ",
+          "Run the emissions pipeline first or correct its shared analysis_folder."
+        ),
+        batch$name, analysis_root_candidate
+      )
+    }
     batch$analysis_root <- normalizePath(
-      file.path(
-        if (is.null(explicit_postprocessing_root)) file.path(batch$root, "mofuss_postprocessing") else explicit_postprocessing_root,
-        analysis_id
-      ),
-      winslash = "/", mustWork = FALSE
+      analysis_root_candidate, winslash = "/", mustWork = TRUE
     )
     batch_hydrolakes <- hydrolakes
     if (exclude_lakes && is.null(batch_hydrolakes)) {
@@ -634,6 +661,7 @@ pipeline_main <- function(args = commandArgs(trailingOnly = TRUE)) {
     batch <- config$batches[[i]]
     cat(sprintf("\n  Batch %d/%d: %s\n", i, length(config$batches), batch$name))
     cat(sprintf("    root: %s\n", batch$root))
+    cat(sprintf("    analysis folder: %s\n", batch$analysis_folder))
     cat(sprintf("    working folders: %s\n", paste(basename(batch$working_dirs), collapse = ", ")))
     cat(sprintf(
       "    analysis area: %s (%s)\n",

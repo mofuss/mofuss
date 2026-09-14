@@ -120,6 +120,8 @@ SCENARIO_DIRS <- character()
 # D:/mofuss_postprocessing/ken_2026_2030_mc2) before rebuilding any pair.
 .V13_RSTUDIO_PERIOD <- "auto"
 .V13_RSTUDIO_SPINUP_YEARS <- NA_integer_
+.V13_RSTUDIO_ANALYSIS_FOLDER <- NULL
+.V13_RSTUDIO_ANALYSIS_PARENT <- NULL
 .V13_RSTUDIO_RUN_IDS <- "all"
 .V13_RSTUDIO_CONFIG_LABEL <- NULL
 .V13_RSTUDIO_DRY_RUN <- FALSE
@@ -157,7 +159,9 @@ SCENARIO_DIRS <- character()
 
 .v9_parse_cli <- function(args = commandArgs(trailingOnly = TRUE)) {
   allowed <- c(
-    "scenario-dir", "manifest", "config-label", "spinup-years", "period",
+    "scenario-dir", "manifest", "config-label", "analysis-folder",
+    "analysis-parent",
+    "spinup-years", "period",
     "run-ids", "temp-dir",
     "dry-run", "overwrite", "enduse-basis", "pairing-policy", "help"
   )
@@ -165,6 +169,8 @@ SCENARIO_DIRS <- character()
     scenario_dirs = character(),
     manifest = NULL,
     config_label = NULL,
+    analysis_folder = NULL,
+    analysis_parent = NULL,
     spinup_years = NULL,
     period = "auto",
     run_ids = "all",
@@ -213,6 +219,9 @@ SCENARIO_DIRS <- character()
       "  --scenario-dir=DIR        Scenario folder; repeat once per BAU/CCTS folder\n",
       "  --manifest=CSV             Legacy resolved-pair manifest\n",
       "  --config-label=LABEL       Process one manifest label (default: all)\n",
+      "  --analysis-folder=NAME     Safe analysis-root folder name\n",
+      "  --analysis-parent=DIR      Parent for regional/singleton analysis roots;\n",
+      "                             default: mofuss_postprocessing beside scenarios\n",
       "  --spinup-years=N           Non-negative years from simulation start to reporting start\n",
       "  --period=auto|YYYY:YYYY    Default: configured post-spin-up start through end\n",
       "  --run-ids=all|1,2,5:10    Selected MC runs (default: all, including MC01)\n",
@@ -413,6 +422,36 @@ SCENARIO_DIRS <- character()
   )
 }
 
+.v13_parse_analysis_folder <- function(x) {
+  if (is.null(x)) return(NULL)
+  value <- trimws(as.character(x))
+  if (length(value) != 1L || is.na(value) || !nzchar(value) ||
+      !grepl("^[A-Za-z0-9][A-Za-z0-9._-]*$", value) ||
+      value %in% c(".", "..")) {
+    .v9_stop(
+      "--analysis-folder must be one safe folder name using only letters, ",
+      "numbers, dot, underscore, or hyphen."
+    )
+  }
+  value
+}
+
+.v13_parse_analysis_parent <- function(x) {
+  if (is.null(x)) return(NULL)
+  value <- trimws(as.character(x))
+  if (length(value) != 1L || is.na(value) || !nzchar(value)) {
+    .v9_stop("--analysis-parent must be one non-empty directory path.")
+  }
+  value <- normalizePath(path.expand(value), winslash = "/", mustWork = FALSE)
+  if (.v13_root_like(value)) {
+    .v9_stop("--analysis-parent may not be a drive/filesystem root: ", value)
+  }
+  if (file.exists(value) && !dir.exists(value)) {
+    .v9_stop("--analysis-parent exists and is not a directory: ", value)
+  }
+  value
+}
+
 .v13_parameter_geography <- function(parameters) {
   if (isTRUE(as.integer(parameters$aoi_poly) == 1L)) {
     aoi_name <- tools::file_path_sans_ext(basename(parameters$aoi_poly_file))
@@ -488,7 +527,12 @@ SCENARIO_DIRS <- character()
   normalizePath(candidates[[1]], winslash = "/", mustWork = TRUE)
 }
 
-.v13_internal_pairs <- function(scenario_dirs = SCENARIO_DIRS) {
+.v13_internal_pairs <- function(
+  scenario_dirs = SCENARIO_DIRS, analysis_folder = NULL,
+  analysis_parent = NULL
+) {
+  analysis_folder <- .v13_parse_analysis_folder(analysis_folder)
+  analysis_parent <- .v13_parse_analysis_parent(analysis_parent)
   if (!length(scenario_dirs)) .v9_stop("SCENARIO_DIRS is empty.")
   paths <- vapply(
     scenario_dirs, .v9_norm_existing, character(1), what = "scenario directory"
@@ -499,6 +543,14 @@ SCENARIO_DIRS <- character()
     .v9_stop("All SCENARIO_DIRS must share one immediate parent for automatic outputs.")
   }
   parent <- dirname(paths)[match(parents[[1]], tolower(dirname(paths)))]
+  output_parent <- if (is.null(analysis_parent)) {
+    file.path(parent, "mofuss_postprocessing")
+  } else {
+    analysis_parent
+  }
+  output_parent <- normalizePath(
+    output_parent, winslash = "/", mustWork = FALSE
+  )
   parameters <- lapply(paths, .v9_read_scenario_parameters)
   metadata <- data.frame(
     scenario_dir = paths,
@@ -561,12 +613,16 @@ SCENARIO_DIRS <- character()
       mode,
       sep = "_"
     )
-    analysis_id <- paste(
-      scope_id, analysis_start_year, a$end_year, paste0("mc", a$mc_runs),
-      sep = "_"
-    )
+    analysis_id <- if (is.null(analysis_folder)) {
+      paste(
+        scope_id, analysis_start_year, a$end_year, paste0("mc", a$mc_runs),
+        sep = "_"
+      )
+    } else {
+      analysis_folder
+    }
     output <- normalizePath(
-      file.path(parent, "mofuss_postprocessing", analysis_id, "pairs", label, "emissions"),
+      file.path(output_parent, analysis_id, "pairs", label, "emissions"),
       winslash = "/", mustWork = FALSE
     )
     data.frame(
@@ -931,7 +987,9 @@ SCENARIO_DIRS <- character()
   invisible(TRUE)
 }
 
-.v13_validate_analysis_root <- function(manifest_table, scenario_dirs) {
+.v13_validate_analysis_root <- function(
+  manifest_table, scenario_dirs, analysis_parent = NULL
+) {
   emissions_dirs <- vapply(
     manifest_table$emissions_dir, .v9_norm_output, character(1)
   )
@@ -957,12 +1015,7 @@ SCENARIO_DIRS <- character()
     .v9_stop("Refusing analysis-root clean rebuild: pair outputs do not share one root.")
   }
   root <- roots[[1L]]
-  if (!grepl(
-    "^[A-Za-z0-9._-]+_[0-9]{4}_[0-9]{4}_mc[1-9][0-9]*$",
-    basename(root)
-  )) {
-    .v9_stop("Refusing analysis-root clean rebuild for unexpected root name: ", root)
-  }
+  .v13_parse_analysis_folder(basename(root))
 
   scenario_paths <- vapply(
     scenario_dirs, .v9_norm_existing, character(1), what = "scenario directory"
@@ -972,14 +1025,18 @@ SCENARIO_DIRS <- character()
     .v9_stop("Refusing analysis-root clean rebuild: scenario folders lack one parent.")
   }
   scenario_parent <- dirname(scenario_paths)[[1L]]
-  expected_parent <- normalizePath(
-    file.path(scenario_parent, "mofuss_postprocessing"),
-    winslash = "/", mustWork = FALSE
-  )
+  expected_parent <- if (is.null(analysis_parent)) {
+    normalizePath(
+      file.path(scenario_parent, "mofuss_postprocessing"),
+      winslash = "/", mustWork = FALSE
+    )
+  } else {
+    .v13_parse_analysis_parent(analysis_parent)
+  }
   if (!identical(.v9_path_key(dirname(root)), .v9_path_key(expected_parent)) ||
       .v13_root_like(root) || .v13_root_like(dirname(root))) {
     .v9_stop(
-      "Refusing analysis-root clean rebuild outside the inferred mofuss_postprocessing folder: ",
+      "Refusing analysis-root clean rebuild outside the configured analysis parent: ",
       root
     )
   }
@@ -2614,6 +2671,8 @@ SCENARIO_DIRS <- character()
 run_emissions_manifest <- function(
   manifest = NULL,
   scenario_dirs = SCENARIO_DIRS,
+  analysis_folder = NULL,
+  analysis_parent = NULL,
   period = NULL,
   run_ids = NULL,
   config_label = NULL,
@@ -2650,6 +2709,14 @@ run_emissions_manifest <- function(
   if (clean_analysis_root && !is.null(manifest)) {
     .v9_stop("Full analysis-root cleanup is available only with internal SCENARIO_DIRS.")
   }
+  analysis_folder <- .v13_parse_analysis_folder(analysis_folder)
+  analysis_parent <- .v13_parse_analysis_parent(analysis_parent)
+  if (!is.null(manifest) &&
+      (!is.null(analysis_folder) || !is.null(analysis_parent))) {
+    .v9_stop(
+      "--analysis-folder and --analysis-parent are available only with internal SCENARIO_DIRS."
+    )
+  }
   if (!is.null(run_ids)) {
     original_run_ids <- run_ids
     run_ids <- suppressWarnings(as.integer(run_ids))
@@ -2682,7 +2749,10 @@ run_emissions_manifest <- function(
     } else {
       NA_character_
     }
-    manifest_table <- .v13_internal_pairs(scenario_dirs)
+    manifest_table <- .v13_internal_pairs(
+      scenario_dirs, analysis_folder = analysis_folder,
+      analysis_parent = analysis_parent
+    )
   } else {
     manifest_path <- .v9_norm_existing(manifest, "manifest")
     manifest_md5 <- unname(tools::md5sum(manifest_path))
@@ -2736,7 +2806,9 @@ run_emissions_manifest <- function(
   names(preflights) <- vapply(preflights, `[[`, character(1), "label")
 
   analysis_clean_target <- if (overwrite && clean_analysis_root) {
-    .v13_validate_analysis_root(manifest_table, scenario_dirs)
+    .v13_validate_analysis_root(
+      manifest_table, scenario_dirs, analysis_parent = analysis_parent
+    )
   } else {
     NULL
   }
@@ -2802,6 +2874,8 @@ run_emissions_manifest <- function(
       scenario_dirs = character(),
       manifest = NULL,
       config_label = .V13_RSTUDIO_CONFIG_LABEL,
+      analysis_folder = .V13_RSTUDIO_ANALYSIS_FOLDER,
+      analysis_parent = .V13_RSTUDIO_ANALYSIS_PARENT,
       spinup_years = .V13_RSTUDIO_SPINUP_YEARS,
       period = .V13_RSTUDIO_PERIOD,
       run_ids = .V13_RSTUDIO_RUN_IDS,
@@ -2835,6 +2909,8 @@ run_emissions_manifest <- function(
   run_emissions_manifest(
     manifest = options$manifest,
     scenario_dirs = scenario_dirs,
+    analysis_folder = options$analysis_folder,
+    analysis_parent = options$analysis_parent,
     period = period,
     run_ids = run_ids,
     config_label = options$config_label,

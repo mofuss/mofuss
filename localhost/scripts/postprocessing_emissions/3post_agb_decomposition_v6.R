@@ -102,6 +102,8 @@ SCENARIO_DIRS <- character()
 # NULL output means <analysis root>/agb_decomposition, inferred from the pairs.
 V5_RSTUDIO_OUTPUT_DIR <- NULL
 V5_RSTUDIO_SPINUP_YEARS <- NA_integer_
+V5_RSTUDIO_ANALYSIS_FOLDER <- NULL
+V5_RSTUDIO_ANALYSIS_PARENT <- NULL
 V5_RSTUDIO_PERIOD <- "auto"
 V5_RSTUDIO_RUN_IDS <- "all"
 V5_RSTUDIO_PAIRING_POLICY <- "strict"
@@ -116,7 +118,9 @@ usage <- function() {
   cat(paste0(
     "Usage:\n",
     "  Rscript 3post_agb_decomposition_v6.R ",
-    "[--scenario-dir=DIR ...] [--output-dir=DIR] [--spinup-years=N] ",
+    "[--scenario-dir=DIR ...] [--analysis-folder=NAME] ",
+    "[--analysis-parent=DIR] ",
+    "[--output-dir=DIR] [--spinup-years=N] ",
     "[--period=auto|START:END] ",
     "[--run-ids=all|LIST] [--dry-run] ",
     "[--pairing-policy=strict|diagnostic] [--overwrite] [--no-plot]\n\n",
@@ -138,6 +142,8 @@ parse_cli <- function(args) {
   out <- list(
     scenario_dirs = character(),
     manifest = NULL,
+    analysis_folder = NULL,
+    analysis_parent = NULL,
     output_dir = NULL,
     spinup_years = NULL,
     period = "auto",
@@ -151,6 +157,8 @@ parse_cli <- function(args) {
   )
   value_names <- c(
     "--manifest" = "manifest",
+    "--analysis-folder" = "analysis_folder",
+    "--analysis-parent" = "analysis_parent",
     "--output-dir" = "output_dir",
     "--spinup-years" = "spinup_years",
     "--period" = "period",
@@ -183,6 +191,10 @@ parse_cli <- function(args) {
       out$scenario_dirs <- c(out$scenario_dirs, value)
     } else if (grepl("^--manifest=", a)) {
       out$manifest <- sub("^--manifest=", "", a)
+    } else if (grepl("^--analysis-folder=", a)) {
+      out$analysis_folder <- sub("^--analysis-folder=", "", a)
+    } else if (grepl("^--analysis-parent=", a)) {
+      out$analysis_parent <- sub("^--analysis-parent=", "", a)
     } else if (grepl("^--output-dir=", a)) {
       out$output_dir <- sub("^--output-dir=", "", a)
     } else if (grepl("^--spinup-years=", a)) {
@@ -495,6 +507,38 @@ read_parameters <- function(scenario_dir, role = NULL) {
   out
 }
 
+parse_analysis_folder <- function(x) {
+  if (is.null(x)) return(NULL)
+  value <- trimws(as.character(x))
+  if (length(value) != 1L || is.na(value) || !nzchar(value) ||
+      !grepl("^[A-Za-z0-9][A-Za-z0-9._-]*$", value) ||
+      value %in% c(".", "..")) {
+    stopf(
+      paste0(
+        "--analysis-folder must be one safe folder name using only letters, ",
+        "numbers, dot, underscore, or hyphen."
+      )
+    )
+  }
+  value
+}
+
+parse_analysis_parent <- function(x) {
+  if (is.null(x)) return(NULL)
+  value <- trimws(as.character(x))
+  if (length(value) != 1L || is.na(value) || !nzchar(value)) {
+    stopf("--analysis-parent must be one non-empty directory path.")
+  }
+  value <- normalizePath(path.expand(value), winslash = "/", mustWork = FALSE)
+  if (v5_root_like(value)) {
+    stopf("--analysis-parent may not be a drive/filesystem root: %s", value)
+  }
+  if (file.exists(value) && !dir.exists(value)) {
+    stopf("--analysis-parent exists and is not a directory: %s", value)
+  }
+  value
+}
+
 parameter_geography <- function(parameters) {
   if (isTRUE(as.integer(parameters$aoi_poly) == 1L)) {
     aoi_name <- tools::file_path_sans_ext(basename(parameters$aoi_poly_file))
@@ -568,7 +612,12 @@ v5_script_path <- function() {
   normalizePath(candidates[[1]], winslash = "/", mustWork = TRUE)
 }
 
-v5_internal_pairs <- function(scenario_dirs = SCENARIO_DIRS) {
+v5_internal_pairs <- function(
+  scenario_dirs = SCENARIO_DIRS, analysis_folder = NULL,
+  analysis_parent = NULL
+) {
+  analysis_folder <- parse_analysis_folder(analysis_folder)
+  analysis_parent <- parse_analysis_parent(analysis_parent)
   if (!length(scenario_dirs)) stopf("SCENARIO_DIRS is empty.")
   paths <- vapply(
     scenario_dirs, resolve_path, character(1),
@@ -580,6 +629,14 @@ v5_internal_pairs <- function(scenario_dirs = SCENARIO_DIRS) {
     stopf("All SCENARIO_DIRS must share one immediate parent for automatic outputs.")
   }
   parent <- dirname(paths)[match(parents[[1]], tolower(dirname(paths)))]
+  output_parent <- if (is.null(analysis_parent)) {
+    file.path(parent, "mofuss_postprocessing")
+  } else {
+    analysis_parent
+  }
+  output_parent <- normalizePath(
+    output_parent, winslash = "/", mustWork = FALSE
+  )
   parameters <- lapply(paths, read_parameters)
   metadata <- data.frame(
     scenario_dir = paths,
@@ -645,12 +702,16 @@ v5_internal_pairs <- function(scenario_dirs = SCENARIO_DIRS) {
       mode,
       sep = "_"
     )
-    analysis_id <- paste(
-      scope_id, analysis_start_year, a$end_year, paste0("mc", a$mc_runs),
-      sep = "_"
-    )
+    analysis_id <- if (is.null(analysis_folder)) {
+      paste(
+        scope_id, analysis_start_year, a$end_year, paste0("mc", a$mc_runs),
+        sep = "_"
+      )
+    } else {
+      analysis_folder
+    }
     emissions_dir <- normalizePath(
-      file.path(parent, "mofuss_postprocessing", analysis_id, "pairs", label, "emissions"),
+      file.path(output_parent, analysis_id, "pairs", label, "emissions"),
       winslash = "/", mustWork = FALSE
     )
     data.frame(
@@ -663,7 +724,7 @@ v5_internal_pairs <- function(scenario_dirs = SCENARIO_DIRS) {
       analysis_start_year = analysis_start_year,
       mc_runs = a$mc_runs,
       analysis_root = normalizePath(
-        file.path(parent, "mofuss_postprocessing", analysis_id),
+        file.path(output_parent, analysis_id),
         winslash = "/", mustWork = FALSE
       ),
       stringsAsFactors = FALSE
@@ -2521,6 +2582,8 @@ main <- function(args = commandArgs(trailingOnly = TRUE), source_mode = interact
     list(
       scenario_dirs = character(),
       manifest = NULL,
+      analysis_folder = V5_RSTUDIO_ANALYSIS_FOLDER,
+      analysis_parent = V5_RSTUDIO_ANALYSIS_PARENT,
       output_dir = V5_RSTUDIO_OUTPUT_DIR,
       spinup_years = V5_RSTUDIO_SPINUP_YEARS,
       period = V5_RSTUDIO_PERIOD,
@@ -2545,6 +2608,14 @@ main <- function(args = commandArgs(trailingOnly = TRUE), source_mode = interact
   if (!using_internal && length(opts$scenario_dirs)) {
     stopf("Use either repeated --scenario-dir options or --manifest, not both.")
   }
+  analysis_folder <- parse_analysis_folder(opts$analysis_folder)
+  analysis_parent <- parse_analysis_parent(opts$analysis_parent)
+  if (!using_internal &&
+      (!is.null(analysis_folder) || !is.null(analysis_parent))) {
+    stopf(
+      "--analysis-folder and --analysis-parent are available only with internal SCENARIO_DIRS."
+    )
+  }
   pairing_policy <- tolower(trimws(as.character(opts$pairing_policy)))
   if (length(pairing_policy) != 1L || is.na(pairing_policy) ||
       !pairing_policy %in% c("strict", "diagnostic")) {
@@ -2567,7 +2638,10 @@ main <- function(args = commandArgs(trailingOnly = TRUE), source_mode = interact
 
   if (using_internal) {
     scenario_dirs <- if (length(opts$scenario_dirs)) opts$scenario_dirs else SCENARIO_DIRS
-    pairs <- v5_internal_pairs(scenario_dirs)
+    pairs <- v5_internal_pairs(
+      scenario_dirs, analysis_folder = analysis_folder,
+      analysis_parent = analysis_parent
+    )
     configs <- configs_from_pairs(pairs)
     internal_path <- v5_script_path()
     manifest_path <- if (is.na(internal_path)) {
