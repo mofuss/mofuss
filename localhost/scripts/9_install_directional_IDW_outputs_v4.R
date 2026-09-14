@@ -86,7 +86,7 @@ PIPELINE_BATCHES <- list(
   lso = list(
     enabled = TRUE,
     root = "E:/",
-    analysis_folder = "mdg_1000m_bau1_2050_mc3",
+    analysis_folder = "lso_1000m_bau1_2050_mc3",
     folders = c(
       "lso_1000m_bau1_2050_mc3_capped",
       "lso_1000m_bau1_2050_mc3_uncapped",

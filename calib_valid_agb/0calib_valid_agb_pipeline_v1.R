@@ -43,7 +43,7 @@ PIPELINE_BATCHES <- list(
     )
   ),
   mdg = list(
-    enabled = TRUE,
+    enabled = FALSE,
     root = "E:/",
     analysis_folder = "mdg_1000m_bau1_2050_mc3",
     folders = c(
@@ -54,7 +54,7 @@ PIPELINE_BATCHES <- list(
     )
   ),
   lso = list(
-    enabled = TRUE,
+    enabled = FALSE,
     root = "E:/",
     analysis_folder = "lso_1000m_bau1_2050_mc3",
     folders = c(
@@ -95,9 +95,10 @@ PIPELINE_AGB_OBS_DIR <- paste0(
   "ctrees_dic2025_agb_cr/1km_agco2_2000_2025/agb_projected_ha"
 )
 
-# NULL writes beside the working-folder parent in mofuss_postprocessing.
-# Set an explicit directory only for a controlled alternate output root.
-PIPELINE_POSTPROCESSING_ROOT <- NULL
+# Keep this identical to PIPELINE_GLOBAL_ANALYSIS_PARENT in
+# 0post_emissions_pipeline_v2.R so validation is added to the analysis roots
+# already created by emissions postprocessing.
+PIPELINE_POSTPROCESSING_ROOT <- "E:/_postprocessing_draft"
 
 # Disposable computation staging. Final products are promoted to the dedicated
 # mofuss_postprocessing analysis root only after a stage succeeds.
