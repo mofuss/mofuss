@@ -2255,8 +2255,9 @@ if (identical(attraction_flag, "YES")) {
 
 # Directional regional IDW harmonization helpers ----
 #
-# Script 3 writes one origin-country W job per country with positive W demand,
-# one pooled importer V job, and one domestic-only V job for each non-importer.
+# Script 3 writes one W and one V origin-country job per country with positive
+# demand. W is domestic-only; each V job carries its direct bilateral source
+# permission mask for the active evidence-tier policy.
 # IDW itself runs later in the Dinamica workflow. Here we only align each job's
 # categorical location raster and source-domain mask to the common analysis
 # grid. Legacy country and custom-polygon workflows remain unchanged when no HC

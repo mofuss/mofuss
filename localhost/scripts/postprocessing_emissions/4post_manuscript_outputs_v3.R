@@ -351,6 +351,38 @@ same_number <- function(a, b, tolerance = 1e-6) {
   isTRUE(all.equal(as.numeric(a), as.numeric(b), tolerance = tolerance))
 }
 
+# Stage 2 rasters are intentionally stored as FLT4S. Summing millions of
+# single-precision cells can therefore differ slightly from the double-
+# precision analysis-area scalar even when both products are scientifically
+# identical. Retain the strict 0.05 tCO2e absolute check for small totals, but
+# add a tightly bounded relative allowance for large regional totals.
+raster_scalar_reconciliation <- function(
+    raster_sum,
+    scalar,
+    absolute_tolerance = 0.05,
+    relative_tolerance = 1e-10) {
+  raster_sum <- as.numeric(raster_sum)
+  scalar <- as.numeric(scalar)
+  if (length(raster_sum) != 1L || length(scalar) != 1L ||
+      !is.finite(raster_sum) || !is.finite(scalar)) {
+    return(list(
+      ok = FALSE,
+      difference = NA_real_,
+      tolerance = NA_real_
+    ))
+  }
+  difference <- abs(raster_sum - scalar)
+  tolerance <- max(
+    absolute_tolerance,
+    relative_tolerance * max(1, abs(raster_sum), abs(scalar))
+  )
+  list(
+    ok = difference <= tolerance,
+    difference = difference,
+    tolerance = tolerance
+  )
+}
+
 decode_unicode_tokens <- function(x) {
   decode_one <- function(value) {
     if (is.na(value)) return(NA_character_)
@@ -990,6 +1022,12 @@ write_country_contribution_figure <- function(
     raw_limits[[1L]] - 0.05 * raw_span,
     raw_limits[[2L]] + 0.16 * raw_span
   )
+  # graphics::arrows() warns when an otherwise non-zero segment is shorter
+  # than one output pixel and collapses to zero device length. Such arrows are
+  # invisible, so skip them while retaining the exact values in the point,
+  # label, and tabular outputs.
+  arrow_min_length <- abs(diff(plot_limits)) /
+    (COUNTRY_FIGURE_WIDTH_IN * COUNTRY_FIGURE_DPI)
   tick_values <- pretty(raw_limits, n = 5L)
   tick_values <- tick_values[
     tick_values >= plot_limits[[1L]] & tick_values <= plot_limits[[2L]]
@@ -1143,7 +1181,8 @@ write_country_contribution_figure <- function(
           col = colours[["uncertainty"]], lwd = 1.15
         )
       }
-      if (!same_number(harvest_end, total_end, tolerance = 1e-12)) {
+      if (is.finite(harvest_end) && is.finite(total_end) &&
+          abs(total_end - harvest_end) > arrow_min_length) {
         graphics::arrows(
           harvest_end, arrow_y, total_end, arrow_y,
           length = 0.075, angle = 24, code = 2L,
@@ -1342,8 +1381,16 @@ for (configuration in CONFIGURATION_ORDER) {
     mc1_raster <- terra::rast(mc1_destination)
     mc1_sum <- as.numeric(terra::global(mc1_raster, "sum", na.rm = TRUE)[[1L]])
     mc1_scalar <- as.numeric(scalar_rows[[scalar_fields[[component]]]][as.integer(scalar_rows$run_id) == 1L])
-    if (length(mc1_scalar) != 1L || abs(mc1_sum - mc1_scalar) > 0.05) {
-      stopf("%s %s MC1 raster does not reconcile with the analysis-area scalar.", configuration, component)
+    mc1_reconciliation <- raster_scalar_reconciliation(mc1_sum, mc1_scalar)
+    if (!isTRUE(mc1_reconciliation$ok)) {
+      stopf(
+        paste0(
+          "%s %s MC1 raster does not reconcile with the analysis-area scalar ",
+          "(raster=%.15g, scalar=%.15g, absolute difference=%.15g, tolerance=%.15g)."
+        ),
+        configuration, component, mc1_sum, mc1_scalar,
+        mc1_reconciliation$difference, mc1_reconciliation$tolerance
+      )
     }
     key <- paste(configuration, component, sep = "_")
     mc1_raster_objects[[key]] <- mc1_raster
@@ -1354,8 +1401,16 @@ for (configuration in CONFIGURATION_ORDER) {
       mean_raster <- terra::rast(mean_destination)
       mean_sum <- as.numeric(terra::global(mean_raster, "sum", na.rm = TRUE)[[1L]])
       mean_scalar <- mean(as.numeric(scalar_rows[[scalar_fields[[component]]]]))
-      if (abs(mean_sum - mean_scalar) > 0.05) {
-        stopf("%s %s mean raster does not reconcile with the analysis-area scalar.", configuration, component)
+      mean_reconciliation <- raster_scalar_reconciliation(mean_sum, mean_scalar)
+      if (!isTRUE(mean_reconciliation$ok)) {
+        stopf(
+          paste0(
+            "%s %s mean raster does not reconcile with the analysis-area scalar ",
+            "(raster=%.15g, scalar=%.15g, absolute difference=%.15g, tolerance=%.15g)."
+          ),
+          configuration, component, mean_sum, mean_scalar,
+          mean_reconciliation$difference, mean_reconciliation$tolerance
+        )
       }
       mc_all_mean_raster_objects[[key]] <- mean_raster
 

@@ -34,7 +34,7 @@
 # their scenario folders exist on the current computer.
 PIPELINE_BATCHES <- list(
   GOG = list(
-    enabled = TRUE,
+    enabled = FALSE,
     root = "E:/",
     analysis_folder = "GOG_1000m_ics3_2050_mc30",
     folders = c(
@@ -45,7 +45,7 @@ PIPELINE_BATCHES <- list(
     )
   ),
   mdg = list(
-    enabled = TRUE,
+    enabled = FALSE,
     root = "E:/",
     analysis_folder = "mdg_1000m_bau1_2050_mc3",
     folders = c(
@@ -56,7 +56,7 @@ PIPELINE_BATCHES <- list(
     )
   ),
   lso = list(
-    enabled = TRUE,
+    enabled = FALSE,
     root = "E:/",
     analysis_folder = "lso_1000m_bau1_2050_mc3",
     folders = c(
@@ -67,7 +67,7 @@ PIPELINE_BATCHES <- list(
     )
   ),
   GLEA = list(
-    enabled = FALSE,
+    enabled = TRUE,
     root = "E:/",
     analysis_folder = "GLEA_1000m_ics3_2050_mc3",
     folders = c(
@@ -80,7 +80,7 @@ PIPELINE_BATCHES <- list(
 )
 
 # Run all stages in order. Use, for example, 3: to resume at Stage 3.
-PIPELINE_STAGES <- 2:5 #1:5
+PIPELINE_STAGES <- 4:5 #1:5
 
 # Stage 1: character() retains the v9 default multi-period/snapshot schedule.
 # Otherwise supply one or more explicit periods, for example c("2026:2050").

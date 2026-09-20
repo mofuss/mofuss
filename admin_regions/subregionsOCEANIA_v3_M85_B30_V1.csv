@@ -1,0 +1,2 @@
+"CandidateID","CandidateRegionID","RunCode","Subregion","GID_0","NAME_0","ImporterV","EvidenceConfidence","Status","PermissionSetID","RegionBasis","ComponentSize","AcceptedEdgeCount","VSrcA","VSrcB","VSrcC"
+"M85_B30_V1","M85_S_PNG","PNG","Papua New Guinea domestic-only singleton","PNG","Papua New Guinea",0,"domestic_only","model_ready_bilateral_permissions_v1","B30_V1","no_accepted_bilateral_connection",1,0,"","",""

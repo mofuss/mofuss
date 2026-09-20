@@ -32,7 +32,7 @@
 # validation pipeline requires that analysis root to exist before it can run.
 PIPELINE_BATCHES <- list(
   GOG = list(
-    enabled = TRUE,
+    enabled = FALSE,
     root = "E:/",
     analysis_folder = "GOG_1000m_ics3_2050_mc30",
     folders = c(
@@ -65,7 +65,7 @@ PIPELINE_BATCHES <- list(
     )
   ),
   GLEA = list(
-    enabled = FALSE,
+    enabled = TRUE,
     root = "E:/",
     analysis_folder = "GLEA_1000m_ics3_2050_mc3",
     folders = c(
@@ -78,7 +78,7 @@ PIPELINE_BATCHES <- list(
 )
 
 # Run all stages in order. Use 2:3, for example, to resume at Stage 2.
-PIPELINE_STAGES <- 2:3 #1:3
+PIPELINE_STAGES <- 1:3 #1:3
 
 # Used in the versioned analysis-root name and aligned with emissions
 # postprocessing. It does not define the empirical validation window.

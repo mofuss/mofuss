@@ -1,0 +1,5 @@
+"CandidateID","CandidateRegionID","RunCode","Subregion","GID_0","NAME_0","ImporterV","EvidenceConfidence","Status","PermissionSetID","RegionBasis","ComponentSize","AcceptedEdgeCount","VSrcA","VSrcB","VSrcC"
+"M85_B30_V1","M85_S_DZA","DZA","Algeria domestic-only singleton","DZA","Algeria",0,"domestic_only","model_ready_bilateral_permissions_v1","B30_V1","no_accepted_bilateral_connection",1,0,"","",""
+"M85_B30_V1","M85_S_EGY","EGY","Egypt domestic-only singleton","EGY","Egypt",0,"domestic_only","model_ready_bilateral_permissions_v1","B30_V1","no_accepted_bilateral_connection",1,0,"","",""
+"M85_B30_V1","M85_S_MAR","MAR","Morocco domestic-only singleton","MAR","Morocco",0,"domestic_only","model_ready_bilateral_permissions_v1","B30_V1","no_accepted_bilateral_connection",1,0,"","",""
+"M85_B30_V1","M85_S_TUN","TUN","Tunisia domestic-only singleton","TUN","Tunisia",0,"domestic_only","model_ready_bilateral_permissions_v1","B30_V1","no_accepted_bilateral_connection",1,0,"","",""

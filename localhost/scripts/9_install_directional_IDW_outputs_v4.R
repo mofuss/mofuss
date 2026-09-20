@@ -50,8 +50,9 @@
 #   In/DemandScenarios/HC_jobs/HC_IDW_install_manifest.csv
 #   In/DemandScenarios/HC_jobs/README_IDW_INSTALL.txt
 #
-# This script is fail-closed. It refuses incomplete inputs, geometry mismatches,
-# invalid values, source-domain leakage and pre-existing installed components.
+# This script is fail-closed. It refuses incomplete inputs, unsafe geometry
+# mismatches, invalid values, source-domain leakage and pre-existing installed
+# components. Up to three aligned border cells per edge may be restored or trimmed.
 # It never runs CostDistance_IDW and never overwrites an installed product.
 
 # USER INPUTS: edit this block only -----------------------------------------
@@ -84,7 +85,7 @@ PIPELINE_BATCHES <- list(
     )
   ),
   lso = list(
-    enabled = TRUE,
+    enabled = FALSE,
     root = "E:/",
     analysis_folder = "lso_1000m_bau1_2050_mc3",
     folders = c(
@@ -95,7 +96,7 @@ PIPELINE_BATCHES <- list(
     )
   ),
   GLEA = list(
-    enabled = FALSE,
+    enabled = TRUE,
     root = "E:/",
     analysis_folder = "GLEA_1000m_ics3_2050_mc3",
     folders = c(
@@ -184,6 +185,83 @@ suppressPackageStartupMessages(library(terra))
   invisible(TRUE)
 }
 
+.idw6f_component_geometry_adjustment <- function(raster, source_mask, template, label) {
+  same_geometry <- isTRUE(terra::compareGeom(
+    raster, template,
+    lyrs = FALSE, crs = TRUE, ext = TRUE, rowcol = TRUE, res = TRUE,
+    stopOnError = FALSE
+  ))
+  if (same_geometry) return("none")
+
+  # Returned HC GeoTIFFs may have a slightly different border. Positive offsets
+  # mean missing template cells; negative offsets mean surplus cells outside it.
+  # Both must be aligned to the template grid, and missing cells must be empty.
+  resolution <- terra::res(template)
+  template_extent <- as.vector(terra::ext(template))
+  actual_extent <- as.vector(terra::ext(raster))
+  raw_offsets <- c(
+    west = (actual_extent[[1L]] - template_extent[[1L]]) / resolution[[1L]],
+    east = (template_extent[[2L]] - actual_extent[[2L]]) / resolution[[1L]],
+    north = (template_extent[[4L]] - actual_extent[[4L]]) / resolution[[2L]],
+    south = (actual_extent[[3L]] - template_extent[[3L]]) / resolution[[2L]]
+  )
+  offsets <- round(raw_offsets)
+  safe_adjustment <- isTRUE(terra::compareGeom(
+    raster, template,
+    lyrs = FALSE, crs = TRUE, ext = FALSE, rowcol = FALSE, res = TRUE,
+    stopOnError = FALSE
+  )) &&
+    all(is.finite(raw_offsets)) &&
+    all(abs(offsets) <= 3) && any(offsets != 0) &&
+    all(abs(raw_offsets - offsets) < 1e-6) &&
+    terra::nrow(raster) == terra::nrow(template) - offsets[["north"]] - offsets[["south"]] &&
+    terra::ncol(raster) == terra::ncol(template) - offsets[["west"]] - offsets[["east"]]
+  if (!safe_adjustment) {
+    .idw6f_stop(
+      label, " does not match the geometry of channel template ",
+      "(only up to three grid-aligned border cells per edge can be restored or trimmed)."
+    )
+  }
+
+  mask_values <- terra::values(source_mask, mat = FALSE)
+  template_rows <- terra::nrow(template)
+  template_cols <- terra::ncol(template)
+  omitted_cells <- integer()
+  if (offsets[["north"]] > 0) {
+    omitted_cells <- c(omitted_cells, seq_len(offsets[["north"]] * template_cols))
+  }
+  if (offsets[["south"]] > 0) {
+    omitted_cells <- c(
+      omitted_cells,
+      seq.int((template_rows - offsets[["south"]]) * template_cols + 1L, length(mask_values))
+    )
+  }
+  if (offsets[["west"]] > 0) {
+    for (column in seq_len(offsets[["west"]])) {
+      omitted_cells <- c(omitted_cells, seq.int(column, length(mask_values), by = template_cols))
+    }
+  }
+  if (offsets[["east"]] > 0) {
+    for (column in seq.int(template_cols - offsets[["east"]] + 1L, template_cols)) {
+      omitted_cells <- c(omitted_cells, seq.int(column, length(mask_values), by = template_cols))
+    }
+  }
+  if (any(mask_values[omitted_cells] == 1, na.rm = TRUE)) {
+    .idw6f_stop(
+      label, " omits permitted source cells at the channel template border; ",
+      "rerun this HC job on the complete template."
+    )
+  }
+  paste(paste0(names(offsets), "=", as.integer(offsets)), collapse = ";")
+}
+
+.idw6f_align_component <- function(raster, template, label) {
+  aligned <- terra::crop(raster, terra::ext(template), snap = "near")
+  aligned <- terra::extend(aligned, template, fill = NA)
+  .idw6f_assert_same_geometry(aligned, template, label, "channel template")
+  aligned
+}
+
 .idw6f_safe_job_id <- function(job_id) {
   job_id <- trimws(as.character(job_id))
   if (length(job_id) != 1L || is.na(job_id) ||
@@ -261,8 +339,13 @@ suppressPackageStartupMessages(library(terra))
   }
   raster <- terra::rast(raster_path)
   .idw6f_assert_single_raster(raster, label)
-  .idw6f_assert_same_geometry(raster, template, label, "channel template")
   .idw6f_assert_same_geometry(source_mask, template, paste0(label, " source mask"), "channel template")
+  geometry_adjustment <- .idw6f_component_geometry_adjustment(
+    raster, source_mask, template, label
+  )
+  if (geometry_adjustment != "none") {
+    raster <- .idw6f_align_component(raster, template, label)
+  }
 
   raster_values <- terra::values(raster, mat = FALSE)
   mask_values <- terra::values(source_mask, mat = FALSE)
@@ -284,6 +367,7 @@ suppressPackageStartupMessages(library(terra))
   }
   stats <- .idw6f_raster_stats(raster)
   .idw6f_validate_stats_for_demand(stats, demand_tons, label)
+  attr(stats, "geometry_adjustment") <- geometry_adjustment
   stats
 }
 
@@ -411,11 +495,11 @@ suppressPackageStartupMessages(library(terra))
 }
 
 .idw6f_combine_components <- function(
-    component_paths,
+    component_rasters,
     mask_paths,
     template,
     label) {
-  component_stack <- terra::rast(component_paths)
+  component_stack <- do.call(c, component_rasters)
   .idw6f_assert_same_geometry(
     component_stack[[1L]], template, paste0(label, " component stack"),
     paste0(label, " template")
@@ -1164,6 +1248,7 @@ install_directional_idw_outputs <- function(
 
   component_rows <- list()
   component_paths <- list()
+  component_geometry_adjustments <- list()
   row_counter <- 0L
   message("MoFuSS run: ", run_root)
   message(
@@ -1181,6 +1266,7 @@ install_directional_idw_outputs <- function(
       character(1)
     )
     component_paths[[job_id]] <- job_paths
+    job_geometry_adjustments <- character(length(periods))
     for (period_index in seq_along(periods)) {
       label <- paste0("HC output ", job_id, " period ", sprintf("%02d", periods[[period_index]]))
       demand_tons <- unname(component_demand_by_job[[job_id]][[
@@ -1193,6 +1279,7 @@ install_directional_idw_outputs <- function(
         label,
         demand_tons
       )
+      job_geometry_adjustments[[period_index]] <- attr(stats, "geometry_adjustment")
       row_counter <- row_counter + 1L
       component_rows[[row_counter]] <- data.frame(
         JobID = job_id,
@@ -1212,7 +1299,15 @@ install_directional_idw_outputs <- function(
         check.names = FALSE
       )
     }
-    message("  validated ", job_id)
+    component_geometry_adjustments[[job_id]] <- job_geometry_adjustments
+    message(
+      "  validated ", job_id,
+      if (any(job_geometry_adjustments != "none")) {
+        paste0(" (", sum(job_geometry_adjustments != "none"), " border adjustments)")
+      } else {
+        ""
+      }
+    )
   }
   components <- do.call(rbind, component_rows)
 
@@ -1395,14 +1490,22 @@ install_directional_idw_outputs <- function(
       character(1)
     )
     w_masks <- unname(mask_paths[w_jobs])
+    w_assembly_rasters <- vector("list", length(w_jobs))
 
     for (component_index in seq_along(w_jobs)) {
       w_source <- w_sources[[component_index]]
+      w_adjustment <- component_geometry_adjustments[[w_jobs[[component_index]]]][[period_index]]
+      w_needs_alignment <- w_adjustment != "none"
       w_component_target <- file.path(
         w_component_root,
         sprintf("IDW_C++_fw_w%03d_%s.tif", component_index, suffix)
       )
       w_component_raster <- terra::rast(w_source)
+      if (w_needs_alignment) {
+        w_component_raster <- .idw6f_align_component(
+          w_component_raster, templates$W, w_source
+        )
+      }
       w_component_stats <- .idw6f_raster_stats(w_component_raster)
       w_component_stage <- if (dry_run) {
         w_source
@@ -1412,14 +1515,21 @@ install_directional_idw_outputs <- function(
           sprintf("IDW_C++_fw_w%03d_%s.tif", component_index, suffix)
         )
       }
-      if (!dry_run && !isTRUE(file.copy(
-        w_source,
-        w_component_stage,
-        overwrite = FALSE
-      ))) {
-        .idw6f_stop("Could not stage W component output: ", w_source)
+      if (!dry_run) {
+        if (w_needs_alignment) {
+          .idw6f_write_raster(w_component_raster, w_component_stage)
+        } else if (!isTRUE(file.copy(
+          w_source, w_component_stage, overwrite = FALSE
+        ))) {
+          .idw6f_stop("Could not stage W component output: ", w_source)
+        }
       }
       if (!dry_run) staged_paths <- c(staged_paths, w_component_stage)
+      w_assembly_rasters[[component_index]] <- if (dry_run) {
+        w_component_raster
+      } else {
+        terra::rast(w_component_stage)
+      }
       prospective_rows[[length(prospective_rows) + 1L]] <- data.frame(
         Channel = "W_COMPONENT",
         Period = period,
@@ -1433,11 +1543,12 @@ install_directional_idw_outputs <- function(
         ComponentIndex = component_index,
         DemandISO3 = w_iso3[[component_index]],
         InstallOperation = "preserve_for_runtime_origin_normalization",
+        GeometryAdjustment = w_adjustment,
         ComponentJobs = w_jobs[[component_index]],
         ComponentPaths = .idw6f_normalize(w_source),
         ComponentSHA256 = .idw6f_sha256(w_source),
         TargetPath = .idw6f_normalize(w_component_target, must_work = FALSE),
-        OutputSHA256 = .idw6f_sha256(w_component_stage),
+        OutputSHA256 = if (dry_run && w_needs_alignment) NA_character_ else .idw6f_sha256(w_component_stage),
         NonNACells = w_component_stats$non_na,
         PositiveCells = w_component_stats$positive,
         Minimum = w_component_stats$minimum,
@@ -1449,7 +1560,7 @@ install_directional_idw_outputs <- function(
     }
 
     w_combined <- .idw6f_combine_components(
-      w_sources,
+      w_assembly_rasters,
       w_masks,
       templates$W,
       "W"
@@ -1476,6 +1587,7 @@ install_directional_idw_outputs <- function(
       ComponentIndex = NA_integer_,
       DemandISO3 = paste(w_iso3, collapse = ";"),
       InstallOperation = "pixelwise_sum_W_components_for_ranking_only",
+      GeometryAdjustment = "none",
       ComponentJobs = paste(w_jobs, collapse = ";"),
       ComponentPaths = paste(
         vapply(w_sources, .idw6f_normalize, character(1)),
@@ -1502,14 +1614,22 @@ install_directional_idw_outputs <- function(
       character(1)
     )
     v_masks <- unname(mask_paths[v_jobs])
+    v_assembly_rasters <- vector("list", length(v_jobs))
 
     for (component_index in seq_along(v_jobs)) {
       v_source <- v_sources[[component_index]]
+      v_adjustment <- component_geometry_adjustments[[v_jobs[[component_index]]]][[period_index]]
+      v_needs_alignment <- v_adjustment != "none"
       v_component_target <- file.path(
         v_component_root,
         sprintf("IDW_C++_fw_v%03d_%s.tif", component_index, suffix)
       )
       v_component_raster <- terra::rast(v_source)
+      if (v_needs_alignment) {
+        v_component_raster <- .idw6f_align_component(
+          v_component_raster, templates$V, v_source
+        )
+      }
       v_component_stats <- .idw6f_raster_stats(v_component_raster)
       v_component_stage <- if (dry_run) {
         v_source
@@ -1519,14 +1639,21 @@ install_directional_idw_outputs <- function(
           sprintf("IDW_C++_fw_v%03d_%s.tif", component_index, suffix)
         )
       }
-      if (!dry_run && !isTRUE(file.copy(
-        v_source,
-        v_component_stage,
-        overwrite = FALSE
-      ))) {
-        .idw6f_stop("Could not stage V component output: ", v_source)
+      if (!dry_run) {
+        if (v_needs_alignment) {
+          .idw6f_write_raster(v_component_raster, v_component_stage)
+        } else if (!isTRUE(file.copy(
+          v_source, v_component_stage, overwrite = FALSE
+        ))) {
+          .idw6f_stop("Could not stage V component output: ", v_source)
+        }
       }
       if (!dry_run) staged_paths <- c(staged_paths, v_component_stage)
+      v_assembly_rasters[[component_index]] <- if (dry_run) {
+        v_component_raster
+      } else {
+        terra::rast(v_component_stage)
+      }
       prospective_rows[[length(prospective_rows) + 1L]] <- data.frame(
         Channel = "V_COMPONENT",
         Period = period,
@@ -1540,11 +1667,12 @@ install_directional_idw_outputs <- function(
         ComponentIndex = component_index,
         DemandISO3 = v_iso3[[component_index]],
         InstallOperation = "preserve_for_runtime_origin_normalization",
+        GeometryAdjustment = v_adjustment,
         ComponentJobs = v_jobs[[component_index]],
         ComponentPaths = .idw6f_normalize(v_source),
         ComponentSHA256 = .idw6f_sha256(v_source),
         TargetPath = .idw6f_normalize(v_component_target, must_work = FALSE),
-        OutputSHA256 = .idw6f_sha256(v_component_stage),
+        OutputSHA256 = if (dry_run && v_needs_alignment) NA_character_ else .idw6f_sha256(v_component_stage),
         NonNACells = v_component_stats$non_na,
         PositiveCells = v_component_stats$positive,
         Minimum = v_component_stats$minimum,
@@ -1556,7 +1684,7 @@ install_directional_idw_outputs <- function(
     }
 
     v_combined <- .idw6f_combine_components(
-      v_sources,
+      v_assembly_rasters,
       v_masks,
       templates$V,
       "V"
@@ -1586,6 +1714,7 @@ install_directional_idw_outputs <- function(
         collapse = ";"
       ),
       InstallOperation = "pixelwise_sum_V_components_for_ranking_only",
+      GeometryAdjustment = "none",
       ComponentJobs = paste(v_jobs, collapse = ";"),
       ComponentPaths = paste(vapply(v_sources, .idw6f_normalize, character(1)), collapse = ";"),
       ComponentSHA256 = paste(vapply(v_sources, .idw6f_sha256, character(1)), collapse = ";"),
@@ -1737,9 +1866,10 @@ install_directional_idw_outputs <- function(
     "Annual W_origin_demandNN.csv lookups reconstruct the regional W demand exactly and retain one key per origin country.",
     "Annual V_origin_demandNN.csv lookups reconstruct regional V demand exactly and retain one key per directional component.",
     "Component NA cells were treated as zero only during addition.",
+    "HC rasters differing by up to three aligned border cells per edge were restored or trimmed to the channel template for installation; the returned HC files were not changed. GeometryAdjustment records positive restored and negative trimmed cell counts by edge.",
     "An all-zero component or combined raster was accepted only when its corresponding annual demand was exactly zero.",
     "The union of permitted source domains was restored on each top-level ranking raster.",
-    "Every source and installed raster passed geometry, finite-value, nonnegative-value and source-domain checks.",
+    "Every source raster passed exact or safely restorable geometry, finite-value, nonnegative-value and source-domain checks; every installed raster matches its channel template.",
     "SHA-256 checksums and source paths are recorded in HC_IDW_install_manifest.csv and both origin-demand manifests.",
     "CostDistance_IDW runtime parameters (-t and -e) are not embedded in GeoTIFFs and must be preserved with the HPC logs.",
     "Use 10_dyn_Sc17_webmofuss_ctrees_g_v11.egoml with these installed W and V components."
