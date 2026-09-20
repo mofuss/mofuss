@@ -1403,16 +1403,119 @@ align_raster_to_template <- function(x, template, method, mask_output = TRUE) {
 # Compute ellipsoidal/geodesic cell areas even when the analysis grid uses a
 # non-equal-area CRS such as EPSG:3395. Raising `rcx` to the raster dimensions
 # avoids terra's coarse area-grid interpolation.
-accurate_cell_area <- function(x, unit = "ha") {
-  terra::cellSize(
+#
+# terra 1.9.27 can fail inside `cellSize()` when a large, full-resolution area
+# calculation spills to disk (for example, "cannot write (no open file)" or
+# "too few values for writing"). Calculate values-free geometry strips small
+# enough for stable evaluation and stream them into one temporary raster. Cell
+# values are intentionally ignored because callers apply their own NA mask when
+# multiplying the returned areas by the source raster.
+accurate_cell_area <- function(
     x,
-    # Multiplication by x propagates its NA mask. Avoid scanning x once here
-    # merely to reproduce the same mask in the area raster.
-    mask = FALSE,
-    unit = unit,
-    transform = TRUE,
-    rcx = max(terra::nrow(x), terra::ncol(x))
+    unit = "ha",
+    max_cells_per_chunk = 1000000L) {
+  if (!inherits(x, "SpatRaster")) {
+    x <- terra::rast(x)
+  }
+  if (terra::nrow(x) < 1L || terra::ncol(x) < 1L) {
+    stop("Cannot calculate cell areas for an empty raster geometry.")
+  }
+  if (!is.numeric(max_cells_per_chunk) ||
+      length(max_cells_per_chunk) != 1L ||
+      is.na(max_cells_per_chunk) ||
+      max_cells_per_chunk < 1) {
+    stop("max_cells_per_chunk must be one positive number.")
+  }
+
+  make_geometry <- function(nrows, ymin, ymax) {
+    terra::rast(
+      nrows = nrows,
+      ncols = terra::ncol(x),
+      xmin = terra::xmin(x),
+      xmax = terra::xmax(x),
+      ymin = ymin,
+      ymax = ymax,
+      crs = terra::crs(x)
+    )
+  }
+
+  geometry <- make_geometry(
+    terra::nrow(x),
+    terra::ymin(x),
+    terra::ymax(x)
   )
+  rows_per_chunk <- max(
+    1L,
+    min(
+      terra::nrow(x),
+      floor(max_cells_per_chunk / terra::ncol(x))
+    )
+  )
+
+  compute_area <- function(raster_geometry) {
+    terra::cellSize(
+      raster_geometry,
+      mask = FALSE,
+      unit = unit,
+      transform = TRUE,
+      rcx = max(
+        terra::nrow(raster_geometry),
+        terra::ncol(raster_geometry)
+      )
+    )
+  }
+
+  if (terra::nrow(x) <= rows_per_chunk) {
+    return(compute_area(geometry))
+  }
+
+  temp_directory <- terra::terraOptions(print = FALSE)$tempdir
+  area_path <- tempfile(
+    pattern = "mofuss_cell_area_",
+    tmpdir = temp_directory,
+    fileext = ".tif"
+  )
+  names(geometry) <- "area"
+  terra::writeStart(
+    geometry,
+    area_path,
+    datatype = "FLT8S",
+    overwrite = TRUE
+  )
+  output_is_open <- TRUE
+  on.exit({
+    if (output_is_open) {
+      try(terra::writeStop(geometry), silent = TRUE)
+    }
+  }, add = TRUE)
+
+  row_starts <- seq.int(1L, terra::nrow(x), by = rows_per_chunk)
+  for (row_start in row_starts) {
+    row_end <- min(
+      terra::nrow(x),
+      row_start + rows_per_chunk - 1L
+    )
+    tile_rows <- row_end - row_start + 1L
+    tile_ymax <- terra::ymax(x) -
+      (row_start - 1L) * terra::yres(x)
+    tile_ymin <- terra::ymax(x) - row_end * terra::yres(x)
+    tile_area <- compute_area(
+      make_geometry(tile_rows, tile_ymin, tile_ymax)
+    )
+    write_succeeded <- terra::writeValues(
+      geometry,
+      as.vector(terra::values(tile_area, mat = FALSE)),
+      start = row_start,
+      nrows = tile_rows
+    )
+    if (!isTRUE(write_succeeded)) {
+      stop("Failed to write cell-area rows ", row_start, "-", row_end, ".")
+    }
+  }
+
+  geometry <- terra::writeStop(geometry)
+  output_is_open <- FALSE
+  geometry
 }
 
 # Convert a density raster (for example Mg/ha) to a cell-total raster before
