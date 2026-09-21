@@ -62,6 +62,17 @@
 # the shared cross-pipeline label; this installer reads and writes only the run
 # folders declared in `folders` and does not write to mofuss_postprocessing.
 PIPELINE_BATCHES <- list(
+  ECSA = list(
+    enabled = FALSE,
+    root = "E:/",
+    analysis_folder = "ECSA_1000m_ics3_2050_mc30",
+    folders = c(
+      "ECSA_1000m_bau1_2050_mc30_capped",
+      "ECSA_1000m_bau1_2050_mc30_uncapped",
+      "ECSA_1000m_ics3_2050_mc30_capped",
+      "ECSA_1000m_ics3_2050_mc30_uncapped"
+    )
+  ),
   GOG = list(
     enabled = FALSE,
     root = "E:/",
@@ -73,30 +84,52 @@ PIPELINE_BATCHES <- list(
       "GOG_1000m_ics3_2050_mc30_uncapped"
     )
   ),
-  mdg = list(
+  MDG = list(
     enabled = FALSE,
     root = "E:/",
-    analysis_folder = "mdg_1000m_bau1_2050_mc3",
+    analysis_folder = "MDG_1000m_bau1_2050_mc3",
     folders = c(
-      "mdg_1000m_bau1_2050_mc3_capped",
-      "mdg_1000m_bau1_2050_mc3_uncapped",
-      "mdg_1000m_ics3_2050_mc3_capped",
-      "mdg_1000m_ics3_2050_mc3_uncapped"
+      "MDG_1000m_bau1_2050_mc3_capped",
+      "MDG_1000m_bau1_2050_mc3_uncapped",
+      "MDG_1000m_ics3_2050_mc3_capped",
+      "MDG_1000m_ics3_2050_mc3_uncapped"
     )
   ),
-  lso = list(
+  LSO = list(
     enabled = FALSE,
     root = "E:/",
     analysis_folder = "lso_1000m_bau1_2050_mc3",
     folders = c(
-      "lso_1000m_bau1_2050_mc3_capped",
-      "lso_1000m_bau1_2050_mc3_uncapped",
-      "lso_1000m_ics3_2050_mc3_capped",
-      "lso_1000m_ics3_2050_mc3_uncapped"
+      "LSO_1000m_bau1_2050_mc3_capped",
+      "LSO_1000m_bau1_2050_mc3_uncapped",
+      "LSO_1000m_ics3_2050_mc3_capped",
+      "LSO_1000m_ics3_2050_mc3_uncapped"
+    )
+  ),
+  MLI = list(
+    enabled = TRUE,
+    root = "E:/",
+    analysis_folder = "MLI_1000m_bau1_2050_mc3",
+    folders = c(
+      "MLI_1000m_bau1_2050_mc3_capped",
+      "MLI_1000m_bau1_2050_mc3_uncapped",
+      "MLI_1000m_ics3_2050_mc3_capped",
+      "MLI_1000m_ics3_2050_mc3_uncapped"
+    )
+  ),
+  GAB = list(
+    enabled = FALSE,
+    root = "F:/",
+    analysis_folder = "GAB_1000m_bau1_2050_mc3",
+    folders = c(
+      "GAB_1000m_bau1_2050_mc3_capped",
+      "GAB_1000m_bau1_2050_mc3_uncapped",
+      "GAB_1000m_ics3_2050_mc3_capped",
+      "GAB_1000m_ics3_2050_mc3_uncapped"
     )
   ),
   GLEA = list(
-    enabled = TRUE,
+    enabled = FALSE,
     root = "E:/",
     analysis_folder = "GLEA_1000m_ics3_2050_mc3",
     folders = c(
