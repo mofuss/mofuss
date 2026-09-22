@@ -56,7 +56,7 @@ PIPELINE_BATCHES <- list(
     )
   ),
   MDG = list(
-    enabled = TRUE,
+    enabled = FALSE,
     root = "E:/",
     analysis_folder = "MDG_1000m_bau1_2050_mc3",
     folders = c(
@@ -67,7 +67,7 @@ PIPELINE_BATCHES <- list(
     )
   ),
   LSO = list(
-    enabled = TRUE,
+    enabled = FALSE,
     root = "E:/",
     analysis_folder = "LSO_1000m_bau1_2050_mc3",
     folders = c(
@@ -78,7 +78,7 @@ PIPELINE_BATCHES <- list(
     )
   ),
   MLI = list(
-    enabled = FALSE,
+    enabled = TRUE,
     root = "E:/",
     analysis_folder = "MLI_1000m_bau1_2050_mc3",
     folders = c(
@@ -89,7 +89,7 @@ PIPELINE_BATCHES <- list(
     )
   ),
   GAB = list(
-    enabled = TRUE,
+    enabled = FALSE,
     root = "F:/",
     analysis_folder = "GAB_1000m_bau1_2050_mc3",
     folders = c(
@@ -114,7 +114,7 @@ PIPELINE_BATCHES <- list(
 
 # Run all stages in order. Use 3:5 to resume at Stage 3, or 5L to refresh only
 # the consolidated results from every completed regional/singleton analysis.
-PIPELINE_STAGES <- 2:5 #1:5
+PIPELINE_STAGES <- 1:5 #1:5
 
 # Stage 1: character() retains the v9 default multi-period/snapshot schedule.
 # Otherwise supply one or more explicit periods, for example c("2026:2050").
