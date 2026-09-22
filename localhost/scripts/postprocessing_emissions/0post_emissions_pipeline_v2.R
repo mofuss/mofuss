@@ -33,6 +33,17 @@
 # `mofuss_postprocessing` in `analysis_folder`. Keep placeholders disabled until
 # their scenario folders exist on the current computer.
 PIPELINE_BATCHES <- list(
+  ECSA = list(
+    enabled = FALSE,
+    root = "E:/",
+    analysis_folder = "ECSA_1000m_ics3_2050_mc30",
+    folders = c(
+      "ECSA_1000m_bau1_2050_mc30_capped",
+      "ECSA_1000m_bau1_2050_mc30_uncapped",
+      "ECSA_1000m_ics3_2050_mc30_capped",
+      "ECSA_1000m_ics3_2050_mc30_uncapped"
+    )
+  ),
   GOG = list(
     enabled = FALSE,
     root = "E:/",
@@ -44,30 +55,52 @@ PIPELINE_BATCHES <- list(
       "GOG_1000m_ics3_2050_mc30_uncapped"
     )
   ),
-  mdg = list(
-    enabled = FALSE,
+  MDG = list(
+    enabled = TRUE,
     root = "E:/",
-    analysis_folder = "mdg_1000m_bau1_2050_mc3",
+    analysis_folder = "MDG_1000m_bau1_2050_mc3",
     folders = c(
-      "mdg_1000m_bau1_2050_mc3_capped",
-      "mdg_1000m_bau1_2050_mc3_uncapped",
-      "mdg_1000m_ics3_2050_mc3_capped",
-      "mdg_1000m_ics3_2050_mc3_uncapped"
+      "MDG_1000m_bau1_2050_mc3_capped",
+      "MDG_1000m_bau1_2050_mc3_uncapped",
+      "MDG_1000m_ics3_2050_mc3_capped",
+      "MDG_1000m_ics3_2050_mc3_uncapped"
     )
   ),
-  lso = list(
+  LSO = list(
+    enabled = TRUE,
+    root = "E:/",
+    analysis_folder = "LSO_1000m_bau1_2050_mc3",
+    folders = c(
+      "LSO_1000m_bau1_2050_mc3_capped",
+      "LSO_1000m_bau1_2050_mc3_uncapped",
+      "LSO_1000m_ics3_2050_mc3_capped",
+      "LSO_1000m_ics3_2050_mc3_uncapped"
+    )
+  ),
+  MLI = list(
     enabled = FALSE,
     root = "E:/",
-    analysis_folder = "lso_1000m_bau1_2050_mc3",
+    analysis_folder = "MLI_1000m_bau1_2050_mc3",
     folders = c(
-      "lso_1000m_bau1_2050_mc3_capped",
-      "lso_1000m_bau1_2050_mc3_uncapped",
-      "lso_1000m_ics3_2050_mc3_capped",
-      "lso_1000m_ics3_2050_mc3_uncapped"
+      "MLI_1000m_bau1_2050_mc3_capped",
+      "MLI_1000m_bau1_2050_mc3_uncapped",
+      "MLI_1000m_ics3_2050_mc3_capped",
+      "MLI_1000m_ics3_2050_mc3_uncapped"
+    )
+  ),
+  GAB = list(
+    enabled = TRUE,
+    root = "F:/",
+    analysis_folder = "GAB_1000m_bau1_2050_mc3",
+    folders = c(
+      "GAB_1000m_bau1_2050_mc3_capped",
+      "GAB_1000m_bau1_2050_mc3_uncapped",
+      "GAB_1000m_ics3_2050_mc3_capped",
+      "GAB_1000m_ics3_2050_mc3_uncapped"
     )
   ),
   GLEA = list(
-    enabled = TRUE,
+    enabled = FALSE,
     root = "E:/",
     analysis_folder = "GLEA_1000m_ics3_2050_mc3",
     folders = c(
@@ -79,8 +112,9 @@ PIPELINE_BATCHES <- list(
   )
 )
 
-# Run all stages in order. Use, for example, 3: to resume at Stage 3.
-PIPELINE_STAGES <- 4:5 #1:5
+# Run all stages in order. Use 3:5 to resume at Stage 3, or 5L to refresh only
+# the consolidated results from every completed regional/singleton analysis.
+PIPELINE_STAGES <- 2:5 #1:5
 
 # Stage 1: character() retains the v9 default multi-period/snapshot schedule.
 # Otherwise supply one or more explicit periods, for example c("2026:2050").
@@ -128,6 +162,10 @@ PIPELINE_GLOBAL_MODE <- "partial"
 PIPELINE_GLOBAL_MC_COMBINATION <- "independent"
 PIPELINE_GLOBAL_RESAMPLES <- 10000L
 PIPELINE_GLOBAL_RANDOM_SEED <- 20260910L
+# Relative paths here resolve from this script's directory. Validate this
+# catalog before starting any batch, so a retired file fails at preflight.
+PIPELINE_GLOBAL_REGIONALIZATION_FILE <-
+  "../../../admin_regions/regionalization_M85_B30_V1.csv"
 
 # END USER INPUTS -----------------------------------------------------------
 
@@ -345,6 +383,14 @@ pipeline_validate_inputs <- function(script_dir) {
   global_config <- NULL
   if (5L %in% stages) {
     global_analysis_parent <- analysis_parent
+    global_regionalization_file <- pipeline_resolve_path(
+      PIPELINE_GLOBAL_REGIONALIZATION_FILE, script_dir,
+      "PIPELINE_GLOBAL_REGIONALIZATION_FILE", must_work = FALSE
+    )
+    if (!file.exists(global_regionalization_file) ||
+        dir.exists(global_regionalization_file)) {
+      pipeline_stop("Missing Stage 5 regionalization CSV: %s", global_regionalization_file)
+    }
     global_output_dir <- pipeline_resolve_path(
       PIPELINE_GLOBAL_OUTPUT_DIR, script_dir,
       "PIPELINE_GLOBAL_OUTPUT_DIR", must_work = FALSE
@@ -431,7 +477,8 @@ pipeline_validate_inputs <- function(script_dir) {
       mode = global_mode,
       mc_combination = global_mc_combination,
       resamples = global_resamples,
-      random_seed = global_seed
+      random_seed = global_seed,
+      regionalization_file = global_regionalization_file
     )
   }
 
@@ -645,6 +692,7 @@ pipeline_main <- function(args = commandArgs(trailingOnly = TRUE)) {
     ))
     cat(sprintf("    output: %s\n", config$global$output_dir))
     cat(sprintf("    scratch: %s\n", config$global$temp_dir))
+    cat(sprintf("    regionalization: %s\n", config$global$regionalization_file))
     cat(sprintf(
       "    mode: %s | MC combination: %s | resamples: %d | seed: %d\n",
       config$global$mode, config$global$mc_combination,
@@ -790,6 +838,7 @@ pipeline_main <- function(args = commandArgs(trailingOnly = TRUE)) {
         paste0("--min-runs=", config$min_runs),
         paste0("--global-resamples=", config$global$resamples),
         paste0("--random-seed=", config$global$random_seed),
+        paste0("--regionalization-file=", config$global$regionalization_file),
         overwrite_arg
       )
       pipeline_run_stage(

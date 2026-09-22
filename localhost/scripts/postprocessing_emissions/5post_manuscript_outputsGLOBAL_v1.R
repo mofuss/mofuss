@@ -28,7 +28,8 @@
 #   they contain exactly one Stage 3 country-per-run decomposition table.
 # - Stage 3 country-per-run decomposition data for every discovered root.
 # - Stage 4 capped and uncapped MC-all Total mean rasters for spatial panels.
-# - The canonical M67/GME regionalization CSVs for coverage validation.
+# - The current canonical regionalization CSV for coverage validation (M85/B30
+#   by default; --regionalization-file can select an explicit catalog).
 #
 # Modes:
 # - partial: writes visibly labelled preliminary outputs and records the
@@ -89,6 +90,7 @@ V1_RSTUDIO_MIN_RUNS <- 30L
 V1_RSTUDIO_GLOBAL_RESAMPLES <- 10000L
 V1_RSTUDIO_RANDOM_SEED <- 20260910L
 V1_RSTUDIO_CLEAN_REBUILD <- TRUE
+V1_RSTUDIO_REGIONALIZATION_FILE <- NULL
 
 stopf <- function(fmt, ...) stop(sprintf(fmt, ...), call. = FALSE)
 
@@ -133,6 +135,7 @@ if (source_mode) {
   random_seed <- as.integer(V1_RSTUDIO_RANDOM_SEED)
   overwrite <- isTRUE(V1_RSTUDIO_CLEAN_REBUILD)
   regionalization_dir_arg <- file.path(repository_root, "admin_regions")
+  regionalization_file_arg <- V1_RSTUDIO_REGIONALIZATION_FILE
 } else {
   analysis_parent_arg <- arg_value("analysis-parent")
   output_dir_arg <- arg_value("output-dir")
@@ -146,6 +149,7 @@ if (source_mode) {
   regionalization_dir_arg <- arg_value(
     "regionalization-dir", file.path(repository_root, "admin_regions")
   )
+  regionalization_file_arg <- arg_value("regionalization-file")
 }
 
 if (is.null(output_dir_arg) || !nzchar(output_dir_arg)) {
@@ -250,10 +254,13 @@ same_number <- function(a, b, tolerance = 1e-7) {
 }
 
 regionalization_path <- file.path(
-  regionalization_dir, "regionalization_M67_GME_V2.csv"
+  regionalization_dir, "regionalization_M85_B30_V1.csv"
 )
+if (!is.null(regionalization_file_arg)) {
+  regionalization_path <- regionalization_file_arg
+}
 regionalization <- read_csv_required(
-  regionalization_path, "canonical M67/GME regionalization"
+  regionalization_path, "canonical regionalization"
 )
 require_columns(
   regionalization,
@@ -261,7 +268,7 @@ require_columns(
     "CandidateID", "MajorRegion", "CandidateRegionID", "RunCode",
     "Subregion", "GID_0", "NAME_0", "ImporterV", "Status"
   ),
-  "Canonical M67/GME regionalization"
+  "Canonical regionalization"
 )
 regionalization$GID_0 <- toupper(trimws(as.character(regionalization$GID_0)))
 regionalization$MajorRegion <- trimws(as.character(regionalization$MajorRegion))
@@ -271,10 +278,22 @@ regionalization$CandidateRegionID <- trimws(as.character(
 regionalization$RunCode <- trimws(as.character(regionalization$RunCode))
 regionalization$Subregion <- trimws(as.character(regionalization$Subregion))
 regionalization$regionalization_file <- basename(regionalization_path)
+for (field in c("GID_0", "MajorRegion", "CandidateRegionID", "RunCode", "Subregion")) {
+  if (anyNA(regionalization[[field]]) || any(!nzchar(regionalization[[field]]))) {
+    stopf("Canonical regionalization contains missing %s values.", field)
+  }
+}
 if (anyDuplicated(regionalization$GID_0)) {
   duplicates <- unique(regionalization$GID_0[duplicated(regionalization$GID_0)])
   stopf("Canonical regionalization repeats country ISO codes: %s", paste(duplicates, collapse = ", "))
 }
+# Give every canonical region, including M85_S_* singletons, a non-missing
+# catalog index. NA grouping keys would silently drop singletons in aggregate().
+regionalization$subregion_number <- match(
+  regionalization$CandidateRegionID,
+  sort(unique(regionalization$CandidateRegionID))
+)
+message("Canonical regionalization: ", regionalization_path)
 
 # Auto-discover completed regional/country analyses. An immediate child folder
 # qualifies only when Stage 3 has written exactly one country-per-run table.
@@ -338,38 +357,26 @@ manifest <- do.call(rbind, lapply(seq_along(candidate_roots), function(i) {
     )
   }
   metadata <- regionalization[match(country_isos, regionalization$GID_0), ]
-  metadata_fields <- c(
-    "MajorRegion", "CandidateRegionID", "RunCode", "Subregion"
-  )
-  metadata_values <- lapply(metadata[metadata_fields], unique)
-  if (any(vapply(metadata_values, length, integer(1)) != 1L)) {
-    stopf(
-      "Discovered analysis root spans more than one canonical subregion: %s",
-      root
-    )
-  }
   analysis_ids <- unique(trimws(as.character(preview$analysis_area_id)))
   if (length(analysis_ids) != 1L || is.na(analysis_ids) || !nzchar(analysis_ids)) {
     stopf("Discovered analysis root has no unique analysis_area_id: %s", root)
   }
-  candidate_region_id <- metadata_values$CandidateRegionID[[1L]]
-  subregion_number <- suppressWarnings(as.integer(sub(
-    "^M67_([0-9]+).*$", "\\1", candidate_region_id
-  )))
-  if (!is.finite(subregion_number)) subregion_number <- NA_integer_
+  candidate_region_ids <- unique(metadata$CandidateRegionID)
   canonical_members <- sort(regionalization$GID_0[
-    regionalization$CandidateRegionID == candidate_region_id
+    regionalization$CandidateRegionID %in% candidate_region_ids
   ])
-  major_region <- metadata_values$MajorRegion[[1L]]
-  macroregion <- unname(major_region_labels[[major_region]])
-  if (is.null(macroregion) || is.na(macroregion)) macroregion <- major_region
+  major_regions <- unique(metadata$MajorRegion)
+  macroregions <- unname(major_region_labels[major_regions])
+  macroregions[is.na(macroregions)] <- major_regions[is.na(macroregions)]
   data.frame(
     include = TRUE,
     analysis_id = toupper(analysis_ids[[1L]]),
-    subregion_number = subregion_number,
-    subregion_name = metadata_values$Subregion[[1L]],
-    macroregion = macroregion,
-    partition_status = if (setequal(country_isos, canonical_members)) {
+    subregion_number = paste(sort(unique(metadata$subregion_number)), collapse = ";"),
+    subregion_name = paste(sort(unique(metadata$Subregion)), collapse = "; "),
+    macroregion = paste(macroregions, collapse = "; "),
+    partition_status = if (length(candidate_region_ids) > 1L) {
+      "legacy_partition"
+    } else if (setequal(country_isos, canonical_members)) {
       "final"
     } else {
       "development_component"
@@ -391,6 +398,15 @@ message(sprintf(
   "Auto-discovered %d analysis root(s) below %s: %s",
   nrow(manifest), analysis_parent, paste(basename(manifest$analysis_root), collapse = ", ")
 ))
+nonfinal <- manifest$partition_status != "final"
+if (any(nonfinal)) {
+  partition_message <- sprintf(
+    "Analysis roots not matching one complete canonical region: %s",
+    paste(manifest$analysis_id[nonfinal], collapse = ", ")
+  )
+  if (run_mode == "strict") stopf("%s", partition_message)
+  message(partition_message, "; retained as preliminary country contributions.")
+}
 
 required_per_run_columns <- c(
   "country_iso", "country_name", "regrowth_mode", "run_id",
@@ -410,7 +426,7 @@ for (i in seq_len(nrow(manifest))) {
   if (!all(as.logical(x$all_invariants_ok))) {
     stopf("%s contains a failed Stage 3 invariant.", row$analysis_id[[1L]])
   }
-  x$country_iso <- trimws(as.character(x$country_iso))
+  x$country_iso <- toupper(trimws(as.character(x$country_iso)))
   x$country_name <- trimws(as.character(x$country_name))
   x$regrowth_mode <- trimws(as.character(x$regrowth_mode))
   x$run_id <- suppressWarnings(as.integer(x$run_id))
@@ -422,6 +438,9 @@ for (i in seq_len(nrow(manifest))) {
   }
   if (!setequal(unique(x$regrowth_mode), CONFIGURATION_ORDER)) {
     stopf("%s does not contain exactly capped and uncapped configurations.", row$analysis_id[[1L]])
+  }
+  if (anyDuplicated(x[c("country_iso", "regrowth_mode", "run_id")])) {
+    stopf("%s repeats country/configuration/run rows.", row$analysis_id[[1L]])
   }
   countries <- unique(x[c("country_iso", "country_name")])
   if (nrow(countries) != row$expected_country_count[[1L]]) {
@@ -471,9 +490,12 @@ for (i in seq_len(nrow(manifest))) {
   }
 
   x$analysis_id <- row$analysis_id[[1L]]
-  x$subregion_number <- row$subregion_number[[1L]]
-  x$subregion_name <- row$subregion_name[[1L]]
-  x$macroregion <- row$macroregion[[1L]]
+  country_metadata <- regionalization[match(x$country_iso, regionalization$GID_0), ]
+  x$subregion_number <- country_metadata$subregion_number
+  x$subregion_name <- country_metadata$Subregion
+  x$macroregion <- unname(major_region_labels[country_metadata$MajorRegion])
+  x$macroregion[is.na(x$macroregion)] <-
+    country_metadata$MajorRegion[is.na(x$macroregion)]
   x$partition_status <- row$partition_status[[1L]]
   analysis_data[[i]] <- x[c(
     required_per_run_columns,
@@ -664,16 +686,24 @@ build_coherent_analysis_draws <- function(x, method, resamples, seed) {
       sampled_ids <- sample(source_ids, size = resamples, replace = TRUE)
       configuration_rows <- lapply(CONFIGURATION_ORDER, function(configuration) {
         source <- rows[rows$configuration == configuration, , drop = FALSE]
-        source <- source[match(sampled_ids, source$run_id), , drop = FALSE]
-        if (anyNA(source$run_id)) {
-          stopf(
-            "Failed to match resampled run IDs for analysis %s (%s).",
-            rows$analysis_id[[1L]], configuration
-          )
-        }
-        source$run_id <- seq_len(resamples)
-        source$combination_method <- "independent_analysis_resampling"
-        source
+        # A legacy analysis can span several current canonical regions. Use
+        # the SAME sampled run IDs for every contribution from that analysis
+        # to preserve within-run covariance across the regional split.
+        contributions <- split(source, source$subregion_number)
+        do.call(rbind, lapply(contributions, function(contribution) {
+          contribution <- contribution[
+            match(sampled_ids, contribution$run_id), , drop = FALSE
+          ]
+          if (anyNA(contribution$run_id)) {
+            stopf(
+              "Failed to match resampled run IDs for analysis %s (%s).",
+              rows$analysis_id[[1L]], configuration
+            )
+          }
+          contribution$run_id <- seq_len(resamples)
+          contribution$combination_method <- "independent_analysis_resampling"
+          contribution
+        }))
       })
       do.call(rbind, configuration_rows)
     })
@@ -796,14 +826,14 @@ validation_summary <- data.frame(
     "run_mode", "mc_combination", "period", "included_analysis_roots",
     "included_countries", "expected_countries", "coverage_complete",
     "spatial_analysis_roots_complete", "minimum_runs", "global_resamples",
-    "random_seed"
+    "random_seed", "regionalization_file", "nonfinal_partition_roots"
   ),
   value = c(
     run_mode, mc_combination, period_tag, nrow(manifest),
     nrow(source_countries), nrow(regionalization), coverage_complete,
     sum(input_inventory$spatial_rasters_complete), min_runs,
     if (mc_combination == "independent") global_resamples else NA_integer_,
-    random_seed
+    random_seed, basename(regionalization_path), sum(nonfinal)
   ),
   stringsAsFactors = FALSE
 )
