@@ -58,6 +58,15 @@ os <- Sys.info()["sysname"]
 # Set working directory
 setwd(countrydir)
 
+# Runtime sourcing is scientific output/provenance, not a disposable input.
+# Never let a preprocessing reset silently orphan or relabel those records.
+if (dir.exists("Sourcing") && length(list.files("Sourcing", recursive = TRUE,
+                                               all.files = TRUE, no.. = TRUE))) {
+  stop("Existing runtime-sourcing records found in this working folder. ",
+       "Preserve this run and use a fresh working folder before rerunning step 2. ",
+       "The Sourcing directory has not been changed.", call. = FALSE)
+}
+
 # Clean temps ----
 directories_to_remove <- c(
   "Debugging", "DebuggingBaU", "DebuggingICS", "HTML_animation", 
@@ -241,11 +250,13 @@ lapply(file.names.DS, function(RO.DS) {
 })
 
 # Copy additional files ----
-# V11 is the retained directional model. It preserves origin-specific W and V
-# components and uses a null-safe V accumulator for disjoint domestic domains.
-# It retains the verified V8 reporting bundle. Superseded EGOML files remain in
-# older_versions and are intentionally not deployed into new working folders.
-v11_egoml <- "10_dyn_Sc17_webmofuss_ctrees_g_v11.egoml"
+# V13 adds runtime country-sourcing capture and exact static-IDW caching.
+# It also corrects the legacy regional pooling of domestic W TOF shortfalls.
+# W inputs must be domestic country components (or one country/own-area
+# component); V keeps its installed bilateral permissions. The unchanged V8 R
+# reporting bundle is retained. V11/V12 remain source comparison references.
+# See README_runtime_sourcing_v13.md for validation and the explicit bug fix.
+active_egoml <- "10_dyn_Sc17_webmofuss_ctrees_g_v13.egoml"
 
 v8_r_dependencies <- c(
   "rnorm_v8.R",
@@ -262,7 +273,7 @@ latex_r_dependencies <- c(
 )
 
 bundle_files <- c(
-  v11_egoml,
+  active_egoml,
   v8_r_dependencies,
   latex_r_dependencies
 )
@@ -272,14 +283,14 @@ bundle_sources <- file.path(
 missing_bundle_files <- bundle_files[!file.exists(bundle_sources)]
 if (length(missing_bundle_files) > 0L) {
   stop(
-    "Cannot deploy the V11 directional EGOML bundle; missing repository file(s): ",
+    "Cannot deploy the V13 runtime-sourcing EGOML bundle; missing repository file(s): ",
     paste(missing_bundle_files, collapse = ", ")
   )
 }
 
 files2copy <- c(
   "ffmpeg32/", "ffmpeg64/", "LaTeX/",
-  v11_egoml,
+  active_egoml,
   v8_r_dependencies
 )
 

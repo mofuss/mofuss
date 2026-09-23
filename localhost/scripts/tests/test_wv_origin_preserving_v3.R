@@ -165,7 +165,9 @@ deployment_text <- paste(
   readLines(file.path(scripts_root, "2_copy_files_v4.R"), warn = FALSE),
   collapse = "\n"
 )
-retained_models <- "10_dyn_Sc17_webmofuss_ctrees_g_v11.egoml"
+# The legacy v11 arithmetic checks above remain a historical regression gate;
+# new workspaces now deploy the separately validated v13 runtime-sourcing model.
+retained_models <- "10_dyn_Sc17_webmofuss_ctrees_g_v13.egoml"
 v8_dependencies <- c(
   "rnorm_v8.R",
   "NRB_graphs_datasets_v8.R",

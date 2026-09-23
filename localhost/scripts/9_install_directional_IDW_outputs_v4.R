@@ -36,6 +36,12 @@
 # Expected HC output layout:
 #   In/DemandScenarios/HC_jobs/idw_<JobID>/IDW_C++_fw_<w|v><NN>.tif
 #
+# Optional download-distribution preamble layout:
+#   <idw_source_root>/<ISO3>_bau/IDW_C++_fw_<w|v><NN>.tif
+#   <idw_source_root>/<ISO3>_ics/IDW_C++_fw_<w|v><NN>.tif
+# The preamble reads each run's HC manifest, splits the W and V files from the
+# common country/scenario download folder, and copies them into idw_<JobID>.
+#
 # Installed outputs:
 #   In/IDW_C++_fw_w<NN>.tif
 #   In/IDW_C++_fw_v<NN>.tif
@@ -63,20 +69,24 @@
 # folders declared in `folders` and does not write to mofuss_postprocessing.
 PIPELINE_BATCHES <- list(
   ECSA = list(
-    enabled = FALSE,
+    enabled = TRUE,
     root = "E:/",
-    analysis_folder = "ECSA_1000m_ics3_2050_mc30",
+    analysis_folder = "ECSA_1000m_ics3_2050_mc3",
+    run_preamble = "YES",
+    idw_source_root = "C:/Users/UNAM/Documents/idws_ecsa",
     folders = c(
-      "ECSA_1000m_bau1_2050_mc30_capped",
-      "ECSA_1000m_bau1_2050_mc30_uncapped",
-      "ECSA_1000m_ics3_2050_mc30_capped",
-      "ECSA_1000m_ics3_2050_mc30_uncapped"
+      "ECSA_1000m_bau1_2050_mc3_capped",
+      "ECSA_1000m_bau1_2050_mc3_uncapped",
+      "ECSA_1000m_ics3_2050_mc3_capped",
+      "ECSA_1000m_ics3_2050_mc3_uncapped"
     )
   ),
   GOG = list(
     enabled = FALSE,
     root = "E:/",
     analysis_folder = "GOG_1000m_ics3_2050_mc30",
+    run_preamble = "NO",
+    idw_source_root = "",
     folders = c(
       "GOG_1000m_bau1_2050_mc30_capped",
       "GOG_1000m_bau1_2050_mc30_uncapped",
@@ -88,6 +98,8 @@ PIPELINE_BATCHES <- list(
     enabled = FALSE,
     root = "E:/",
     analysis_folder = "MDG_1000m_bau1_2050_mc3",
+    run_preamble = "NO",
+    idw_source_root = "",
     folders = c(
       "MDG_1000m_bau1_2050_mc3_capped",
       "MDG_1000m_bau1_2050_mc3_uncapped",
@@ -99,6 +111,8 @@ PIPELINE_BATCHES <- list(
     enabled = FALSE,
     root = "E:/",
     analysis_folder = "lso_1000m_bau1_2050_mc3",
+    run_preamble = "NO",
+    idw_source_root = "",
     folders = c(
       "LSO_1000m_bau1_2050_mc3_capped",
       "LSO_1000m_bau1_2050_mc3_uncapped",
@@ -107,9 +121,11 @@ PIPELINE_BATCHES <- list(
     )
   ),
   MLI = list(
-    enabled = TRUE,
+    enabled = FALSE,
     root = "E:/",
     analysis_folder = "MLI_1000m_bau1_2050_mc3",
+    run_preamble = "NO",
+    idw_source_root = "",
     folders = c(
       "MLI_1000m_bau1_2050_mc3_capped",
       "MLI_1000m_bau1_2050_mc3_uncapped",
@@ -121,6 +137,8 @@ PIPELINE_BATCHES <- list(
     enabled = FALSE,
     root = "F:/",
     analysis_folder = "GAB_1000m_bau1_2050_mc3",
+    run_preamble = "NO",
+    idw_source_root = "",
     folders = c(
       "GAB_1000m_bau1_2050_mc3_capped",
       "GAB_1000m_bau1_2050_mc3_uncapped",
@@ -132,6 +150,8 @@ PIPELINE_BATCHES <- list(
     enabled = FALSE,
     root = "E:/",
     analysis_folder = "GLEA_1000m_ics3_2050_mc3",
+    run_preamble = "NO",
+    idw_source_root = "",
     folders = c(
       "GLEA_1000m_bau1_2050_mc3_capped",
       "GLEA_1000m_bau1_2050_mc3_uncapped",
@@ -147,6 +167,12 @@ PIPELINE_DRY_RUN <- FALSE
 
 # Prefix of each returned HC output directory below DemandScenarios/HC_jobs.
 PIPELINE_OUTPUT_PREFIX <- "idw_"
+
+# `run_preamble` and `idw_source_root` are configured independently in every
+# batch above. Use exactly "YES" to distribute downloaded W/V IDWs before the
+# installer runs. Use "NO" for singleton/country runs or when idw_<JobID>
+# folders have already been placed manually. The source folder may live on any
+# drive, but must use the <ISO3>_bau / <ISO3>_ics layout documented above.
 
 # END USER INPUTS -----------------------------------------------------------
 
@@ -1995,6 +2021,348 @@ install_directional_idw_outputs <- function(
   value
 }
 
+.idw6f_pipeline_yes_no <- function(value, label) {
+  value <- toupper(trimws(as.character(value)))
+  if (length(value) != 1L || is.na(value) || !value %in% c("YES", "NO")) {
+    .idw6f_stop(label, " must be exactly \"YES\" or \"NO\".")
+  }
+  identical(value, "YES")
+}
+
+.idw6f_preamble_scenario <- function(run_root) {
+  folder <- tolower(basename(run_root))
+  is_bau <- grepl("(^|_)bau[0-9]*(_|$)", folder)
+  is_ics <- grepl("(^|_)ics[0-9]*(_|$)", folder)
+  if (sum(c(is_bau, is_ics)) != 1L) {
+    .idw6f_stop(
+      "Could not infer exactly one BAU/ICS source family from run folder: ",
+      basename(run_root),
+      ". Include _bau<version>_ or _ics<version>_ in the folder name."
+    )
+  }
+  if (is_bau) "bau" else "ics"
+}
+
+.idw6f_preamble_tif_pattern <- "^IDW_C\\+\\+_fw_[wv][0-9]{2}\\.tif$"
+
+.idw6f_preamble_plan <- function(config) {
+  plan_rows <- list()
+  row_counter <- 0L
+  checked_source_dirs <- new.env(parent = emptyenv())
+
+  for (batch_index in seq_along(config$batches)) {
+    batch <- config$batches[[batch_index]]
+    if (!isTRUE(batch$run_preamble)) next
+
+    for (run_index in seq_along(batch$run_roots)) {
+      run_root <- batch$run_roots[[run_index]]
+      hc_root <- file.path(run_root, "In", "DemandScenarios", "HC_jobs")
+      manifest_path <- file.path(hc_root, "HC_job_manifest_idw_ready.csv")
+      if (!file.exists(manifest_path)) {
+        .idw6f_stop(
+          "Batch '", batch$name, "' enables the download preamble, but run '",
+          basename(run_root), "' has no directional HC manifest. Set ",
+          "run_preamble=\"NO\" for singleton/country runs."
+        )
+      }
+      manifest <- read.csv(
+        manifest_path,
+        stringsAsFactors = FALSE,
+        check.names = FALSE,
+        na.strings = c("", "NA")
+      )
+      manifest <- .idw6f_validate_manifest(manifest)
+      scenario <- .idw6f_preamble_scenario(run_root)
+      periods <- seq.int(
+        manifest$PeriodStart[[1L]], manifest$PeriodEnd[[1L]], by = 10L
+      )
+      expected_source_names <- unlist(lapply(
+        c("w", "v"),
+        function(channel) sprintf("IDW_C++_fw_%s%02d.tif", channel, periods)
+      ), use.names = FALSE)
+
+      for (manifest_row in seq_len(nrow(manifest))) {
+        job_id <- manifest$JobID[[manifest_row]]
+        channel <- tolower(manifest$Channel[[manifest_row]])
+        demand_iso3 <- trimws(strsplit(
+          as.character(manifest$DemandISO3[[manifest_row]]), ";", fixed = TRUE
+        )[[1L]])
+        if (length(demand_iso3) != 1L ||
+            !grepl("^[A-Z]{3}$", demand_iso3[[1L]])) {
+          .idw6f_stop(
+            "Download preamble requires each HC job to represent exactly one ",
+            "three-letter DemandISO3. Job ", job_id, " contains: ",
+            paste(demand_iso3, collapse = ";")
+          )
+        }
+        iso3 <- demand_iso3[[1L]]
+        source_dir <- file.path(
+          batch$idw_source_root, paste0(iso3, "_", scenario)
+        )
+        if (!dir.exists(source_dir)) {
+          .idw6f_stop(
+            "Downloaded IDW folder is missing for ", job_id, ": ", source_dir
+          )
+        }
+        source_dir <- .idw6f_normalize(source_dir)
+
+        source_key <- tolower(source_dir)
+        if (!exists(source_key, envir = checked_source_dirs, inherits = FALSE)) {
+          source_inventory <- list.files(
+            source_dir,
+            pattern = .idw6f_preamble_tif_pattern,
+            full.names = FALSE,
+            ignore.case = FALSE
+          )
+          missing_source <- setdiff(expected_source_names, source_inventory)
+          unexpected_source <- setdiff(source_inventory, expected_source_names)
+          if (length(missing_source) > 0L || length(unexpected_source) > 0L) {
+            .idw6f_stop(
+              "Downloaded IDW folder does not contain the exact expected W/V ",
+              "period set: ", source_dir,
+              if (length(missing_source) > 0L) {
+                paste0("\nMissing: ", paste(missing_source, collapse = ", "))
+              } else "",
+              if (length(unexpected_source) > 0L) {
+                paste0("\nUnexpected: ", paste(unexpected_source, collapse = ", "))
+              } else ""
+            )
+          }
+          assign(source_key, TRUE, envir = checked_source_dirs)
+        }
+
+        target_dir <- file.path(hc_root, paste0(config$output_prefix, job_id))
+        expected_target_names <- sprintf(
+          "IDW_C++_fw_%s%02d.tif", channel, periods
+        )
+        if (dir.exists(target_dir)) {
+          target_inventory <- list.files(
+            target_dir,
+            pattern = .idw6f_preamble_tif_pattern,
+            full.names = FALSE,
+            ignore.case = FALSE
+          )
+          unexpected_target <- setdiff(target_inventory, expected_target_names)
+          if (length(unexpected_target) > 0L) {
+            .idw6f_stop(
+              "Returned HC directory contains channel/period files that do ",
+              "not belong to job ", job_id, ": ", target_dir, "\nUnexpected: ",
+              paste(unexpected_target, collapse = ", ")
+            )
+          }
+        }
+
+        for (period in periods) {
+          file_name <- sprintf(
+            "IDW_C++_fw_%s%02d.tif", channel, period
+          )
+          source_path <- file.path(source_dir, file_name)
+          destination_path <- file.path(target_dir, file_name)
+          source_size <- unname(file.info(source_path)$size[[1L]])
+          if (!is.finite(source_size) || source_size <= 0) {
+            .idw6f_stop("Downloaded IDW is empty or unreadable: ", source_path)
+          }
+
+          source_sha256 <- NA_character_
+          destination_sha256 <- NA_character_
+          if (file.exists(destination_path)) {
+            destination_size <- unname(file.info(destination_path)$size[[1L]])
+            if (!identical(as.numeric(source_size), as.numeric(destination_size))) {
+              .idw6f_stop(
+                "Refusing to overwrite a different returned HC file: ",
+                destination_path
+              )
+            }
+            source_sha256 <- .idw6f_sha256(source_path)
+            destination_sha256 <- .idw6f_sha256(destination_path)
+            if (!identical(source_sha256, destination_sha256)) {
+              .idw6f_stop(
+                "Refusing to overwrite a same-size but non-identical returned ",
+                "HC file: ", destination_path
+              )
+            }
+            action <- "already_present_identical"
+          } else {
+            action <- "copy"
+          }
+
+          row_counter <- row_counter + 1L
+          plan_rows[[row_counter]] <- data.frame(
+            Batch = batch$name,
+            RunFolder = basename(run_root),
+            RunRoot = run_root,
+            ScenarioFamily = scenario,
+            JobID = job_id,
+            Channel = toupper(channel),
+            DemandISO3 = iso3,
+            Period = period,
+            SourcePath = source_path,
+            DestinationPath = destination_path,
+            Bytes = source_size,
+            SourceSHA256 = source_sha256,
+            DestinationSHA256 = destination_sha256,
+            Action = action,
+            CopyManifest = file.path(
+              hc_root, "HC_IDW_download_distribution_manifest.csv"
+            ),
+            stringsAsFactors = FALSE,
+            check.names = FALSE
+          )
+        }
+      }
+    }
+  }
+
+  if (length(plan_rows) == 0L) {
+    return(data.frame())
+  }
+  plan <- do.call(rbind, plan_rows)
+  if (anyDuplicated(tolower(plan$DestinationPath))) {
+    .idw6f_stop(
+      "Download preamble resolved more than one source to the same destination."
+    )
+  }
+  rownames(plan) <- NULL
+  plan
+}
+
+.idw6f_preamble_execute <- function(plan, dry_run = FALSE) {
+  if (nrow(plan) == 0L) {
+    return(invisible(list(
+      plan = plan, ready_for_install = TRUE, copied = 0L, existing = 0L
+    )))
+  }
+  copy_rows <- which(plan$Action == "copy")
+  existing_rows <- which(plan$Action == "already_present_identical")
+  source_gib <- sum(plan$Bytes[copy_rows]) / 1024^3
+  cat(sprintf(
+    "\nDownloaded-IDW distribution preamble: %d file(s), %d to copy, %d already identical (%.2f GiB to copy).\n",
+    nrow(plan), length(copy_rows), length(existing_rows), source_gib
+  ))
+  by_run <- split(plan, plan$RunFolder)
+  for (run_name in names(by_run)) {
+    run_plan <- by_run[[run_name]]
+    cat(sprintf(
+      "  %s: %s, %d job(s), %d file(s), %d to copy\n",
+      run_name,
+      unique(run_plan$ScenarioFamily),
+      length(unique(run_plan$JobID)),
+      nrow(run_plan),
+      sum(run_plan$Action == "copy")
+    ))
+  }
+  if (dry_run) {
+    return(invisible(list(
+      plan = plan,
+      ready_for_install = length(copy_rows) == 0L,
+      copied = 0L,
+      existing = length(existing_rows)
+    )))
+  }
+
+  created_files <- character()
+  created_dirs <- character()
+  source_hash_cache <- new.env(parent = emptyenv())
+  hash_source <- function(path) {
+    key <- tolower(path)
+    if (!exists(key, envir = source_hash_cache, inherits = FALSE)) {
+      assign(key, .idw6f_sha256(path), envir = source_hash_cache)
+    }
+    get(key, envir = source_hash_cache, inherits = FALSE)
+  }
+
+  tryCatch({
+    for (row_index in seq_len(nrow(plan))) {
+      if (plan$Action[[row_index]] == "already_present_identical") next
+      destination_dir <- dirname(plan$DestinationPath[[row_index]])
+      if (!dir.exists(destination_dir)) {
+        if (!dir.create(destination_dir, recursive = TRUE, showWarnings = FALSE)) {
+          .idw6f_stop("Could not create returned HC directory: ", destination_dir)
+        }
+        created_dirs <- c(created_dirs, destination_dir)
+      }
+      source_hash <- hash_source(plan$SourcePath[[row_index]])
+      copied <- isTRUE(file.copy(
+        plan$SourcePath[[row_index]],
+        plan$DestinationPath[[row_index]],
+        overwrite = FALSE,
+        copy.mode = TRUE,
+        copy.date = TRUE
+      ))
+      if (!copied) {
+        .idw6f_stop(
+          "Could not distribute downloaded IDW to: ",
+          plan$DestinationPath[[row_index]]
+        )
+      }
+      created_files <- c(created_files, plan$DestinationPath[[row_index]])
+      destination_size <- unname(file.info(
+        plan$DestinationPath[[row_index]]
+      )$size[[1L]])
+      if (!identical(
+        as.numeric(plan$Bytes[[row_index]]), as.numeric(destination_size)
+      )) {
+        .idw6f_stop(
+          "Distributed IDW size verification failed: ",
+          plan$DestinationPath[[row_index]]
+        )
+      }
+      destination_hash <- .idw6f_sha256(plan$DestinationPath[[row_index]])
+      if (!identical(source_hash, destination_hash)) {
+        .idw6f_stop(
+          "Distributed IDW SHA-256 verification failed: ",
+          plan$DestinationPath[[row_index]]
+        )
+      }
+      plan$SourceSHA256[[row_index]] <- source_hash
+      plan$DestinationSHA256[[row_index]] <- destination_hash
+      plan$Action[[row_index]] <- "copied_and_verified"
+    }
+
+    completed_utc <- format(
+      as.POSIXct(Sys.time(), tz = "UTC"), "%Y-%m-%dT%H:%M:%SZ", tz = "UTC"
+    )
+    plan$CompletedUTC <- completed_utc
+    for (manifest_path in unique(plan$CopyManifest)) {
+      manifest_rows <- plan[plan$CopyManifest == manifest_path, , drop = FALSE]
+      manifest_rows$CopyManifest <- NULL
+      write.csv(
+        manifest_rows,
+        manifest_path,
+        row.names = FALSE,
+        na = "",
+        fileEncoding = "UTF-8"
+      )
+    }
+  }, error = function(error) {
+    if (length(created_files) > 0L) {
+      unlink(created_files[file.exists(created_files)], force = TRUE)
+    }
+    if (length(created_dirs) > 0L) {
+      for (directory in rev(unique(created_dirs))) {
+        if (dir.exists(directory) && length(list.files(directory, all.files = TRUE, no.. = TRUE)) == 0L) {
+          unlink(directory, recursive = FALSE, force = TRUE)
+        }
+      }
+    }
+    .idw6f_stop(
+      "Downloaded-IDW distribution failed; files created by this invocation ",
+      "were removed. ", conditionMessage(error)
+    )
+  })
+
+  cat(sprintf(
+    "Downloaded-IDW distribution complete: %d copied and SHA-256 verified; %d already identical.\n",
+    length(copy_rows), length(existing_rows)
+  ))
+  invisible(list(
+    plan = plan,
+    ready_for_install = TRUE,
+    copied = length(copy_rows),
+    existing = length(existing_rows)
+  ))
+}
+
 .idw6f_pipeline_resolve_batches <- function(batches = PIPELINE_BATCHES) {
   batch_names <- names(batches)
   if (!is.list(batches) || length(batches) == 0L || is.null(batch_names) ||
@@ -2017,6 +2385,18 @@ install_directional_idw_outputs <- function(
     enabled <- .idw6f_pipeline_bool(
       entry$enabled, paste0(label, "$enabled")
     )
+    run_preamble <- .idw6f_pipeline_yes_no(
+      if ("run_preamble" %in% names(entry)) entry$run_preamble else "NO",
+      paste0(label, "$run_preamble")
+    )
+    idw_source_root <- if ("idw_source_root" %in% names(entry)) {
+      trimws(as.character(entry$idw_source_root))
+    } else {
+      ""
+    }
+    if (length(idw_source_root) != 1L || is.na(idw_source_root)) {
+      .idw6f_stop(label, "$idw_source_root must be one directory path or blank.")
+    }
     analysis_folder <- .idw6f_pipeline_safe_folder(
       entry$analysis_folder, paste0(label, "$analysis_folder")
     )
@@ -2038,6 +2418,19 @@ install_directional_idw_outputs <- function(
     if (!enabled) {
       disabled_batches <- c(disabled_batches, batch_name)
       next
+    }
+
+    if (run_preamble) {
+      if (!nzchar(idw_source_root) || !dir.exists(idw_source_root)) {
+        .idw6f_stop(
+          "Batch '", batch_name,
+          "' has run_preamble=\"YES\" but idw_source_root does not exist: ",
+          idw_source_root
+        )
+      }
+      idw_source_root <- .idw6f_normalize(path.expand(idw_source_root))
+    } else {
+      idw_source_root <- ""
     }
 
     root <- trimws(as.character(entry$root))
@@ -2073,6 +2466,8 @@ install_directional_idw_outputs <- function(
       name = batch_name,
       root = root,
       analysis_folder = analysis_folder,
+      run_preamble = run_preamble,
+      idw_source_root = idw_source_root,
       run_roots = unname(run_roots)
     )
   }
@@ -2142,6 +2537,11 @@ install_directional_idw_outputs <- function(
     ))
     cat(sprintf("    root: %s\n", batch$root))
     cat(sprintf("    analysis label: %s\n", batch$analysis_folder))
+    cat(sprintf(
+      "    download preamble: %s%s\n",
+      if (batch$run_preamble) "YES" else "NO",
+      if (batch$run_preamble) paste0(" [", batch$idw_source_root, "]") else ""
+    ))
     for (run_index in seq_along(batch$run_roots)) {
       run_root <- batch$run_roots[[run_index]]
       manifest_path <- file.path(
@@ -2155,12 +2555,36 @@ install_directional_idw_outputs <- function(
       ))
     }
   }
+
+  preamble_plan <- .idw6f_preamble_plan(config)
+  preamble_preview <- NULL
+  if (check_only || config$dry_run) {
+    preamble_preview <- .idw6f_preamble_execute(
+      preamble_plan, dry_run = TRUE
+    )
+  }
   if (check_only) {
     cat(paste0(
-      "\nCHECK COMPLETE: batch configuration and run roots are valid; ",
-      "IDW products were not inspected or written.\n"
+      "\nCHECK COMPLETE: batch configuration, run roots, downloaded-IDW ",
+      "folder inventories, mappings, and existing destinations are valid; ",
+      "no files were written.\n"
     ))
-    return(invisible(config))
+    return(invisible(list(config = config, preamble = preamble_preview)))
+  }
+
+  preamble_result <- if (config$dry_run) {
+    preamble_preview
+  } else {
+    .idw6f_preamble_execute(preamble_plan, dry_run = FALSE)
+  }
+  if (config$dry_run && !isTRUE(preamble_result$ready_for_install)) {
+    cat(paste0(
+      "\nDRY RUN COMPLETE: the download-distribution plan is valid, but ",
+      "installer raster validation was skipped because the returned idw_<JobID> ",
+      "folders do not yet contain every planned file. Run normally to copy and ",
+      "verify them before installation. No files were written.\n"
+    ))
+    return(invisible(list(config = config, preamble = preamble_result)))
   }
 
   results <- list()
@@ -2211,7 +2635,7 @@ install_directional_idw_outputs <- function(
     length(config$batches),
     sum(vapply(config$batches, function(batch) length(batch$run_roots), integer(1)))
   ))
-  invisible(list(config = config, results = results))
+  invisible(list(config = config, preamble = preamble_result, results = results))
 }
 
 if (!identical(Sys.getenv("MOFUSS_6F_NO_AUTORUN"), "1")) {

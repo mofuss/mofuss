@@ -54,7 +54,7 @@ PIPELINE_BATCHES <- list(
     )
   ),
   MDG = list(
-    enabled = TRUE,
+    enabled = FALSE,
     root = "E:/",
     analysis_folder = "MDG_1000m_bau1_2050_mc3",
     folders = c(
@@ -65,7 +65,7 @@ PIPELINE_BATCHES <- list(
     )
   ),
   LSO = list(
-    enabled = TRUE,
+    enabled = FALSE,
     root = "E:/",
     analysis_folder = "LSO_1000m_bau1_2050_mc3",
     folders = c(
@@ -76,7 +76,7 @@ PIPELINE_BATCHES <- list(
     )
   ),
   MLI = list(
-    enabled = FALSE,
+    enabled = TRUE,
     root = "E:/",
     analysis_folder = "MLI_1000m_bau1_2050_mc3",
     folders = c(
@@ -87,7 +87,7 @@ PIPELINE_BATCHES <- list(
     )
   ),
   GAB = list(
-    enabled = TRUE,
+    enabled = FALSE,
     root = "F:/",
     analysis_folder = "GAB_1000m_bau1_2050_mc3",
     folders = c(
@@ -98,7 +98,7 @@ PIPELINE_BATCHES <- list(
     )
   ),
   GLEA = list(
-    enabled = TRUE,
+    enabled = FALSE,
     root = "E:/",
     analysis_folder = "GLEA_1000m_ics3_2050_mc3",
     folders = c(
