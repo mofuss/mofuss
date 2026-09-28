@@ -30,7 +30,7 @@
 
 # Internal parameters ----
 runGADM <- 0
-telegram_msgs <- 1
+telegram_msgs <- as.integer(Sys.getenv("MOFUSS_TELEGRAM_MSGS", unset = "1"))
 personal_demand <- 1
 
 start_time <- Sys.time()
@@ -45,7 +45,13 @@ computer_name <- Sys.info()[["nodename"]] # Gets the hostname of the computer
 os_name <- Sys.info()[["sysname"]]       # Gets the operating system name
 
 # Determine the script directory
-scriptsmofuss <- dirname(rstudioapi::getSourceEditorContext()$path)
+scriptsmofuss <- Sys.getenv("MOFUSS_SCRIPTS_DIR", unset = "")
+if (!nzchar(scriptsmofuss)) {
+  scriptsmofuss <- dirname(rstudioapi::getSourceEditorContext()$path)
+}
+if (!dir.exists(scriptsmofuss)) {
+  stop("MoFuSS scripts directory does not exist: ", scriptsmofuss)
+}
 cat("scriptsmofuss set to:", scriptsmofuss, "\n")
 
 # Load machine-local secrets. Process-level variables (for example, CI or
@@ -242,18 +248,19 @@ copy_personal_demand_csv <- function() {
     stop("Invalid scenario_ver in parameters.csv: ", selected_scenario)
   }
 
-  choose_demand_csv <- function(caption) {
+  choose_demand_csv <- function(caption, configured_path = "") {
     cat(paste0("\033[32m", caption, "\033[0m\n"))
 
-    selected_file <- utils::choose.files(
-      caption = caption,
-      multi = FALSE,
-      filters = matrix(
-        c("CSV Files", "*.csv"),
-        ncol = 2,
-        byrow = TRUE
+    selected_file <- if (nzchar(configured_path)) {
+      configured_path
+    } else {
+      tryCatch(
+        file.choose(),
+        error = function(error) {
+          stop("Demand table selection failed: ", conditionMessage(error))
+        }
       )
-    )
+    }
 
     if (
       length(selected_file) == 0 ||
@@ -267,6 +274,10 @@ copy_personal_demand_csv <- function() {
 
     if (!grepl("\\.csv$", selected_file, ignore.case = TRUE)) {
       stop("Selected file is not a .csv file: ", selected_file)
+    }
+
+    if (!file.exists(selected_file)) {
+      stop("Demand table does not exist: ", selected_file)
     }
 
     selected_file
@@ -294,10 +305,12 @@ copy_personal_demand_csv <- function() {
 
   if (is_ics_scenario) {
     bau_input_csv <- choose_demand_csv(
-      "Please choose the Business as Usual demand table (.csv)"
+      "Please choose the Business as Usual demand table (.csv)",
+      Sys.getenv("MOFUSS_DEMAND_BAU_CSV", unset = "")
     )
     ics_input_csv <- choose_demand_csv(
-      paste0("Please choose the ", selected_scenario, " demand table (.csv)")
+      paste0("Please choose the ", selected_scenario, " demand table (.csv)"),
+      Sys.getenv("MOFUSS_DEMAND_ICS_CSV", unset = "")
     )
 
     if (identical(
@@ -319,7 +332,8 @@ copy_personal_demand_csv <- function() {
     )
   } else {
     input_csv <- choose_demand_csv(
-      "Please choose the demand table (.csv)"
+      "Please choose the demand table (.csv)",
+      Sys.getenv("MOFUSS_DEMAND_BAU_CSV", unset = "")
     )
     uploads <- list(
       list(
@@ -435,3 +449,6 @@ if (telegram_msgs == 1) {
 
 end_time <- Sys.time()
 end_time - start_time
+if (!all_successful && nzchar(Sys.getenv("MOFUSS_COUNTRY_DIR", unset = ""))) {
+  stop("MoFuSS preprocessing stopped after a script error.")
+}

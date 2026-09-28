@@ -227,7 +227,13 @@ if (webmofuss == 1) {
   }
   
   # Call the function
-  githubdir <- choose_github_dir()
+  githubdir <- Sys.getenv("MOFUSS_GITHUB_DIR", unset = "")
+  if (!nzchar(githubdir)) {
+    githubdir <- choose_github_dir()
+  }
+  if (!dir.exists(githubdir)) {
+    stop("MoFuSS repository directory does not exist: ", githubdir)
+  }
   
   # Save the selected directory as githubdir
   cat("Selected github directory:", githubdir, "\n")
@@ -358,7 +364,15 @@ if (webmofuss == 1) {
         setwd(choose.dir("/", caption = caption))
       }
     }
-    choose_directory2()
+    configured_countrydir <- Sys.getenv("MOFUSS_COUNTRY_DIR", unset = "")
+    if (nzchar(configured_countrydir)) {
+      if (!dir.exists(configured_countrydir)) {
+        stop("MoFuSS working folder does not exist: ", configured_countrydir)
+      }
+      setwd(configured_countrydir)
+    } else {
+      choose_directory2()
+    }
     countrydir <- getwd()
     
   }
@@ -387,7 +401,15 @@ if (webmofuss == 1) {
       setwd(choose.dir("/home/mofuss/Documents", caption = caption)) # Elegir bien esta carpeta de inicio
     }
   }
-  choose_directory4()
+  configured_admindir <- Sys.getenv("MOFUSS_ADMIN_DIR", unset = "")
+  if (nzchar(configured_admindir)) {
+    if (!dir.exists(configured_admindir)) {
+      stop("MoFuSS admin directory does not exist: ", configured_admindir)
+    }
+    setwd(configured_admindir)
+  } else {
+    choose_directory4()
+  }
   admindir <- getwd()
   
   setwd(countrydir)
@@ -510,4 +532,3 @@ if (!dir.exists(demanddir)) {
 }
 
 # End of script ----
-

@@ -6,14 +6,15 @@
 # Normal use (RStudio):
 #   1. Open this file in RStudio and click Source.
 #   2. Select a BaU1 capped parameters.csv when prompted.
-#   3. Review the proposed folders and confirm.
+#   3. Select the parent folder containing _1000m_ and where the four
+#      working folders should be created.
+#   4. Review the proposed folders and confirm.
 #
 # Command-line use:
-#   Rscript working_folders_preparation_localhost.R --parameters="path/to/parameters.csv"
+#   Rscript working_folders_preparation_localhost.R --parameters="path/to/parameters.csv" --output-dir="path/to/output"
 #
 # Optional command-line flags:
-#   --template="path/to/_1000m_" Override automatic seed-folder discovery.
-#   --output-dir="path/to/output" Override the destination parent folder.
+#   --template="path/to/_1000m_" Override seed discovery within output-dir.
 #   --dry-run                      Validate and print the plan without copying.
 #   --yes                          Skip the final confirmation prompt.
 # Use E:/... paths on Windows or /mnt/... paths on Linux.
@@ -33,47 +34,6 @@ normalize_existing <- function(path, label) {
     stopf("%s does not exist: %s", label, normalized)
   }
   normalizePath(normalized, winslash = "/", mustWork = TRUE)
-}
-
-get_script_path <- function() {
-  full_args <- commandArgs(trailingOnly = FALSE)
-  file_arg <- grep("^--file=", full_args, value = TRUE)
-  if (length(file_arg)) {
-    return(normalize_existing(sub("^--file=", "", file_arg[[1L]]), "Script"))
-  }
-
-  frame_files <- vapply(
-    sys.frames(),
-    function(frame) {
-      value <- frame$ofile
-      if (is.null(value) || !length(value)) NA_character_ else as.character(value[[1L]])
-    },
-    character(1L)
-  )
-  frame_files <- frame_files[!is.na(frame_files) & nzchar(frame_files)]
-  if (length(frame_files)) {
-    return(normalize_existing(tail(frame_files, 1L), "Script"))
-  }
-
-  if (interactive() && requireNamespace("rstudioapi", quietly = TRUE) &&
-      rstudioapi::isAvailable()) {
-    editor_path <- rstudioapi::getSourceEditorContext()$path
-    if (length(editor_path) && nzchar(editor_path)) {
-      return(normalize_existing(editor_path, "Script"))
-    }
-  }
-
-  fallback <- file.path(getwd(), "working_folders_preparation_localhost.R")
-  if (file.exists(fallback)) {
-    return(normalize_existing(fallback, "Script"))
-  }
-
-  stopf(
-    paste0(
-      "Could not determine this script's location. Source the saved file from RStudio ",
-      "or run it with Rscript."
-    )
-  )
 }
 
 parse_options <- function(args) {
@@ -114,29 +74,50 @@ choose_parameters_file <- function() {
   }
 
   message("Select the BaU1 capped parameters.csv table.")
-  if (.Platform$OS.type == "windows") {
-    filters <- matrix(
-      c("CSV files (*.csv)", "*.csv", "All files (*.*)", "*.*"),
-      ncol = 2L,
-      byrow = TRUE
-    )
-    selected <- utils::choose.files(
-      caption = "Select the BaU1 capped parameters.csv",
-      multi = FALSE,
-      filters = filters
-    )
-    if (!length(selected)) stopf("No parameters table was selected.")
-    selected[[1L]]
-  } else {
-    file.choose(new = FALSE)
-  }
+  tryCatch(
+    file.choose(),
+    error = function(error) {
+      stopf("Parameters table selection failed: %s", conditionMessage(error))
+    }
+  )
 }
 
-find_template <- function(script_dir, explicit_template = NULL) {
+choose_output_dir <- function() {
+  if (!interactive()) {
+    stopf(
+      "No output folder was supplied. Use --output-dir=\"path/to/output\" when running non-interactively."
+    )
+  }
+
+  message("Select the folder containing _1000m_ and where the four working folders will be created.")
+  selected <- if (capabilities("tcltk")) {
+    tryCatch(
+      tcltk::tk_choose.dir(
+        default = getwd(),
+        caption = "Select the parent folder for four working folders"
+      ),
+      error = function(error) {
+        message("Folder picker unavailable: ", conditionMessage(error))
+        NULL
+      }
+    )
+  } else {
+    NULL
+  }
+  if (is.null(selected)) {
+    selected <- readline("Enter the destination parent folder path: ")
+  }
+  if (!length(selected) || is.na(selected) || !nzchar(trimws(selected))) {
+    stopf("No output folder was selected.")
+  }
+  selected
+}
+
+find_template <- function(output_dir, explicit_template = NULL) {
   if (!is.null(explicit_template)) {
     template <- normalize_existing(explicit_template, "Template folder")
   } else {
-    children <- list.dirs(script_dir, recursive = FALSE, full.names = TRUE)
+    children <- list.dirs(output_dir, recursive = FALSE, full.names = TRUE)
     # The seed is deliberately distinguished from working folders by leading
     # and trailing underscores, for example E:/_1000m_ or /mnt/_1000m_.
     candidates <- children[
@@ -144,8 +125,8 @@ find_template <- function(script_dir, explicit_template = NULL) {
     ]
     if (!length(candidates)) {
       stopf(
-        "No seed folder named like _*1000m*_ was found beside the script: %s",
-        script_dir
+        "No seed folder named like _*1000m*_ was found in the selected output folder: %s",
+        output_dir
       )
     }
     if (length(candidates) > 1L) {
@@ -498,22 +479,19 @@ verify_output <- function(destination, expected_scenario, expected_uncapped) {
 
 main <- function() {
   opts <- parse_options(commandArgs(trailingOnly = TRUE))
-  script_path <- get_script_path()
-  script_dir <- dirname(script_path)
-  output_dir <- if (is.null(opts$output_dir)) {
-    script_dir
-  } else {
-    normalize_existing(opts$output_dir, "Output folder")
-  }
-  if (!dir.exists(output_dir)) stopf("Output path is not a folder: %s", output_dir)
-
-  template <- find_template(script_dir, opts$template)
   parameters_path <- if (is.null(opts$parameters)) {
     choose_parameters_file()
   } else {
     opts$parameters
   }
   input <- read_parameters(parameters_path)
+  output_dir <- normalize_existing(
+    if (is.null(opts$output_dir)) choose_output_dir() else opts$output_dir,
+    "Output folder"
+  )
+  if (!dir.exists(output_dir)) stopf("Output path is not a folder: %s", output_dir)
+
+  template <- find_template(output_dir, opts$template)
   plan <- build_plan(input$table, template, output_dir)
 
   # Complete all non-mutating validation before the first large copy.
