@@ -62,6 +62,7 @@ suppressPackageStartupMessages({
   library(ggplot2)
 })
 
+# BEGIN USER INPUTS ----------------------------------------------------------
 # Internal parameters ----
 
 cfg <- list(
@@ -76,6 +77,7 @@ cfg <- list(
   rnorm_script = "rnorm_v8.R",
   maps_script = "maps_animations_v8.R"
 )
+# END USER INPUTS ------------------------------------------------------------
 
 args <- commandArgs(trailingOnly = TRUE)
 for (arg in args) {

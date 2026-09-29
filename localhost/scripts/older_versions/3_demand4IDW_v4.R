@@ -19,10 +19,12 @@
 # ALLOW OTHER SCENRIOS: Start in line 183
 
 
+# BEGIN USER INPUTS ----------------------------------------------------------
 # Internal parameters ----
 optimizeD = 0
 temdirdefined = 1
 urb_shift_factor <- 1 # Only works with byregion == Country (Check code lines 89-91 before adjusting this).
+# END USER INPUTS ------------------------------------------------------------
 # For Nepal use 10.
 # # Select MoFuSS platform:
 # webmofuss = 1 # "1" is  web-MoFuSS running in our Ubuntu server, "0" is local host (Windows or Linux)

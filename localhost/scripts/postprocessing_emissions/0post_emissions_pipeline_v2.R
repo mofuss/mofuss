@@ -29,14 +29,26 @@
 # USER INPUTS: edit this block only -----------------------------------------
 
 # Each enabled batch is one independent BAU/ICS x capped/uncapped analysis.
-# Declare its common parent once in `root` and its exact child directory below
-# `mofuss_postprocessing` in `analysis_folder`. Keep placeholders disabled until
-# their scenario folders exist on the current computer.
+# `root` is the absolute parent of the four working folders (for example,
+# "/home/mofuss/Documents" on Linux or "E:/" on Windows). `analysis_folder`
+# is one folder NAME below PIPELINE_GLOBAL_ANALYSIS_PARENT, not a full path.
+# Keep placeholders disabled until their scenario folders exist locally.
 PIPELINE_BATCHES <- list(
+  AGO = list(
+    enabled = TRUE,
+    root = "/home/mofuss/Documents",
+    analysis_folder = "AGO_1000m_2050_mc3",
+    folders = c(
+      "AGO_1000m_bau1_2050_mc3_capped",
+      "AGO_1000m_bau1_2050_mc3_uncapped",
+      "AGO_1000m_ics3_2050_mc3_capped",
+      "AGO_1000m_ics3_2050_mc3_uncapped"
+    )
+  ),
   ECSA = list(
     enabled = FALSE,
     root = "E:/",
-    analysis_folder = "ECSA_1000m_ics3_2050_mc30",
+    analysis_folder = "ECSA_1000m_2050_mc30",
     folders = c(
       "ECSA_1000m_bau1_2050_mc30_capped",
       "ECSA_1000m_bau1_2050_mc30_uncapped",
@@ -47,7 +59,7 @@ PIPELINE_BATCHES <- list(
   GOG = list(
     enabled = FALSE,
     root = "E:/",
-    analysis_folder = "GOG_1000m_ics3_2050_mc30",
+    analysis_folder = "GOG_1000m_2050_mc30",
     folders = c(
       "GOG_1000m_bau1_2050_mc30_capped",
       "GOG_1000m_bau1_2050_mc30_uncapped",
@@ -58,7 +70,7 @@ PIPELINE_BATCHES <- list(
   MDG = list(
     enabled = FALSE,
     root = "E:/",
-    analysis_folder = "MDG_1000m_bau1_2050_mc3",
+    analysis_folder = "MDG_1000m_2050_mc3",
     folders = c(
       "MDG_1000m_bau1_2050_mc3_capped",
       "MDG_1000m_bau1_2050_mc3_uncapped",
@@ -69,7 +81,7 @@ PIPELINE_BATCHES <- list(
   LSO = list(
     enabled = FALSE,
     root = "E:/",
-    analysis_folder = "LSO_1000m_bau1_2050_mc3",
+    analysis_folder = "LSO_1000m_2050_mc3",
     folders = c(
       "LSO_1000m_bau1_2050_mc3_capped",
       "LSO_1000m_bau1_2050_mc3_uncapped",
@@ -78,9 +90,9 @@ PIPELINE_BATCHES <- list(
     )
   ),
   MLI = list(
-    enabled = TRUE,
+    enabled = FALSE,
     root = "E:/",
-    analysis_folder = "MLI_1000m_bau1_2050_mc3",
+    analysis_folder = "MLI_1000m_2050_mc3",
     folders = c(
       "MLI_1000m_bau1_2050_mc3_capped",
       "MLI_1000m_bau1_2050_mc3_uncapped",
@@ -91,7 +103,7 @@ PIPELINE_BATCHES <- list(
   GAB = list(
     enabled = FALSE,
     root = "F:/",
-    analysis_folder = "GAB_1000m_bau1_2050_mc3",
+    analysis_folder = "GAB_1000m_2050_mc3",
     folders = c(
       "GAB_1000m_bau1_2050_mc3_capped",
       "GAB_1000m_bau1_2050_mc3_uncapped",
@@ -102,7 +114,7 @@ PIPELINE_BATCHES <- list(
   GLEA = list(
     enabled = FALSE,
     root = "E:/",
-    analysis_folder = "GLEA_1000m_ics3_2050_mc3",
+    analysis_folder = "GLEA_1000m_2050_mc3",
     folders = c(
       "GLEA_1000m_bau1_2050_mc3_capped",
       "GLEA_1000m_bau1_2050_mc3_uncapped",
@@ -150,14 +162,18 @@ PIPELINE_TEMP_DIR <- NULL
 # Stages 2-4 write every regional/singleton analysis root below this parent,
 # and Stage 5 auto-discovers each completed immediate child. This parent may be
 # absent at startup when Stage 2 is selected; Stage 2 creates it recursively.
-PIPELINE_GLOBAL_ANALYSIS_PARENT <- "E:/_postprocessing_draft"
+PIPELINE_GLOBAL_ANALYSIS_PARENT <- "/home/mofuss/Documents/mofuss_postprocessing"
 PIPELINE_GLOBAL_OUTPUT_DIR <- file.path(
   PIPELINE_GLOBAL_ANALYSIS_PARENT,
   "globalsouth_2026_2050_mcvariale",
   "manuscript_outputs"
 )
-PIPELINE_GLOBAL_TEMP_DIR <-
-  "E:/MoFuSS_Active/global_manuscript_outputs_v1_dev"
+# Stage 5 scratch must be below ~/MoFuSS_Active on Linux or E:/MoFuSS_Active
+# on Windows. This is separate from the final analysis products above.
+PIPELINE_GLOBAL_TEMP_DIR <- file.path(
+  if (.Platform$OS.type == "windows") "E:/MoFuSS_Active" else path.expand("~/MoFuSS_Active"),
+  "global_manuscript_outputs_v1_dev"
+)
 PIPELINE_GLOBAL_MODE <- "partial"
 PIPELINE_GLOBAL_MC_COMBINATION <- "independent"
 PIPELINE_GLOBAL_RESAMPLES <- 10000L
@@ -456,12 +472,13 @@ pipeline_validate_inputs <- function(script_dir) {
       )
     }
     expected_global_temp_root <- normalizePath(
-      "E:/MoFuSS_Active", winslash = "/", mustWork = FALSE
+      if (.Platform$OS.type == "windows") "E:/MoFuSS_Active" else path.expand("~/MoFuSS_Active"),
+      winslash = "/", mustWork = FALSE
     )
     if (!pipeline_is_descendant(global_temp_dir, expected_global_temp_root)) {
       pipeline_stop(
-        "PIPELINE_GLOBAL_TEMP_DIR must be below E:/MoFuSS_Active: %s",
-        global_temp_dir
+        "PIPELINE_GLOBAL_TEMP_DIR must be below %s: %s",
+        expected_global_temp_root, global_temp_dir
       )
     }
     if (file.exists(global_temp_dir) && !dir.exists(global_temp_dir)) {

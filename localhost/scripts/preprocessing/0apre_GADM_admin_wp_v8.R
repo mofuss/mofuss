@@ -31,6 +31,7 @@
 # 3. If the new CSV introduces any brand-new Subregion labels, add them to ssa_region_map with unique suffixes.
 # 
 # ============================================================================
+# BEGIN USER INPUTS ----------------------------------------------------------
 # Internal parameters
 # ============================================================================
 run_ms <- "Yes"  # Run ms_simplify?
@@ -47,14 +48,17 @@ ssa_scenarios <- list(
   tnc_kaza  = "subregionsSSA_v5TNC_kaza.csv",
   enabel    = "subregionsSSA_v5ENABEL.csv"
 )
+# END USER INPUTS ------------------------------------------------------------
 stopifnot(ssa_scenario %in% names(ssa_scenarios))
 subregionsSSA_v <- ssa_scenarios[[ssa_scenario]]
 message("SSA scenario: ", ssa_scenario, "  ->  ", subregionsSSA_v)
 
+# BEGIN USER INPUTS ----------------------------------------------------------
 subregionsLATAM_v    <- "subregionsLATAM_v3.csv"
 subregionsASIA_v     <- "subregionsASIA_v5.csv"
 subregionsOCEANIA_v  <- "subregionsOCEANIA.csv"
 subregionsNorAfri_v  <- "subregionsNorAfri_v3.csv"
+# END USER INPUTS ------------------------------------------------------------
 
 # ----------------------------------------------------------------------------
 # Region maps (single source of truth per major region)

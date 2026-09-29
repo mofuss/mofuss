@@ -39,6 +39,11 @@
 # This script does not run CostDistance_IDW and does not alter the harmonizer
 # products, the base friction rasters, or the demand tables.
 
+# BEGIN USER INPUTS ----------------------------------------------------------
+# The calling workflow supplies countrydir and the run settings.
+# Configure the selected working folder in the main workflow.
+# END USER INPUTS ------------------------------------------------------------
+
 suppressPackageStartupMessages(library(terra))
 
 .idw_stop <- function(...) {

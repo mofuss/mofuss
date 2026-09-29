@@ -4,6 +4,11 @@
 # change with capped and uncapped BaU MoFuSS configurations.  Inputs are the
 # fixed-support aggregates created by 2_prepare_agb_validation_v2.R.
 
+# BEGIN USER INPUTS ----------------------------------------------------------
+# Configure 0calib_valid_agb_pipeline_v1.R, or pass the command-line options
+# documented below. This stage receives its settings from that caller.
+# END USER INPUTS ------------------------------------------------------------
+
 suppressPackageStartupMessages({
   if (!requireNamespace("terra", quietly = TRUE)) stop("Package 'terra' is required.", call. = FALSE)
   if (!requireNamespace("ggplot2", quietly = TRUE)) stop("Package 'ggplot2' is required.", call. = FALSE)

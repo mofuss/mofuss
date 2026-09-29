@@ -28,8 +28,10 @@
 
 # 2dolist ----
 
+# BEGIN USER INPUTS ----------------------------------------------------------
 # Internal parameters ----
 start_from_scratch <- 0 # Set to 0 when the MoFuSS working directory already exists and has data in it
+# END USER INPUTS ------------------------------------------------------------
 
 # Force webmofuss to 0 when starting from scratch 
 if (start_from_scratch == 1){webmofuss = 0}

@@ -29,9 +29,11 @@
 # Zoom regions falling outside country borders breaks the map atlas
 # If zooms are not present by passzooms drawings
 
+# BEGIN USER INPUTS ----------------------------------------------------------
 # Internal parameters ----
 DEBUG_OSM <- FALSE
 RUN_DEMAND_MAPS <- TRUE
+# END USER INPUTS ------------------------------------------------------------
 
 # Load libraries ----
 library(conflicted)

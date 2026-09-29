@@ -20,10 +20,12 @@
 # VERY IMPORTANT TO DEFINE A SOLID WORKFLOW FOR REGIONALIZING COUNTRIES, e.g. Zambia
 # 1339 names(wf_w_dbx)[4:ncol(wf_w_dbx)] <- "GlobalWorldPop" # Warning: Bring from WP vs HSRL
 
+# BEGIN USER INPUTS ----------------------------------------------------------
 # Internal parameters ----
 optimizeD = 0
 temdirdefined = 1
 urb_shift_factor <- 1 # Only works with byregion == Country (Check code lines 89-91 before adjusting this).
+# END USER INPUTS ------------------------------------------------------------
 # For Nepal use 10.
 # # Select MoFuSS platform:
 # webmofuss = 1 # "1" is  web-MoFuSS running in our Ubuntu server, "0" is local host (Windows or Linux)

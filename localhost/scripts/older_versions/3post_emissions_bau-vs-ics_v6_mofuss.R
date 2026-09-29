@@ -28,6 +28,11 @@
 
 
 # Internal parameters ----
+# BEGIN USER INPUTS ----------------------------------------------------------
+# This script uses the source paths or function arguments shown below.
+# It has no separate editable parameter block.
+# END USER INPUTS ------------------------------------------------------------
+
 fixdir = 1
 bau_dir <- "C:/Users/aghil/Documents/MoFuSS_FAO_localhost/zmb_bau_1km_subc"
 ics_dir <- "C:/Users/aghil/Documents/MoFuSS_FAO_localhost/zmb_ics3_1km_subc"

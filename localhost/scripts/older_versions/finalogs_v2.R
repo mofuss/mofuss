@@ -2,6 +2,11 @@
 # Version: 2.0
 # Date: August 2026
 
+# BEGIN USER INPUTS ----------------------------------------------------------
+# Supply the command-line options documented below when launching this
+# script. Its parser defines the available input settings.
+# END USER INPUTS ------------------------------------------------------------
+
 rm(list = ls(all.names = TRUE))
 
 # This utility intentionally uses base R only. The original 2016 script loaded

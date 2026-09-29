@@ -19,6 +19,11 @@
 #   --yes                          Skip the final confirmation prompt.
 # Use E:/... paths on Windows or /mnt/... paths on Linux.
 
+# BEGIN USER INPUTS ----------------------------------------------------------
+# Supply --parameters, --template and --output-dir, or use the interactive
+# folder/file selectors when sourcing this script.
+# END USER INPUTS ------------------------------------------------------------
+
 options(stringsAsFactors = FALSE)
 
 stopf <- function(fmt, ...) {

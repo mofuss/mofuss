@@ -39,6 +39,11 @@
 # This script does not run CostDistance_IDW and does not alter the harmonizer
 # products, the base friction rasters, or the demand tables.
 
+# BEGIN USER INPUTS ----------------------------------------------------------
+# Define countrydir or select the run as the working directory.
+# Input settings are read from the harmonized HC job manifests.
+# END USER INPUTS ------------------------------------------------------------
+
 suppressPackageStartupMessages(library(terra))
 
 .idw_stop <- function(...) {

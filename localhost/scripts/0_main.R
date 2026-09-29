@@ -72,7 +72,9 @@ if(computer_name == "mofuss2") {
 	  computer_name <- "WebMoFuSS_2"
 }
 
+# BEGIN USER INPUTS ----------------------------------------------------------
 runGADM <- 0
+# END USER INPUTS ------------------------------------------------------------
 
 cat("scriptsmofuss set to:", scriptsmofuss, "\n")
 

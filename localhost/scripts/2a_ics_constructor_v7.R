@@ -30,6 +30,7 @@
 
 # 2dolist ----
 
+# BEGIN USER INPUTS ----------------------------------------------------------
 # Internal parameters ----
 
 # REMEMBER TO FIRST RUN "2b_oneschema_fix_v4.R" for the the BaU1 scenario: 
@@ -90,6 +91,7 @@ ics3_phaseout_exponent <- 1.0
 # Country printed in the on-screen comparison (full table is always written
 # to anchor_points_comparison.csv regardless)
 sample_country <- "KEN"
+# END USER INPUTS ------------------------------------------------------------
 
 # Load libraries ----
 library(conflicted)

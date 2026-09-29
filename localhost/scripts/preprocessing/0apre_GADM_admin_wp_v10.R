@@ -32,6 +32,7 @@
 # unique, filesystem-safe RunCode for every connected component or singleton.
 # 
 # ============================================================================
+# BEGIN USER INPUTS ----------------------------------------------------------
 # Internal parameters
 # ============================================================================
 run_ms <- "Yes"  # Run ms_simplify?
@@ -50,6 +51,7 @@ regionalization_inputs <- c(
   NorAfr  = "subregionsNorAfri_v5_M85_B30_V1.csv"
 )
 bilateral_permissions_v <- "bilateral_charcoal_permissions_v1.csv"
+# END USER INPUTS ------------------------------------------------------------
 subregionsSSA_v     <- regionalization_inputs[["SSA"]]
 subregionsLATAM_v   <- regionalization_inputs[["LATAM"]]
 subregionsASIA_v    <- regionalization_inputs[["ASIA"]]

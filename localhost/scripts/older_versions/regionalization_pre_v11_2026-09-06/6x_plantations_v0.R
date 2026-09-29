@@ -29,6 +29,7 @@
 
 # 2dolist ----
 
+# BEGIN USER INPUTS ----------------------------------------------------------
 # Internal parameters ----
 check_projection_24b <- 0
 # plant_wd <- "/mnt/mofuss_ssd/plantations_fao/eucalyptus/"
@@ -56,6 +57,7 @@ KSDv = 2 # Standard deviation of Kv
 
 ####
 opt_rotation <- 12 # You need to adjust this after  lines 172 - 180, pick the year with highest production potential
+# END USER INPUTS ------------------------------------------------------------
 ####
 
 # Load libraries ----

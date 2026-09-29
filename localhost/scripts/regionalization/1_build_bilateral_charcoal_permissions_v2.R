@@ -32,6 +32,7 @@ options(stringsAsFactors = FALSE)
 .stopf <- function(fmt, ...) stop(sprintf(fmt, ...), call. = FALSE)
 
 .parse_args <- function(args) {
+  # BEGIN USER INPUTS ----------------------------------------------------------
   out <- list(
     archive_dir = "E:/MoFuSS_Global_South_Regionalization_Evidence_Archive_v1_2026-08-29",
     output_dir = "E:/MoFuSS_Active/bilateral_charcoal_evidence_v2",
@@ -39,6 +40,7 @@ options(stringsAsFactors = FALSE)
     min_edge_weight = 4L,
     strict_reference_counts = TRUE
   )
+  # END USER INPUTS ------------------------------------------------------------
 
   for (arg in args) {
     if (!grepl("^--[^=]+=", arg)) .stopf("Invalid argument: %s", arg)

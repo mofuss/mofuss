@@ -110,6 +110,7 @@
   )
 }
 
+# BEGIN USER INPUTS ----------------------------------------------------------
 # Scenario folders are supplied centrally by 0post_emissions_pipeline_v2.R.
 # This empty fallback prevents stale computer-specific paths from being used.
 SCENARIO_DIRS <- character()
@@ -128,6 +129,7 @@ SCENARIO_DIRS <- character()
 .V13_RSTUDIO_CLEAN_REBUILD <- TRUE
 .V13_RSTUDIO_CLEAN_ANALYSIS_ROOT <- TRUE
 .V13_RSTUDIO_PAIRING_POLICY <- "strict"
+# END USER INPUTS ------------------------------------------------------------
 
 .v9_stop <- function(...) {
   stop(paste0(...), call. = FALSE)

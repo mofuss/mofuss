@@ -5,6 +5,11 @@
 # Runtime masks/bases/scalars must come from the v12 capture contract; the
 # existing annual model rasters remain the authority for total realised harvest.
 
+# BEGIN USER INPUTS ----------------------------------------------------------
+# Configure 0post_runtime_sourcing_pipeline_v1.R, or supply options to
+# rs_main(). This helper receives its run folders and settings from its caller.
+# END USER INPUTS ------------------------------------------------------------
+
 .rs_stop <- function(...) stop(sprintf(...), call. = FALSE)
 .rs_require <- function() {
   for (pkg in c("terra", "data.table")) {

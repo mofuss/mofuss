@@ -79,6 +79,7 @@ FIGURE_DPI <- 300L
 MAP_DISPLAY_CRS <- "EPSG:8857"
 MAP_EXTENT_PADDING_FRACTION <- 0.03
 
+# BEGIN USER INPUTS ----------------------------------------------------------
 # RStudio/source defaults are intentionally NULL so stale machine-specific
 # paths cannot be used accidentally.
 V1_RSTUDIO_ANALYSIS_PARENT <- NULL
@@ -92,6 +93,7 @@ V1_RSTUDIO_RANDOM_SEED <- 20260910L
 V1_RSTUDIO_CLEAN_REBUILD <- TRUE
 V1_RSTUDIO_REGIONALIZATION_FILE <- NULL
 
+# END USER INPUTS ------------------------------------------------------------
 stopf <- function(fmt, ...) stop(sprintf(fmt, ...), call. = FALSE)
 
 args <- commandArgs(trailingOnly = TRUE)
@@ -156,7 +158,7 @@ if (is.null(output_dir_arg) || !nzchar(output_dir_arg)) {
   stopf("Required argument missing: --output-dir=<manuscript_outputs>")
 }
 if (is.null(temp_dir_arg) || !nzchar(temp_dir_arg)) {
-  stopf("Required argument missing: --temp-dir=<E:/MoFuSS_Active/task-folder>")
+  stopf("Required argument missing: --temp-dir=<MoFuSS_Active/task-folder>")
 }
 if (!run_mode %in% c("partial", "strict")) {
   stopf("--mode must be partial or strict.")
@@ -212,10 +214,11 @@ is_descendant <- function(path, parent) {
 }
 
 expected_temp_root <- normalizePath(
-  "E:/MoFuSS_Active", winslash = "/", mustWork = FALSE
+  if (.Platform$OS.type == "windows") "E:/MoFuSS_Active" else path.expand("~/MoFuSS_Active"),
+  winslash = "/", mustWork = FALSE
 )
 if (!is_descendant(temp_dir, expected_temp_root)) {
-  stopf("Temporary work must be below E:/MoFuSS_Active: %s", temp_dir)
+  stopf("Temporary work must be below %s: %s", expected_temp_root, temp_dir)
 }
 if (root_like(output_dir) || root_like(dirname(output_dir)) ||
     !identical(tolower(basename(output_dir)), "manuscript_outputs")) {

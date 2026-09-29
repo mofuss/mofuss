@@ -6,6 +6,7 @@
 
 # 2dolist ----
 
+# BEGIN USER INPUTS ----------------------------------------------------------
 # Internal parameters ----
 run_ms = "Yes" # Run ms_simplify?
 # subregionsSSA_v <- "subregionsSSA_v4.csv"
@@ -15,6 +16,7 @@ subregionsLATAM_v <- "subregionsLATAM_v3.csv"
 subregionsASIA_v <- "subregionsASIA_v5.csv"
 subregionsOCEANIA_v <- "subregionsOCEANIA.csv"
 subregionsNorAfri_v <- "subregionsNorAfri_v3.csv"
+# END USER INPUTS ------------------------------------------------------------
 
 # Load packages ----
 library(conflicted)

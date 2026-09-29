@@ -10,7 +10,9 @@ rm(list = ls(all.names = TRUE))
 # text log files.
 
 args <- commandArgs(trailingOnly = TRUE)
+# BEGIN USER INPUTS ----------------------------------------------------------
 BaUvsICS <- "BaU"
+# END USER INPUTS ------------------------------------------------------------
 scenario_arg <- grep("^BaUvsICS=", args, value = TRUE)
 if (length(scenario_arg) > 0L) {
   BaUvsICS <- sub("^BaUvsICS=", "", scenario_arg[[length(scenario_arg)]])
@@ -27,7 +29,7 @@ collect_log_files <- function(directory) {
   }
   list.files(
     directory,
-    pattern = "(\\.Rout$|^(debug|log)\\.txt$)",
+    pattern = "(\\.Rout$|^(debug|log)(_[0-9]+)?\\.txt$)",
     full.names = TRUE,
     recursive = FALSE,
     ignore.case = TRUE
@@ -150,7 +152,7 @@ archive_requested <-
 
 if (archive_requested) {
   bundled_zip <- "LULCC/Wizard_imgs/zip.exe"
-  zip_executable <- if (file.exists(bundled_zip)) {
+  zip_executable <- if (.Platform$OS.type == "windows" && file.exists(bundled_zip)) {
     bundled_zip
   } else {
     unname(Sys.which("zip"))

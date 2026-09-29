@@ -8,10 +8,12 @@
 # 2dolist
 # Check values less than 1 in K and KSD, or under MoFuSS harvestable threshold
 
+# BEGIN USER INPUTS ----------------------------------------------------------
 # Internal parameters
 var_name1 <- "lyr1" #"continent" contienen is when running the regional scale apparently FIX ASAP 
 var_name2 <- "lyr2" #"continent" contienen is when running the regional scale apparently FIX ASAP 
 plot_curves = 0
+# END USER INPUTS ------------------------------------------------------------
 
 
 # Load packages ----

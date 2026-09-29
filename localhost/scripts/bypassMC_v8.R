@@ -20,6 +20,12 @@
 # The script deliberately does not copy or control Dinamica's internal Patcher
 # random-number stream. It pairs the Monte Carlo parameter tables only.
 
+# BEGIN USER INPUTS ----------------------------------------------------------
+# Dinamica supplies the scenario controls as named command-line arguments.
+# An optional bau_mc_source.txt selects the BAU source; otherwise the script
+# discovers the matching sibling using the scenario parameter CSVs.
+# END USER INPUTS ------------------------------------------------------------
+
 options(stringsAsFactors = FALSE)
 
 required_mc_files <- c(
@@ -482,6 +488,21 @@ prepare_stage <- function(
     stopf("BAU MC batch-ready manifest changed during staging.")
   }
 
+  # The Linux graph selects one MC row through one-dimensional lookup files.
+  # Regenerate these from the verified BAU decimal strings, without drawing
+  # new values or relying on a particular platform's optional lookup files.
+  for (kind in c("i_st", "rmax", "k")) {
+    wide <- read.csv(file.path(stage, paste0(kind, "_all.csv")),
+                     colClasses = "character", check.names = FALSE)
+    if (nrow(wide) != ccts$monte_carlo_runs) stopf("Unexpected MC row count: %s", kind)
+    for (id in seq_len(ccts$monte_carlo_runs)) {
+      lookup <- data.frame(Key = seq_len(ncol(wide) - 1L),
+                           Value = unname(unlist(wide[id, -1, drop = FALSE])))
+      write.table(lookup, file.path(stage, sprintf("mc_%s_%02d.csv", kind, id)),
+                  sep = ",", quote = FALSE, row.names = FALSE)
+    }
+  }
+
   k <- read_mc_csv(file.path(stage, "k_all.csv"))
   k_values <- as.data.frame(lapply(k[-1L], as.numeric), check.names = FALSE)
   write_scalar_csv(max(as.matrix(k_values), na.rm = TRUE), file.path(stage, "MaxAGB.csv"))
@@ -563,13 +584,19 @@ install_stage <- function(stage, ccts) {
   if (dir.exists(file.path(ccts$root, "Debugging"))) {
     unlink(file.path(ccts$root, "Debugging"), recursive = TRUE, force = TRUE)
   }
-  dir.create(file.path(ccts$root, "Debugging"), showWarnings = FALSE)
+  if (.Platform$OS.type == "windows") {
+    dir.create(file.path(ccts$root, "Debugging"), showWarnings = FALSE)
+  }
+  safe_remove_children(ccts$root, "Sourcing")
+  dir.create(file.path(ccts$root, "Sourcing", "static"), recursive = TRUE, showWarnings = FALSE)
 
   old_runs <- discover_debugging_runs(ccts$root)
   if (length(old_runs)) unlink(unname(old_runs), recursive = TRUE, force = TRUE)
   for (id in seq_len(ccts$monte_carlo_runs)) {
     path <- file.path(ccts$root, paste0("debugging_", id))
     if (!dir.create(path)) stopf("Cannot create %s", path)
+    dir.create(file.path(ccts$root, "Sourcing", sprintf("MC%03d", id)),
+               recursive = TRUE, showWarnings = FALSE)
   }
 
   stale_files <- c(
@@ -632,7 +659,11 @@ main <- function() {
     sprintf("LULCC/TempTables/growth_parameters%d.csv", luc_version),
     sprintf("LULCC/TempRaster/LULCt%d_c.tif", luc_version),
     sprintf("LULCC/TempRaster/agb%d_c.tif", agb_version),
-    "LULCC/TempRaster/Mask_c.tif"
+    if (file.exists(file.path(current$root, "LULCC/TempRaster/mask_c.tif"))) {
+      "LULCC/TempRaster/mask_c.tif"
+    } else {
+      "LULCC/TempRaster/Mask_c.tif"
+    }
   )
   for (path in static_inputs) assert_static_match(bau$root, current$root, path)
 

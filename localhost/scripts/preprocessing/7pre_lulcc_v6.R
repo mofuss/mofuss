@@ -20,6 +20,7 @@
 # https://www.ipcc-nggip.iges.or.jp/public/2019rf/pdf/4_Volume4/19R_V4_Ch05_Cropland.pdf
 # https://www.fao.org/4/J1549E/J1549E00.pdf
 
+# BEGIN USER INPUTS ----------------------------------------------------------
 # Internal parameters
 if (!exists("plot_curves", inherits = FALSE)) plot_curves <- 1
 if (!exists("publish_lulcc_outputs", inherits = FALSE)) publish_lulcc_outputs <- TRUE
@@ -42,6 +43,7 @@ if (!exists("tof_temperate_boreal_rate", inherits = FALSE)) {
   tof_temperate_boreal_rate <- 0.0165
 }
 if (!exists("tof_default_rate", inherits = FALSE)) tof_default_rate <- 0.020
+# END USER INPUTS ------------------------------------------------------------
 
 tof_controls <- c(
   tof_uncertainty_cv = tof_uncertainty_cv,
@@ -64,7 +66,9 @@ if (
 }
 
 # AGB input: 1 = NASA/ORNL, 2 = ESA CCI, 3 = CTrees.
+# BEGIN USER INPUTS ----------------------------------------------------------
 agb_map_id <- 3L
+# END USER INPUTS ------------------------------------------------------------
 if (
   length(agb_map_id) != 1 || !is.numeric(agb_map_id) || is.na(agb_map_id) ||
     agb_map_id != as.integer(agb_map_id) || !agb_map_id %in% 1:3
@@ -73,11 +77,13 @@ if (
 }
 agb_map_id <- as.integer(agb_map_id)
 
+# BEGIN USER INPUTS ----------------------------------------------------------
 # Plot controls: edit these values before running the full script, or assign
 # them immediately before rerunning only the final plotting block.
 plot_dataset <- "MODIS" # MODIS or COPERNICUS
 plot_region <- "SSA"    # GLOBAL, LATAM, ASIA, SSA or OCEANIA
 plot_seed <- 155L        # Reproducible curve selection and simulations
+# END USER INPUTS ------------------------------------------------------------
 plot_dataset <- toupper(trimws(plot_dataset))
 plot_region <- toupper(trimws(plot_region))
 valid_plot_datasets <- c("MODIS", "COPERNICUS")

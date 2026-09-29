@@ -8,8 +8,10 @@
 # 2dolist
 # Check values less than 1 in K and KSD, or under MoFuSS harvestable threshold
 
+# BEGIN USER INPUTS ----------------------------------------------------------
 # Internal parameters
 plot_curves = 0
+# END USER INPUTS ------------------------------------------------------------
 
 # Load packages ----
 library(readr)

@@ -35,8 +35,10 @@
 # Friction ----
 # WARNING: MARITIME AND ATRACTION LAYERS NEED TO BE FLESHED OUT AND DEBUG AS OF JULY 2023
 
+# BEGIN USER INPUTS ----------------------------------------------------------
 # Internal parameters ----
 attdecay = 1.40  # decay rate of attraction kernels
+# END USER INPUTS ------------------------------------------------------------
 
 
 # Load libraries ----

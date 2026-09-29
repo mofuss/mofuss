@@ -34,6 +34,11 @@
 # Internal parameters ----
 
 # Load libraries ----
+# BEGIN USER INPUTS ----------------------------------------------------------
+# Scenario and demand settings are read from parameters.csv.
+# The calling preprocessing workflow supplies countrydir and demanddir.
+# END USER INPUTS ------------------------------------------------------------
+
 library(conflicted)
 
 suppressPackageStartupMessages({

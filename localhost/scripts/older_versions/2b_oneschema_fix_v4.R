@@ -19,6 +19,11 @@
 # Internal parameters ----
 
 # Load libraries ----
+# BEGIN USER INPUTS ----------------------------------------------------------
+# Scenario settings are read from parameters.csv and the calling workflow.
+# Edit the parameter table for the selected working folder.
+# END USER INPUTS ------------------------------------------------------------
+
 library(conflicted)
 
 library(dplyr)

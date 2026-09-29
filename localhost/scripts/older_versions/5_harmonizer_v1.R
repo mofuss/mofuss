@@ -7,6 +7,7 @@
 # Land Use Land Cover Module
 # Improve add_subadmin YES/NO, che it works as mask == analysis for any of the four scales: Global, Continental, Regional, Country.
 
+# BEGIN USER INPUTS ----------------------------------------------------------
 # Internal parameters ----
 # Attraction buffer zones (in linear meters)
 w0 = 0 
@@ -14,6 +15,7 @@ w1 = 50000 #250000
 w2 = 100000 #500000
 w3 = 150000 #750000
 w4 = 200000 #1000000
+# END USER INPUTS ------------------------------------------------------------
 
 # # Select MoFuSS platform:
 # webmofuss = 1 # "1" is  web-MoFuSS running in our Ubuntu server, "0" is localcal host (Windows or Linux)

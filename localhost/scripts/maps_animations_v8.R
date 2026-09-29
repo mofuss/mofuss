@@ -1,3 +1,10 @@
+# Original report resolutions are retained unless explicitly overridden.
+# BEGIN USER INPUTS ----------------------------------------------------------
+mofuss_plot_dpi <- suppressWarnings(as.integer(Sys.getenv("MOFUSS_PLOT_DPI", "1000")))
+# END USER INPUTS ------------------------------------------------------------
+if (is.na(mofuss_plot_dpi) || mofuss_plot_dpi < 72L) {
+  stop("MOFUSS_PLOT_DPI must be an integer of at least 72.")
+}
 # MoFuSS
 # Version 8
 # Date: Aug 2026
@@ -8,6 +15,7 @@
 # CtyPar<-read.csv("LULCC/DownloadedDatasets/SourceDataGlobal/parameters.csv", header=T)
 # CtyPar[] <- lapply(CtyPar, as.character)
 
+# BEGIN USER INPUTS ----------------------------------------------------------
 # Internal parameters
 videoson <- 1 # 1 creates the MP4 animation; no other animation formats are generated
 compilelatex <- 1
@@ -15,6 +23,7 @@ fNRB_partition_tables <- 1 # required period-level fNRB tables and vector output
 mcthreshold <- 30
 uncertainty_digits <- 2
 copy_old_dinamica_rasters <- 0
+# END USER INPUTS ------------------------------------------------------------
 
 # Load packages ----
 library(animation)
@@ -36,6 +45,7 @@ args=(commandArgs(TRUE))
 if(length(args)==0){
   print("No arguments supplied by DINAMICA.")
   ##Supply default values here (to be used when running the script through R directly)
+  # BEGIN USER INPUTS ----------------------------------------------------------
   MC = 30 # MonteCarlo runs
   IT = 2000 # Initial year
   K_MC=1
@@ -63,6 +73,7 @@ if(length(args)==0){
   cutoff_yrs=10
   DryRun=0
   
+  # END USER INPUTS ------------------------------------------------------------
 }else{
   for(i in 1:length(args)){
     eval(parse(text=args[[i]]))
@@ -247,7 +258,10 @@ if (BaUvsICS == "ICS") {
   OutDir<-"Out"
 }
 
-if (OSType == 64) {
+if (.Platform$OS.type != "windows") {
+  ffmpeg_path <- unname(Sys.which("ffmpeg"))
+  if (!nzchar(ffmpeg_path)) stop("Native ffmpeg was not found on PATH.")
+} else if (OSType == 64) {
   ffmpeg_path<-file.path(getwd(),"ffmpeg64/bin/ffmpeg.exe")
 } else {
   ffmpeg_path<-file.path(getwd(),"ffmpeg32/bin/ffmpeg.exe")
@@ -353,13 +367,13 @@ if (SumTables == 1) {
 }
 
 if (OSType == 32) {
-  res1000<-100
-  res600<-100
-  res300<-100
+  res1000 <- min(100L, mofuss_plot_dpi)
+  res600 <- min(100L, mofuss_plot_dpi)
+  res300 <- min(100L, mofuss_plot_dpi)
 } else {
-  res1000<-1000
-  res600<-600
-  res300<-300
+  res1000 <- min(1000L, mofuss_plot_dpi)
+  res600 <- min(600L, mofuss_plot_dpi)
+  res300 <- min(300L, mofuss_plot_dpi)
 }
 
 if (RerunMC == 1) {
@@ -449,8 +463,8 @@ proj4string(Locs_p) <- crs(Locs_r)
 
 tiff(filename=paste0(OutDir,"//Area_of_Interest.tif"),
      width=290,height=290,units="mm",res=res300,bg="white",
-     compression=c("lzw"),type=c("windows"),
-     pointsize=12,family="",restoreConsole=TRUE)
+     compression=c("lzw"),type = if (.Platform$OS.type == "windows") "windows" else "cairo",
+     pointsize=12,family="")
 plot(aoi_c, main="Area of Interest: set by user (red polygon)",
      ylab="Projected S-N coordinate",
      xlab="Projected W-E coordinate",
@@ -488,7 +502,7 @@ locs_figures<-Locs_p
 #}
 
 tiff(filename=paste(OutDir,"//Localities_of_Interest.tif",sep=""),width=290,height=290,units="mm",res=res300,bg="white",compression=c("lzw"),
-     type=c("windows"),pointsize=12,family="",restoreConsole=TRUE)
+     type = if (.Platform$OS.type == "windows") "windows" else "cairo",pointsize=12,family="")
 plot((aoi_IniSt/Areaadj), main="Localities of Interest: set by user",ylab="Projected S-N coordinate",xlab="Projected W-E coordinate",cex.main=1.5,
      legend=TRUE, legend.width=2.5, 
      #legend.args=list(text=expression("Aboveground Biomass (t ha"^-1*") circa year 2000"),side=4, font=2, line=-1.35, cex=1),
@@ -520,7 +534,7 @@ runagbmap <- 1
 if(runagbmap == 1){
   
   graphics.off()
-  tiff(filename=paste(OutDir,"//Map_AGB.tif",sep=""),width=170,height=200,units="mm",res=res600,bg="white",compression=c("lzw"),type=c("windows"),pointsize=12,family="",restoreConsole=TRUE)
+  tiff(filename=paste(OutDir,"//Map_AGB.tif",sep=""),width=170,height=200,units="mm",res=res600,bg="white",compression=c("lzw"),type = if (.Platform$OS.type == "windows") "windows" else "cairo",pointsize=12,family="")
   
   par(mfrow = c(3, 2), oma=c(1.5,1.5,0,1), mar=c(3,3,4,1))
   

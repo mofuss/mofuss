@@ -32,10 +32,12 @@
 # VERY IMPORTANT TO DEFINE A SOLID WORKFLOW FOR REGIONALIZING COUNTRIES, e.g. Zambia
 # start_year = 2000 ok # check why 2001 doesn't work
 
+# BEGIN USER INPUTS ----------------------------------------------------------
 # Internal parameters ----
 optimizeD = 0
 temdirdefined = 1
 cube_rasters = 0
+# END USER INPUTS ------------------------------------------------------------
 
 # Load libraries ----
 library(conflicted)

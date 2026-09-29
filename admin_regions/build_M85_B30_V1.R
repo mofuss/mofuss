@@ -2,11 +2,13 @@
 # bilateral charcoal permissions. Direction is not encoded by region membership;
 # it remains in bilateral_charcoal_permissions_v1.csv.
 
+# BEGIN USER INPUTS ----------------------------------------------------------
 candidate_id <- "M85_B30_V1"
 permission_set_id <- "B30_V1"
 
 catalog_file <- "regionalization_M67_GME_V2.csv"
 permission_file <- "bilateral_charcoal_permissions_v1.csv"
+# END USER INPUTS ------------------------------------------------------------
 
 catalog <- read.csv(catalog_file, check.names = FALSE, stringsAsFactors = FALSE)
 permissions <- read.csv(permission_file, check.names = FALSE, stringsAsFactors = FALSE)

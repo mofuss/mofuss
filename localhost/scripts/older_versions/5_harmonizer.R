@@ -8,6 +8,7 @@
 # Fix for linux cluster
 # DRC attra tor parameters
 
+# BEGIN USER INPUTS ----------------------------------------------------------
 # Internal parameters
 #Attraction buffer zones (in linear meters)
 w0 = 0 
@@ -18,6 +19,7 @@ w4 = 200000 #1000000
 
 # Select MoFuSS version
 webmofuss = 0 # "1" is linux based webmofuss in server, "0" is local mofuss run
+# END USER INPUTS ------------------------------------------------------------
 
 # Load libraries ----
 library(readr)

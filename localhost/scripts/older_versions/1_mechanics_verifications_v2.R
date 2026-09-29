@@ -62,6 +62,7 @@ suppressPackageStartupMessages({
   library(ggplot2)
 })
 
+# BEGIN USER INPUTS ----------------------------------------------------------
 # Internal parameters ----
 
 cfg <- list(
@@ -78,6 +79,7 @@ cfg <- list(
 )
 
 args <- commandArgs(trailingOnly = TRUE)
+# END USER INPUTS ------------------------------------------------------------
 for (arg in args) {
   if (arg %in% c("--help", "-h")) {
     cat(paste0(

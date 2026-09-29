@@ -2,6 +2,7 @@
 # Run AFTER the four simulations finish. This does not run Dinamica or IDW.
 # Edit the configuration below for another region or MC count.
 
+# BEGIN USER INPUTS ----------------------------------------------------------
 SOURCING_RUNS <- c(
   "E:/ECSA_1000m_bau1_2050_mc3_capped",
   "E:/ECSA_1000m_bau1_2050_mc3_uncapped",
@@ -14,6 +15,7 @@ SOURCING_OVERWRITE <- FALSE
 SOURCING_SOURCE <- "C:/Users/UNAM/Documents/mofuss/localhost/scripts/postprocessing_sourcing/2post_runtime_sourcing_v1.R"
 # Fail rather than publish physical shares if a signed legacy adjustment exists.
 SOURCING_SIGNED_POLICY <- "error"
+# END USER INPUTS ------------------------------------------------------------
 
 run_runtime_sourcing_pipeline <- function() {
   stopifnot(length(SOURCING_RUNS) > 0L, file.exists(SOURCING_SOURCE))

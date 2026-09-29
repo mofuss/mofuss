@@ -6,7 +6,9 @@ library(terra)
 library(dplyr)
 
 # Define the base directory
+# BEGIN USER INPUTS ----------------------------------------------------------
 base_dir <- "E:/agb3rdparties/dap.ceda.ac.uk/neodc/esacci/biomass/data/agb/maps/v5.01/geotiff"
+# END USER INPUTS ------------------------------------------------------------
 
 # Get yearly folders
 years <- list.dirs(base_dir, recursive = FALSE)
@@ -41,15 +43,19 @@ library(terra)
 library(sf)
 
 # 2. Define Paths
+# BEGIN USER INPUTS ----------------------------------------------------------
 base_dir <- "E:/agb3rdparties/dap.ceda.ac.uk/neodc/esacci/biomass/data/agb/maps/v5.01/geotiff"
 output_dir <- "E:/processed_agb_esacci_v501"
 admin_layer <- "D:/admin_regions/regions_adm0/mofuss_regions0.gpkg"
 resample_ref <- "E:/agb3rdparties/AGB2010_pcs.tif"
+# END USER INPUTS ------------------------------------------------------------
 
 
 #########################
+# BEGIN USER INPUTS ----------------------------------------------------------
 year <- "2010"
 year_folder <- file.path("E:/agb3rdparties/dap.ceda.ac.uk/neodc/esacci/biomass/data/agb/maps/v5.01/geotiff", year)
+# END USER INPUTS ------------------------------------------------------------
 
 # Verify if the folder exists
 if (!dir.exists(year_folder)) stop("The folder does not exist:", year_folder)

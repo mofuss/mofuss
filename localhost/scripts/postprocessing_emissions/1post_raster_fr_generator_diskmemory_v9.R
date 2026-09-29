@@ -37,6 +37,7 @@
 SCRIPT_VERSION <- "9"
 DEFAULT_OUTPUT_SUBDIR <- file.path("Out", "webmofuss_results_v9")
 
+# BEGIN USER INPUTS ----------------------------------------------------------
 # Scenario folders are supplied centrally by 0post_emissions_pipeline_v1.R.
 # This empty fallback prevents a stale computer-specific path from being used
 # accidentally. Standalone Rscript execution accepts repeated --scenario-dir.
@@ -49,6 +50,7 @@ V9_RSTUDIO_PERIODS <- character()
 V9_RSTUDIO_OUTPUT_SUBDIR <- DEFAULT_OUTPUT_SUBDIR
 V9_RSTUDIO_DRY_RUN <- FALSE
 V9_RSTUDIO_CLEAN_REBUILD <- TRUE
+# END USER INPUTS ------------------------------------------------------------
 
 # Load libraries ----
 # Required packages are checked and loaded by the Stage 1 runner.

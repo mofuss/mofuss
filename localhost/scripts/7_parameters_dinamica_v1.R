@@ -31,6 +31,11 @@
 # Internal parameters ----
 
 # Load libraries ----
+# BEGIN USER INPUTS ----------------------------------------------------------
+# Edit scenario settings in parameters.csv. This script validates and
+# exports them to the Dinamica parameter table.
+# END USER INPUTS ------------------------------------------------------------
+
 library(conflicted)
 
 library(dplyr)

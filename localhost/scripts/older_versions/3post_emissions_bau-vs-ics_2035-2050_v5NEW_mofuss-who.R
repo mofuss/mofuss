@@ -27,6 +27,7 @@
 # Add pixel base trajectories to see what happens on negative pixels
 
 
+# BEGIN USER INPUTS ----------------------------------------------------------
 # Internal parameters ----
 fixdir = 1
 bau_dir <- "C:/Users/aghil/Documents/MoFuSS_FAO_localhost/zmb_bau_1km_subc"
@@ -38,6 +39,7 @@ efchratio  <- 6
 impchfw <- 0 #turns on and off imp_charcoal and imp_fuelwood
 first_yr <- 11 # 11=2020 2009+ first_yr
 last_yr <- 41 # 25=2030 41=2050
+# END USER INPUTS ------------------------------------------------------------
 
 output_dir <- paste0(output_dir2,"_",stringr::str_extract(ics_dir, "ics\\d+"))
 

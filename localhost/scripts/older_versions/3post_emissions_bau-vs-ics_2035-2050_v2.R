@@ -26,6 +26,7 @@
 # 8.- Check for Linux 
 # 9.- Neighboring countries when continent or region is selected, something with the croping vect layer, simplified?
 
+# BEGIN USER INPUTS ----------------------------------------------------------
 # Internal parameters ----
 temdirdefined = 1
 string_pattern_yes <- "adm0" #String pattern to be searched when selecting folders for the rasters' geocomputation
@@ -43,6 +44,7 @@ avoidedemissions = 1
 zonalstats = 1
 
 optimize = 0 # geoprocessing optimization
+# END USER INPUTS ------------------------------------------------------------
 
 # Define all folders based on node ----
 # Detect OS and node name

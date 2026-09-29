@@ -4,6 +4,7 @@
 
 # 2dolist ----
 
+# BEGIN USER INPUTS ----------------------------------------------------------
 # Internal parameters ----
 temdirdefined = 1
 # options(shiny.launch.browser = TRUE)
@@ -27,6 +28,7 @@ CARBON_FRACTION <- 0.47
 CO2_TO_DM <- (12 / 44) / CARBON_FRACTION
 DEMAND_FUELS <- c("fuelwood", "charcoal")
 DEMAND_AREAS <- c("rural", "urban")
+# END USER INPUTS ------------------------------------------------------------
 
 # Load packages ----
 library(terra)

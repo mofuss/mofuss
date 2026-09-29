@@ -1,16 +1,32 @@
 # SPDX-License-Identifier: Apache-2.0
 #
-# Back up expensive MoFuSS IDW results from every working folder stored beside
-# this script. The backups are working-folder-relative overlays: copy the
+# Back up expensive MoFuSS IDW results under WORKING_FOLDERS_ROOT.
+# The backups are working-folder-relative overlays: copy the
 # contents of `working_folder_overlay` into the matching working folder.
 #
-# Edit this list, save the script, and click Source in RStudio. RunCode matching
-# is exact and case-insensitive. Use character() to exclude nothing.
+# BEGIN USER INPUTS ----------------------------------------------------------
+# Edit these settings, save, and click Source in RStudio.
+# Parent containing the scenario folders. Use forward slashes on both systems.
+# Examples: "E:/" on Windows or "/home/mofuss/Documents" on Linux.
+WORKING_FOLDERS_ROOT <- if (.Platform$OS.type == "windows") {
+  "E:/"
+} else {
+  path.expand("~/Documents")
+}
+
+# NULL writes to <WORKING_FOLDERS_ROOT>/IDW_backups. Alternatively provide an
+# absolute destination, e.g. "F:/IDW_backups" or "/mnt/backup/IDW_backups".
+BACKUP_ROOT <- NULL
+
+# RunCode matching is exact and case-insensitive. Use character() to exclude
+# nothing.
 EXCLUDE_RUN_CODES <- c("GLEA")
 
-# Backups are written beside this script under this directory. Existing
+# Default backup directory below WORKING_FOLDERS_ROOT. Existing
 # snapshots are never overwritten. An unchanged latest snapshot is skipped.
 BACKUP_DIRECTORY_NAME <- "IDW_backups"
+
+# END USER INPUTS ------------------------------------------------------------
 
 # Optional command-line use:
 #   Rscript batch_idw_bkup.R --dry-run
@@ -19,7 +35,8 @@ BACKUP_DIRECTORY_NAME <- "IDW_backups"
 #
 # Optional command-line flags:
 #   --exclude=GOG,GLEA   Override EXCLUDE_RUN_CODES (use --exclude= for none).
-#   --root="E:/"         Override sibling-folder discovery (mainly for tests).
+#   --root="E:/"         Override WORKING_FOLDERS_ROOT.
+#                        Linux: --root="/home/mofuss/Documents"
 #   --backup-root="E:/IDW_backups"
 #                        Override the backup destination.
 #   --dry-run            Inspect and print the plan without copying anything.
@@ -50,7 +67,7 @@ stopf <- function(fmt, ...) {
 }
 
 normalize_loose <- function(path) {
-  normalizePath(path, winslash = "/", mustWork = FALSE)
+  normalizePath(path.expand(path), winslash = "/", mustWork = FALSE)
 }
 
 normalize_existing <- function(path, label) {
@@ -62,10 +79,14 @@ normalize_existing <- function(path, label) {
 }
 
 is_absolute_path <- function(path) {
-  grepl("^(?:[A-Za-z]:[/\\\\]|[/\\\\]{2})", path, perl = TRUE)
+  grepl("^(?:[A-Za-z]:[/\\\\]|[/\\\\]{2}|/)", path, perl = TRUE)
 }
 
 absolute_from <- function(path, base) {
+  if (length(path) != 1L || is.na(path) || !nzchar(trimws(path))) {
+    stopf("Folder path must be one non-blank value.")
+  }
+  path <- path.expand(path)
   if (is_absolute_path(path)) normalize_loose(path) else normalize_loose(file.path(base, path))
 }
 
@@ -191,9 +212,14 @@ discover_working_folders <- function(root) {
   parsed[order(tolower(vapply(parsed, `[[`, character(1L), "name")))]
 }
 
+path_key <- function(path) {
+  value <- normalize_loose(path)
+  if (.Platform$OS.type == "windows") tolower(value) else value
+}
+
 path_is_within <- function(path, parent, allow_equal = FALSE) {
-  path <- tolower(normalize_loose(path))
-  parent <- sub("/+$", "", tolower(normalize_loose(parent)))
+  path <- path_key(path)
+  parent <- sub("/+$", "", path_key(parent))
   identical(path, parent) && allow_equal || startsWith(path, paste0(parent, "/"))
 }
 
@@ -242,7 +268,7 @@ collect_idw_payload <- function(folder) {
     for (path in existing) {
       normalized <- normalize_existing(path, "Backup source file")
       relative <- gsub("\\\\", "/", relative_to(normalized, run_root))
-      key <- tolower(relative)
+      key <- if (.Platform$OS.type == "windows") tolower(relative) else relative
       if (key %in% seen) next
       seen <<- c(seen, key)
       records[[length(records) + 1L]] <<- data.frame(
@@ -948,7 +974,7 @@ main <- function() {
   script_path <- get_script_path()
   script_root <- dirname(script_path)
   root <- if (is.null(opts$root)) {
-    normalize_existing(script_root, "Script directory")
+    normalize_existing(absolute_from(WORKING_FOLDERS_ROOT, script_root), "Working-folder directory")
   } else {
     normalize_existing(absolute_from(opts$root, script_root), "Working-folder directory")
   }
@@ -960,17 +986,17 @@ main <- function() {
     normalize_exclusions(strsplit(opts$exclude, ",", fixed = TRUE)[[1L]])
   }
   backup_root <- if (is.null(opts$backup_root)) {
-    absolute_from(BACKUP_DIRECTORY_NAME, root)
+    absolute_from(if (is.null(BACKUP_ROOT)) BACKUP_DIRECTORY_NAME else BACKUP_ROOT, root)
   } else {
     absolute_from(opts$backup_root, root)
   }
-  if (identical(tolower(normalize_loose(backup_root)), tolower(normalize_loose(root)))) {
+  if (identical(path_key(backup_root), path_key(root))) {
     stopf("Backup directory cannot be the working-folder discovery directory itself.")
   }
 
   folders <- discover_working_folders(root)
   if (!length(folders)) {
-    stopf("No MoFuSS working folders matched beside the script: %s", root)
+    stopf("No MoFuSS working folders matched under WORKING_FOLDERS_ROOT: %s", root)
   }
   inside_folder <- vapply(
     folders,
@@ -998,6 +1024,9 @@ main <- function() {
   if (!length(plan$eligible)) {
     cat("\nNothing new to back up.\n")
     return(invisible(plan))
+  }
+  if (!opts$yes && !interactive()) {
+    stopf("Review with --dry-run, then pass --yes to create backups in a non-interactive session.")
   }
   if (!opts$yes && !confirm_plan()) {
     cat("\nCancelled. Nothing was copied.\n")
@@ -1033,4 +1062,4 @@ main <- function() {
   invisible(results)
 }
 
-main()
+if (!identical(Sys.getenv("MOFUSS_IDW_BACKUP_NO_AUTORUN"), "1")) main()

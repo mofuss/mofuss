@@ -5,7 +5,9 @@
 # with complete info in both the WHO and HRSL population maps 
 
 # Run ms_simplfy?
+# BEGIN USER INPUTS ----------------------------------------------------------
 run_ms = "Yes" # "Yes"
+# END USER INPUTS ------------------------------------------------------------
 
 # Load packages ####
 library(sf)

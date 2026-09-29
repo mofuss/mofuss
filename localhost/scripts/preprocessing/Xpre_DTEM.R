@@ -3,6 +3,11 @@
 # Date: Dec 2023
 
 # Load packages ####
+# BEGIN USER INPUTS ----------------------------------------------------------
+# Scenario settings come from parameters.csv. Select the DTEM source
+# directory using the dialog below.
+# END USER INPUTS ------------------------------------------------------------
+
 library(readr)
 library(terra)
 library(sf)

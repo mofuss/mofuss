@@ -45,6 +45,11 @@
 # Internal parameters ----
 
 # Load libraries ----
+# BEGIN USER INPUTS ----------------------------------------------------------
+# The calling workflow supplies countrydir, scriptsmofuss and scenario
+# settings. Configure those in the main preprocessing workflow.
+# END USER INPUTS ------------------------------------------------------------
+
 library(conflicted)
 
 library(dplyr)
@@ -54,6 +59,13 @@ library(tcltk)
 
 # Detect OS
 os <- Sys.info()["sysname"]
+
+# Validate the complete runtime bundle before any existing inputs are removed.
+# For a code-only update of an existing run, use mofuss_copy_runtime_bundle()
+# from this helper directly; the rest of step 2 resets preprocessing data.
+runtime_scripts_dir <- file.path(githubdir, "localhost", "scripts")
+source(file.path(runtime_scripts_dir, "deploy_runtime_bundle_v1.R"), local = TRUE)
+mofuss_validate_runtime_bundle(runtime_scripts_dir)
 
 # Set working directory
 setwd(countrydir)
@@ -250,54 +262,15 @@ lapply(file.names.DS, function(RO.DS) {
 })
 
 # Copy additional files ----
-# V13 adds runtime country-sourcing capture and exact static-IDW caching.
-# It also corrects the legacy regional pooling of domestic W TOF shortfalls.
-# W inputs must be domestic country components (or one country/own-area
-# component); V keeps its installed bilateral permissions. The unchanged V8 R
-# reporting bundle is retained. V11/V12 remain source comparison references.
-# See README_runtime_sourcing_v13.md for validation and the explicit bug fix.
-active_egoml <- "10_dyn_Sc17_webmofuss_ctrees_g_v13.egoml"
-
-v8_r_dependencies <- c(
-  "rnorm_v8.R",
-  "NRB_graphs_datasets_v8.R",
-  "maps_animations_v8.R",
-  "finalogs_v8.R",
-  "bypassMC_v8.R",
-  "bypass_maps_animations_v8.R"
-)
-
-# These transitive R dependencies are copied with the complete LaTeX folder.
-latex_r_dependencies <- c(
-  "LaTeX/generate_modern_report_v8.R"
-)
-
-bundle_files <- c(
-  active_egoml,
-  v8_r_dependencies,
-  latex_r_dependencies
-)
-bundle_sources <- file.path(
-  githubdir, "localhost", "scripts", bundle_files
-)
-missing_bundle_files <- bundle_files[!file.exists(bundle_sources)]
-if (length(missing_bundle_files) > 0L) {
-  stop(
-    "Cannot deploy the V13 runtime-sourcing EGOML bundle; missing repository file(s): ",
-    paste(missing_bundle_files, collapse = ", ")
-  )
+# Both platform models and their complete portable R/Linux helper bundle.
+# This does not change scientific scenario settings or output locations.
+for (folder in c("ffmpeg32", "ffmpeg64", "LaTeX")) {
+  if (!file.copy(file.path(runtime_scripts_dir, folder), countrydir,
+                 overwrite = TRUE, recursive = TRUE, copy.mode = TRUE)) {
+    stop("Could not copy runtime support folder: ", folder)
+  }
 }
-
-files2copy <- c(
-  "ffmpeg32/", "ffmpeg64/", "LaTeX/",
-  active_egoml,
-  v8_r_dependencies
-)
-
-
-lapply(files2copy, function(f) {
-  file.copy(from = paste0(githubdir, "/localhost/scripts/", f), to = paste0(countrydir), overwrite = TRUE, recursive = TRUE, copy.mode = TRUE)
-})
+mofuss_copy_runtime_bundle(runtime_scripts_dir, countrydir)
 
 
 # Copy contents of logos_imgs into Wizard_imgs

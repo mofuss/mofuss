@@ -7,9 +7,11 @@
 # Erase temps see below
 # Add years for temporal series
 
+# BEGIN USER INPUTS ----------------------------------------------------------
 # Internal parameters
 # Google Colab link: https://colab.research.google.com/drive/1Ef9XMfen2DFhAhZ87B3gxjyf9QQfLOPH
 buf_m <- 10000    # 10 km buffer (meters) for masking DTEM and template
+# END USER INPUTS ------------------------------------------------------------
 
 # Load packages ----
 library(readr)

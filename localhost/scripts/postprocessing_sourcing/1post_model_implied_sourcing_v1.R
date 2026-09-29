@@ -34,6 +34,7 @@ options(stringsAsFactors = FALSE, warn = 1)
 .stopf <- function(...) stop(sprintf(...), call. = FALSE)
 .msg <- function(...) cat(sprintf(...), "\n")
 
+# BEGIN USER INPUTS ----------------------------------------------------------
 .defaults <- list(
   scenario_dirs = c(
     "E:/GLEA_1000m_bau1_2050_mc3_capped",
@@ -55,6 +56,7 @@ options(stringsAsFactors = FALSE, warn = 1)
   mc_runs = integer(),
   overwrite = FALSE
 )
+# END USER INPUTS ------------------------------------------------------------
 
 .parse_bool <- function(x) {
   y <- tolower(trimws(x))

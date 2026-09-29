@@ -31,6 +31,7 @@
 # filesystem-safe RunCode for every region.
 # 
 # ============================================================================
+# BEGIN USER INPUTS ----------------------------------------------------------
 # Internal parameters
 # ============================================================================
 run_ms <- "Yes"  # Run ms_simplify?
@@ -45,6 +46,7 @@ regionalization_inputs <- c(
   OCEANIA = "subregionsOCEANIA_v2_M67_GME_V2.csv",
   NorAfr  = "subregionsNorAfri_v4_M67_GME_V2.csv"
 )
+# END USER INPUTS ------------------------------------------------------------
 subregionsSSA_v     <- regionalization_inputs[["SSA"]]
 subregionsLATAM_v   <- regionalization_inputs[["LATAM"]]
 subregionsASIA_v    <- regionalization_inputs[["ASIA"]]

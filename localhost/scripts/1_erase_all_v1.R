@@ -32,6 +32,11 @@
 # Load libraries ----
 
 # Detect OS
+# BEGIN USER INPUTS ----------------------------------------------------------
+# The calling workflow supplies countrydir and scenario settings.
+# Configure those in 0_set_directories_and_region_v3.R and parameters.csv.
+# END USER INPUTS ------------------------------------------------------------
+
 os <- Sys.info()["sysname"]
 
 # Set working directory

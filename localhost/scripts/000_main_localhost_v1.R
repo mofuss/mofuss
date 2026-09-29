@@ -28,10 +28,12 @@
 
 # 2dolist ----
 
+# BEGIN USER INPUTS ----------------------------------------------------------
 # Internal parameters ----
 runGADM <- 0
 telegram_msgs <- as.integer(Sys.getenv("MOFUSS_TELEGRAM_MSGS", unset = "1"))
 personal_demand <- 1
+# END USER INPUTS ------------------------------------------------------------
 
 start_time <- Sys.time()
 

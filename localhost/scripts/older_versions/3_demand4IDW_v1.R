@@ -4,10 +4,12 @@
 
 # 2dolist
 
+# BEGIN USER INPUTS ----------------------------------------------------------
 # Internal parameters
 optimizeD = 0
 temdirdefined = 1
 urb_shift_factor <- 1 # Only works with byregion == Country (Check code lines 89-91 before adjusting this).
+# END USER INPUTS ------------------------------------------------------------
 # For Nepal use 10.
 
 # Load libraries ----

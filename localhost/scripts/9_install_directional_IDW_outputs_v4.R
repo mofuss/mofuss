@@ -67,11 +67,26 @@
 # by the emissions and calibration pipelines. `analysis_folder` is retained as
 # the shared cross-pipeline label; this installer reads and writes only the run
 # folders declared in `folders` and does not write to mofuss_postprocessing.
+# Linux uses an absolute parent such as /home/mofuss/Documents for `root`;
+# `analysis_folder` remains one folder name on both operating systems.
 PIPELINE_BATCHES <- list(
-  ECSA = list(
+  AGO = list(
     enabled = TRUE,
+    root = "/home/mofuss/Documents",
+    analysis_folder = "AGO_1000m_2050_mc3",
+    run_preamble = "NO",
+    idw_source_root = "",
+    folders = c(
+      "AGO_1000m_bau1_2050_mc3_capped",
+      "AGO_1000m_bau1_2050_mc3_uncapped",
+      "AGO_1000m_ics3_2050_mc3_capped",
+      "AGO_1000m_ics3_2050_mc3_uncapped"
+    )
+  ),
+  ECSA = list(
+    enabled = FALSE,
     root = "E:/",
-    analysis_folder = "ECSA_1000m_ics3_2050_mc3",
+    analysis_folder = "ECSA_1000m_2050_mc30",
     run_preamble = "YES",
     idw_source_root = "C:/Users/UNAM/Documents/idws_ecsa",
     folders = c(
@@ -84,7 +99,7 @@ PIPELINE_BATCHES <- list(
   GOG = list(
     enabled = FALSE,
     root = "E:/",
-    analysis_folder = "GOG_1000m_ics3_2050_mc30",
+    analysis_folder = "GOG_1000m_2050_mc30",
     run_preamble = "NO",
     idw_source_root = "",
     folders = c(
@@ -97,7 +112,7 @@ PIPELINE_BATCHES <- list(
   MDG = list(
     enabled = FALSE,
     root = "E:/",
-    analysis_folder = "MDG_1000m_bau1_2050_mc3",
+    analysis_folder = "MDG_1000m_2050_mc3",
     run_preamble = "NO",
     idw_source_root = "",
     folders = c(
@@ -110,7 +125,7 @@ PIPELINE_BATCHES <- list(
   LSO = list(
     enabled = FALSE,
     root = "E:/",
-    analysis_folder = "lso_1000m_bau1_2050_mc3",
+    analysis_folder = "LSO_1000m_2050_mc3",
     run_preamble = "NO",
     idw_source_root = "",
     folders = c(
@@ -123,7 +138,7 @@ PIPELINE_BATCHES <- list(
   MLI = list(
     enabled = FALSE,
     root = "E:/",
-    analysis_folder = "MLI_1000m_bau1_2050_mc3",
+    analysis_folder = "MLI_1000m_2050_mc3",
     run_preamble = "NO",
     idw_source_root = "",
     folders = c(
@@ -136,7 +151,7 @@ PIPELINE_BATCHES <- list(
   GAB = list(
     enabled = FALSE,
     root = "F:/",
-    analysis_folder = "GAB_1000m_bau1_2050_mc3",
+    analysis_folder = "GAB_1000m_2050_mc3",
     run_preamble = "NO",
     idw_source_root = "",
     folders = c(
@@ -149,7 +164,7 @@ PIPELINE_BATCHES <- list(
   GLEA = list(
     enabled = FALSE,
     root = "E:/",
-    analysis_folder = "GLEA_1000m_ics3_2050_mc3",
+    analysis_folder = "GLEA_1000m_2050_mc3",
     run_preamble = "NO",
     idw_source_root = "",
     folders = c(

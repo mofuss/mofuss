@@ -4,6 +4,7 @@
 
 # 2dolist ----
 
+# BEGIN USER INPUTS ----------------------------------------------------------
 # Internal parameters ----
 temdirdefined = 1
 # options(shiny.launch.browser = TRUE)
@@ -17,6 +18,7 @@ if (webmofuss == 1){
   # ONLY WORKS IN NRBV1 NODE as localhost"
   demandpath = "G:/Mi unidad/webpages/2026_MoFuSSGlobal_Datasets/fnrb_obs_data/"
 }
+# END USER INPUTS ------------------------------------------------------------
 
 # Load packages ----
 library(terra)

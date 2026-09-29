@@ -4,12 +4,14 @@
 
 # 2dolist
 
+# BEGIN USER INPUTS ----------------------------------------------------------
 # Internal parameters
 optimizeD = 0
 temdirdefined = 1
 urb_shift_factor <- 1 # Only works with byregion == Country (Check code lines 89-91 before adjusting this).
 # For Nepal use 10.
 webmofuss = 0 # "1" is linux based webmofuss in server, "0" is local mofuss run
+# END USER INPUTS ------------------------------------------------------------
 
 # Load libraries ----
 library(terra)

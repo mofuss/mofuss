@@ -48,6 +48,7 @@
 #
 # AGB maps ---- # ADD TWO MORE MAPS
 
+# BEGIN USER INPUTS ----------------------------------------------------------
 # Internal parameters ----
 plantations = 1 # REPLACE IN PARAMETERS TABLE CSV
 temdirdefined = 1
@@ -57,6 +58,7 @@ w1 = 50000 #250000
 w2 = 100000 #500000
 w3 = 150000 #750000
 w4 = 200000 #1000000
+# END USER INPUTS ------------------------------------------------------------
 
 # # Select MoFuSS platform:
 # webmofuss = 1 # "1" is  web-MoFuSS running in our Ubuntu server, "0" is localcal host (Windows or Linux)

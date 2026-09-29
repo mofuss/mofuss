@@ -3,6 +3,11 @@
 # Date: Mar 2023
 
 # Define extent_mask.gpkg and extent_analysis.gpkg  for any area of analysis ----
+# BEGIN USER INPUTS ----------------------------------------------------------
+# This script uses the source paths or function arguments shown below.
+# It has no separate editable parameter block.
+# END USER INPUTS ------------------------------------------------------------
+
 run_mask0 = "Yes" # Dejando este prendido hay que guardar los diferentes niveles admin requeridos por UNFCCC y TNC, 
                   # y retomarlos en MoFuSS last script
 run_mask1 = "No" # Not working yet !!!!

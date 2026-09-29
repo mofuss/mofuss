@@ -2,12 +2,14 @@
 #
 # Adjust the Monte Carlo run count for every PRE-RUN MoFuSS working folder
 # stored beside this script.
+# BEGIN USER INPUTS ----------------------------------------------------------
 #
 # Edit this one value, save the script, and click Source in RStudio:
 NEW_MONTE_CARLO_RUNS <- 3L
 # RunCodes listed here are never inspected, renamed, or edited. Matching is
 # case-insensitive and exact. Use character() to exclude nothing.
 EXCLUDE_RUN_CODES <- c("GOG", "GLEA")
+# END USER INPUTS ------------------------------------------------------------
 #
 # The script will show a complete plan and ask for confirmation before it:
 #   1. renames each eligible folder's _mcN_ segment;

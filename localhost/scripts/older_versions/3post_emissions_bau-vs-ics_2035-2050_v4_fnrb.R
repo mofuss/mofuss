@@ -49,6 +49,7 @@
 # sort(adminnew$NAME_0)
 
 
+# BEGIN USER INPUTS ----------------------------------------------------------
 # Internal parameters ----
 temdirdefined = 1
 string_pattern_yes <- "zmb_lusaka_" #Use adm0 as default. String pattern to be searched when selecting folders for the rasters' geocomputation
@@ -66,6 +67,7 @@ avoidedemissions = 1
 zonalstats = 1
 
 optimize = 0 # geoprocessing optimization
+# END USER INPUTS ------------------------------------------------------------
 
 # Define all folders based on node ----
 # Detect OS and node name
