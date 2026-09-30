@@ -110,7 +110,7 @@
                 <inputport name="valueNumber">30</inputport>
             </functor>
         </containerfunctor>
-    <containerfunctor name="IfThen"><property key="dff.functor.alias" value="Stop on failure of runExternalProcess1322" /><inputport name="condition" peerid="migration_exit_0" /><functor name="Exit"><inputport name="message">"R preprocessing/reporting failed in runExternalProcess1322; inspect the corresponding .Rout file before rerunning."</inputport></functor></containerfunctor></containerfunctor>
+    <containerfunctor name="IfThen"><property key="dff.functor.alias" value="Stop on failure of runExternalProcess1322" /><inputport name="condition" peerid="migration_exit_0" /><functor name="Exit"><inputport name="message">"R preprocessing/reporting failed in runExternalProcess1322; inspect the corresponding .Rout file and Logs/linux_r_launcher.log before rerunning."</inputport></functor></containerfunctor></containerfunctor>
     <containerfunctor name="Group">
         <property key="dff.container.collapsed" value="no" />
         <property key="dff.functor.alias" value="group3674" />
@@ -6076,7 +6076,7 @@ if abs(v1) &gt; 0 then (v1 * (2 ^ (-floor(v2 / 2))) * (2 ^ (floor(v2 / 2) - v2))
                 </functor>
             </containerfunctor>
         </containerfunctor>
-    <containerfunctor name="IfThen"><property key="dff.functor.alias" value="Stop on failure of runExternalProcess2510" /><inputport name="condition" peerid="migration_exit_740" /><functor name="Exit"><inputport name="message">"R preprocessing/reporting failed in runExternalProcess2510; inspect the corresponding .Rout file before rerunning."</inputport></functor></containerfunctor></containerfunctor>
+    <containerfunctor name="IfThen"><property key="dff.functor.alias" value="Stop on failure of runExternalProcess2510" /><inputport name="condition" peerid="migration_exit_740" /><functor name="Exit"><inputport name="message">"R preprocessing/reporting failed in runExternalProcess2510; inspect the corresponding .Rout file and Logs/linux_r_launcher.log before rerunning."</inputport></functor></containerfunctor></containerfunctor>
     <containerfunctor name="Group">
         <property key="dff.container.collapsed" value="no" />
         <property key="dff.functor.alias" value="group1610" />
@@ -6608,7 +6608,7 @@ if abs(v1) &gt; 0 then (v1 * (2 ^ (-floor(v2 / 2))) * (2 ^ (floor(v2 / 2) - v2))
                 <outputport name="result" id="v343" />
             </containerfunctor>
         </containerfunctor>
-    <containerfunctor name="IfThen"><property key="dff.functor.alias" value="Stop on failure of runExternalProcess3537" /><inputport name="condition" peerid="migration_exit_816" /><functor name="Exit"><inputport name="message">"R preprocessing/reporting failed in runExternalProcess3537; inspect the corresponding .Rout file before rerunning."</inputport></functor></containerfunctor></containerfunctor>
+    <containerfunctor name="IfThen"><property key="dff.functor.alias" value="Stop on failure of runExternalProcess3537" /><inputport name="condition" peerid="migration_exit_816" /><functor name="Exit"><inputport name="message">"R preprocessing/reporting failed in runExternalProcess3537; inspect the corresponding .Rout file and Logs/linux_r_launcher.log before rerunning."</inputport></functor></containerfunctor></containerfunctor>
     <containerfunctor name="Group">
         <property key="dff.functor.alias" value="group1799" />
         <inputport name="sequenceInput" peerid="migration_phase_3" /><outputport name="sequenceOutput" id="migration_phase_4" /><functor name="RunExternalProcess">
@@ -6628,5 +6628,5 @@ if abs(v1) &gt; 0 then (v1 * (2 ^ (-floor(v2 / 2))) * (2 ^ (floor(v2 / 2) - v2))
                 <inputport name="valueNumber">29</inputport>
             </functor>
         </containerfunctor>
-    <containerfunctor name="IfThen"><property key="dff.functor.alias" value="Stop on failure of runExternalProcess1801" /><inputport name="condition" peerid="migration_exit_853" /><functor name="Exit"><inputport name="message">"R preprocessing/reporting failed in runExternalProcess1801; inspect the corresponding .Rout file before rerunning."</inputport></functor></containerfunctor></containerfunctor>
+    <containerfunctor name="IfThen"><property key="dff.functor.alias" value="Stop on failure of runExternalProcess1801" /><inputport name="condition" peerid="migration_exit_853" /><functor name="Exit"><inputport name="message">"R preprocessing/reporting failed in runExternalProcess1801; inspect the corresponding .Rout file and Logs/linux_r_launcher.log before rerunning."</inputport></functor></containerfunctor></containerfunctor>
 </script>

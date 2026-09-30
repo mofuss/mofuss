@@ -10,7 +10,7 @@ from osgeo import gdal, osr
 
 SCRIPTS = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(SCRIPTS))
-from prepare_linux_inputs import prepare, MODEL
+from run_linux import prepare, MODEL
 
 
 class PrepareInputsTest(unittest.TestCase):

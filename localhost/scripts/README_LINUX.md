@@ -5,72 +5,55 @@ It uses the normal Windows folder/file layout and scenario parameter CSVs.
 The original Windows model remains available alongside it. The shared V8 R
 scripts support both operating systems.
 
-## Copy the code to a working folder
+## Human workflow
 
-Step `2_copy_files_v4.R` now copies both models, all six R scripts, Linux
-launchers, input-preparation helpers, and the report dependency. It checks for
-missing repository files **before** starting its existing preprocessing reset.
+1. Create the four working folders with their scenario parameter tables.
+2. Run the R preprocessing scripts sourced by `000_main_localhost_v1.R` for
+   each folder. Step `2_copy_files_v4.R` copies the Windows/Linux model files,
+   required R scripts, script 9, report code and Linux launcher into each folder.
+3. Run directional IDW externally for each folder, or restore its backed-up IDW.
+4. Run `9_install_directional_IDW_outputs_v4.R` for the four working folders.
+   The script is copied into each working folder; use its user-input batch
+   parameters to select the working-folder parent and folder names.
+5. Run the capped and uncapped BAU simulations first; then run their matching
+   ICS/CCTS simulations.
 
-For an existing working folder, copy the runtime bundle without running the
-full preprocessing reset. From R, with this repository as the working directory:
-
-```r
-source("localhost/scripts/deploy_runtime_bundle_v1.R")
-mofuss_copy_runtime_bundle(
-  "localhost/scripts",
-  "/absolute/path/to/your/working/folder"
-)
-```
-
-This copies only the code listed by `mofuss_runtime_bundle_files()`. It preserves
-scenario parameters, input data, MC draws, and existing results, and sets Linux
-shell permissions. The same listed files can be copied manually.
-
-## Prepare and run
-
-In each working folder after copying:
+On Linux, the final step in each working folder is:
 
 ```bash
-./run_linux.sh --prepare-inputs
-./run_linux.sh --check
+cd "/drive/path/to/working_folder"
 ./run_linux.sh
 ```
 
-Preparation does not simulate. It installs missing single-country sourcing
-components through the existing project installer and repairs the known legacy
-World Mercator CRS metadata only when the raster grid matches the reference.
-Pixel values are checked before/after; changed files are backed up under
-`Logs/linux_input_backups/`. Existing correctly installed components are retained.
-For a regional scenario, finish the normal directional-IDW preprocessing first.
+`mofuss_r_linux.sh` is an internal R launcher called by the Linux model.
+`run_linux.py` contains the simulation checks and compatibility preparation.
+Neither is a separate human workflow step. There is no extra setup, deployment
+or input-preparation command to run. Optional `./run_linux.sh --check` prepares
+compatibility metadata and validates readiness without simulating.
 
-Preparation also sets the two model role controls from `scenario_ver`:
+The simulation launcher derives BAU/ICS role from the existing parameter CSVs:
 
 | Scenario | `BaU vs ICS scenario` | `Re-run MonteCarlo?` |
 | --- | --- | --- |
 | BAU | `BaU` | Yes: generate the BAU batch |
 | ICS/CCTS | `ICS` | No: reuse the matching BAU batch |
 
-These are the same selections described in the Windows model. All other model
-controls and parameter CSVs are retained. The launcher checks the role before
-initializing outputs. Run each BAU before its matching ICS; capped and uncapped
-pairs remain separate. The bypass verifies the BAU batch and creates Linux
-lookup tables from its exact decimal strings, with no new MC draws.
+It sets only these two model controls; other model controls and parameter CSVs
+are retained. It repairs recognized legacy World Mercator CRS metadata only on
+matching grids, with pixel/NoData checks and backups under
+`Logs/linux_input_backups/`. It does not install IDW or recreate scenario folders.
+Missing directional components cause it to stop and request script 9.
 
-For the AGO folders, ICS capped reads the BAU capped sibling, and ICS uncapped
-reads the BAU uncapped sibling. The match uses the parameter CSVs, including
-`uncapped_regrowth`, years, geography, resolution, and MC count. ICS still runs
-all three dynamic realizations; bypassing MC skips only new parameter draws.
-The source batch must have its `Temp/mc_batch_ready.csv` manifest and unchanged
-MC tables. The bypass stops if the matching source is missing or ambiguous.
-
-Copy the full bundle before preparation; copying only the Linux `.egoml` is
-insufficient. The template has BAU role controls until `--prepare-inputs` sets
-them for its destination. Normal execution rejects inconsistent role controls.
+The ICS bypass verifies the matching BAU's current `Temp/mc_batch_ready.csv`
+and exact MC table hashes. It reuses the CSV decimal strings without generating
+new draws, and still runs all ICS dynamic realizations. Capped and uncapped
+pairs remain separate. Keep matching BAU/ICS folders as siblings; an explicit
+BAU location can be supplied in a one-line `bau_mc_source.txt` when needed.
 
 Outputs use `Temp/`, `Out/`, `Summary_Report/`, `HTML_animation/`, `LaTeX/`,
-`Logs/`, and `Sourcing/`. Unused `Debugging/` exports are disabled. The three
-annual raster series used by reports remain in `debugging_1/`, `debugging_2/`,
-etc. Normal full runs replace generated outputs as before.
+`Logs/`, and `Sourcing/`. Unused `Debugging/` exports are disabled. Annual raster
+series needed by reports remain under `debugging_1/`, `debugging_2/`, etc.
+Normal full runs replace generated outputs as before.
 
 ## Workers and reproducibility
 
@@ -142,48 +125,45 @@ configured locally, its `PIPELINE_TEMP_ROOT` directory created, and the emission
 analysis completed first. Updating its batch paths alone does not supply that
 observation dataset.
 
-## Machine-local runtime
+## Installed software on each Linux computer
 
-Validated with EGO **8.13.0.20260827**, native R, FFmpeg, PDFLaTeX (including
-Latin Modern fonts), zip, and Python 3/GDAL. Runtime binaries are not committed.
+The workflow uses installed programs, with no `_migration` directory, runtime
+bundle, Codex session, or `~/.config/mofuss/linux-runtime.env` dependency.
 
-Configure an existing isolated runtime bundle using
-`~/.config/mofuss/linux-runtime.env`:
-
-```bash
-export MOFUSS_RUNTIME_DIR="/absolute/path/to/the/runtime/bundle"
-```
-
-The bundle contains `tools/env.sh`, its libraries/report tools, and
-`downloads/DinamicaEGO-8130-Ubuntu-LTS.AppImage`. Alternatively, set `MOFUSS_EGO`
-to a native EGO console/AppImage and provide R/report tools on `PATH`.
-`MOFUSS_R` and `MOFUSS_LIBRARY_PATH` override native R and its library path.
-`MOFUSS_LINUX_CONFIG` selects a different configuration file.
-
-This workstation already has the verified runtime configured outside the
-repository. Keep that shared bundle in place when copying code to other folders.
-
-## Repeatable setup on Linux
-
-From a checkout of this repository, prepare any existing working folder:
+Validated Dinamica version: **8.13.0.20260827**. Set `MOFUSS_EGO` in the clearly
+marked user-input block of `run_linux.sh` to that computer's installed console
+or AppImage, or provide `DinamicaConsole` on PATH. Paths may be on any drive.
+For a launch without editing the copied script:
 
 ```bash
-bash "/path/to/mofuss/localhost/scripts/prepare_working_folder_linux.sh" \
-  "/drive/path/to/working_folder" \
-  "/drive/path/to/runtime_bundle"
+MOFUSS_EGO="/path/to/installed/DinamicaEGO.AppImage" ./run_linux.sh
 ```
 
-The runtime bundle is the directory containing `tools/env.sh` and the verified
-Dinamica AppImage under `downloads/`. Copy the complete bundle when moving it
-to another drive or compatible Linux computer. Install R and the required R
-packages on that computer; the validation reports missing dependencies. The
-optional second argument overrides this machine's configured runtime location.
-For a native installation, omit it and configure `MOFUSS_EGO` as described above.
+Native R and Python 3/GDAL must be installed. R needs `msm`, `raster`, `tidyverse`,
+`readxl`, `readr`, `tibble`, `animation`, `data.table`, `foreach`, `jpeg`, `png`,
+`sf`, `tiff`, and the installer dependencies (`terra`, `digest`). Reporting needs
+FFmpeg, zip, PDFLaTeX, `kpsewhich`, and the Latin Modern font package on PATH.
+The launcher checks dependencies before starting the dynamics. If an R library
+needs a custom library directory, set `MOFUSS_R_LIBRARY_PATH`; otherwise the
+wrapper clears EGO's private library paths before starting native R.
 
-This command copies the complete current code bundle, configures the model role
-from the folder's parameter files, prepares missing Linux inputs, and runs checks.
-It replaces model code with the repository template, so preserve any personal
-model-code edits first. It does not start a simulation. Repeat it for each working
-folder. After success, use the printed `bash .../run_linux.sh` command. Paths with
-spaces must be quoted. ICS requires the matching BAU Monte Carlo batch; keep the
-paired folders as siblings, or use the explicit BAU source described above.
+`Logs/linux_r_launcher.log` retains errors starting R. Script errors appear in
+the corresponding `.Rout` files. Windows retains the existing Windows model and
+workflow; the shared R code continues to support both operating systems.
+
+## Canonical completed Linux run
+
+`AGO_1000m_bau1_2050_mc3_uncapped` is the reference full run for the Linux
+workflow: three sequential realizations, 2000–2050, with complete outputs and
+reporting. Its scientific inputs, model, MC batch, and completed results were
+retained when obsolete migration helpers were removed. Reference hashes for the
+model, MC batch, report code, completion log, and PDF are recorded in
+`tests/canonical_ago_bau1_uncapped.json`. A new launcher does not certify Windows
+equality; scientific comparisons must still use the same verified MC batch.
+
+Only `run_linux.py` is needed as Python launcher code in each working folder.
+The shell launcher uses Python's `-B` option, so bytecode cache folders are not
+created. Old `prepare_linux_inputs.py`, `mofuss_linux_env.sh`, deployment/setup
+helpers, and `_migration` are not part of the current working-folder layout.
+Programs installed for this workstation are separate from the model code and
+working folders. Other computers use their own installed programs on PATH.

@@ -10,6 +10,7 @@ import json
 import os
 import re
 import resource
+import shutil
 import subprocess
 import time
 import xml.etree.ElementTree as ET
@@ -92,13 +93,110 @@ def settings(scenario):
     return config, {str(p.relative_to(scenario)): sha(p) for p in (config_path, original_path)}
 
 
+MODEL = '10_dyn_Sc17_webmofuss_ctrees_g_v13_linux.egoml'
+LEGACY_CRS = ('Loss_00', 'Gain_00', 'Losses_calib', 'Loss_10', 'rivers_c_d',
+              'roads_c_d', 'Gain_00_null', 'Gain_20', 'Loss_00_null')
+
+
+def prepare(scenario, *, configure_model=False):
+    try:
+        from osgeo import gdal, osr
+    except ImportError:
+        raise SystemExit("Python GDAL is missing. Install the native Python 3 GDAL bindings on this Linux computer.")
+    gdal.UseExceptions()
+    scenario = Path(scenario).resolve()
+    stamp = datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m%dT%H%M%S%fZ')
+    backup = scenario / 'Logs/linux_input_backups' / stamp
+    changes = []
+
+    def preserve(path):
+        target = backup / path.relative_to(scenario)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(path, target)
+        return target
+
+    mask = scenario / 'LULCC/TempRaster/mask_c.tif'
+    reference = gdal.Open(str(mask))
+    target_crs = osr.SpatialReference(wkt=reference.GetProjection())
+    mercator = osr.SpatialReference(); mercator.ImportFromEPSG(3395)
+    target_crs.SetAxisMappingStrategy(osr.OAMS_TRADITIONAL_GIS_ORDER)
+    mercator.SetAxisMappingStrategy(osr.OAMS_TRADITIONAL_GIS_ORDER)
+    pending = []
+    for name in LEGACY_CRS:
+        path = scenario / f'LULCC/TempRaster/{name}.tif'
+        if not path.exists(): continue  # Retired inputs may have been omitted.
+        ds = gdal.Open(str(path))
+        source_crs = osr.SpatialReference(wkt=ds.GetProjection())
+        if not source_crs.IsLocal(): continue
+        label = ''.join(ds.GetProjection().lower().split())
+        if 'wgs84/worldmercator' not in label or not target_crs.IsSame(mercator):
+            raise RuntimeError(f'CRS needs manual review: {path}')
+        if ((ds.RasterXSize, ds.RasterYSize) != (reference.RasterXSize, reference.RasterYSize)
+                or ds.GetGeoTransform() != reference.GetGeoTransform()):
+            raise RuntimeError(f'Grid mismatch; cannot repair metadata alone: {path}')
+        pending.append((path, ds.GetProjection(), hashlib.sha256(ds.ReadRaster()).hexdigest(),
+                        ds.GetRasterBand(1).DataType, ds.GetRasterBand(1).GetNoDataValue()))
+        ds = None
+    for path, old_crs, cell_hash, dtype, nodata in pending:
+        saved = preserve(path)
+        # Break symlinks/hardlinks before an in-place GDAL metadata update.
+        if path.is_symlink() or path.stat().st_nlink > 1:
+            temporary = path.with_name(path.name + '.linux-copy')
+            if temporary.exists(): raise RuntimeError(f'Stale staging file: {temporary}')
+            shutil.copy2(saved, temporary); os.replace(temporary, path)
+        ds = gdal.Open(str(path), gdal.GA_Update)
+        ds.SetProjection(reference.GetProjection()); ds = None
+        ds = gdal.Open(str(path))
+        assert hashlib.sha256(ds.ReadRaster()).hexdigest() == cell_hash
+        assert ds.GetGeoTransform() == reference.GetGeoTransform()
+        assert ds.GetRasterBand(1).DataType == dtype
+        assert ds.GetRasterBand(1).GetNoDataValue() == nodata
+        changes.append({'file': str(path.relative_to(scenario)), 'operation': 'CRS metadata only',
+                        'old_crs': old_crs, 'new_crs': 'EPSG:3395', 'cell_sha256': cell_hash})
+        ds = None
+    reference = None
+
+    if configure_model:
+        config, _ = settings(scenario)
+        scenario_name = config['scenario_ver'].lower()
+        if scenario_name.startswith('bau'):
+            desired = {'v256': '.yes', 'v261': '"BaU"'}
+        elif scenario_name.startswith(('ics', 'ccts')):
+            desired = {'v256': '.no', 'v261': '"ICS"'}
+        else:
+            raise RuntimeError(f'Unknown scenario role: {scenario_name}')
+        path = scenario / MODEL
+        tree = ET.parse(path)
+        updates = []
+        for e in tree.getroot().iter():
+            for p in e.findall('outputport'):
+                if p.get('id') in desired:
+                    value = e.find('inputport[@name="constant"]')
+                    if value is None or value.get('peerid'):
+                        raise RuntimeError('Unexpected model scenario controls; review before editing.')
+                    text = desired[p.get('id')]
+                    if value.text != text:
+                        updates.append({'port': p.get('id'), 'old': value.text, 'new': text})
+                        value.text = text
+        if updates:
+            preserve(path)
+            tree.write(path, encoding='utf-8', xml_declaration=True)
+            changes.append({'operation': 'Align BAU/ICS controls with scenario parameters', 'controls': updates})
+
+    result = {'scenario': str(scenario), 'simulation_executed': False, 'changes': changes,
+              'backup': str(backup) if backup.exists() else None}
+    (scenario / 'Logs').mkdir(exist_ok=True)
+    (scenario / 'Logs' / f'linux_inputs_{stamp}.json').write_text(json.dumps(result, indent=2) + '\n')
+    print(f'Linux inputs prepared: {len(changes)} changes; no simulation was run.')
+    return result
+
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--scenario', type=Path, default=Path(__file__).resolve().parent)
     parser.add_argument('--processors', default='auto', help='Worker count, or auto (physical cores within allocation).')
-    actions = parser.add_mutually_exclusive_group()
-    actions.add_argument('--check', action='store_true', help='Check inputs, R, report tools and model; do not simulate.')
-    actions.add_argument('--prepare-inputs', action='store_true', help='Prepare legacy metadata/components and BAU/ICS controls; do not simulate.')
+    parser.add_argument('--check', action='store_true', help='Prepare compatibility metadata and validate readiness; do not simulate.')
     parser.add_argument('--log', type=Path)
     args = parser.parse_args()
     capacity = cpu_capacity()
@@ -114,7 +212,7 @@ def main():
     scenario = args.scenario.resolve()
     model = scenario / '10_dyn_Sc17_webmofuss_ctrees_g_v13_linux.egoml'
     if not os.environ.get('MOFUSS_EGO'):
-        parser.error('MOFUSS_EGO is unset; invoke run_linux.sh or configure the runtime environment.')
+        parser.error('MOFUSS_EGO is unset; invoke run_linux.sh or set MOFUSS_EGO to the installed Dinamica executable.')
     executable = Path(os.environ['MOFUSS_EGO']).resolve()
     wrapper = scenario / 'mofuss_r_linux.sh'
     for path in (model, executable, wrapper):
@@ -137,17 +235,20 @@ def main():
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
     except BlockingIOError:
         raise SystemExit('This scenario is already running through run_linux.sh.')
-    if args.prepare_inputs:
-        from prepare_linux_inputs import prepare
-        prepare(scenario, configure_model=True)
-        return
+    # Script 9 installs directional inputs. This launcher never installs IDW.
+    indexes = [scenario / f'In/DemandScenarios/{channel}_origin_component_index.csv'
+               for channel in ('W', 'V')]
+    if not all(p.is_file() for p in indexes):
+        raise SystemExit('Directional IDW inputs are not installed. Run 9_install_directional_IDW_outputs_v4.R first.')
+    prepare(scenario, configure_model=True)
+    root = ET.parse(model).getroot()
     producers = {p.get('id'): e for e in root.iter() for p in e.findall('outputport')}
     def constant(peer):
         return producers[peer].find('inputport[@name="constant"]').text.strip()
     is_ics = config['scenario_ver'].lower().startswith(('ics', 'ccts'))
     expected_role, expected_mc = ('"ICS"', '.no') if is_ics else ('"BaU"', '.yes')
     if constant('v261') != expected_role or constant('v256') != expected_mc:
-        raise SystemExit('Model BAU/ICS controls do not match scenario_ver. Run ./run_linux.sh --prepare-inputs first.')
+        raise SystemExit('Model BAU/ICS controls do not match scenario_ver after automatic configuration.')
     stamp = datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m%dT%H%M%S%fZ')
     mode = 'check' if args.check else 'run'
     invocation = Path(os.environ.get('MOFUSS_RUN_FROM', os.getcwd()))
@@ -273,7 +374,7 @@ cat(sprintf("[OK] Parsed %d R scripts; R packages and report tools available.\\n
             ok = not missing
             checks.append({'check': 'Scenario input files', 'passed': ok, 'missing': sorted(set(missing)),
                            'inputs_in_disabled_branches': sorted(set(skipped))})
-            message = '[OK] Required scenario input files exist.' if ok else 'Missing inputs: ' + ', '.join(sorted(set(missing))) + '\nRun ./run_linux.sh --prepare-inputs after copying the code bundle.'
+            message = '[OK] Required scenario input files exist.' if ok else 'Missing inputs: ' + ', '.join(sorted(set(missing))) + '\nComplete preprocessing and run 9_install_directional_IDW_outputs_v4.R before starting the model.'
             print(message, flush=True); output.write(message + '\n')
 
         command = ['stdbuf', '-oL', '-eL', str(executable), f'-processors={args.processors}',

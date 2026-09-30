@@ -60,11 +60,57 @@ library(tcltk)
 # Detect OS
 os <- Sys.info()["sysname"]
 
-# Validate the complete runtime bundle before any existing inputs are removed.
-# For a code-only update of an existing run, use mofuss_copy_runtime_bundle()
-# from this helper directly; the rest of step 2 resets preprocessing data.
+# Runtime files copied by this preprocessing step on either operating system.
+# Linux launcher support remains internal to the normal workflow.
+mofuss_runtime_bundle_files <- function() {
+  c(
+    "10_dyn_Sc17_webmofuss_ctrees_g_v13.egoml",
+    "10_dyn_Sc17_webmofuss_ctrees_g_v13_linux.egoml",
+    "rnorm_v8.R", "NRB_graphs_datasets_v8.R", "maps_animations_v8.R",
+    "finalogs_v8.R", "bypassMC_v8.R", "bypass_maps_animations_v8.R",
+    "run_linux.sh", "run_linux.py", "mofuss_r_linux.sh",
+    "9_install_directional_IDW_outputs_v4.R",
+    "README_LINUX.md", "LaTeX/generate_modern_report_v8.R"
+  )
+}
+
+mofuss_validate_runtime_bundle <- function(scripts_dir) {
+  files <- mofuss_runtime_bundle_files()
+  sources <- file.path(scripts_dir, files)
+  missing <- files[!file.exists(sources) | dir.exists(sources)]
+  if (length(missing)) {
+    stop("Incomplete Windows/Linux runtime bundle: ", paste(missing, collapse = ", "),
+         call. = FALSE)
+  }
+  invisible(sources)
+}
+
+mofuss_copy_runtime_bundle <- function(scripts_dir, destination) {
+  sources <- mofuss_validate_runtime_bundle(scripts_dir)
+  files <- mofuss_runtime_bundle_files()
+  scripts_dir <- normalizePath(scripts_dir, winslash = "/", mustWork = TRUE)
+  destination <- normalizePath(destination, winslash = "/", mustWork = TRUE)
+  if (identical(scripts_dir, destination)) stop("Source and destination must differ.")
+  targets <- file.path(destination, files)
+  for (directory in unique(dirname(targets))) {
+    dir.create(directory, recursive = TRUE, showWarnings = FALSE)
+  }
+  copied <- file.copy(sources, targets, overwrite = TRUE, copy.mode = TRUE)
+  if (!all(copied)) stop("Could not copy: ", paste(files[!copied], collapse = ", "))
+  if (!identical(unname(tools::md5sum(sources)), unname(tools::md5sum(targets)))) {
+    stop("Runtime bundle verification failed after copying.")
+  }
+  shell_files <- targets[grepl("[.]sh$", targets)]
+  if (.Platform$OS.type != "windows") {
+    Sys.chmod(shell_files, mode = "0755")
+    if (any(file.access(shell_files, mode = 1L) != 0L)) stop("Cannot make Linux launchers executable.")
+  }
+  message("Copied and verified ", length(files), " runtime files in ", destination)
+  invisible(targets)
+}
+
+# Validate before any existing inputs are removed.
 runtime_scripts_dir <- file.path(githubdir, "localhost", "scripts")
-source(file.path(runtime_scripts_dir, "deploy_runtime_bundle_v1.R"), local = TRUE)
 mofuss_validate_runtime_bundle(runtime_scripts_dir)
 
 # Set working directory
@@ -113,6 +159,15 @@ lapply(directories_to_remove, unlink, recursive = TRUE, force = TRUE)
 
 # Remove files matching patterns
 lapply(file_patterns_to_remove, unlink, force = TRUE)
+
+# Remove obsolete Linux fix/deployment helpers from earlier code copies.
+# run_linux.py is the retained launcher implementation.
+obsolete_linux_helpers <- c(
+  "prepare_linux_inputs.py", "mofuss_linux_env.sh",
+  "prepare_working_folder_linux.sh", "configure_linux_runtime.sh",
+  "deploy_runtime_bundle_v1.R", "__pycache__"
+)
+unlink(obsolete_linux_helpers, recursive = TRUE, force = TRUE)
 
 # Create MoFuSS directory structure ----
 dirs_to_create <- c(

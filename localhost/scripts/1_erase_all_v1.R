@@ -16,7 +16,7 @@
 # MoFuSS ----
 # Script: 1_erase_all_v1.R
 # Version: 1
-# Date: Apr 2026
+# Date: Sep 2026
 # Execution: Source from RStudio; Dinamica EGO does not invoke this script directly.
 #
 # Purpose: Remove outputs and temporary artifacts from a previously prepared
@@ -98,6 +98,7 @@ directories_to_remove <- c(
   "Debugging", "debug*", "norm*", 
   "HTML_animation", "Logs", "Out", "Summary_Report",
   "Temp", "In", "ffmpeg32", "ffmpeg64", "LaTeX", "rTemp", "demand_atlas",
+  "Sourcing", "__pycache__", "_migration", "LULCC/__pycache__",
   "LULCC/InVector", "LULCC/Out_lulcc", "LULCC/SourceData", 
   "LULCC/TempRaster", "LULCC/TempTables", "LULCC/TempVector", 
   "LULCC/TempVector_GCS", "LULCC/Wizard_imgs",
@@ -125,7 +126,9 @@ cat(paste(existing_dirs, collapse = "\n"), "\n")
 ## Define file patterns to remove ----
 file_patterns_to_remove <- c(
   "*.Rout", "*.txt", "*.log", "*.aux", "*.lof",
-  "*.lot", "*.out", "*.toc", "*.R", "*.egoml"
+  "*.lot", "*.out", "*.toc", "*.R", "*.egoml",
+  # Step 2 recopies the current Linux launcher code after this reset.
+  "*.py", "*.pyc", "*.pyo", "*.sh", "README_LINUX.md"
 )
 
 latex_patterns_to_remove <- c(
