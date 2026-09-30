@@ -57,6 +57,15 @@ This codec was tested bit-for-bit for 69 values in both native and interpreted
 engine modes. The normal release does **not** save every full origin map every
 year. Existing annual scientific outputs retain their original filenames.
 
+The country-accounting reader also requires nine annual aggregate rasters in
+each `debugging_<MC>/` folder: `Proj_harv_Wtot`, `Proj_harv_Vtot`,
+`Proj_harv_Wdef`, `Proj_harv_Vdef`, `Non_harv_AGR`, `Ex_agr_harv`, `harv_AGR`,
+`Expect_harv_tot`, and `Harvest_tot`. These are required scientific outputs.
+The Windows v13 model saves them unconditionally. The Linux migration had
+mistakenly removed eight of the nine; the 2026-09-30 correction restores their
+original export nodes without changing simulation calculations. See
+[the Linux correction notes](README_LINUX.md#sourcing-export-correction-2026-09-30).
+
 The static files also act as a cache. The first MC draw refreshes a base at each
 new decadal snapshot; later annual steps and MC draws reload the same lossless
 float32 file. The two original rounding stages are preserved, not combined.
@@ -65,10 +74,12 @@ addition order are otherwise preserved in v12.
 
 ## After the simulations finish
 
-Run `postprocessing_sourcing/0post_runtime_sourcing_pipeline_v1.R`. Its editable
-configuration currently targets the four ECSA `mc3` folders and writes to:
-
-`E:/_postprocessing_draft/ECSA_1000m_ics3_2050_mc3/runtime_sourcing`
+Run `postprocessing_sourcing/0post_runtime_sourcing_pipeline_v1.R`. Its marked
+user-input section selects enabled regional batches on Windows or Linux and
+runs both the approximation and recorded-runtime analyses. Outputs go under
+`<batch root>/_mofuss_postprocessing/<neutral analysis name>/` by default, in
+separate `model_implied_sourcing/` and `runtime_sourcing/` folders. See
+[the batch instructions](postprocessing_sourcing/README_runtime_sourcing_v1.md).
 
 The core reader is `postprocessing_sourcing/2post_runtime_sourcing_v1.R` and can
 also be called for other regions with explicit run, country-zone, crosswalk and

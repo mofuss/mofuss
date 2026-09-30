@@ -737,10 +737,55 @@
                     <inputport name="step" peerid="v39" />
                     <outputport name="step" id="v75" />
                 </functor>
+                <functor name="SaveMap">
+                    <property key="dff.functor.alias" value="saveMap5141" />
+                    <inputport name="map" peerid="v95" />
+                    <inputport name="filename" peerid="v345" />
+                    <inputport name="suffixDigits">2</inputport>
+                    <inputport name="step" peerid="v39" />
+                    <inputport name="useCompression">.yes</inputport>
+                    <inputport name="workdir">.none</inputport>
+                </functor>
                 <functor name="Step">
                     <property key="dff.functor.alias" value="step5222" />
                     <inputport name="step" peerid="v39" />
                     <outputport name="step" id="v76" />
+                </functor>
+                <functor name="SaveMap">
+                    <property key="dff.functor.alias" value="saveMap8564" />
+                    <inputport name="map" peerid="v368" />
+                    <inputport name="filename" peerid="v347" />
+                    <inputport name="suffixDigits">2</inputport>
+                    <inputport name="step" peerid="v39" />
+                    <inputport name="useCompression">.yes</inputport>
+                    <inputport name="workdir">.none</inputport>
+                </functor>
+                <functor name="SaveMap">
+                    <property key="dff.functor.alias" value="saveMap8567" />
+                    <inputport name="map" peerid="v94" />
+                    <inputport name="filename" peerid="v350" />
+                    <inputport name="suffixDigits">2</inputport>
+                    <inputport name="step" peerid="v39" />
+                    <inputport name="useCompression">.yes</inputport>
+                    <inputport name="workdir">.none</inputport>
+                </functor>
+                <functor name="SaveMap">
+                    <property key="dff.functor.alias" value="saveMap8570" />
+                    <inputport name="map" peerid="v89" />
+                    <inputport name="filename" peerid="v346" />
+                    <inputport name="suffixDigits">2</inputport>
+                    <inputport name="step" peerid="v39" />
+                    <inputport name="useCompression">.yes</inputport>
+                    <inputport name="workdir">.none</inputport>
+                </functor>
+                <functor name="SaveMap">
+                    <property key="dff.functor.alias" value="saveMap8573" />
+                    <inputport name="map" peerid="v93" />
+                    <inputport name="filename" peerid="v349" />
+                    <inputport name="suffixDigits">2</inputport>
+                    <inputport name="step" peerid="v39" />
+                    <inputport name="useCompression">.yes</inputport>
+                    <inputport name="workdir">.none</inputport>
                 </functor>
                 <functor name="MuxMap">
                     <property key="dff.functor.alias" value="muxMap1856" />
@@ -760,11 +805,38 @@
                     <inputport name="feedback" peerid="v119" />
                     <outputport name="map" id="v79" />
                 </functor>
+                <functor name="SaveMap">
+                    <property key="dff.functor.alias" value="saveMap3924" />
+                    <inputport name="map" peerid="v90" />
+                    <inputport name="filename" peerid="v348" />
+                    <inputport name="suffixDigits">2</inputport>
+                    <inputport name="step" peerid="v39" />
+                    <inputport name="useCompression">.yes</inputport>
+                    <inputport name="workdir">.none</inputport>
+                </functor>
                 <functor name="MapJunction">
                     <property key="dff.functor.alias" value="mapJunction3985" />
                     <inputport name="possibleMap1" peerid="v134" />
                     <inputport name="possibleMap2" peerid="v135" />
                     <outputport name="map" id="v85" />
+                </functor>
+                <functor name="SaveMap">
+                    <property key="dff.functor.alias" value="saveMap3979" />
+                    <inputport name="map" peerid="v137" />
+                    <inputport name="filename" peerid="v351" />
+                    <inputport name="suffixDigits">2</inputport>
+                    <inputport name="step" peerid="v39" />
+                    <inputport name="useCompression">.yes</inputport>
+                    <inputport name="workdir">.none</inputport>
+                </functor>
+                <functor name="SaveMap">
+                    <property key="dff.functor.alias" value="saveMap3997" />
+                    <inputport name="map" peerid="v138" />
+                    <inputport name="filename" peerid="v352" />
+                    <inputport name="suffixDigits">2</inputport>
+                    <inputport name="step" peerid="v39" />
+                    <inputport name="useCompression">.yes</inputport>
+                    <inputport name="workdir">.none</inputport>
                 </functor>
                 <functor name="LoadLookupTable">
                     <property key="dff.functor.alias" value="Annual W demand by origin country" />
@@ -3352,7 +3424,87 @@ if abs(v1) &gt; 0 then (v1 * (2 ^ (-floor(v2 / 2))) * (2 ^ (floor(v2 / 2) - v2))
                             <inputport name="valueNumber">1</inputport>
                         </functor>
                     </containerfunctor>
+                    <containerfunctor name="CreateString">
+                        <property key="dff.functor.alias" value="createString20006" />
+                        <inputport name="format">"debugging_&lt;v1&gt;/Expect_harv_tot.tif"</inputport>
+                        <outputport name="result" id="v345" />
+                        <functor name="NumberValue">
+                            <property key="dff.functor.alias" value="numberValue20011" />
+                            <inputport name="value" peerid="v38" />
+                            <inputport name="valueNumber">1</inputport>
+                        </functor>
                     </containerfunctor>
+                    <containerfunctor name="CreateString">
+                        <property key="dff.functor.alias" value="createString20007" />
+                        <inputport name="format">"debugging_&lt;v1&gt;/Non_harv_AGR.tif"</inputport>
+                        <outputport name="result" id="v346" />
+                        <functor name="NumberValue">
+                            <property key="dff.functor.alias" value="numberValue20012" />
+                            <inputport name="value" peerid="v38" />
+                            <inputport name="valueNumber">1</inputport>
+                        </functor>
+                    </containerfunctor>
+                    <containerfunctor name="CreateString">
+                        <property key="dff.functor.alias" value="createString20008" />
+                        <inputport name="format">"debugging_&lt;v1&gt;/Proj_harv_Wtot.tif"</inputport>
+                        <outputport name="result" id="v347" />
+                        <functor name="NumberValue">
+                            <property key="dff.functor.alias" value="numberValue20013" />
+                            <inputport name="value" peerid="v38" />
+                            <inputport name="valueNumber">1</inputport>
+                        </functor>
+                    </containerfunctor>
+                    <containerfunctor name="CreateString">
+                        <property key="dff.functor.alias" value="createString20009" />
+                        <inputport name="format">"debugging_&lt;v1&gt;/harv_AGR.tif"</inputport>
+                        <outputport name="result" id="v348" />
+                        <functor name="NumberValue">
+                            <property key="dff.functor.alias" value="numberValue20014" />
+                            <inputport name="value" peerid="v38" />
+                            <inputport name="valueNumber">1</inputport>
+                        </functor>
+                    </containerfunctor>
+                    <containerfunctor name="CreateString">
+                        <property key="dff.functor.alias" value="createString20010" />
+                        <inputport name="format">"debugging_&lt;v1&gt;/Ex_agr_harv.tif"</inputport>
+                        <outputport name="result" id="v349" />
+                        <functor name="NumberValue">
+                            <property key="dff.functor.alias" value="numberValue20015" />
+                            <inputport name="value" peerid="v38" />
+                            <inputport name="valueNumber">1</inputport>
+                        </functor>
+                    </containerfunctor>
+                    <containerfunctor name="CreateString">
+                        <property key="dff.functor.alias" value="createString20016" />
+                        <inputport name="format">"debugging_&lt;v1&gt;/Proj_harv_Vtot.tif"</inputport>
+                        <outputport name="result" id="v350" />
+                        <functor name="NumberValue">
+                            <property key="dff.functor.alias" value="numberValue20019" />
+                            <inputport name="value" peerid="v38" />
+                            <inputport name="valueNumber">1</inputport>
+                        </functor>
+                    </containerfunctor>
+                    <containerfunctor name="CreateString">
+                        <property key="dff.functor.alias" value="createString20017" />
+                        <inputport name="format">"debugging_&lt;v1&gt;/Proj_harv_Vdef.tif"</inputport>
+                        <outputport name="result" id="v351" />
+                        <functor name="NumberValue">
+                            <property key="dff.functor.alias" value="numberValue20020" />
+                            <inputport name="value" peerid="v38" />
+                            <inputport name="valueNumber">1</inputport>
+                        </functor>
+                    </containerfunctor>
+                    <containerfunctor name="CreateString">
+                        <property key="dff.functor.alias" value="createString20018" />
+                        <inputport name="format">"debugging_&lt;v1&gt;/Proj_harv_Wdef.tif"</inputport>
+                        <outputport name="result" id="v352" />
+                        <functor name="NumberValue">
+                            <property key="dff.functor.alias" value="numberValue20021" />
+                            <inputport name="value" peerid="v38" />
+                            <inputport name="valueNumber">1</inputport>
+                        </functor>
+                    </containerfunctor>
+                </containerfunctor>
                 <containerfunctor name="IfThen">
                     <property key="dff.functor.alias" value="ifThen3966" />
                     <inputport name="condition" peerid="v136" />

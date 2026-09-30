@@ -54,8 +54,40 @@ BAU location can be supplied in a one-line `bau_mc_source.txt` when needed.
 
 Outputs use `Temp/`, `Out/`, `Summary_Report/`, `HTML_animation/`, `LaTeX/`,
 `Logs/`, and `Sourcing/`. Unused `Debugging/` exports are disabled. Annual raster
-series needed by reports remain under `debugging_1/`, `debugging_2/`, etc.
+series needed by reports and sourcing remain under `debugging_1/`,
+`debugging_2/`, etc. These per-MC folders contain scientific inputs for
+postprocessing and must be retained.
 Normal full runs replace generated outputs as before.
+
+### Sourcing export correction (2026-09-30)
+
+The earlier Linux migration mistakenly removed eight annual exports when
+cleaning up optional debugging outputs: `Expect_harv_tot`, `Proj_harv_Wtot`,
+`Proj_harv_Vtot`, `Proj_harv_Wdef`, `Proj_harv_Vdef`, `Non_harv_AGR`,
+`Ex_agr_harv`, and `harv_AGR`. Both sourcing analyses depend on these maps.
+This affected all region sizes; it was unrelated to AGO being a single country.
+
+The Linux model now restores the Windows export nodes, with the same source
+maps, compression, MC folders, and annual numbering. Model calculations and
+MC controls are unchanged. Windows already contained these exports and needs
+no corresponding model change. The optional shared `Debugging/` folder remains
+disabled on Linux.
+
+Step `2_copy_files_v4.R` already copies the corrected model into new working
+folders. For a previously prepared folder, copy only the updated
+`10_dyn_Sc17_webmofuss_ctrees_g_v13_linux.egoml` from this repository before
+your next intended run; do not rerun preprocessing merely to update that file.
+Continue to launch with `./run_linux.sh`, which sets the BAU/ICS role from the
+folder's parameter tables. Preserve any other model settings you customized.
+Updating the model does not recover missing exports from completed runs;
+those require matching archived files or a new simulation. Existing completed
+working folders were not modified as part of this correction.
+
+`tests/test_dinamica_sourcing_exports.py` checks the Windows/Linux export
+contract against the sourcing reader and verifies MC/year placement. With
+`MOFUSS_TEST_EGO` set to a native Dinamica console, it also exercises the exact
+production export nodes on temporary four-cell inputs (two MCs, two years),
+checking all nine raster series, values, NoData, and grid geometry.
 
 ## Workers and reproducibility
 

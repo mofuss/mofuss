@@ -559,7 +559,7 @@ if (length(unknown_countries)) {
 coverage <- merge(
   regionalization[c(
     "GID_0", "NAME_0", "Subregion", "regionalization_file",
-    intersect(c("RunCode", "CandidateID", "CandidateRegionID", "ImporterV", "Status"), names(regionalization))
+    base::intersect(c("RunCode", "CandidateID", "CandidateRegionID", "ImporterV", "Status"), names(regionalization))
   )],
   source_countries,
   by.x = "GID_0", by.y = "country_iso", all.x = TRUE, sort = FALSE
@@ -1593,7 +1593,7 @@ write_global_map_figure <- function(
     scale = "medium", returnclass = "sf"
   ))
   assessment_attributes <- as.data.frame(assessment_geographic)
-  assessment_id_fields <- intersect(
+  assessment_id_fields <- base::intersect(
     c("adm0_a3", "iso_a3"), names(assessment_attributes)
   )
   if (!length(assessment_id_fields)) {

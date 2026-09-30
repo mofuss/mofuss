@@ -1408,7 +1408,7 @@ read_stage2_run_manifest <- function(
       pairing$full_stochastic_pairing_validated
   }
   stage2_comparison_validated <- stage2_full_pairing
-  comparison_field <- intersect(
+  comparison_field <- base::intersect(
     c("comparison_validated", "paired_mc_inputs_validated"), names(tab)
   )
   if (length(comparison_field)) {

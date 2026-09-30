@@ -13,12 +13,87 @@ harvest. `annual_*` files contain the same information for individual years.
 mean and empirical 2.5th/97.5th percentiles. Three MC runs provide a preliminary
 description, not reliable uncertainty bounds.
 
-## Run
+## Run both sourcing analyses by batch (Windows or Linux)
+
+Open `0post_runtime_sourcing_pipeline_v1.R` in RStudio. Edit only the marked
+`BEGIN USER INPUTS` / `END USER INPUTS` block, then Source the saved file.
+This entry point runs Stage 1 (the older model-implied approximation) followed
+by Stage 2 (recorded runtime sourcing), in separate R sessions for each batch.
+It requires R with `terra` and `data.table` installed. It does not require Codex.
+
+- Set each entry in `SOURCING_BATCHES` to `enabled = TRUE` or `FALSE`.
+  AGO is enabled initially; the other regional examples are disabled.
+- `SOURCING_WORKING_ROOT = "AUTO"` finds the parent of the repository from
+  the script location, independently of the current R working directory.
+  This works when `mofuss/` and the scenario folders are siblings.
+  Otherwise set it to, for example, `"E:/"` on Windows or `"/mnt/data"` on Linux.
+  In R strings, use forward slashes on both systems.
+- Each batch's `root = ""` inherits that root. Set an explicit root on batches
+  whose four scenario folders live on another drive. On Linux use the mounted
+  directory path; a Windows drive letter is not a Linux path.
+- `analysis_folder` is a neutral folder name such as `AGO_1000m_2050_mc3`.
+  With `SOURCING_ANALYSIS_PARENT = "AUTO"`, results go under
+  `<batch root>/_mofuss_postprocessing/<analysis_folder>/`, in separate
+  `model_implied_sourcing/` and `runtime_sourcing/` subfolders.
+  Set an absolute analysis parent to store all batches elsewhere.
+- `SOURCING_STAGES = 1:2` runs both; use `1L` or `2L` to select one.
+  `SOURCING_MC_RUNS = "all"` processes the configured realizations.
+- `SOURCING_CHECK_ONLY = TRUE` checks required inputs and existing outputs
+  for all enabled batches before any analysis writes results. The same check
+  runs automatically before normal processing. Calculation-time reconciliation
+  checks still run during the analyses.
+- `SOURCING_OVERWRITE = FALSE` protects existing analysis results. Set it to
+  `TRUE` to replace the selected analyses' output files. Working folders are
+  read only.
+
+The pipeline discovers each run's country-zone raster (`admin_c.tif`) and
+country crosswalk, preferring frozen metadata when available. All four runs
+must agree. Optional batch fields `zones` and `crosswalk` accept explicit
+paths to override discovery, for example a validated emissions country-zone
+raster. Keep the three scripts together in the repository.
+
+From a terminal with `Rscript` available, use the full script path, quoted
+if it contains spaces. For example on this Linux computer:
+
+```sh
+Rscript /home/mofuss/Documents/mofuss/localhost/scripts/postprocessing_sourcing/0post_runtime_sourcing_pipeline_v1.R --check
+```
+
+Remove `--check` to process. On Windows, Source in RStudio works without
+adding `Rscript.exe` to PATH; the pipeline locates it in the current R installation.
+
+## Required completed-run exports
+
+The compact `Sourcing/` records alone are insufficient. Both analyses also
+need annual diagnostic rasters from each selected Monte Carlo realization in
+`debugging_<MC>/`, numbered with the model time step (year minus start year
+plus one):
+
+- Stage 1: `Harvest_tot`, `Expect_harv_tot`, `harv_AGR`, `Proj_harv_Vdef`.
+  It also needs installed W/V component IDWs, annual demand tables, parameters,
+  and the `LULCC/TempRaster/npa_c.tif` raster.
+- Stage 2: `Proj_harv_Wtot`, `Proj_harv_Vtot`, `Proj_harv_Wdef`,
+  `Proj_harv_Vdef`, `Non_harv_AGR`, `Ex_agr_harv`, `harv_AGR`,
+  `Expect_harv_tot`, `Harvest_tot`, together with the recorded scalar, mask,
+  forest-state and static captures in `Sourcing/` and the model input indices.
+
+If those annual exports were disabled during Dinamica, check mode stops and
+identifies the missing files. Copying the postprocessing scripts cannot recover
+them: use a matching archived export, or a future model run configured to save
+the required diagnostics. Never fill missing pressure or clearing maps with zeros.
+
+The Linux migration's removal of eight required exports was corrected in the
+repository model on 2026-09-30. New preprocessing copies include the fix;
+previously prepared Linux folders need the corrected `.egoml` before a future
+simulation. Windows v13 already includes these exports. See
+[the correction and update instructions](../README_LINUX.md#sourcing-export-correction-2026-09-30).
+
+## Run Stage 2 directly
 
 ```r
-source("C:/Users/UNAM/Documents/mofuss/localhost/scripts/postprocessing_sourcing/2post_runtime_sourcing_v1.R")
+source("/path/to/mofuss/localhost/scripts/postprocessing_sourcing/2post_runtime_sourcing_v1.R")
 rs_main(c(
-  "--run-dir=E:/ECSA_1000m_bau1_2050_mc3_capped",
+  "--run-dir=/path/to/completed_scenario",
   "--zones=PATH_TO_VALIDATED_COUNTRY_ZONE_RASTER",
   "--crosswalk=PATH_TO_FROZEN_COUNTRY_CROSSWALK.csv",
   "--output-dir=PATH_TO_THIS_RUNS_POSTPROCESSING_DIRECTORY"

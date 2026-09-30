@@ -126,7 +126,7 @@ PIPELINE_BATCHES <- list(
 
 # Run all stages in order. Use 3:5 to resume at Stage 3, or 5L to refresh only
 # the consolidated results from every completed regional/singleton analysis.
-PIPELINE_STAGES <- 1:5 #1:5
+PIPELINE_STAGES <- 2:5 #1:5
 
 # Stage 1: character() retains the v9 default multi-period/snapshot schedule.
 # Otherwise supply one or more explicit periods, for example c("2026:2050").
@@ -737,7 +737,7 @@ pipeline_main <- function(args = commandArgs(trailingOnly = TRUE)) {
   }
   overwrite_arg <- if (config$clean_rebuild) "--overwrite" else character()
   dry_run_arg <- if (config$dry_run) "--dry-run" else character()
-  batch_stages <- intersect(config$stages, 1:4)
+  batch_stages <- base::intersect(config$stages, 1:4)
 
   for (batch_index in seq_along(config$batches)) {
     batch <- config$batches[[batch_index]]

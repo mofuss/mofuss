@@ -15,14 +15,13 @@
 #      pressure rasters, retaining other model harvest as an explicit residual;
 #   3. constructs period W origin weights from the installed country-specific
 #      IDWs and their exact annual lookup-table demands;
-#   4. reconstructs the two installed V components (regional importers and
-#      domestic Somalia), then splits the pooled importer component by each
-#      country's share of national V demand; and
+#   4. reconstructs the installed V components, splitting any pooled component
+#      by each member country's share of national V demand; and
 #   5. aggregates the attributed harvest by ADM0 source country.
 #
 # This is an approximation, not observed trade. In particular, the origin IDW
 # weights do not reproduce the model's changing annual biomass/Patcher masks.
-# The richer rerun design will retain origin components inside the model.
+# Use Stage 2 for attribution from the model's recorded runtime captures.
 
 suppressPackageStartupMessages({
   library(data.table)
@@ -36,25 +35,11 @@ options(stringsAsFactors = FALSE, warn = 1)
 
 # BEGIN USER INPUTS ----------------------------------------------------------
 .defaults <- list(
-  scenario_dirs = c(
-    "E:/GLEA_1000m_bau1_2050_mc3_capped",
-    "E:/GLEA_1000m_bau1_2050_mc3_uncapped",
-    "E:/GLEA_1000m_ics3_2050_mc3_capped",
-    "E:/GLEA_1000m_ics3_2050_mc3_uncapped"
-  ),
-  zones = paste0(
-    "E:/_postprocessing_draft/GLEA_1000m_ics3_2050_mc3/pairs/",
-    "ssa_adm0_glea_1000m_bau1_v2_vs_ics3_v2_2026_2050_mc3_capped/",
-    "emissions/country/country_harvest_zones.tif"
-  ),
-  boundaries = paste0(
-    "E:/_postprocessing_draft/GLEA_1000m_ics3_2050_mc3/",
-    "agb_decomposition/country_boundaries.gpkg"
-  ),
-  output_dir = "E:/MoFuSS_Active/glea_sourcing_attribution_v1",
+  # Configure the batch entry point 0post_runtime_sourcing_pipeline_v1.R,
+  # or provide these paths through the command-line options below.
+  scenario_dirs = character(), zones = NULL, boundaries = NULL, output_dir = NULL,
   periods = c("2020:2030", "2030:2040", "2040:2050", "2020:2050"),
-  mc_runs = integer(),
-  overwrite = FALSE
+  mc_runs = integer(), overwrite = FALSE, check = FALSE
 )
 # END USER INPUTS ------------------------------------------------------------
 
@@ -69,7 +54,9 @@ options(stringsAsFactors = FALSE, warn = 1)
   cfg <- defaults
   scenario_dirs <- character()
   for (arg in args) {
-    if (grepl("^--scenario-dir=", arg)) {
+    if (identical(arg, "--check")) {
+      cfg$check <- TRUE
+    } else if (grepl("^--scenario-dir=", arg)) {
       scenario_dirs <- c(scenario_dirs, sub("^--scenario-dir=", "", arg))
     } else if (grepl("^--zones=", arg)) {
       cfg$zones <- sub("^--zones=", "", arg)
@@ -94,14 +81,15 @@ options(stringsAsFactors = FALSE, warn = 1)
         "Usage: Rscript 1post_model_implied_sourcing_v1.R [options]\n",
         "  --scenario-dir=PATH   Repeat once per completed run\n",
         "  --zones=PATH          Validated country harvest-zone raster\n",
-        "  --boundaries=PATH     Country boundary/crosswalk GPKG\n",
+        "  --boundaries=PATH     Country crosswalk CSV or boundary GPKG\n",
         "  --output-dir=PATH     Output directory\n",
         "  --periods=A:B,C:D     Inclusive reporting periods\n",
         "  --mc-runs=1:3         Optional Monte Carlo subset\n",
-        "  --overwrite=true      Replace existing CSV outputs\n",
+        "  --overwrite=true      Replace existing CSV outputs\n  --check               Validate inputs without writing analysis outputs\n",
         sep = ""
       )
-      quit(save = "no", status = 0L)
+      cfg$help <- TRUE
+      return(cfg)
     } else {
       .stopf("Unknown argument: %s", arg)
     }
@@ -149,7 +137,7 @@ options(stringsAsFactors = FALSE, warn = 1)
   )
   pars <- .read_key_value(.norm_existing(param_path, "Dinamica parameter table"))
   needed <- c("start_year", "end_year", "monte_carlo_runs", "uncapped_regrowth", "npa_ease")
-  missing <- setdiff(needed, names(pars))
+  missing <- base::setdiff(needed, names(pars))
   if (length(missing)) {
     .stopf("Parameter table is missing: %s", paste(missing, collapse = ", "))
   }
@@ -227,7 +215,7 @@ options(stringsAsFactors = FALSE, warn = 1)
   )
   tab <- fread(.norm_existing(path, sprintf("%s component index", channel)))
   required <- c("ComponentIndex", "DemandISO3", "JobID", "DirectionRule", "AllowedSourceISO3")
-  missing <- setdiff(required, names(tab))
+  missing <- base::setdiff(required, names(tab))
   if (length(missing)) {
     .stopf("%s is missing: %s", path, paste(missing, collapse = ", "))
   }
@@ -492,7 +480,7 @@ options(stringsAsFactors = FALSE, warn = 1)
   allocated <- fractions * actual_channel
   tab <- as.data.table(zonal(allocated, zones, fun = "sum", na.rm = TRUE))
   setnames(tab, 1L, "source_id")
-  value_columns <- setdiff(names(tab), "source_id")
+  value_columns <- base::setdiff(names(tab), "source_id")
   for (column in value_columns) {
     set(tab, which(!is.finite(tab[[column]])), column, 0)
   }
@@ -562,7 +550,14 @@ options(stringsAsFactors = FALSE, warn = 1)
   list(matrix = matrix_summary, origin = origin_summary)
 }
 
-cfg <- .parse_cli(commandArgs(trailingOnly = TRUE))
+mis_main <- function(args = commandArgs(trailingOnly = TRUE)) {
+cfg <- .parse_cli(args)
+if (isTRUE(cfg$help)) return(invisible(NULL))
+if (!length(cfg$scenario_dirs) || any(vapply(cfg[c("zones", "boundaries", "output_dir")],
+    function(x) is.null(x) || length(x) != 1L || is.na(x) || !nzchar(x), logical(1)))) {
+  .stopf("scenario-dir, zones, boundaries and output-dir are required; configure 0post_runtime_sourcing_pipeline_v1.R.")
+}
+
 cfg$scenario_dirs <- vapply(
   cfg$scenario_dirs, .norm_existing, character(1L), label = "scenario directory"
 )
@@ -570,28 +565,44 @@ cfg$zones <- .norm_existing(cfg$zones, "country harvest-zone raster")
 cfg$boundaries <- .norm_existing(cfg$boundaries, "country boundaries")
 periods <- .parse_periods(cfg$periods)
 
-if (!dir.exists(cfg$output_dir)) {
-  dir.create(cfg$output_dir, recursive = TRUE, showWarnings = FALSE)
+output_names <- c(
+  "sourcing_matrix_by_mc.csv", "sourcing_matrix_mc_summary.csv",
+  "origin_sourcing_summary_by_mc.csv", "origin_sourcing_summary_mc_summary.csv",
+  "sourcing_matrix_combined_by_mc.csv", "sourcing_matrix_combined_mc_summary.csv",
+  "origin_sourcing_combined_by_mc.csv", "origin_sourcing_combined_mc_summary.csv",
+  "kenya_sourcing_summary.csv", "sourcing_conservation_qa.csv", "sourcing_methodology.csv"
+)
+if (!cfg$overwrite && any(file.exists(file.path(cfg$output_dir, output_names)))) {
+  .stopf("Approximation output exists; select another output directory or --overwrite=true")
 }
-if (!dir.exists(cfg$output_dir)) .stopf("Could not create output directory: %s", cfg$output_dir)
-cfg$output_dir <- normalizePath(cfg$output_dir, winslash = "/", mustWork = TRUE)
-temp_dir <- file.path(cfg$output_dir, "terra_tmp")
-if (!dir.exists(temp_dir)) dir.create(temp_dir, recursive = TRUE, showWarnings = FALSE)
-terraOptions(tempdir = temp_dir, memfrac = 0.65, progress = 0)
+if (!cfg$check) {
+  dir.create(cfg$output_dir, recursive = TRUE, showWarnings = FALSE)
+  if (!dir.exists(cfg$output_dir)) .stopf("Could not create output directory: %s", cfg$output_dir)
+  cfg$output_dir <- normalizePath(cfg$output_dir, winslash = "/", mustWork = TRUE)
+  terraOptions(tempdir = Sys.getenv("MOFUSS_SOURCING_TEMP_DIR", unset=tempdir()),
+    memfrac = 0.65, progress = 0)
+}
 
 zones <- rast(cfg$zones)
 if (nlyr(zones) != 1L) .stopf("Country zone raster must have exactly one layer")
-boundaries <- vect(cfg$boundaries)
-required_boundary_fields <- c("ID", "GID_0", "NAME_0")
-missing_boundary_fields <- setdiff(required_boundary_fields, names(boundaries))
-if (length(missing_boundary_fields)) {
-  .stopf("Country boundaries are missing: %s", paste(missing_boundary_fields, collapse = ", "))
+boundary_table <- if (tolower(tools::file_ext(cfg$boundaries)) %in% c("gpkg", "shp")) {
+  as.data.table(as.data.frame(vect(cfg$boundaries)))
+} else fread(cfg$boundaries, showProgress = FALSE)
+if (all(c("source_id", "source_iso3") %in% names(boundary_table))) {
+  if (!"source_name" %in% names(boundary_table)) boundary_table[, source_name := source_iso3]
+  country_crosswalk <- boundary_table[, .(source_id=as.integer(source_id),
+    source_iso3=as.character(source_iso3), source_name=as.character(source_name))]
+} else {
+  if (!"ID" %in% names(boundary_table) && "CountryID" %in% names(boundary_table)) {
+    setnames(boundary_table, "CountryID", "ID")
+  }
+  if (!all(c("ID", "GID_0", "NAME_0") %in% names(boundary_table))) {
+    .stopf("Country crosswalk requires source_id/source_iso3/source_name or ID/GID_0/NAME_0.")
+  }
+  country_crosswalk <- boundary_table[, .(source_id=as.integer(ID),
+    source_iso3=as.character(GID_0), source_name=as.character(NAME_0))]
 }
-country_crosswalk <- as.data.table(as.data.frame(boundaries))[, .(
-  source_id = as.integer(ID),
-  source_iso3 = as.character(GID_0),
-  source_name = as.character(NAME_0)
-)]
+if (!nrow(country_crosswalk) || anyNA(country_crosswalk)) .stopf("Invalid country crosswalk")
 if (anyDuplicated(country_crosswalk$source_id) || anyDuplicated(country_crosswalk$source_iso3)) {
   .stopf("Country boundary IDs and ISO3 codes must be unique")
 }
@@ -613,7 +624,7 @@ for (run_dir in cfg$scenario_dirs) {
            meta$start_year, meta$end_year, meta$run_name)
   }
   mc_runs <- if (length(cfg$mc_runs)) cfg$mc_runs else seq_len(meta$monte_carlo_runs)
-  if (any(mc_runs < 1L | mc_runs > meta$monte_carlo_runs)) {
+  if (anyNA(mc_runs) || any(mc_runs < 1L | mc_runs > meta$monte_carlo_runs)) {
     .stopf("Invalid Monte Carlo selection for %s", meta$run_name)
   }
 
@@ -623,7 +634,7 @@ for (run_dir in cfg$scenario_dirs) {
     w_index$DemandISO3,
     unlist(strsplit(v_index$DemandISO3, ";", fixed = TRUE))
   )))
-  if (!setequal(region_iso3, country_crosswalk$source_iso3)) {
+  if (!base::setequal(region_iso3, country_crosswalk$source_iso3)) {
     .stopf("Component countries and source-zone countries disagree for %s", meta$run_name)
   }
 
@@ -638,11 +649,32 @@ for (run_dir in cfg$scenario_dirs) {
     .stopf("Country harvest zones do not match model grid for %s", meta$run_name)
   }
   npa <- rast(.norm_existing(
-    file.path(run_dir, "LULCC", "TempRaster", "NPA_c.tif"),
+    file.path(run_dir, "LULCC", "TempRaster", "npa_c.tif"),
     "NPA raster"
   ))
   if (!compareGeom(template, npa, stopOnError = FALSE)) {
     .stopf("NPA raster does not match model grid for %s", meta$run_name)
+  }
+  if (cfg$check) {
+    steps <- .step_for_year(years_needed, meta$start_year)
+    paths <- unlist(lapply(mc_runs, function(mc) unlist(lapply(
+      c("Harvest_tot", "Expect_harv_tot", "harv_AGR", "Proj_harv_Vdef"),
+      function(stem) vapply(steps, function(step) .debug_path(run_dir, mc, stem, step), character(1))
+    ))))
+    for (channel in c("W", "V")) {
+      index <- if (channel == "W") w_index else v_index
+      paths <- c(paths, unlist(lapply(index$ComponentIndex, function(component) {
+        vapply(unique(vapply(steps, .idw_step, integer(1))), function(step) {
+          .component_path(run_dir, channel, component, step)
+        }, character(1))
+      })))
+    }
+    missing <- paths[!file.exists(paths)]
+    if (length(missing)) .stopf(paste0("Missing approximation input: %s (%d missing). ",
+      "Annual diagnostic rasters must have been exported by Dinamica; this analysis cannot recreate missing exports."),
+      missing[[1L]], length(missing))
+    .msg("CHECK OK approximation: %s; %d MC(s), %d years", meta$run_name, length(mc_runs), length(years_needed))
+    next
   }
   npa_multiplier <- ifel(!is.na(npa), meta$npa_ease / 100, 1)
 
@@ -781,6 +813,8 @@ for (run_dir in cfg$scenario_dirs) {
     gc(verbose = FALSE)
   }
 }
+
+if (cfg$check) return(invisible(cfg))
 
 matrix_by_mc <- rbindlist(all_matrix, use.names = TRUE)
 qa <- rbindlist(all_qa, use.names = TRUE)
@@ -976,3 +1010,8 @@ methodology <- data.table(
 .msg("Wrote model-implied sourcing approximation to: %s", cfg$output_dir)
 .msg("Rows: matrix by MC=%d; matrix MC summary=%d; origin summary=%d",
      nrow(matrix_by_mc), nrow(mc_summary$matrix), nrow(mc_summary$origin))
+
+}
+
+# The batch pipeline calls this script in a fresh R process.
+if (sys.nframe() == 0L) mis_main()
