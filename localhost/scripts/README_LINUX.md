@@ -33,6 +33,47 @@ Neither is a separate human workflow step. There is no extra setup, deployment
 or input-preparation command to run. Optional `./run_linux.sh --check` prepares
 compatibility metadata and validates readiness without simulating.
 
+### Sparse Telegram updates
+
+`run_linux.sh` can use the existing webMoFuSS bot to send a short start message,
+one update every 30 minutes, and completion, failure, or interruption. Messages
+identify the working folder and computer. Periodic updates show elapsed time
+and the latest saved MC/year harvest, when available; they do not claim that
+the report is finished before the launcher succeeds.
+
+Copying the updated shell file is sufficient; the notifier is embedded in it
+and uses Python's standard library and the
+[Telegram sendMessage API](https://core.telegram.org/bots/api#sendmessage).
+It reads `MOFUSS_TELEGRAM_BOT_TOKEN` and `MOFUSS_TELEGRAM_CHAT_ID` from the local
+repository `.env` (including `mofuss/localhost/scripts/.env`), or the process
+environment. It searches repository locations beside the scenario and under
+`~/Documents/mofuss`. Credentials stay in that file and are not copied into
+working folders. The `.env` is read as data, never executed as shell code.
+
+The marked shell user-input block contains three controls:
+
+- `MOFUSS_TELEGRAM_MSGS=1`: notifications enabled; `0` disables them.
+- `MOFUSS_TELEGRAM_INTERVAL_MINUTES=30`: periodic interval, from 1 to 1440 minutes.
+- `MOFUSS_TELEGRAM_ENV_FILE=""`: automatic discovery; set an absolute `.env`
+  path if the repository is stored elsewhere on that computer.
+
+You can also supply them in the terminal, for example:
+
+```bash
+MOFUSS_TELEGRAM_ENV_FILE="/data/mofuss/repository/localhost/scripts/.env" ./run_linux.sh
+```
+
+To send a single test message without starting a simulation:
+
+```bash
+./run_linux.sh --telegram-test
+```
+
+`--check` and `--help` send no messages. Missing credentials or a Telegram
+network failure allow the normal simulation to continue; credentials and HTTP
+error details are never printed. Notifications apply to runs started with the
+updated launcher, including when four scenarios are launched separately.
+
 The simulation launcher derives BAU/ICS role from the existing parameter CSVs:
 
 | Scenario | `BaU vs ICS scenario` | `Re-run MonteCarlo?` |
