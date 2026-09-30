@@ -13,16 +13,23 @@ harvest. `annual_*` files contain the same information for individual years.
 mean and empirical 2.5th/97.5th percentiles. Three MC runs provide a preliminary
 description, not reliable uncertainty bounds.
 
-## Run both sourcing analyses by batch (Windows or Linux)
+## Run recorded sourcing by batch (Windows or Linux)
 
 Open `0post_runtime_sourcing_pipeline_v1.R` in RStudio. Edit only the marked
 `BEGIN USER INPUTS` / `END USER INPUTS` block, then Source the saved file.
-This entry point runs Stage 1 (the older model-implied approximation) followed
-by Stage 2 (recorded runtime sourcing), in separate R sessions for each batch.
+This entry point runs the selected stages in separate R sessions for each batch.
+Stage 2 (recorded runtime sourcing) is selected; it does **not** require running
+Stage 1 (the older approximation) first. Simply sourcing the `2post_` file
+only loads its functions; Source the `0post_` pipeline to run the analysis.
 It requires R with `terra` and `data.table` installed. It does not require Codex.
 
 - Set each entry in `SOURCING_BATCHES` to `enabled = TRUE` or `FALSE`.
-  AGO is enabled initially; the other regional examples are disabled.
+  ECSA is currently enabled; the other regional examples are disabled.
+  The current Windows configuration matches the emissions analysis: the four
+  completed `D:/ECSA_1000m_{bau1,ics3}_2050_mc3_{capped,uncapped}` folders,
+  with outputs in
+  `D:/mofuss_postprocessing/ECSA_1000m_2050_mc3/runtime_sourcing/`.
+  The similarly named prepared folders on `E:/` are not the completed runs.
 - `SOURCING_WORKING_ROOT = "AUTO"` finds the parent of the repository from
   the script location, independently of the current R working directory.
   This works when `mofuss/` and the scenario folders are siblings.
@@ -38,10 +45,14 @@ It requires R with `terra` and `data.table` installed. It does not require Codex
   Set an absolute analysis parent to store all batches elsewhere.
 - `SOURCING_STAGES = 1:2` runs both; use `1L` or `2L` to select one.
   `SOURCING_MC_RUNS = "all"` processes the configured realizations.
-- `SOURCING_CHECK_ONLY = TRUE` checks required inputs and existing outputs
-  for all enabled batches before any analysis writes results. The same check
-  runs automatically before normal processing. Calculation-time reconciliation
-  checks still run during the analyses.
+- `SOURCING_TEMP_DIR` holds disposable raster scratch, not final tables.
+  On this Windows machine it is `E:/MoFuSS_Active/runtime_sourcing`;
+  change it to a writable local path when moving the configuration to Linux.
+- `SOURCING_CHECK_ONLY = TRUE` checks required inputs for all enabled batches
+  without writing analysis results. Stage 2 can validate inputs even when its
+  results already exist. Before normal processing the pipeline also rejects
+  existing result files unless overwrite is enabled. Calculation-time
+  reconciliation checks still run during the analyses.
 - `SOURCING_OVERWRITE = FALSE` protects existing analysis results. Set it to
   `TRUE` to replace the selected analyses' output files. Working folders are
   read only.
@@ -129,6 +140,12 @@ origin's own redistribution and labels it
 `origin_preserving_TOF_redistribution`. The QA table distinguishes direct W
 crossing, pooled W crossing, origin-preserving W crossing, and forbidden V
 sources.
+
+For v13, the deficit check uses the captured per-origin shortfall scalars,
+not an inferred deficit from the legacy `Non_harv_AGR` raster. That raster can
+be zero even when the captured v13 origin redistribution is positive. The
+2026-09-30 reader correction selects the appropriate deficit before checking
+it; it does not alter the simulation or the attribution of recorded harvest.
 
 `clearing_credit_tonnes` identifies the country of the pixel where a model
 credit was **applied**, not the production location of cleared wood. Domestic,
