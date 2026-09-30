@@ -16,7 +16,7 @@ SOURCING_ANALYSIS_PARENT <- "AUTO"
 # Disabled batches are skipped. folders contains the four completed scenarios.
 SOURCING_BATCHES <- list(
   AGO = list(
-    enabled = TRUE,
+    enabled = FALSE,
     root = "",
     analysis_folder = "AGO_1000m_2050_mc3",
     folders = c(
@@ -27,7 +27,7 @@ SOURCING_BATCHES <- list(
     )
   ),
   ECSA = list(
-    enabled = FALSE,
+    enabled = TRUE,
     root = "",
     analysis_folder = "ECSA_1000m_2050_mc30",
     folders = c(

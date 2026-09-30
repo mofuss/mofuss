@@ -35,7 +35,7 @@
 # Keep placeholders disabled until their scenario folders exist locally.
 PIPELINE_BATCHES <- list(
   AGO = list(
-    enabled = TRUE,
+    enabled = FALSE,
     root = "/home/mofuss/Documents",
     analysis_folder = "AGO_1000m_2050_mc3",
     folders = c(
@@ -46,14 +46,14 @@ PIPELINE_BATCHES <- list(
     )
   ),
   ECSA = list(
-    enabled = FALSE,
-    root = "E:/",
-    analysis_folder = "ECSA_1000m_2050_mc30",
+    enabled = TRUE,
+    root = "D:/",
+    analysis_folder = "ECSA_1000m_2050_mc3",
     folders = c(
-      "ECSA_1000m_bau1_2050_mc30_capped",
-      "ECSA_1000m_bau1_2050_mc30_uncapped",
-      "ECSA_1000m_ics3_2050_mc30_capped",
-      "ECSA_1000m_ics3_2050_mc30_uncapped"
+      "ECSA_1000m_bau1_2050_mc3_capped",
+      "ECSA_1000m_bau1_2050_mc3_uncapped",
+      "ECSA_1000m_ics3_2050_mc3_capped",
+      "ECSA_1000m_ics3_2050_mc3_uncapped"
     )
   ),
   GOG = list(
@@ -126,7 +126,7 @@ PIPELINE_BATCHES <- list(
 
 # Run all stages in order. Use 3:5 to resume at Stage 3, or 5L to refresh only
 # the consolidated results from every completed regional/singleton analysis.
-PIPELINE_STAGES <- 2:5 #1:5
+PIPELINE_STAGES <- 1:5
 
 # Stage 1: character() retains the v9 default multi-period/snapshot schedule.
 # Otherwise supply one or more explicit periods, for example c("2026:2050").
@@ -162,7 +162,7 @@ PIPELINE_TEMP_DIR <- NULL
 # Stages 2-4 write every regional/singleton analysis root below this parent,
 # and Stage 5 auto-discovers each completed immediate child. This parent may be
 # absent at startup when Stage 2 is selected; Stage 2 creates it recursively.
-PIPELINE_GLOBAL_ANALYSIS_PARENT <- "/home/mofuss/Documents/mofuss_postprocessing"
+PIPELINE_GLOBAL_ANALYSIS_PARENT <- "D:/mofuss_postprocessing" #"D:/mofuss_postprocessing" "/home/mofuss/Documents/mofuss_postprocessing"
 PIPELINE_GLOBAL_OUTPUT_DIR <- file.path(
   PIPELINE_GLOBAL_ANALYSIS_PARENT,
   "globalsouth_2026_2050_mcvariale",
