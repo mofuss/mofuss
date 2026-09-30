@@ -107,6 +107,7 @@ library(leaflet)        # the map itself
 library(leaflet.extras) # rectangle draw toolbar
 
 
+# BEGIN USER INPUTS ----------------------------------------------------------
 # Internal parameters ----
 
 # =============================================================================
@@ -139,6 +140,7 @@ aoi_mode <- "analysis"
 square_draw_aoi <- TRUE
 nrb_threshold <- 100
 ctrees_units <- "CO2"
+# END USER INPUTS ------------------------------------------------------------
 
 stopf <- function(...) stop(sprintf(...), call. = FALSE)
 safe_id <- function(x) {

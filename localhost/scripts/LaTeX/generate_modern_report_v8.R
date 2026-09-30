@@ -14,6 +14,11 @@
 ##            <base_dir>/Summary_Report/assets/<code>_Growth_Harvest_*.mp4
 ## ============================================================================
 
+# BEGIN USER INPUTS ----------------------------------------------------------
+# Pass the report settings as arguments to generate_modern_report().
+# MOFUSS_PDFLATEX can select the PDFLaTeX executable.
+# END USER INPUTS ------------------------------------------------------------
+
 generate_modern_report <- function(base_dir,
                                     latex_dir    = file.path(base_dir, "LaTeX"),
                                     output_dir   = NULL,

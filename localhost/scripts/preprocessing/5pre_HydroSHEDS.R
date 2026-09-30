@@ -7,6 +7,11 @@
 # Internal parameters
 
 # Load packages ----
+# BEGIN USER INPUTS ----------------------------------------------------------
+# Scenario settings come from parameters.csv. Select the source dataset
+# using the directory dialog below.
+# END USER INPUTS ------------------------------------------------------------
+
 library(terra)
 library(sf)
 library(tidyverse)

@@ -17,6 +17,11 @@
 # The script deliberately does not copy or control Dinamica's internal Patcher
 # random-number stream. It pairs the Monte Carlo parameter tables only.
 
+# BEGIN USER INPUTS ----------------------------------------------------------
+# Scenario settings are read from parameters.csv and the calling workflow.
+# Edit the parameter table for the selected working folder.
+# END USER INPUTS ------------------------------------------------------------
+
 options(stringsAsFactors = FALSE)
 
 required_mc_files <- c(

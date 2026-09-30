@@ -72,6 +72,7 @@ if (!requireNamespace("ggplot2", quietly = TRUE)) stop("Please install 'ggplot2'
 ## `conflicted` package (or an attached raster/dplyr/glue/gdata package) from
 ## making function dispatch depend on the user's current RStudio session.
 
+# BEGIN USER INPUTS ----------------------------------------------------------
 # Internal parameters ----
 
 ###############################################################################
@@ -95,6 +96,7 @@ BASE_YEAR <- 2000L
 END_YEAR <- 2025L
 SIM_END_YEAR <- 2050L
 CARBON_FRACTION <- 0.47
+# END USER INPUTS ------------------------------------------------------------
 
 stopf <- function(...) stop(sprintf(...), call. = FALSE)
 safe_id <- function(x) {

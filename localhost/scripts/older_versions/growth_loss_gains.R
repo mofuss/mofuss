@@ -56,6 +56,7 @@ suppressPackageStartupMessages({
   library(terra); library(sf); library(data.table); library(ggplot2)
 })
 
+# BEGIN USER INPUTS ----------------------------------------------------------
 # Internal parameters ----
 
 ## ----------------------------- CONFIG -----------------------------
@@ -71,6 +72,7 @@ cfg <- list(
 )
 ## ------------------------------------------------------------------
 args <- commandArgs(trailingOnly = TRUE)
+# END USER INPUTS ------------------------------------------------------------
 if (length(args) >= 1) cfg$working_dir <- args[[1]]
 
 GREEN <- "#2e7d32"; ORANGE <- "#e07b39"

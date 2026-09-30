@@ -35,6 +35,7 @@ args=(commandArgs(TRUE))
 if(length(args)==0){
   print("No arguments supplied by DINAMICA.")
   ##Supply default values here (to be used when running the script through R directly)
+  # BEGIN USER INPUTS ----------------------------------------------------------
   MC = 30 # MonteCarlo runs
   IT = 2000 # Initial year
   K_MC=1
@@ -62,6 +63,7 @@ if(length(args)==0){
   cutoff_yrs=10
   DryRun=0
   
+  # END USER INPUTS ------------------------------------------------------------
 }else{
   for(i in 1:length(args)){
     eval(parse(text=args[[i]]))

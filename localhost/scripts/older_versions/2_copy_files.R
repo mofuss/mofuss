@@ -7,9 +7,11 @@
 # work smoothly with GEE at varying scales!!
 # Fix for linux cluster
 
+# BEGIN USER INPUTS ----------------------------------------------------------
 # Internal parameters
 # Select MoFuSS platform:
 webmofuss = 0 # "1" is  web-MoFuSS running in our Ubuntu server, "0" is localcal host (Windows or Linux)
+# END USER INPUTS ------------------------------------------------------------
 
 # Load libraries ----
 library(stringr)

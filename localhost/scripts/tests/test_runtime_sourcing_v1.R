@@ -1,5 +1,5 @@
 #!/usr/bin/env Rscript
-# Small synthetic tests only. Disposable rasters stay in the approved task scratch.
+# Small synthetic tests only. Disposable rasters stay in R temporary storage.
 source("localhost/scripts/postprocessing_sourcing/2post_runtime_sourcing_v1.R")
 .rs_require()
 library(data.table)
@@ -26,8 +26,7 @@ check(.rs_normalize(1,2,s_increase)==62.5,"negative demand knob preserves demand
 check(identical(.rs_accumulate(list(c(NA_real_,1),c(NA_real_,2)),TRUE,c(0,0)),c(0,3)),"null-union retains initial zero accumulator")
 expect_error(.rs_match_pressure(c(1,2),c(1,3),"synthetic",c(TRUE,TRUE)),"differs")
 
-scratch<-file.path("E:/MoFuSS_Active/ecsa_sourcing_and_speed_v1/runtime_sourcing_tests",
-                   paste0(format(Sys.time(),"%Y%m%d_%H%M%S"),"_",Sys.getpid()))
+scratch <- tempfile("mofuss_runtime_sourcing_")
 dir.create(file.path(scratch,"Sourcing","static"),recursive=TRUE)
 dir.create(file.path(scratch,"Sourcing","MC001"),recursive=TRUE)
 dir.create(file.path(scratch,"debugging_1"),recursive=TRUE)
@@ -126,4 +125,7 @@ changed<-copy(indices$W);changed[1,DemandISO3:="CCC"]
 fwrite(changed,file.path(scratch,relative_index))
 expect_error(.rs_index(scratch,"W"),"differs from frozen runtime snapshot")
 file.copy(frozen_index,file.path(scratch,relative_index),overwrite=TRUE)
-cat("ALL RUNTIME SOURCING TESTS PASSED\nScratch: ",scratch,"\n",sep="")
+if (!isTRUE(get0("MOFUSS_KEEP_SOURCING_TEST_FIXTURE", ifnotfound=FALSE))) {
+  unlink(scratch, recursive=TRUE)
+}
+cat("ALL RUNTIME SOURCING TESTS PASSED\n")

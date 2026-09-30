@@ -67,8 +67,8 @@ stopifnot(
 
 plan_output <- capture.output(plan <- .idw6f_pipeline_main("--check"))
 stopifnot(
-  identical(names(plan$batches), "synthetic"),
-  !plan$dry_run,
+  identical(names(plan$config$batches), "synthetic"),
+  !plan$config$dry_run,
   any(grepl("CHECK COMPLETE", plan_output, fixed = TRUE))
 )
 
@@ -95,6 +95,20 @@ stopifnot(
   all(vapply(calls, `[[`, character(1), "output_prefix") == "idw_"),
   isTRUE(dry_result$config$dry_run),
   any(grepl("DRY RUN COMPLETE: 1 batch(es), 4 run(s)", dry_output, fixed = TRUE))
+)
+
+# A completed BAU pair must not block the two remaining ICS installs.
+calls <- list()
+.idw6f_verify_single_component_install <- function(run_root) {
+  if (basename(run_root) %in% folder_names[1:2]) {
+    list(status = "already_installed")
+  } else NULL
+}
+resume_output <- capture.output(resume_result <- .idw6f_pipeline_main(character()))
+stopifnot(
+  length(calls) == 2L,
+  identical(vapply(calls, function(x) basename(x$run_root), character(1)), folder_names[3:4]),
+  sum(grepl("RUN VERIFIED (already installed; skipped)", resume_output, fixed = TRUE)) == 2L
 )
 
 duplicate_batches <- list(

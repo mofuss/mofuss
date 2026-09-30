@@ -62,6 +62,7 @@
 
 # 2dolist ----
 
+# BEGIN USER INPUTS ----------------------------------------------------------
 # Internal parameters ----
 
 .V9_REQUIRED_PACKAGES <- c("terra", "fs", "stringr", "dplyr", "readr", "tibble")
@@ -73,6 +74,7 @@
 )
 .V13_SPINUP_YEARS <- NA_integer_
 .V13_MIN_UNCERTAINTY_RUNS <- 30L
+# END USER INPUTS ------------------------------------------------------------
 
 .v13_pairing_design <- function(
   paired_mc_inputs_validated, patcher_bypassed, patcher_rng_paired

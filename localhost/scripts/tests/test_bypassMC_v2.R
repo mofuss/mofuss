@@ -189,6 +189,20 @@ created_ids <- sort(as.integer(sub(
 )))
 stopifnot(identical(created_ids, 1:30))
 
+# Linux lookup conversion must preserve the exact decimal strings of the
+# verified BAU inputs, including when the BAU has no Linux lookup files.
+for (kind in c("i_st", "rmax", "k")) {
+  original <- read.csv(file.path(bau, "Temp", paste0(kind, "_all.csv")),
+                       colClasses = "character", check.names = FALSE)
+  for (id in run_ids) {
+    lookup <- read.csv(file.path(ccts, "Temp", sprintf("mc_%s_%02d.csv", kind, id)),
+                       colClasses = "character", check.names = FALSE)
+    stopifnot(identical(lookup$Value, unname(unlist(original[id, -1, drop = FALSE]))))
+    stopifnot(dir.exists(file.path(ccts, "Sourcing", sprintf("MC%03d", id))))
+  }
+}
+stopifnot(dir.exists(file.path(ccts, "Sourcing", "static")))
+
 manifest <- read.csv(
   file.path(ccts, "Temp", "mc_bypass_manifest.csv"),
   stringsAsFactors = FALSE

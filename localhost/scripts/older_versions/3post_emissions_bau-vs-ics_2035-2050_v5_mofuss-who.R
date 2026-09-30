@@ -24,6 +24,11 @@
 
 ###
 # NEW PARAMETERS 4 DELTA AGB
+# BEGIN USER INPUTS ----------------------------------------------------------
+# Scenario settings are read from parameters.csv and the calling workflow.
+# Edit the parameter table for the selected working folder.
+# END USER INPUTS ------------------------------------------------------------
+
 demanddir <- "C:/Users/aghil/Documents/MoFuSS_FAO_localhost/demand"
 admindir <- "C:/Users/aghil/Documents/MoFuSS_FAO_localhost/admin_regions"
 emissionsdir <- "C:/Users/aghil/Documents/MoFuSS_FAO_localhost/emissions"

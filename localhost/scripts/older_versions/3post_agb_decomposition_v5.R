@@ -94,6 +94,7 @@ pairing_design_status <- function(
 
 # Scenario folders are supplied centrally by 0post_emissions_pipeline_v1.R.
 # This empty fallback prevents stale computer-specific paths from being used.
+# BEGIN USER INPUTS ----------------------------------------------------------
 SCENARIO_DIRS <- character()
 
 # RSTUDIO SOURCE SETTINGS. Edit these values, then use regular Source or
@@ -107,6 +108,7 @@ V5_RSTUDIO_PAIRING_POLICY <- "strict"
 V5_RSTUDIO_DRY_RUN <- FALSE
 V5_RSTUDIO_CLEAN_REBUILD <- TRUE
 V5_RSTUDIO_MAKE_PLOT <- TRUE
+# END USER INPUTS ------------------------------------------------------------
 
 # Load libraries ----
 # Required packages are checked and loaded by the Stage 3 runner.

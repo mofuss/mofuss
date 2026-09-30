@@ -1,0 +1,27 @@
+{
+  "canonical_folder": "/home/mofuss/Documents/AGO_1000m_bau1_2050_mc3_uncapped",
+  "run_success_json": "Logs/linux_run_20260929T201459809850Z.json",
+  "role": "Canonical completed Linux BAU run: MC3, 2000-2050, uncapped",
+  "recorded_utc": "2026-09-30T00:28:12.119185+00:00",
+  "existing_data_and_model_files_preserved": 8147,
+  "sha256": {
+    "10_dyn_Sc17_webmofuss_ctrees_g_v13_linux.egoml": "561b136e90bc6243045826cf12eecda92848a4194b7516bf71b190ce95a5f71c",
+    "Logs/linux_run_20260929T201459809850Z.json": "926b6a960747cae63ae072a5a80afe24787a724099500152f7160f6ef201f893",
+    "Summary_Report/MoFuSS_Summary_Report_BaU1_scenario.pdf": "e554f20b1fc9b38846b8c1e4e18bdd66d871fa8606ba3148312faf1bf9043e8c",
+    "Temp/mc_batch_ready.csv": "d33a429c40577016a561cae0c5dbbf0e86f5ae11fc1f0224fcacebfa7cd42977",
+    "Temp/i_st_all.csv": "c1aa32f78ba61e0a7ed977f9eacf1615e03ca9704a439c8e60bed8a5a07aa976",
+    "Temp/k_all.csv": "d412b35c6a44f1d486475b8d3372f3a4abcd5b1c209a279be644f1c493a1f2ee",
+    "Temp/rmax_all.csv": "47eb3a719fa1fa3ad6986942cb8c33e954dbd036f4f0ea78f3107ef37088bc58",
+    "Temp/Harvest_pixels_V.csv": "3bb412c9e7caf808e1b86be1ad5a52cd507f0d398eefe2ab1f13f4b556ff70e3",
+    "Temp/Harvest_pixels_W.csv": "d219d61863f19c9b0cdfd4587ed2e034e7daa467f07c254c0a6d105a1626af4a",
+    "Temp/Prune_factor_V.csv": "30d8e2bbd5eb5d0bd868f657717253c6d4fe708cea0d86003a90c44773626b96",
+    "Temp/Prune_factor_W.csv": "30d8e2bbd5eb5d0bd868f657717253c6d4fe708cea0d86003a90c44773626b96",
+    "Temp/LULC_Categories1.csv": "29aa35139ae9ae38057afff32c76b0f1b611c13d33f5b5bdbaa441114358b9ad",
+    "rnorm_v8.R": "b8c3a4e1ee30b14aee119ec0983192a434d67789d9afdb45873ede8790e392fe",
+    "NRB_graphs_datasets_v8.R": "a2e020486e3098df1d63d7a3a58fc04c8313f23385f09b6af2cf19ff5b733bf7",
+    "maps_animations_v8.R": "9cf5c3e2b221b37dc4d9d909f15a40a3b61415be8f57d74d1b406e9d77211fba",
+    "finalogs_v8.R": "fc21c7f873b9baee02b9c558c9920c93cb1718d557a78ae9ac1b547dad544c82",
+    "LaTeX/generate_modern_report_v8.R": "bf2e5eb185c1c3af4e67021e308ec8e69a956a8fc291af8e6d66e3836c4e6e47"
+  },
+  "notes": "Only Linux launch code/documentation was updated to use installed programs. No rerun; no scientific inputs, model, MC draws, reports, or outputs changed."
+}

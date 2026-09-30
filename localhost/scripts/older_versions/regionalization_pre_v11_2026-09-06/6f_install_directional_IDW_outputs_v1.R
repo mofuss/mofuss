@@ -40,6 +40,11 @@
 # invalid values, source-domain leakage and pre-existing installed outputs.
 # It never runs CostDistance_IDW and never overwrites an installed IDW.
 
+# BEGIN USER INPUTS ----------------------------------------------------------
+# The calling workflow supplies countrydir and the run settings.
+# Configure the selected working folder in the main workflow.
+# END USER INPUTS ------------------------------------------------------------
+
 suppressPackageStartupMessages(library(terra))
 
 .idw6f_stop <- function(...) {

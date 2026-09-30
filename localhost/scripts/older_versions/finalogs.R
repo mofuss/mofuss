@@ -43,8 +43,10 @@ args=(commandArgs(TRUE))
 if(length(args)==0){
 	print("No arguments supplied by DINAMICA.")
 	##Supply default values here (to be used when running the script through R directly)
+	# BEGIN USER INPUTS ----------------------------------------------------------
 	BaUvsICS="BaU"
 	
+	# END USER INPUTS ------------------------------------------------------------
 }else{
 	for(i in 1:length(args)){
 		eval(parse(text=args[[i]]))

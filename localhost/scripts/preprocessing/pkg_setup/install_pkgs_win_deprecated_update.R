@@ -2,6 +2,11 @@
 # Version 2
 # Date: Nov 2019
 
+# BEGIN USER INPUTS ----------------------------------------------------------
+# This script uses the source paths or function arguments shown below.
+# It has no separate editable parameter block.
+# END USER INPUTS ------------------------------------------------------------
+
 rm(list=ls(all=TRUE))
 
 # https://cran.rstudio.com/bin/windows/Rtools/

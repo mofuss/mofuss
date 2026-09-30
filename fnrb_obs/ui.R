@@ -7,6 +7,11 @@
 # Internal parameters ----
 
 # Load packages ----
+# BEGIN USER INPUTS ----------------------------------------------------------
+# Select countries and the reporting end year in the application sidebar.
+# Machine-local dataset paths are configured in server.R.
+# END USER INPUTS ------------------------------------------------------------
+
 library(shiny)
 library(leaflet)
 library(shinythemes)

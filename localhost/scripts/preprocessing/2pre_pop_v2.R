@@ -16,6 +16,11 @@
 
 # Define all folders based on node ----
 # Detect OS and node name
+# BEGIN USER INPUTS ----------------------------------------------------------
+# Scenario settings come from parameters.csv and the calling preprocessing
+# session. Dataset folders are selected through the directory dialogs below.
+# END USER INPUTS ------------------------------------------------------------
+
 os <- Sys.info()["sysname"]
 node_name <- Sys.info()[["nodename"]]
 cat(os,node_name)

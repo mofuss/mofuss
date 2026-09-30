@@ -45,6 +45,10 @@
 # Internal parameters ----
 
 # Load libraries ----
+# BEGIN USER INPUTS ----------------------------------------------------------
+# Pass report settings as arguments to generate_modern_report().
+# END USER INPUTS ------------------------------------------------------------
+
 library(conflicted)
 
 library(dplyr)

@@ -16,6 +16,11 @@
 
 # Define all folders based on node ----
 # Detect OS and node name
+# BEGIN USER INPUTS ----------------------------------------------------------
+# The calling workflow supplies countrydir and the run settings.
+# Configure the selected working folder in the main workflow.
+# END USER INPUTS ------------------------------------------------------------
+
 os <- Sys.info()["sysname"]
 node_name <- Sys.info()[["nodename"]]
 cat(os,node_name)

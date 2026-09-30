@@ -5,6 +5,11 @@
 # Runtime masks/bases/scalars must come from the v12 capture contract; the
 # existing annual model rasters remain the authority for total realised harvest.
 
+# BEGIN USER INPUTS ----------------------------------------------------------
+# Configure 0post_runtime_sourcing_pipeline_v1.R, or supply options to
+# rs_main(). This helper receives its run folders and settings from its caller.
+# END USER INPUTS ------------------------------------------------------------
+
 .rs_stop <- function(...) stop(sprintf(...), call. = FALSE)
 .rs_require <- function() {
   for (pkg in c("terra", "data.table")) {
@@ -41,7 +46,7 @@
   if (ncol(tab) < 2L) .rs_stop("Invalid runtime scalar table: %s", path)
   key <- suppressWarnings(as.integer(tab[[1L]])); value <- as.numeric(tab[[2L]])
   if (anyNA(key) || anyDuplicated(key) ||
-      !(setequal(key, 1:18) || setequal(key, 1:24))) {
+      !(base::setequal(key, 1:18) || base::setequal(key, 1:24))) {
     .rs_stop("Expected codec keys 1..18 (v12) or 1..24 (v13 W) in %s", path)
   }
   nkey <- length(key); value <- value[match(seq_len(nkey), key)]
@@ -196,7 +201,7 @@
 .rs_maps <- c("Proj_harv_Wtot","Proj_harv_Vtot","Proj_harv_Wdef","Proj_harv_Vdef",
               "Non_harv_AGR","Ex_agr_harv","harv_AGR","Expect_harv_tot","Harvest_tot")
 
-.rs_year <- function(meta, mc, year, zones, crosswalk, indices, block_mb=64, signed_policy="report") {
+.rs_year_inputs <- function(meta, mc, year, indices) {
   step <- year-meta$start+1L
   cap <- file.path(meta$run,"Sourcing",sprintf("MC%03d",mc))
   index <- data.table::rbindlist(lapply(c("W","V"),function(ch) {
@@ -217,7 +222,16 @@
     vapply(.rs_maps,function(stem) file.path(meta$run,sprintf("debugging_%d",mc),sprintf("%s%02d.tif",stem,step)),character(1)))
   paths <- c(base_paths,other_paths,file.path(meta$run,"Sourcing","static","accumulator_domain.tif"),
              if(origin_preserving)file.path(cap,sprintf("forest_state%02d.tif",step)))
-  if (any(!file.exists(paths))) .rs_stop("Missing runtime/annual raster: %s",paste(paths[!file.exists(paths)],collapse="; "))
+  if (any(!file.exists(paths))) .rs_stop(paste0("Missing runtime/annual raster: %s. ",
+    "Compact Sourcing captures also require the annual diagnostic rasters exported by Dinamica; ",
+    "this analysis cannot recreate missing exports."),paste(paths[!file.exists(paths)],collapse="; "))
+  list(index=index, scalars=scalars, origin_preserving=origin_preserving, paths=paths)
+}
+
+.rs_year <- function(meta, mc, year, zones, crosswalk, indices, block_mb=64, signed_policy="report") {
+  inputs <- .rs_year_inputs(meta, mc, year, indices)
+  index <- inputs$index; scalars <- inputs$scalars
+  origin_preserving <- inputs$origin_preserving; paths <- inputs$paths
   r <- terra::rast(paths)
   if (!terra::compareGeom(r,zones,stopOnError=FALSE)) .rs_stop("Country zones differ from model grid")
   terra::readStart(r); on.exit(terra::readStop(r),add=TRUE)
@@ -418,12 +432,19 @@
 
 rs_main <- function(args=commandArgs(trailingOnly=TRUE)) {
   .rs_require()
+  scratch <- Sys.getenv("MOFUSS_SOURCING_TEMP_DIR", unset="")
+  if (nzchar(scratch)) {
+    old_scratch <- terra::terraOptions(print=FALSE)$tempdir
+    on.exit(terra::terraOptions(tempdir=old_scratch), add=TRUE)
+    terra::terraOptions(tempdir=scratch)
+  }
   cfg <- list(runs=character(),zones=NULL,crosswalk=NULL,output=NULL,mc=integer(),
-     periods=c("2020:2030","2030:2040","2040:2050","2020:2050"),block_mb=64,signed_policy="error",overwrite=FALSE)
+     periods=c("2020:2030","2030:2040","2040:2050","2020:2050"),block_mb=64,signed_policy="error",overwrite=FALSE,check=FALSE)
   for(arg in args) {
+    if (identical(arg, "--check")) { cfg$check <- TRUE; next }
     if(arg %in% c("--help","-h")) {
       cat("Usage: Rscript 2post_runtime_sourcing_v1.R --run-dir=PATH [repeat] --zones=RASTER --crosswalk=CSV_OR_GPKG --output-dir=PATH\n",
-          "Optional: --periods=2020:2030,2030:2040,2040:2050,2020:2050 --mc-runs=1:3 --block-mb=64 --signed-policy=report|error --overwrite=YES\n",
+          "Optional: --periods=2020:2030,2030:2040,2040:2050,2020:2050 --mc-runs=1:3 --block-mb=64 --signed-policy=report|error --overwrite=YES --check\n",
           "Signed policy defaults to error. Periods have inclusive endpoints. Outputs describe model-implied accounting, not observed trade.\n",sep="")
       return(invisible(NULL))
     }
@@ -462,14 +483,24 @@ rs_main <- function(args=commandArgs(trailingOnly=TRUE)) {
     mc_runs<-if(length(cfg$mc))cfg$mc else seq_len(meta$mc)
     if(anyNA(mc_runs)||any(mc_runs<1|mc_runs>meta$mc)).rs_stop("MC index outside configured run count")
     indices<-setNames(lapply(c("W","V"),function(ch).rs_index(run,ch)),c("W","V"))
-    if(!setequal(indices$W$DemandISO3,cw$source_iso3)||!setequal(indices$V$DemandISO3,cw$source_iso3))
+    if(!base::setequal(indices$W$DemandISO3,cw$source_iso3)||!base::setequal(indices$V$DemandISO3,cw$source_iso3))
       .rs_stop("Component countries and source-country crosswalk differ")
+    if (cfg$check) {
+      for (mc in mc_runs) for (year in years) {
+        inputs <- .rs_year_inputs(meta, mc, year, indices)
+        if (!terra::compareGeom(terra::rast(inputs$paths[[1L]]), zones, stopOnError=FALSE))
+          .rs_stop("Country zones differ from model grid for %s", meta$run_name)
+      }
+      cat(sprintf("CHECK OK runtime: %s; %d MC(s), %d years\n", meta$run_name, length(mc_runs), length(years)))
+      next
+    }
     for(mc in mc_runs) for(year in years) {
       cat(sprintf("Runtime sourcing: %s MC%d year %d\n",meta$run_name,mc,year))
       counter<-counter+1L
       results[[counter]]<-.rs_year(meta,mc,year,zones,cw,indices,cfg$block_mb,cfg$signed_policy)
     }
   }
+  if (cfg$check) return(invisible(cfg))
   matrix<-data.table::rbindlist(lapply(results,`[[`,"matrix"))
   demand<-data.table::rbindlist(lapply(results,`[[`,"demand"))
   qa<-data.table::rbindlist(lapply(results,`[[`,"qa"))

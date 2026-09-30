@@ -58,10 +58,12 @@ TABLE_PNG_WIDTH_IN <- 7.5
 # Paths are inferred centrally by 0post_emissions_pipeline_v2.R and passed as
 # command-line options. NULL prevents a stale computer-specific path from being
 # used when this stage is sourced directly.
+# BEGIN USER INPUTS ----------------------------------------------------------
 V1_RSTUDIO_SOURCE_DIR <- NULL
 V1_RSTUDIO_OUTPUT_DIR <- NULL
 V1_RSTUDIO_MIN_UNCERTAINTY_RUNS <- DEFAULT_MIN_UNCERTAINTY_RUNS
 V1_RSTUDIO_CLEAN_REBUILD <- TRUE
+# END USER INPUTS ------------------------------------------------------------
 
 stopf <- function(fmt, ...) stop(sprintf(fmt, ...), call. = FALSE)
 

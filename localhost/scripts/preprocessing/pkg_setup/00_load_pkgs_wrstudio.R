@@ -3,6 +3,11 @@
 # Date: Mar 2023
 
 # All needed packages for MoFuSS
+# BEGIN USER INPUTS ----------------------------------------------------------
+# This helper loads the project packages listed below.
+# It has no scenario settings to edit.
+# END USER INPUTS ------------------------------------------------------------
+
 library(animation)
 library(bitops)
 library(caTools)

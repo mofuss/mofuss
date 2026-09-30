@@ -1,3 +1,10 @@
+# Original report resolutions are retained unless explicitly overridden.
+# BEGIN USER INPUTS ----------------------------------------------------------
+mofuss_plot_dpi <- suppressWarnings(as.integer(Sys.getenv("MOFUSS_PLOT_DPI", "1000")))
+# END USER INPUTS ------------------------------------------------------------
+if (is.na(mofuss_plot_dpi) || mofuss_plot_dpi < 72L) {
+  stop("MOFUSS_PLOT_DPI must be an integer of at least 72.")
+}
 # MoFuSS
 # Version 4
 # Date: Aug 2026
@@ -143,6 +150,15 @@ write_mc_batch_ready <- function(
   invisible(manifest)
 }
 
+# An explicit seed lets both platforms reproduce the same R input batch.
+# For comparisons across different R versions, reuse the generated CSV batch.
+seed_text <- Sys.getenv("MOFUSS_SEED", "")
+if (nzchar(seed_text)) {
+  seed <- suppressWarnings(as.integer(seed_text))
+  if (is.na(seed)) stop("MOFUSS_SEED must be an integer.")
+  set.seed(seed)
+}
+
 # Read in the arguments listed at the command line in Dinamica EGO'S "Run external process"
 args=(commandArgs(TRUE))
 
@@ -152,6 +168,7 @@ args=(commandArgs(TRUE))
 if(length(args)==0){
   print("No arguments supplied by DINAMICA.")
   ## Supply default values here (to be used when running the script through R directly)
+  # BEGIN USER INPUTS ----------------------------------------------------------
   MC=30 # MonteCarlo runs
   IT=2010 # Initial year
   K_MC=1
@@ -182,6 +199,7 @@ if(length(args)==0){
   CTrees = 1
   DryRun = 0
   
+  # END USER INPUTS ------------------------------------------------------------
 }else{
   for(i in 1:length(args)){
     eval(parse(text=args[[i]]))
@@ -199,7 +217,7 @@ dinamica_stdyn <- if (exists("STdyn", inherits = FALSE)) {
 required_root_inputs <- c(
   "LULCC/TempTables/Country.csv",
   "LULCC/TempTables/parameters_dinamica.csv",
-  "LULCC/TempRaster/Mask_c.tif"
+  "LULCC/TempRaster/mask_c.tif"
 )
 missing_root_inputs <- required_root_inputs[!file.exists(required_root_inputs)]
 if (length(missing_root_inputs)) {
@@ -379,8 +397,10 @@ invisible(lapply(debugging_to_remove, unlink, recursive = TRUE, force = TRUE))
 
 unlink("Debugging", recursive = TRUE, force = TRUE)
 unlink("Temp", recursive = TRUE, force = TRUE)
-dir.create("Debugging", showWarnings = FALSE)
+if (.Platform$OS.type == "windows") dir.create("Debugging", showWarnings = FALSE)
 dir.create("Temp", showWarnings = FALSE)
+unlink("Sourcing", recursive = TRUE, force = TRUE)
+dir.create("Sourcing/static", recursive = TRUE, showWarnings = FALSE)
 
 unlink("Summary_Report//Mofuss_Summary_Report.pdf", force = TRUE)
 unlink("LaTeX//Mofuss_Summary_Report.pdf", force = TRUE)
@@ -400,10 +420,10 @@ for (i in 1:MC) {
   print(i)
   unlink(paste0("debugging_",i), recursive = TRUE,force=TRUE)
 }
-Sys.sleep(15)
 for (i in 1:MC) {
   print(i)
   dir.create(paste0("debugging_",i))
+  dir.create(sprintf("Sourcing/MC%03d", i), recursive = TRUE, showWarnings = FALSE)
 }
 
 
@@ -487,7 +507,7 @@ if (LUCmap_v == 1) {
     data_TOF1<-subset(data_all1, data_all1$TOF==1)
     #Adjusts for raster resolution - May2023
     data_TOF1r <- data_TOF1
-    rasters_res<-xres(raster("LULCC/TempRaster//Mask_c.tif"))
+    rasters_res<-xres(raster("LULCC/TempRaster//mask_c.tif"))
     max_tot1<-nrow(data_all1)
     
     LULC_Categories1<-as.data.frame(data_all1[ ,1])
@@ -525,7 +545,7 @@ if (LUCmap_v == 1) {
     data_TOF2<-subset(data_all2, data_all2$TOF==1)
     #Adjusts for raster resolution - May2023
     data_TOF2r <- data_TOF2
-    rasters_res<-xres(raster("LULCC/TempRaster//Mask_c.tif"))
+    rasters_res<-xres(raster("LULCC/TempRaster//mask_c.tif"))
     max_tot2<-nrow(data_all2)
     
     LULC_Categories2<-as.data.frame(data_all2[ ,1])
@@ -583,7 +603,10 @@ if (LUCmap_v == 1) {
 #   
 # }
 
-if (OSType == 64) {
+if (.Platform$OS.type != "windows") {
+  ffmpeg_path <- unname(Sys.which("ffmpeg"))
+  if (!nzchar(ffmpeg_path)) stop("Native ffmpeg was not found on PATH.")
+} else if (OSType == 64) {
   ffmpeg_path<-file.path(getwd(),"ffmpeg64/bin/ffmpeg.exe")
 } else {
   ffmpeg_path<-file.path(getwd(),"ffmpeg32/bin/ffmpeg.exe")
@@ -665,13 +688,13 @@ if (AGBmap == 1) {
 }
 
 if (OSType == 32) {
-  res1000<-100
-  res600<-100
-  res300<-100
+  res1000 <- min(100L, mofuss_plot_dpi)
+  res600 <- min(100L, mofuss_plot_dpi)
+  res300 <- min(100L, mofuss_plot_dpi)
 } else {
-  res1000<-1000
-  res600<-600
-  res300<-300
+  res1000 <- min(1000L, mofuss_plot_dpi)
+  res600 <- min(600L, mofuss_plot_dpi)
+  res300 <- min(300L, mofuss_plot_dpi)
 }
 
 
@@ -724,7 +747,7 @@ if (max_FOR!=0) {
     
     if (CTrees == 0) {
       tiff(filename=paste(OutDir,"//Histogram_rmax",j,".tif",sep=""),width=290,height=height_figure_FOR,units="mm",res=res1000,bg="white",
-           compression=c("lzw"),type=c("windows"),pointsize=12,family="",restoreConsole=TRUE)
+           compression=c("lzw"),type = if (.Platform$OS.type == "windows") "windows" else "cairo",pointsize=12,family="")
       n<-layout(matrix(1:histograms_per_figure_FOR, (histograms_per_figure_FOR/5),5, byrow=TRUE))
       par(oma=c(0,0,5,0))  # top has 5 lines of space
       # Set margins to accommodate larger subtitles
@@ -772,7 +795,7 @@ if (max_FOR!=0) {
     
     if (CTrees == 0) {
       tiff(filename=paste(OutDir,"//Histogram_K",j,".tif",sep=""),width=290,height=height_figure_FOR,units="mm",res=res1000,bg="white",
-           compression=c("lzw"),type=c("windows"),pointsize=12,family="",restoreConsole=TRUE)
+           compression=c("lzw"),type = if (.Platform$OS.type == "windows") "windows" else "cairo",pointsize=12,family="")
       n<-layout(matrix(1:histograms_per_figure_FOR, (histograms_per_figure_FOR/5),5, byrow=TRUE))
       par(oma=c(0,0,5,0))  # top has 5 lines of space
       # Set margins to accommodate larger subtitles
@@ -818,7 +841,7 @@ if (max_FOR!=0) {
     
     if (CTrees == 0) {
       tiff(filename=paste(OutDir,"//Histogram_ini_stock",j,".tif",sep=""),width=290,height=height_figure_FOR,units="mm",
-           res=res1000,bg="white",compression=c("lzw"),type=c("windows"),pointsize=12,family="",restoreConsole=TRUE)
+           res=res1000,bg="white",compression=c("lzw"),type = if (.Platform$OS.type == "windows") "windows" else "cairo",pointsize=12,family="")
       n<-layout(matrix(1:histograms_per_figure_FOR, (histograms_per_figure_FOR/5),5, byrow=TRUE))
       par(oma=c(0,0,5,0))  # top has 5 lines of space
       # Set margins to accommodate larger subtitles
@@ -891,7 +914,7 @@ if (max_TOF!=0) {
     }
     
     tiff(filename=paste(OutDir,"//Histogram_TOF",j,".tif",sep=""),width=290,height=height_figure_TOF,units="mm",res=res1000,bg="white",
-         compression=c("lzw"),type=c("windows"),pointsize=12,family="",restoreConsole=TRUE)
+         compression=c("lzw"),type = if (.Platform$OS.type == "windows") "windows" else "cairo",pointsize=12,family="")
     n<-layout(matrix(1:histograms_per_figure_TOF, (histograms_per_figure_TOF/5),5, byrow=TRUE))
     par(oma=c(0,0,5,0))  # top has 5 lines of space
     # Set margins to accommodate larger subtitles
@@ -944,7 +967,7 @@ k_tables <- lapply(k_files, read.csv)
 
 K_all_1 <- do.call(cbind, k_tables)
 # Adjust K for pixel resolution (separating FOR from TOF); starting from "by hectare" data
-rasters_res <- xres(raster("LULCC/TempRaster//Mask_c.tif"))
+rasters_res <- xres(raster("LULCC/TempRaster//mask_c.tif"))
 res_factor_to_ha <-(rasters_res*rasters_res)/(100*100)
 namesFOR <- names(K_all_1)[grep("LULC_K", names(K_all_1))]
 K_all_1[,c(namesFOR)]<-K_all_1[,c(namesFOR)]*res_factor_to_ha
@@ -986,6 +1009,20 @@ inist_all_2 <- inist_all_1[ , grepl( "LULC" , names( inist_all_1 ) ) ]
 inist_all_3 <- data.frame(Key=c(1:MC),inist_all_2) %>%
   replace(is.na(.), 0.11111)
 write.csv(inist_all_3,"Temp//i_st_all.csv",row.names = FALSE)
+
+# Exact decimal-string transpose for EGO's native one-dimensional lookups.
+# The original wide tables remain available with their original names.
+for (kind in c("i_st", "rmax", "k")) {
+  wide <- read.csv(sprintf("Temp/%s_all.csv", kind),
+                   colClasses = "character", check.names = FALSE)
+  if (nrow(wide) != MC) stop("Unexpected MC table row count: ", kind)
+  for (mc in seq_len(MC)) {
+    lookup <- data.frame(Key = seq_len(ncol(wide) - 1L),
+                         Value = unname(unlist(wide[mc, -1, drop = FALSE])))
+    write.table(lookup, sprintf("Temp/mc_%s_%02d.csv", kind, mc),
+                sep = ",", quote = FALSE, row.names = FALSE)
+  }
+}
 
 # HARVESTED PIXELS MC----
 if (LUCmap_v == 1) {
@@ -1061,10 +1098,9 @@ tiff(
   res = res1000,
   bg = "white",
   compression = c("lzw"),
-  type = c("windows"),
+  type = if (.Platform$OS.type == "windows") "windows" else "cairo",
   pointsize = 12,
-  family = "",
-  restoreConsole = TRUE
+  family = ""
 )
 n <- layout(matrix(1:2, 1, 2))
 par(oma = c(0, 0, 5, 0))
@@ -1139,7 +1175,7 @@ dev.off()
 
 # PRUNE FACTORS MC ----
 
-tiff(filename=paste(OutDir,"//Prune_factors.tif",sep=""),width=300,height=175,units="mm",res=res1000,bg="white",compression=c("lzw"),type=c("windows"),pointsize=12,family="",restoreConsole=TRUE)
+tiff(filename=paste(OutDir,"//Prune_factors.tif",sep=""),width=300,height=175,units="mm",res=res1000,bg="white",compression=c("lzw"),type = if (.Platform$OS.type == "windows") "windows" else "cairo",pointsize=12,family="")
 n<-layout(matrix(1:2, 1,2))
 par(oma=c(0,0,5,0))  # top has 5 lines of space
 

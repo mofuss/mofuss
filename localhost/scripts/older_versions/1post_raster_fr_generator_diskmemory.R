@@ -6,8 +6,10 @@
 ## Faltaría 2010-2050
 ## ADJUST TO CHANGE SD FOR SE ----
 
+# BEGIN USER INPUTS ----------------------------------------------------------
 # Internal parameters
 fixdir <- 1
+# END USER INPUTS ------------------------------------------------------------
 
 # Load packages ----
 library(terra)

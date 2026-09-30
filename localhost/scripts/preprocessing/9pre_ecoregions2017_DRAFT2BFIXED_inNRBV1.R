@@ -1,5 +1,10 @@
 # Download the shapefile from here: https://ecoregions.appspot.com/ and save in path (admin_regions in NRBv1...)
 
+# BEGIN USER INPUTS ----------------------------------------------------------
+# Set the input shapefile and output GeoPackage paths in the st_read()
+# and st_write() calls below. Repeated output paths must agree.
+# END USER INPUTS ------------------------------------------------------------
+
 library(sf)
 
 # Read the shapefile

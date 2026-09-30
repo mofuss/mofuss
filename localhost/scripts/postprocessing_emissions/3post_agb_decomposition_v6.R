@@ -93,6 +93,7 @@ pairing_design_status <- function(
   )
 }
 
+# BEGIN USER INPUTS ----------------------------------------------------------
 # Scenario folders are supplied centrally by 0post_emissions_pipeline_v2.R.
 # This empty fallback prevents stale computer-specific paths from being used.
 SCENARIO_DIRS <- character()
@@ -110,6 +111,7 @@ V5_RSTUDIO_PAIRING_POLICY <- "strict"
 V5_RSTUDIO_DRY_RUN <- FALSE
 V5_RSTUDIO_CLEAN_REBUILD <- TRUE
 V5_RSTUDIO_MAKE_PLOT <- TRUE
+# END USER INPUTS ------------------------------------------------------------
 
 # Load libraries ----
 # Required packages are checked and loaded by the Stage 3 runner.
@@ -1406,7 +1408,7 @@ read_stage2_run_manifest <- function(
       pairing$full_stochastic_pairing_validated
   }
   stage2_comparison_validated <- stage2_full_pairing
-  comparison_field <- intersect(
+  comparison_field <- base::intersect(
     c("comparison_validated", "paired_mc_inputs_validated"), names(tab)
   )
   if (length(comparison_field)) {

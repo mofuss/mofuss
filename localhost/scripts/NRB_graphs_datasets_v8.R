@@ -1,3 +1,10 @@
+# Original report resolutions are retained unless explicitly overridden.
+# BEGIN USER INPUTS ----------------------------------------------------------
+mofuss_plot_dpi <- suppressWarnings(as.integer(Sys.getenv("MOFUSS_PLOT_DPI", "1000")))
+# END USER INPUTS ------------------------------------------------------------
+if (is.na(mofuss_plot_dpi) || mofuss_plot_dpi < 72L) {
+  stop("MOFUSS_PLOT_DPI must be an integer of at least 72.")
+}
 # MoFuSS
 # Version 3
 # Date: Aug 2026
@@ -25,6 +32,7 @@ args=(commandArgs(TRUE))
 if(length(args)==0){
 	print("No arguments supplied by DINAMICA.")
 	##Supply default values here (to be used when running the script through R directly)
+	# BEGIN USER INPUTS ----------------------------------------------------------
 	MC = 2 # MonteCarlo runs Can be picked for parameters table
 	IT = 2000 # Initial year
 	K_MC=1
@@ -41,6 +49,7 @@ if(length(args)==0){
 	OSType=64
 	BaUvsICS="BaU"
 	cutoff_yrs=10
+	# END USER INPUTS ------------------------------------------------------------
 }else{
     for(i in 1:length(args)){
          eval(parse(text=args[[i]]))
@@ -241,13 +250,13 @@ if (SumTables == 1) {
 }
 
 if (OSType == 32) {
-	res1000<-100
-	res600<-100
-	res300<-100
+	res1000 <- min(100L, mofuss_plot_dpi)
+	res600 <- min(100L, mofuss_plot_dpi)
+	res300 <- min(100L, mofuss_plot_dpi)
 } else {
-	res1000<-1000
-	res600<-600
-	res300<-300
+	res1000 <- min(1000L, mofuss_plot_dpi)
+	res600 <- min(600L, mofuss_plot_dpi)
+	res300 <- min(300L, mofuss_plot_dpi)
 }
 
 # un ciclo de 1 hasta MC en el que se lean estos archivos
@@ -491,7 +500,7 @@ fNRB_nrb_ci_u
 #dev.new(width=15, height=42)
 # Size for 4 vertical graphs: width=75,height=190
 tiff(filename=paste(OutDir,"//AGB_NRB_fNRB.tif",sep=""),width=75,height=190,units="mm",res=res1000,bg="white",compression=c("lzw"),
-	type=c("windows"),pointsize=12,family="",restoreConsole=TRUE)
+	type = if (.Platform$OS.type == "windows") "windows" else "cairo",pointsize=12,family="")
 par(mfrow=c(4,1),oma=c(0,0,10,0),mar=c(5.1,5.1,1.0,2.1)) 
 
 plot(ejx,DBagb[,1],type="l",col="darkgrey",lwd=0.25,ylim=c(0,max(DBagb)),xlab="", ylab="agb (tDM)",cex.lab=1,
@@ -547,7 +556,7 @@ cutoff_yrs_backwards <- cutoff_yrs+1
 # dev.new(width=15, height=42)
 # Size for 4 vertical graphs: width=75,height=190
 tiff(filename=paste0(OutDir,"//AGB_NRB_fNRB_+",cutoff_yrs,".tif"),width=75,height=190,units="mm",res=res1000,bg="white",compression=c("lzw"),
-     type=c("windows"),pointsize=12,family="",restoreConsole=TRUE)
+     type = if (.Platform$OS.type == "windows") "windows" else "cairo",pointsize=12,family="")
 par(mfrow=c(4,1),oma=c(0,0,10,0),mar=c(5.1,5.1,1.0,2.1)) 
 
 # Slice first n years from graph ONLY
@@ -605,7 +614,7 @@ dev.off()
 # Add different periods within time window with slices
 
 #dev.new(width=15, height=42)
-tiff(filename=paste(OutDir,"//Boxplots.tif",sep=""),width=75,height=190,units="mm",res=res1000,bg="white",compression=c("lzw"),type=c("windows"),pointsize=12,family="",restoreConsole=TRUE)
+tiff(filename=paste(OutDir,"//Boxplots.tif",sep=""),width=75,height=190,units="mm",res=res1000,bg="white",compression=c("lzw"),type = if (.Platform$OS.type == "windows") "windows" else "cairo",pointsize=12,family="")
 par(mfrow=c(4,1),oma=c(0,0,10,0),mar=c(5.1,5.1,1.0,2.1)) 
 
 e<-boxplot((NRB), plot=FALSE, gpars=list(xlab="Year",ylab="NRB (tDM)",lwd=0.25,lty=1,col="grey",ylim=c(0,max(NRB))))
@@ -633,7 +642,7 @@ dev.off()
 # Add different periods within time window with slices
 
 #dev.new(width=15, height=42)
-tiff(filename=paste0(OutDir,"//Boxplots_+",cutoff_yrs,".tif"),width=75,height=190,units="mm",res=res1000,bg="white",compression=c("lzw"),type=c("windows"),pointsize=12,family="",restoreConsole=TRUE)
+tiff(filename=paste0(OutDir,"//Boxplots_+",cutoff_yrs,".tif"),width=75,height=190,units="mm",res=res1000,bg="white",compression=c("lzw"),type = if (.Platform$OS.type == "windows") "windows" else "cairo",pointsize=12,family="")
 par(mfrow=c(4,1),oma=c(0,0,10,0),mar=c(5.1,5.1,1.0,2.1)) 
 
 e<-boxplot((NRB_n), plot=FALSE, gpars=list(xlab="Year",ylab="NRB (tDM)",lwd=0.25,lty=1,col="grey",ylim=c(0,max(NRB_n))))

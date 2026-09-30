@@ -30,11 +30,24 @@
 # Declare its common parent once in `root` and use the same exact
 # `analysis_folder` configured in the emissions postprocessing pipeline. The
 # validation pipeline requires that analysis root to exist before it can run.
+# On Linux `root` is an absolute parent path; `analysis_folder` is still one
+# folder name, not a path.
 PIPELINE_BATCHES <- list(
+  AGO = list(
+    enabled = TRUE,
+    root = "/home/mofuss/Documents",
+    analysis_folder = "AGO_1000m_2050_mc3",
+    folders = c(
+      "AGO_1000m_bau1_2050_mc3_capped",
+      "AGO_1000m_bau1_2050_mc3_uncapped",
+      "AGO_1000m_ics3_2050_mc3_capped",
+      "AGO_1000m_ics3_2050_mc3_uncapped"
+    )
+  ),
   ECSA = list(
     enabled = FALSE,
     root = "E:/",
-    analysis_folder = "ECSA_1000m_ics3_2050_mc30",
+    analysis_folder = "ECSA_1000m_2050_mc30",
     folders = c(
       "ECSA_1000m_bau1_2050_mc30_capped",
       "ECSA_1000m_bau1_2050_mc30_uncapped",
@@ -45,7 +58,7 @@ PIPELINE_BATCHES <- list(
   GOG = list(
     enabled = FALSE,
     root = "E:/",
-    analysis_folder = "GOG_1000m_ics3_2050_mc30",
+    analysis_folder = "GOG_1000m_2050_mc30",
     folders = c(
       "GOG_1000m_bau1_2050_mc30_capped",
       "GOG_1000m_bau1_2050_mc30_uncapped",
@@ -56,7 +69,7 @@ PIPELINE_BATCHES <- list(
   MDG = list(
     enabled = FALSE,
     root = "E:/",
-    analysis_folder = "MDG_1000m_bau1_2050_mc3",
+    analysis_folder = "MDG_1000m_2050_mc3",
     folders = c(
       "MDG_1000m_bau1_2050_mc3_capped",
       "MDG_1000m_bau1_2050_mc3_uncapped",
@@ -67,7 +80,7 @@ PIPELINE_BATCHES <- list(
   LSO = list(
     enabled = FALSE,
     root = "E:/",
-    analysis_folder = "LSO_1000m_bau1_2050_mc3",
+    analysis_folder = "LSO_1000m_2050_mc3",
     folders = c(
       "LSO_1000m_bau1_2050_mc3_capped",
       "LSO_1000m_bau1_2050_mc3_uncapped",
@@ -76,9 +89,9 @@ PIPELINE_BATCHES <- list(
     )
   ),
   MLI = list(
-    enabled = TRUE,
+    enabled = FALSE,
     root = "E:/",
-    analysis_folder = "MLI_1000m_bau1_2050_mc3",
+    analysis_folder = "MLI_1000m_2050_mc3",
     folders = c(
       "MLI_1000m_bau1_2050_mc3_capped",
       "MLI_1000m_bau1_2050_mc3_uncapped",
@@ -89,7 +102,7 @@ PIPELINE_BATCHES <- list(
   GAB = list(
     enabled = FALSE,
     root = "F:/",
-    analysis_folder = "GAB_1000m_bau1_2050_mc3",
+    analysis_folder = "GAB_1000m_2050_mc3",
     folders = c(
       "GAB_1000m_bau1_2050_mc3_capped",
       "GAB_1000m_bau1_2050_mc3_uncapped",
@@ -100,7 +113,7 @@ PIPELINE_BATCHES <- list(
   GLEA = list(
     enabled = FALSE,
     root = "E:/",
-    analysis_folder = "GLEA_1000m_ics3_2050_mc3",
+    analysis_folder = "GLEA_1000m_2050_mc3",
     folders = c(
       "GLEA_1000m_bau1_2050_mc3_capped",
       "GLEA_1000m_bau1_2050_mc3_uncapped",
@@ -118,11 +131,10 @@ PIPELINE_STAGES <- 1:3 #1:3
 PIPELINE_SPINUP_YEARS <- 26L
 
 # External validation data.
-PIPELINE_ADMIN_VECTOR <- paste0(
-  "D:/",
-  "admin_regions/regions_adm0/mofuss_regions0.gpkg"
-)
+PIPELINE_ADMIN_VECTOR <- "/home/mofuss/Documents/admin_regions/regions_adm0/mofuss_regions0.gpkg"
 PIPELINE_AGB_OBS_TYPE <- "projected"  # projected (MgDM/ha) or latlong (MgCO2/ha)
+# Set this to the local observation dataset before running validation on Linux.
+# The Windows dataset location is retained until that dataset is available here.
 PIPELINE_AGB_OBS_DIR <- paste0(
   "G:/Mi unidad/webpages/2026_MoFuSSGlobal_Datasets/",
   "ctrees_dic2025_agb_cr/1km_agco2_2000_2025/agb_projected_ha"
@@ -131,11 +143,12 @@ PIPELINE_AGB_OBS_DIR <- paste0(
 # Keep this identical to PIPELINE_GLOBAL_ANALYSIS_PARENT in
 # 0post_emissions_pipeline_v2.R so validation is added to the analysis roots
 # already created by emissions postprocessing.
-PIPELINE_POSTPROCESSING_ROOT <- "E:/_postprocessing_draft"
+PIPELINE_POSTPROCESSING_ROOT <- "/home/mofuss/Documents/mofuss_postprocessing"
 
 # Disposable computation staging. Final products are promoted to the dedicated
 # mofuss_postprocessing analysis root only after a stage succeeds.
-PIPELINE_TEMP_ROOT <- "E:/MoFuSS_Active/gog_agb_validation_redesign_2026-09-10"
+# Create this task folder before running validation.
+PIPELINE_TEMP_ROOT <- file.path(path.expand("~/MoFuSS_Active"), "ago_agb_validation")
 
 # Stage 1: pixel-wise mechanics verification.
 PIPELINE_GROWTH_MODEL <- "auto"

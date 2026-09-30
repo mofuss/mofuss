@@ -34,6 +34,7 @@
 # 2.- Calculate uncertainty across runs for the decomposition
 # 3.- Optional: pixel-base trajectories on negative pixels
 
+# BEGIN USER INPUTS ----------------------------------------------------------
 # Internal parameters ----
 fixdir   <- 1          # WARNING: when 1, set the *_dir paths by hand below instead of dialogs
 co2_factor <- 0.47 * (44/12)  # biomass -> C (0.47), then C -> CO2 (44/12). Match emissions script.
@@ -44,6 +45,7 @@ baseline_year <- 10L   # year code 10 = calendar 2009, immediately before the 20
 baseline_calendar_year <- 1999L + baseline_year
 eps        <- 1e-6     # tolerance (Mg) for "near zero" when classifying gate/exceedance
 make_plot  <- TRUE     # write a quick bar plot of the decomposition per config
+# END USER INPUTS ------------------------------------------------------------
 
 # Relative paths inside each scenario folder (MoFuSS conventions) ----
 rel_agb2050 <- file.path("debugging_%d", sprintf("Growth_less_harv%02d.tif", agb_year)) # %d = mc_run

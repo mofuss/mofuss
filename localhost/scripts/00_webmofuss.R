@@ -34,7 +34,9 @@ library(data.table)
 library(readr)
 library(readxl)
 
+# BEGIN USER INPUTS ----------------------------------------------------------
 file_path <- ".env"
+# END USER INPUTS ------------------------------------------------------------
 if (file.exists(file_path)) {
 	webmofuss = 1
 } else {

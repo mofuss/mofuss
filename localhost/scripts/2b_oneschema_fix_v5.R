@@ -31,6 +31,11 @@
 # Internal parameters ----
 
 # Load libraries ----
+# BEGIN USER INPUTS ----------------------------------------------------------
+# Scenario settings are read from parameters.csv in the selected working
+# folder. The calling preprocessing workflow supplies that folder.
+# END USER INPUTS ------------------------------------------------------------
+
 library(conflicted)
 
 library(dplyr)

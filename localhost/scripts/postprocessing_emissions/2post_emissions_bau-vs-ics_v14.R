@@ -59,6 +59,12 @@
 # patcher_rng_paired=FALSE records an unused RNG stream. When Patcher is active,
 # the same flag records an intentionally independent spatial-allocation draw:
 # the comparison remains valid, but it is semi-paired rather than fully paired.
+#
+# Harvest values are tonnes per cell. Transfer to the demand grid uses a
+# weighted-sum warp and separate conservation of positive and negative amounts
+# against the native-grid totals. The demand grid must cover the valid harvest
+# footprint. total_by_run.csv records raw projection totals and correction
+# factors; harvest and country accounting totals use the original grid.
 
 # 2dolist ----
 
@@ -110,6 +116,7 @@
   )
 }
 
+# BEGIN USER INPUTS ----------------------------------------------------------
 # Scenario folders are supplied centrally by 0post_emissions_pipeline_v2.R.
 # This empty fallback prevents stale computer-specific paths from being used.
 SCENARIO_DIRS <- character()
@@ -128,6 +135,7 @@ SCENARIO_DIRS <- character()
 .V13_RSTUDIO_CLEAN_REBUILD <- TRUE
 .V13_RSTUDIO_CLEAN_ANALYSIS_ROOT <- TRUE
 .V13_RSTUDIO_PAIRING_POLICY <- "strict"
+# END USER INPUTS ------------------------------------------------------------
 
 .v9_stop <- function(...) {
   stop(paste0(...), call. = FALSE)
@@ -1789,6 +1797,96 @@ SCENARIO_DIRS <- character()
   max(absolute, abs(reference) * relative)
 }
 
+.v14_project_harvest <- function(source, template, label) {
+  if (terra::nlyr(source) != 1L || terra::nlyr(template) != 1L) {
+    .v9_stop("Harvest projection requires one-layer grids for ", label, ".")
+  }
+  invalid <- .v14_finite_sum(terra::ifel(
+    !is.na(source) & !is.finite(source), 1, NA
+  ))
+  valid <- .v14_finite_sum(is.finite(source))
+  if (invalid != 0 || valid == 0) {
+    .v9_stop("Harvest projection has infinite values or no valid cells for ", label, ".")
+  }
+
+  # Preserve double precision even when terra spills intermediate grids to
+  # disk on a computer with less RAM. Restore the caller's setting afterward.
+  old_datatype <- terra::terraOptions(print = FALSE)$datatype
+  terra::terraOptions(datatype = "FLT8S")
+  on.exit(terra::terraOptions(datatype = old_datatype), add = TRUE)
+
+  same_grid <- terra::compareGeom(source, template, stopOnError = FALSE)
+  if (!same_grid) {
+    # A correction must never conceal clipping. Check the full bounding box
+    # of the valid source cells, with densified edges for curved projections.
+    footprint <- terra::ext(terra::trim(source))
+    xs <- seq(terra::xmin(footprint), terra::xmax(footprint), length.out = 65L)
+    ys <- seq(terra::ymin(footprint), terra::ymax(footprint), length.out = 65L)
+    perimeter <- rbind(
+      cbind(xs, terra::ymin(footprint)),
+      cbind(xs, terra::ymax(footprint)),
+      cbind(terra::xmin(footprint), ys),
+      cbind(terra::xmax(footprint), ys)
+    )
+    perimeter <- terra::project(perimeter, terra::crs(source), terra::crs(template))
+    margin <- terra::res(template) * 1e-7
+    if (any(!is.finite(perimeter)) ||
+        any(perimeter[, 1L] < terra::xmin(template) - margin[[1L]]) ||
+        any(perimeter[, 1L] > terra::xmax(template) + margin[[1L]]) ||
+        any(perimeter[, 2L] < terra::ymin(template) - margin[[2L]]) ||
+        any(perimeter[, 2L] > terra::ymax(template) + margin[[2L]])) {
+      .v9_stop("Demand grid does not cover the harvest footprint for ", label,
+               "; refusing to correct a clipped projection.")
+    }
+  }
+
+  # GDAL's weighted-sum warp is not an exact conservation operation between
+  # these grids. Conserve positive and negative amounts separately: scaling
+  # the net sum is undefined when gains and losses cancel, and can flip signs.
+  parts <- terra::rast(list(
+    terra::ifel(source > 0, source, 0),
+    terra::ifel(source < 0, -source, 0)
+  ))
+  source_totals <- as.numeric(terra::global(parts, "sum", na.rm = TRUE)[, 1L])
+  projected <- if (same_grid) parts else terra::project(parts, template, method = "sum")
+  raw_totals <- as.numeric(terra::global(projected, "sum", na.rm = TRUE)[, 1L])
+  if (any(!is.finite(source_totals)) || any(!is.finite(raw_totals)) ||
+      any(raw_totals < 0) || any(raw_totals == 0 & source_totals != 0)) {
+    .v9_stop("Harvest projection lost a signed component for ", label, ".")
+  }
+  factors <- rep(1, 2L)
+  nonzero <- raw_totals != 0
+  factors[nonzero] <- source_totals[nonzero] / raw_totals[nonzero]
+  corrected <- terra::rast(lapply(seq_len(2L), function(i) {
+    projected[[i]] * factors[[i]]
+  }))
+  corrected_totals <- as.numeric(terra::global(corrected, "sum", na.rm = TRUE)[, 1L])
+  component_tolerances <- vapply(source_totals, .v9_tolerance, numeric(1))
+  if (any(!is.finite(corrected_totals)) ||
+      any(abs(corrected_totals - source_totals) > component_tolerances)) {
+    .v9_stop("Signed harvest projection reconciliation failed for ", label, ".")
+  }
+  result <- if (same_grid) source else corrected[[1L]] - corrected[[2L]]
+  source_total <- .v9_global_sum(source)
+  corrected_total <- .v9_global_sum(result)
+  residual <- corrected_total - source_total
+  if (!is.finite(residual) || abs(residual) > .v9_tolerance(source_total)) {
+    .v9_stop("Harvest projection failed mass reconciliation for ", label,
+             ": source=", source_total, ", projected=", corrected_total,
+             ", residual=", residual, ".")
+  }
+  list(
+    raster = result,
+    method = if (same_grid) "same_grid" else "sum_signed_mass_conservation",
+    raw_total = raw_totals[[1L]] - raw_totals[[2L]],
+    source_positive = source_totals[[1L]],
+    source_negative = source_totals[[2L]],
+    positive_factor = factors[[1L]],
+    negative_factor = factors[[2L]],
+    corrected_total = corrected_total
+  )
+}
+
 .v9_build_enduse <- function(preflight, dirs, overwrite) {
   period_label <- paste(preflight$period, collapse = "-")
   post_rows <- list()
@@ -2196,8 +2294,11 @@ SCENARIO_DIRS <- character()
       paste0(preflight$label, "_harvest")
     )
 
-    harvest_projected <- terra::project(delta_co2_written, enduse$raster, method = "sum")
-    projected_total <- .v9_global_sum(harvest_projected)
+    projection <- .v14_project_harvest(
+      delta_co2_written, enduse$raster, paste0(preflight$label, " run ", run_id)
+    )
+    harvest_projected <- projection$raster
+    projected_total <- projection$corrected_total
     projection_error <- projected_total - sumco2
     if (abs(projection_error) > .v9_tolerance(sumco2)) {
       .v9_stop("Harvest projection failed mass reconciliation for run ", run_id, ".")
@@ -2284,6 +2385,13 @@ SCENARIO_DIRS <- character()
       post_spinup_correction_vs_v8_tCO2e = sumco2 - legacy_v8_harvest_tCO2e,
       projected_harvest_tCO2e = projected_total,
       projection_mass_error_tCO2e = projection_error,
+      harvest_projection_method = projection$method,
+      projected_harvest_before_correction_tCO2e = projection$raw_total,
+      projection_mass_error_before_correction_tCO2e = projection$raw_total - sumco2,
+      harvest_positive_tCO2e = projection$source_positive,
+      harvest_negative_magnitude_tCO2e = projection$source_negative,
+      projection_positive_correction_factor = projection$positive_factor,
+      projection_negative_correction_factor = projection$negative_factor,
       total_raster_tCO2e = total_scalar,
       total_raster_file = total_path
     )
@@ -2627,6 +2735,10 @@ SCENARIO_DIRS <- character()
     mc_bypass_mode = preflight$bypass$mode,
     cross_configuration_pooling = FALSE,
     enduse_basis = "demand",
+    harvest_projection_method = "sum_signed_mass_conservation_or_same_grid",
+    harvest_projection_audit_file = normalizePath(
+      file.path(output, "total_by_run.csv"), winslash = "/", mustWork = TRUE
+    ),
     unmet_adjustment_applied = FALSE,
     co2_factor = .V9_CO2_FACTOR,
     charcoal_wood_to_fuel_ratio = preflight$bau_parameters$efchratio,

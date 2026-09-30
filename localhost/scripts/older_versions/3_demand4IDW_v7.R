@@ -23,9 +23,11 @@
 # 334 annos.list2 <- c(start_year:end_year) 
 # start_year = 2000 # check why 2001 doesn't work
 
+# BEGIN USER INPUTS ----------------------------------------------------------
 # Internal parameters ----
 optimizeD = 0
 temdirdefined = 1
+# END USER INPUTS ------------------------------------------------------------
 
 # Load libraries ----
 library(conflicted)

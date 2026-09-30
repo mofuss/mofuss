@@ -41,6 +41,7 @@
 # Add pixel base trajectories to see what happens on negative pixels
 # fixdir = 1 # WARNING: Check when 0 how paths are determined, mostly for the emissions folder
 
+# BEGIN USER INPUTS ----------------------------------------------------------
 # Internal parameters ----
 fixdir = 1 # MC1 audit: non-interactive explicit paths from command-line arguments
 # bau_dir <- "C:/Users/aghil/Documents/MoFuSS_FAO_localhost/ken_bau_1km_nv2_ng"
@@ -63,6 +64,7 @@ selected_run_ids <- 1L     # This audit intentionally processes nominal/mean MC1
 
 # Load packages ----
 required <- c("terra", "fs", "stringr", "dplyr", "readr")
+# END USER INPUTS ------------------------------------------------------------
 to_install <- setdiff(required, rownames(installed.packages()))
 if (length(to_install)) install.packages(to_install, quiet = TRUE)
 library(terra); library(fs); library(stringr); library(dplyr); library(readr)

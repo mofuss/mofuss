@@ -5,6 +5,11 @@
 # It creates reproducible regional, country, and 50-km block aggregates for
 # the capped and uncapped BaU structural configurations across every MC run.
 
+# BEGIN USER INPUTS ----------------------------------------------------------
+# Configure 0calib_valid_agb_pipeline_v1.R, or pass the command-line options
+# documented below. This stage receives its settings from that caller.
+# END USER INPUTS ------------------------------------------------------------
+
 suppressPackageStartupMessages({
   if (!requireNamespace("terra", quietly = TRUE)) {
     stop("Package 'terra' is required.", call. = FALSE)

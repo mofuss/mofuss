@@ -13,9 +13,11 @@
 # writeRaster(area_3395_m2, "temp/pixel_area_trueEarth_3395_1km_m2.tif",
 #             overwrite=TRUE, wopt=list(gdal=c("COMPRESS=LZW","TILED=YES","BIGTIFF=YES")))
 
+# BEGIN USER INPUTS ----------------------------------------------------------
 # Internal parameters
 # Google Colab link: https://colab.research.google.com/drive/1Ef9XMfen2DFhAhZ87B3gxjyf9QQfLOPH
 buf_m <- 10000    # 10 km buffer (meters) for masking DTEM and template
+# END USER INPUTS ------------------------------------------------------------
 
 # Load packages ----
 library(readr)

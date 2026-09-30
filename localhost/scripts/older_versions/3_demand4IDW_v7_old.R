@@ -25,6 +25,7 @@
 # [1] "Biomass"      "Charcoal"     "Imp_fuelwood" "Imp_charcoal" "gas"          "kerosene"     "electric"     "pellets"      "ethanol"     
 # [10] "biogas"       "other" 
 
+# BEGIN USER INPUTS ----------------------------------------------------------
 # Internal parameters ----
 if_biomass = 1
 if_charcoal = 1
@@ -33,6 +34,7 @@ if_electricity = 0
 optimizeD = 0
 temdirdefined = 1
 urb_shift_factor = 1 # Only works with byregion == Country (Check code lines 89-91 before adjusting this).
+# END USER INPUTS ------------------------------------------------------------
 # For Nepal use 10.
 # # Select MoFuSS platform:
 # webmofuss = 1 # "1" is  web-MoFuSS running in our Ubuntu server, "0" is local host (Windows or Linux)

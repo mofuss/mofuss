@@ -9,8 +9,10 @@
 # paste0(bau_dir,"/Temp")
 # paste0(getwd(),"/Temp")
 
+# BEGIN USER INPUTS ----------------------------------------------------------
 # Internal parameters
 bau_dir <-  "C:/Users/aghil/Documents/MoFuSS_FAO_localhost/zmb_bau_1km_subc" # Read from din_parameters.csv
+# END USER INPUTS ------------------------------------------------------------
 
 # Load libraries ----
 library(fs)
