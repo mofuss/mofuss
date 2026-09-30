@@ -33,7 +33,7 @@ npa_ease,10
 REGION TO BE PROCESSED,
 byregion,Regional
 region2BprocessedCont,SSA
-region2BprocessedReg,SSA_adm0_MSEA
+region2BprocessedReg,ASIA_adm0_MSEA
 region2BprocessedCtry,Rwanda
 region2BprocessedCtry_iso,RWA
 subcountry,0

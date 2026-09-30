@@ -94,10 +94,9 @@ library(conflicted)
 library(terra)
 # terraOptions(steps = 55)
 if (temdirdefined == 1) {
-  # Leave memory headroom for later scripts sourced into this same R session.
-  # A 0.9 fraction persisted globally and made the harmonizer materialize
-  # multi-GB raster intermediates in memory.
-  terraOptions(tempdir = rTempdir, memfrac = 0.5)
+  # Bound raster working memory; native Terra allocations are additional to
+  # R objects and retained rasters in this session.
+  terraOptions(tempdir = rTempdir, memfrac = 0.2, memmax = 2, memmin = 0)
   # List all files and directories inside the folder
   contents <- list.files(rTempdir, full.names = TRUE, recursive = TRUE)
   # Delete the contents but keep the folder
@@ -839,6 +838,66 @@ unique(adm0_reg$GID_0)
 # unique(adm1_reg$GID_1)
 # unique(adm2_reg$GID_2)
 
+# Write disjoint rural/urban partitions in blocks instead of retaining a
+# full raster for each fuel. Rural values take precedence, as in merge().
+.write_partitioned_population <- function(rural, urban, rural_scale,
+                                           urban_scale, filename) {
+  terra::lapp(
+    c(rural, urban),
+    fun = function(rur, urb) {
+      ifelse(is.na(rur), urb * urban_scale, rur * rural_scale)
+    },
+    filename = filename,
+    overwrite = TRUE,
+    wopt = list(names = names(rural))
+  )
+}
+
+# Reuse the per-fuel demand weights. The previous implementation recalculated
+# four fuel maps and retained their separate urban/rural rasters in memory.
+.write_woody_aggregates <- function(results, rural, urban, pop_ver, i, j,
+                                    out_dir = "demand_temp") {
+  demand_scale <- function(fuels, partition) {
+    sum(vapply(results, function(result) {
+      if (result$fuel %in% fuels) result[[partition]] else 0
+    }, numeric(1)))
+  }
+  w_rural <- demand_scale(c("fuelwood", "imp_fuelwood"), "rur_demand_scale")
+  v_rural <- demand_scale(c("charcoal", "imp_charcoal"), "rur_demand_scale")
+  v_urban <- demand_scale(
+    c("fuelwood", "imp_fuelwood", "charcoal", "imp_charcoal"),
+    "urb_demand_scale"
+  )
+  dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
+  w_path <- file.path(out_dir, paste0(pop_ver, "_", i, "_", j, "_wftons_w.tif"))
+  v_path <- file.path(out_dir, paste0(pop_ver, "_", i, "_", j, "_wftons_v.tif"))
+  # Preserve Terra sum semantics: cells missing in every input stay NA,
+  # while a missing rural or urban component contributes zero.
+  terra::lapp(
+    rural,
+    fun = function(rur) rur * w_rural,
+    filename = w_path, overwrite = TRUE, wopt = list(names = "sum")
+  )
+  terra::lapp(
+    c(rural, urban),
+    fun = function(rur, urb) {
+      ifelse(
+        is.na(rur) & is.na(urb),
+        NA,
+        ifelse(is.na(rur), 0, rur * v_rural) +
+          ifelse(is.na(urb), 0, urb * v_urban)
+      )
+    },
+    filename = v_path, overwrite = TRUE, wopt = list(names = "sum")
+  )
+  invisible(list(w_path = w_path, v_path = v_path))
+}
+
+# Only these scratch files are reused between years. Final annual outputs
+# keep their country/year names in pop_temp and demand_temp.
+.demand_annual_dir <- file.path(rTempdir, "demand_annual")
+dir.create(.demand_annual_dir, recursive = TRUE, showWarnings = FALSE)
+
 for (i in adm0_reg$GID_0) { # Start of outer region (i) loop ----
   # i = "ZMB_1"
   # i = "KEN"
@@ -897,7 +956,7 @@ for (i in adm0_reg$GID_0) { # Start of outer region (i) loop ----
   totpopadj
   urbpopadj
   rurpopadj
-  terra::writeRaster(pop0_ctry_rasadj, paste0("pop_temp/",pop_ver,"_",i,"_",yr,"_popadj.tif"), filetype = "GTiff", overwrite = TRUE)
+  pop0_ctry_rasadj <- terra::writeRaster(pop0_ctry_rasadj, paste0("pop_temp/",pop_ver,"_",i,"_",yr,"_popadj.tif"), filetype = "GTiff", overwrite = TRUE)
   
   for (j in annos) { ## Start of inner years (j) loop ----
     # i="PNG"
@@ -934,7 +993,12 @@ for (i in adm0_reg$GID_0) { # Start of outer region (i) loop ----
         dplyr::filter(year == j) %>%
         pull(sum_pop)
       
-      pop0_ctry_rasadj.anno<- pop0_ctry_ras*wfdb_ctry_pop_annual/totpop
+      pop0_ctry_rasadj.anno <- terra::app(
+        pop0_ctry_ras,
+        fun = function(pop) pop * wfdb_ctry_pop_annual / totpop,
+        filename = file.path(.demand_annual_dir, "population_adjusted.tif"),
+        overwrite = TRUE, wopt = list(datatype = "FLT8S", names = names(pop0_ctry_ras))
+      )
       totpopadj.anno <- global(pop0_ctry_rasadj.anno, "sum", na.rm=TRUE) %>%
         pull(sum)
       urbpopadj.anno <- totpopadj.anno * furb_wfdb.anno
@@ -942,6 +1006,7 @@ for (i in adm0_reg$GID_0) { # Start of outer region (i) loop ----
       totpopadj.anno
       urbpopadj.anno
       rurpopadj.anno
+      # Retain double precision for the threshold; public output remains FLT4S.
       terra::writeRaster(pop0_ctry_rasadj.anno, paste0("pop_temp/",pop_ver,"_",i,"_",j,"_popadj.tif"), filetype = "GTiff", overwrite = TRUE)
       
       
@@ -969,7 +1034,12 @@ for (i in adm0_reg$GID_0) { # Start of outer region (i) loop ----
         dplyr::filter(year == j) %>%
         pull(sum_pop)
       
-      pop0_ctry_rasadj.anno<- pop0_ctry_ras*rob_ctry_pop_annual/totpop
+      pop0_ctry_rasadj.anno <- terra::app(
+        pop0_ctry_ras,
+        fun = function(pop) pop * rob_ctry_pop_annual / totpop,
+        filename = file.path(.demand_annual_dir, "population_adjusted.tif"),
+        overwrite = TRUE, wopt = list(datatype = "FLT8S", names = names(pop0_ctry_ras))
+      )
       totpopadj.anno <- global(pop0_ctry_rasadj.anno, "sum", na.rm=TRUE) %>%
         pull(sum)
       urbpopadj.anno <- totpopadj.anno * furb_rob.anno
@@ -977,16 +1047,19 @@ for (i in adm0_reg$GID_0) { # Start of outer region (i) loop ----
       totpopadj.anno
       urbpopadj.anno
       rurpopadj.anno
+      # Retain double precision for the threshold; public output remains FLT4S.
       terra::writeRaster(pop0_ctry_rasadj.anno, paste0("pop_temp/",pop_ver,"_",i,"_",j,"_popadj.tif"), filetype = "GTiff", overwrite = TRUE)
       
     } 
     
-    # Saca el umbral de corte urbano/rural para el año base de 2018 O 2020
-    vec.anno <- as_tibble(pop0_ctry_rasadj.anno, na.rm = TRUE) %>% 
-      arrange(desc(.)) %>%
-      dplyr::select(matches("pop_2020$")) %>%  # Select columns ending with "WorldPop"
-      pull(1)
-    
+    # Sort only cell values; converting the raster to a tibble also allocates
+    # coordinates and sorting intermediates for every cell.
+    vec.anno <- sort(
+      terra::values(pop0_ctry_rasadj.anno, mat = FALSE),
+      decreasing = TRUE,
+      na.last = NA
+    )
+
     #### Manual tuning of urban/rural ratio
     # Some countries are ill-defined towards rural/urban population, such as the case of Nepal,
     # in which could be possible that urban population accounts for more than what 
@@ -994,52 +1067,59 @@ for (i in adm0_reg$GID_0) { # Start of outer region (i) loop ----
     print(paste0("Manual tuning of urban/rural ratio: ",urb_shift_factor))
     
     ix.anno <- length(which(cumsum(vec.anno) <= urbpopadj.anno)) * urb_shift_factor
-    vec.anno[ix.anno] #Valor de corte
+    population_cutoff.anno <- vec.anno[ix.anno]
+    rm(vec.anno)
+    gc()
     
-    # filtra por el umbral
-    # First, find the column name that ends with "WorldPop"
-    column_name <- names(pop0_ctry_rasadj.anno)[grepl("pop_2020$", names(pop0_ctry_rasadj.anno))]
-    column_name <- column_name[1]
-    # Convert the column name to a symbol
-    column_symbol <- sym(column_name)
-    # Now, use `filter()` dynamically
-    urbanpopulation.anno <- pop0_ctry_rasadj.anno %>%
-      dplyr::filter(!!column_symbol > vec.anno[ix.anno])
-    
+    # Keep filtering in Terra. tidyterra::filter materializes coordinates
+    # and joins whole rasters in memory, exhausting RAM on large countries.
+    urbanpopulation.anno <- terra::ifel(
+      pop0_ctry_rasadj.anno > population_cutoff.anno,
+      pop0_ctry_rasadj.anno,
+      NA,
+      filename = file.path(.demand_annual_dir, "urban.tif"),
+      overwrite = TRUE,
+      wopt = list(datatype = "FLT8S")
+    )
+
     # terra::writeRaster(urbanpopulation, paste0("population_temp/",pop_ver,"_",i,"_",j,"_urbpop.tif"), filetype = "GTiff", overwrite = TRUE)
     m_urb <- c(-Inf, 0, NA,
                0, Inf, 2)
     rcl_urb <- matrix(m_urb, ncol=3, byrow=TRUE)
     urbanpopulationR.anno <- urbanpopulation.anno %>%
-      classify(rcl_urb, include.lowest=TRUE)
+      terra::classify(
+        rcl_urb, include.lowest = TRUE,
+        filename = file.path(.demand_annual_dir, "urban_classified.tif"),
+        overwrite = TRUE
+      )
     # terra::writeRaster(urbanpopulation, paste0("population_temp/",pop_ver,"_",i,"_",j,"_urbpopR.tif"), filetype = "GTiff", overwrite = TRUE)
     
-    # First, find the column name that ends with "WorldPop"
-    column_name <- names(pop0_ctry_rasadj.anno)[grepl("pop_2020$", names(pop0_ctry_rasadj.anno))]
-    column_name <- column_name[1]
-    # Convert the column name to a symbol
-    column_symbol <- sym(column_name)
-    # Now, use `filter()` dynamically
-    ruralpopulation.anno <- pop0_ctry_rasadj.anno %>%
-      dplyr::filter(!!column_symbol <= vec.anno[ix.anno])
-    
+    ruralpopulation.anno <- terra::ifel(
+      pop0_ctry_rasadj.anno <= population_cutoff.anno,
+      pop0_ctry_rasadj.anno,
+      NA,
+      filename = file.path(.demand_annual_dir, "rural.tif"),
+      overwrite = TRUE,
+      wopt = list(datatype = "FLT8S")
+    )
+
     # terra::writeRaster(ruralpopulation, paste0("population_temp/",pop_ver,"_",i,"_",j,"_rurpop.tif"), filetype = "GTiff", overwrite = TRUE)
     m_rur <- c(-Inf, 0, NA,
                0, Inf, 1)
     rcl_rur <- matrix(m_rur, ncol=3, byrow=TRUE)
     ruralpopulationR.anno <- ruralpopulation.anno %>%
-      classify(rcl_rur, include.lowest=TRUE)
+      terra::classify(
+        rcl_rur, include.lowest = TRUE,
+        filename = file.path(.demand_annual_dir, "rural_classified.tif"),
+        overwrite = TRUE
+      )
     # terra::writeRaster(ruralpopulation, paste0("population_temp/",pop_ver,"_",i,"_",j,"_rurpopR.tif"), filetype = "GTiff", overwrite = TRUE)
     
-    rururbpopulationR.anno <- merge(urbanpopulationR.anno, ruralpopulationR.anno)
-    rururbpopulationR_plot.anno <- rururbpopulationR.anno %>%
-      mutate(!!column_name := recode(!!column_symbol,
-                                     `1` = "rural",
-                                     `2` = "urban"))
-    
-    # plot(rururbpopulationR_plot.anno, main=paste0(i," : ",j))
-    # lines(ctry_vector, lwd=2)
-    terra::writeRaster(rururbpopulationR.anno, paste0("pop_temp/",pop_ver,"_",i,"_",j,"_rururbR.tif"), filetype = "GTiff", overwrite = TRUE)
+    rururbpopulationR.anno <- terra::merge(
+      urbanpopulationR.anno, ruralpopulationR.anno,
+      filename = paste0("pop_temp/", pop_ver, "_", i, "_", j, "_rururbR.tif"),
+      overwrite = TRUE
+    )
     
     # Validation
     urbpopmap.anno <- global(urbanpopulation.anno, "sum", na.rm=TRUE) %>% 
@@ -1119,53 +1199,37 @@ for (i in adm0_reg$GID_0) { # Start of outer region (i) loop ----
         pull(all_of(pop_col_name)) %>%
         sum(na.rm = TRUE) * 1000
       
-      urbbio_Sctry.anno <- if (urbpopmap.anno == 0) {
-        urbanpopulation.anno * 0
-      } else {
-        (urbanpopulation.anno * biourb_total_people) / urbpopmap.anno
-      }
-      
+      urb_users_scale <- if (urbpopmap.anno == 0) 0 else
+        biourb_total_people / urbpopmap.anno
+
       # ---- Urban demand
       biourb_d_tons <- demand_tbl %>%
         dplyr::filter(grepl("urb", .data$area)) %>%
         pull(all_of(demand_col)) %>%
         sum(na.rm = TRUE)
       
-      urbbioDem_Sctry.anno <- if (urbpopmap.anno == 0) {
-        urbanpopulation.anno * 0
-      } else {
-        urbanpopulation.anno * biourb_d_tons / urbpopmap.anno
-      }
-      
+      urb_demand_scale <- if (urbpopmap.anno == 0) 0 else
+        biourb_d_tons / urbpopmap.anno
+
       # ---- Rural users
       biorur_total_people <- pop_tbl %>%
         dplyr::filter(grepl("rur", .data$area)) %>%
         pull(all_of(pop_col_name)) %>%
         sum(na.rm = TRUE) * 1000
       
-      rurbio_Sctry.anno <- if (rurpopmap.anno == 0) {
-        ruralpopulation.anno * 0
-      } else {
-        ruralpopulation.anno * biorur_total_people / rurpopmap.anno
-      }
-      
+      rur_users_scale <- if (rurpopmap.anno == 0) 0 else
+        biorur_total_people / rurpopmap.anno
+
       # ---- Rural demand
       biorur_d_tons <- demand_tbl %>%
         dplyr::filter(grepl("rur", .data$area)) %>%
         pull(all_of(demand_col)) %>%
         sum(na.rm = TRUE)
       
-      rurbioDem_Sctry.anno <- if (rurpopmap.anno == 0) {
-        ruralpopulation.anno * 0
-      } else {
-        ruralpopulation.anno * biorur_d_tons / rurpopmap.anno
-      }
-      
-      # ---- Merge & write
-      users_raster  <- merge(rurbio_Sctry.anno, urbbio_Sctry.anno)
-      demand_raster <- merge(rurbioDem_Sctry.anno, urbbioDem_Sctry.anno)
-      
-      # old (buggy): fuel_tag <- tolower(gsub("[^a-z0-9]+", "_", fuel_name))
+      rur_demand_scale <- if (rurpopmap.anno == 0) 0 else
+        biorur_d_tons / rurpopmap.anno
+
+      # ---- Write each fuel directly to disk
       fuel_tag <- gsub("[^a-z0-9]+", "_", tolower(fuel_name))
       if (!dir.exists(out_dir_pop))    dir.create(out_dir_pop, recursive = TRUE, showWarnings = FALSE)
       if (!dir.exists(out_dir_demand)) dir.create(out_dir_demand, recursive = TRUE, showWarnings = FALSE)
@@ -1173,230 +1237,62 @@ for (i in adm0_reg$GID_0) { # Start of outer region (i) loop ----
       users_path  <- file.path(out_dir_pop,    sprintf("%s_%s_%s_%s_users.tif",  pop_ver, i, j, fuel_tag))
       demand_path <- file.path(out_dir_demand, sprintf("%s_%s_%s_%s_demand.tif", pop_ver, i, j, fuel_tag))
       
-      terra::writeRaster(users_raster,  users_path,  filetype = "GTiff", overwrite = TRUE)
-      terra::writeRaster(demand_raster, demand_path, filetype = "GTiff", overwrite = TRUE)
-      
-      percap_raster <- (demand_raster / users_raster) * 1000 / 365
+      users_raster <- .write_partitioned_population(
+        ruralpopulation.anno, urbanpopulation.anno,
+        rur_users_scale, urb_users_scale, users_path
+      )
+      demand_raster <- .write_partitioned_population(
+        ruralpopulation.anno, urbanpopulation.anno,
+        rur_demand_scale, urb_demand_scale, demand_path
+      )
       if (isTRUE(write_percap)) {
         percap_path <- file.path(out_dir_demand, sprintf("%s_%s_%s_%s_percap.tif", pop_ver, i, j, fuel_tag))
-        terra::writeRaster(percap_raster, percap_path, filetype = "GTiff", overwrite = TRUE)
+        terra::lapp(
+          c(demand_raster, users_raster),
+          fun = function(demand, users) (demand / users) * 1000 / 365,
+          filename = percap_path, overwrite = TRUE
+        )
       }
-      
+
       invisible(list(
         fuel                = fuel_name,
         subcountry          = subcountry,
-        urb_users_sum       = as.numeric(global(urbbio_Sctry.anno,  "sum", na.rm = TRUE)$sum),
-        rur_users_sum       = as.numeric(global(rurbio_Sctry.anno,  "sum", na.rm = TRUE)$sum),
+        urb_users_sum       = urbpopmap.anno * urb_users_scale,
+        rur_users_sum       = rurpopmap.anno * rur_users_scale,
         urb_demand_sum_tons = biourb_d_tons,
         rur_demand_sum_tons = biorur_d_tons,
         users_raster_path   = users_path,
         demand_raster_path  = demand_path,
-        # NEW: return the separate demand rasters so we can aggregate later
-        urb_dem_rast        = urbbioDem_Sctry.anno,
-        rur_dem_rast        = rurbioDem_Sctry.anno
+        # Scalars keep results small across all fuels and years.
+        urb_demand_scale    = urb_demand_scale,
+        rur_demand_scale    = rur_demand_scale
       ))
       
     }
     
-    if (subcountry != 1) {
-      
-      # fuels_who <- c("Kerosene","Gas","Electricity","Biomass","Charcoal","Coal")
-      fuels_wfdb <- unique(wfdb$fuel)
-      
-      results <- lapply(fuels_wfdb, function(fu)
-        compute_fuel_maps(
-          fuel_name = fu,              # ← use the new argument name explicitly
-          subcountry = subcountry,     # != 1 here
-          i = i, j = j,
-          wfdb = wfdb,
-          demand_col = demand_col,
-          urbanpopulation.anno = urbanpopulation.anno,
-          ruralpopulation.anno = ruralpopulation.anno,
-          urbpopmap.anno = urbpopmap.anno,
-          rurpopmap.anno = rurpopmap.anno,
-          pop_ver = pop_ver,
-          out_dir_pop = "pop_temp",
-          out_dir_demand = "demand_temp",
-          write_percap = FALSE
-        )
-      )
-      
-      save_wf_aggregates_wfdb <- function(
-    i, j,
-    wfdb, demand_col,
-    subcountry = 0,  # anything != 1
-    urbanpopulation.anno, ruralpopulation.anno,
-    urbpopmap.anno, rurpopmap.anno,
-    pop_ver,
-    out_dir = "demand_temp"
-      ) {
-        stopifnot(subcountry != 1)
-        
-        get_dem_wfdb <- function(wfdb_fuel) {
-          res <- compute_fuel_maps(
-            fuel_name = wfdb_fuel,        # WHO label used both in whodb and wfdb
-            subcountry = subcountry,     # != 1
-            i = i, j = j,
-            wfdb = wfdb,
-            demand_col = demand_col,
-            urbanpopulation.anno = urbanpopulation.anno,
-            ruralpopulation.anno = ruralpopulation.anno,
-            urbpopmap.anno = urbpopmap.anno,
-            rurpopmap.anno = rurpopmap.anno,
-            pop_ver = pop_ver,
-            out_dir_pop = "pop_temp",
-            out_dir_demand = "demand_temp",
-            write_percap = FALSE
-          )
-          list(urb = res$urb_dem_rast, rur = res$rur_dem_rast)
-        }
-        
-        fuels_avail <- unique(wfdb$fuel)
-        
-        safe_get_dem_wfdb <- function(fuel_name) {
-          if (fuel_name %in% fuels_avail) {
-            get_dem_wfdb(fuel_name)
-          } else {
-            NULL
-          }
-        }
-        
-        fw  <- safe_get_dem_wfdb("fuelwood")
-        ifw <- safe_get_dem_wfdb("imp_fuelwood")
-        ch  <- safe_get_dem_wfdb("charcoal")
-        ich <- safe_get_dem_wfdb("imp_charcoal")
-        
-        # ---- wftons_w: rural fuelwood + rural imp_fuelwood
-        wf_w_sum   <- app(c(fw$rur, ifw$rur), fun = sum, na.rm = TRUE)
-        
-        # ---- wftons_v: urban fw + urban ifw + urban ch + urban ich + rural ch + rural ich
-        wf_v_sum   <- app( c(fw$urb, ifw$urb, ch$urb, ich$urb, ch$rur, ich$rur), fun = sum, na.rm = TRUE)
-        
-        if (!dir.exists(out_dir)) dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
-        terra::writeRaster(wf_w_sum, file.path(out_dir, paste0(pop_ver, "_", i, "_", j, "_wftons_w.tif")),
-                           filetype = "GTiff", overwrite = TRUE)
-        terra::writeRaster(wf_v_sum, file.path(out_dir, paste0(pop_ver, "_", i, "_", j, "_wftons_v.tif")),
-                           filetype = "GTiff", overwrite = TRUE)
-        
-        invisible(TRUE)
-      }
-      
-      
-      save_wf_aggregates_wfdb(
+    fuels_wfdb <- unique(wfdb$fuel)
+    results <- lapply(fuels_wfdb, function(fu) {
+      compute_fuel_maps(
+        fuel_name = fu,
+        subcountry = subcountry,
         i = i, j = j,
-        wfdb = wfdb, demand_col = demand_col,
-        subcountry = subcountry,  # must be != 1
+        wfdb = wfdb,
+        demand_col = demand_col,
         urbanpopulation.anno = urbanpopulation.anno,
         ruralpopulation.anno = ruralpopulation.anno,
         urbpopmap.anno = urbpopmap.anno,
         rurpopmap.anno = rurpopmap.anno,
         pop_ver = pop_ver,
-        out_dir = "demand_temp"
+        out_dir_pop = "pop_temp",
+        out_dir_demand = "demand_temp",
+        write_percap = FALSE
       )
-      
-    } else if (subcountry == 1) {
-      
-      # fuels_wfdb <- c("fuelwood","charcoal","imp_fuelwood","imp_charcoal",
-      #                 "gas","kerosene","electric","pellets","ethanol","biogas","other")
-      fuels_wfdb <- unique(wfdb$fuel)
-      
-      results <- lapply(fuels_wfdb, function(fu)
-        compute_fuel_maps(
-          fuel = fu,
-          subcountry = 1,
-          i = i, j = j,
-          wfdb = wfdb,
-          demand_col = demand_col,
-          urbanpopulation.anno = urbanpopulation.anno,
-          ruralpopulation.anno = ruralpopulation.anno,
-          urbpopmap.anno = urbpopmap.anno,
-          rurpopmap.anno = rurpopmap.anno,
-          pop_ver = pop_ver
-        )
-      )
-      
-      save_wf_aggregates <- function(
-    i, j,
-    wfdb, demand_col,
-    subcountry = 1,                 # this aggregate is for the ROB branch
-    urbanpopulation.anno, ruralpopulation.anno,
-    urbpopmap.anno, rurpopmap.anno,
-    pop_ver,
-    out_dir = "demand_temp"
-      ) {
-        stopifnot(subcountry == 1)
-        
-        # Run once per needed fuel to obtain separate urban/rural demand rasters
-        get_dem <- function(fuel_name) {
-          res <- compute_fuel_maps(
-            fuel_name = fuel_name,
-            subcountry = subcountry,
-            i = i, j = j,
-            wfdb = wfdb,
-            demand_col = demand_col,
-            urbanpopulation.anno = urbanpopulation.anno,
-            ruralpopulation.anno = ruralpopulation.anno,
-            urbpopmap.anno = urbpopmap.anno,
-            rurpopmap.anno = rurpopmap.anno,
-            pop_ver = pop_ver,
-            out_dir_pop = "pop_temp",
-            out_dir_demand = "demand_temp",
-            write_percap = FALSE
-          )
-          list(urb = res$urb_dem_rast, rur = res$rur_dem_rast)
-        }
-        
-        fuels_avail <- unique(wfdb$fuel)
-        
-        safe_get_dem <- function(fuel_name) {
-          if (fuel_name %in% fuels_avail) {
-            get_dem(fuel_name)
-          } else {
-            NULL
-          }
-        }
-        
-        fw  <- safe_get_dem("fuelwood")
-        ifw <- safe_get_dem("imp_fuelwood")
-        ch  <- safe_get_dem("charcoal")
-        ich <- safe_get_dem("imp_charcoal")
-        
-        # ---- wftons_w: rural fuelwood + rural imp_fuelwood
-        wf_w_sum   <- app(c(fw$rur, ifw$rur), fun = sum, na.rm = TRUE)
-        
-        # ---- wftons_v: urban fw + urban ifw + urban ch + urban ich + rural ch + rural ich
-        wf_v_sum   <- app(c(fw$urb, ifw$urb, ch$urb, ich$urb, ch$rur, ich$rur), fun = sum, na.rm = TRUE)
-        
-        if (!dir.exists(out_dir)) dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
-        
-        wf_w_path <- file.path(out_dir, paste0(pop_ver, "_", i, "_", j, "_wftons_w.tif"))
-        wf_v_path <- file.path(out_dir, paste0(pop_ver, "_", i, "_", j, "_wftons_v.tif"))
-        
-        terra::writeRaster(wf_w_sum, wf_w_path, filetype = "GTiff", overwrite = TRUE)
-        terra::writeRaster(wf_v_sum, wf_v_path, filetype = "GTiff", overwrite = TRUE)
-        
-        # Quick non-NA checks (optional)
-        global(wf_w_sum, fun = "notNA")
-        global(wf_v_sum, fun = "notNA")
-        
-        invisible(list(w_path = wf_w_path, v_path = wf_v_path))
-      }
-      
-      # After sourcing your corrected compute_fuel_maps(v2) with the added returns:
-      save_wf_aggregates(
-        i = i, j = j,
-        wfdb = wfdb, demand_col = demand_col,
-        subcountry = 1,
-        urbanpopulation.anno = urbanpopulation.anno,
-        ruralpopulation.anno = ruralpopulation.anno,
-        urbpopmap.anno = urbpopmap.anno,
-        rurpopmap.anno = rurpopmap.anno,
-        pop_ver = pop_ver,
-        out_dir = "demand_temp"
-      )
-      
-    }
-    
+    })
+    .write_woody_aggregates(
+      results, ruralpopulation.anno, urbanpopulation.anno, pop_ver, i, j
+    )
+    message("Completed demand maps for ", i, " ", j)
+
   }
   
 } # End of outer region (i) loop ----
