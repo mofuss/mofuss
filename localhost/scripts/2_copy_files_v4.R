@@ -256,7 +256,15 @@ lapply(file.names.DS, function(RO.DS) {
 # component); V keeps its installed bilateral permissions. The unchanged V8 R
 # reporting bundle is retained. V11/V12 remain source comparison references.
 # See README_runtime_sourcing_v13.md for validation and the explicit bug fix.
-active_egoml <- "10_dyn_Sc17_webmofuss_ctrees_g_v13.egoml"
+model_dataset <- country_parameters$ParCHR[
+  !is.na(country_parameters$Var) &
+    country_parameters$Var == "LULCt1map_dataset"
+]
+active_egoml <- if (
+  length(model_dataset) == 1L && !is.na(model_dataset) &&
+    tolower(trimws(as.character(model_dataset))) == "woodman"
+) "10_dyn_Sc17_webmofuss_ctrees_g_v14.egoml" else
+  "10_dyn_Sc17_webmofuss_ctrees_g_v13.egoml"
 
 v8_r_dependencies <- c(
   "rnorm_v8.R",
@@ -283,7 +291,7 @@ bundle_sources <- file.path(
 missing_bundle_files <- bundle_files[!file.exists(bundle_sources)]
 if (length(missing_bundle_files) > 0L) {
   stop(
-    "Cannot deploy the V13 runtime-sourcing EGOML bundle; missing repository file(s): ",
+    "Cannot deploy the selected Dinamica bundle; missing repository file(s): ",
     paste(missing_bundle_files, collapse = ", ")
   )
 }

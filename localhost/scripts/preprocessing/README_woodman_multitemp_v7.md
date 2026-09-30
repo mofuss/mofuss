@@ -1,0 +1,25 @@
+# Woodman annual land cover in MoFuSS
+
+## Data and legend
+
+The source is Woodman et al.'s [harmonised 1960–2100 archive](https://doi.org/10.5281/zenodo.15017066), specifically `SSP2_RCP45_country-f.tif`. Years 2000–2020 are the HILDA+ v2b historical reconstruction; years 2021–2050 are the SSP2–RCP4.5 projection. Its native grid is 0.01° (roughly 1.11 km north–south at the equator), so reprojection to MoFuSS's 1000 m grid does not add spatial information. This series is not MODIS-based. The future urban extent is fixed in the published product.
+
+`global_growth/luc_woodman_categories.csv` preserves every source class and its MoFuSS code. Source codes 441 and 442 become 44 and 45 so that the region/ecozone/class key stays within the existing two-digit class scheme. Ocean code 0 is NoData. Urban (11), sparse/no vegetation (66), and inland water (77) are the conservative TOF classes; other terrestrial classes retain the model's non-TOF stock and regrowth behavior. The water TOF supply is a shoreline/riparian proxy, not biomass across open water.
+
+The downloaded source remains at `F:/multitemporal/_lucmaps/woodman_2025_hilda_landsymm/`. The portable country seed is `F:/_1000m_/LULCC/DownloadedDatasets/SourceDataGlobal/`. Its `InRaster/woodman_ssp2_rcp45_country_2000_2050/` folder holds 51 yearly class maps and 51 matching binary TOF reference maps, all on the source grid. `woodman_series_manifest.json` records the source file and code conversion.
+
+## Calibration and country preparation
+
+`tools/prepare_woodman_multitemp_v1.py` extracts and recodes the 2000–2050 bands without interpolating classes. `7pre_lulcc_multitemp_v7.R` projects the year-2000 class map to the MoFuSS global grid, combines it with MoFuSS region and ecological-zone codes, and derives the Woodman growth table. Every class in every represented zone gets a stable key, including combinations that first appear after 2000; missing year-2000 biomass statistics use a documented regional-class or global-class fallback. The resulting `growth_parameters_v3_woodman.csv` and `woodman_key_crosswalk.csv` belong in `global_growth/` so `0_set_directories_and_region_v3.R` copies them to each new country. `pre2000_v1_woodman_luc_pcs.tif` and `woodman_zone_pcs.tif` belong in the portable seed's `InRaster/` folder.
+
+The September 2026 calibration used the MoFuSS regional layer carried by the existing Gabon run. It produced 424 keys across 53 represented region/ecozone zones, and all 95,518,103 valid baseline cells resolved. Source rasters are global; the growth keys cover this MoFuSS study geography. Calibration diagnostics and input hashes are stored under `F:/multitemporal/_lucmaps/woodman_2025_hilda_landsymm/mofuss_calibration_v7/`.
+
+Set `LULCt1map_dataset=woodman`, `LULCt1map_name=woodman_luc_pcs.tif`, `LULCt1map_yr=2000`, `woodman_series_dir=woodman_ssp2_rcp45_country_2000_2050`, `start_year=2000`, and `end_year=2050` in the parameters copied to a **new** country run. The normal country preparation copies the portable seed. `4_produce_growth_and_stock_csv_v2.R` prepares the baseline key map and forced-urban class, `5_harmonizer_v8.R` aligns it to the analysis grid, and `5b_harmonizer_woodman_multitemp_v1.R` writes country-grid maps named `LULCt1_c_<year>.tif`, `TOFvsFOR_mask1_<year>.tif`, and `WoodmanTransition_<year>.tif`. The year-2000 key map is exactly the calibrated initial map; later years follow the Woodman series, with the existing forced-urban footprint retained.
+
+`2_copy_files_v4.R` selects `10_dyn_Sc17_webmofuss_ctrees_g_v14.egoml` for Woodman runs and v13 for existing MODIS runs. In v14, the yearly loop loads the matching LULC and TOF maps. A 44/45 forest to nonforest transition removes the standing stock without a deforestation fuelwood credit. A nonforest to 44/45 forest transition starts at zero stock. The existing depleted-forest seed and logistic growth machinery subsequently allows regrowth; annual time steps remain 48 weeks. The retired deforestation fuelwood path remains disabled.
+
+## Validation and limits
+
+`tests/test_woodman_multitemp_v1.R` exercises class keys, TOF status, forced urban, clearing, new forest, and unchanged forest type on a small raster fixture. A 128 × 128 cell Gabon window also processed all 51 real annual maps into 153 country-grid LULC, TOF and transition outputs without unresolved keys. A bounded Dinamica regression using identical annual maps reproduced v13 scientific outputs byte for byte. A separate transition run verified zero stock and harvest in the transition year, zero deforestation fuelwood, and positive regrowth at the new forest pixel in a later year. Country-scale 2000–2050 runs should be created as new runs; existing canonical runs are not modified by this setup.
+
+The published 0.01° cells and broad legend cannot resolve small woodfuel patches or distinguish all tree cover outside forests. The static forced-urban footprint means the MoFuSS urban override does not move with future Woodman urban pixels. Scenario results should be treated as sensitivity runs rather than observed annual land cover after 2020.

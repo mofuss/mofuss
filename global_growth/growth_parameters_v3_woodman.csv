@@ -1,0 +1,425 @@
+Key*,LULC,rmax,rmaxSD,K,KSD,TOF
+1,SSA_Tropical rainforest_Urban,0,0,0.2421,0.1211,1
+2,SSA_Tropical rainforest_Cropland,0.65,0.5,47,35,0
+3,SSA_Tropical rainforest_Pasture Rangeland,0.28,0.22,109,40,0
+4,SSA_Tropical rainforest_Managed Forest,0.09,0.07,329,20,0
+5,SSA_Tropical rainforest_Unmanaged Forest,0.07,0.06,406,24,0
+6,SSA_Tropical rainforest_Unmanaged Grass Shrubland,0.18,0.14,173,39,0
+7,SSA_Tropical rainforest_Sparse No Vegetation,0,0,3.2782,1.6391,1
+8,SSA_Tropical rainforest_Water,0,0,1.6791,0.8396,1
+9,SSA_Tropical moist forest_Urban,0,0,0.0836,0.0418,1
+10,SSA_Tropical moist forest_Cropland,0.4,0.14,29,12,0
+11,SSA_Tropical moist forest_Pasture Rangeland,0.22,0.08,53,26,0
+12,SSA_Tropical moist forest_Managed Forest,0.09,0.03,126,31,0
+13,SSA_Tropical moist forest_Unmanaged Forest,0.08,0.03,148,64,0
+14,SSA_Tropical moist forest_Unmanaged Grass Shrubland,0.12,0.04,99,24,0
+15,SSA_Tropical moist forest_Sparse No Vegetation,0,0,0.7207,0.3604,1
+16,SSA_Tropical moist forest_Water,0,0,0.5714,0.2857,1
+17,SSA_Tropical dry forest_Urban,0,0,0.09,0.045,1
+18,SSA_Tropical dry forest_Cropland,0.54,0.48,29,9,0
+19,SSA_Tropical dry forest_Pasture Rangeland,0.36,0.33,43,15,0
+20,SSA_Tropical dry forest_Managed Forest,0.12,0.11,127,35,0
+21,SSA_Tropical dry forest_Unmanaged Forest,0.15,0.13,106,59,0
+22,SSA_Tropical dry forest_Unmanaged Grass Shrubland,0.36,0.33,43,17,0
+23,SSA_Tropical dry forest_Sparse No Vegetation,0,0,0.0894,0.0447,1
+24,SSA_Tropical dry forest_Water,0,0,0.5238,0.2619,1
+25,SSA_Tropical shrubland_Urban,0,0,0.027,0.0135,1
+26,SSA_Tropical shrubland_Cropland,0.22,0.2,16,6,0
+27,SSA_Tropical shrubland_Pasture Rangeland,0.19,0.17,19,8,0
+28,SSA_Tropical shrubland_Managed Forest,0.04,0.04,86,39,0
+29,SSA_Tropical shrubland_Unmanaged Forest,0.04,0.04,82,41,0
+30,SSA_Tropical shrubland_Unmanaged Grass Shrubland,0.13,0.12,27,15,0
+31,SSA_Tropical shrubland_Sparse No Vegetation,0,0,0.0011,6e-04,1
+32,SSA_Tropical shrubland_Water,0,0,0.1329,0.0664,1
+33,SSA_Tropical desert_Urban,0,0,0.0911,0.0456,1
+34,SSA_Tropical desert_Cropland,0.025,0.0125,23,3,0
+35,SSA_Tropical desert_Pasture Rangeland,0.025,0.0125,23,4,0
+36,SSA_Tropical desert_Managed Forest,0.025,0.0125,69,26,0
+37,SSA_Tropical desert_Unmanaged Forest,0.025,0.0125,33,7,0
+38,SSA_Tropical desert_Unmanaged Grass Shrubland,0.025,0.0125,25,8,0
+39,SSA_Tropical desert_Sparse No Vegetation,0,0,0,0,1
+40,SSA_Tropical desert_Water,0,0,0.0941,0.047,1
+41,SSA_Tropical mountain system_Urban,0,0,0.1285,0.0643,1
+42,SSA_Tropical mountain system_Cropland,0.76,0.94,29,14,0
+43,SSA_Tropical mountain system_Pasture Rangeland,0.58,0.72,38,22,0
+44,SSA_Tropical mountain system_Managed Forest,0.13,0.16,167,39,0
+45,SSA_Tropical mountain system_Unmanaged Forest,0.06,0.08,339,18,0
+46,SSA_Tropical mountain system_Unmanaged Grass Shrubland,0.33,0.41,67,44,0
+47,SSA_Tropical mountain system_Sparse No Vegetation,0,0,0,0,1
+48,SSA_Tropical mountain system_Water,0,0,0.5333,0.2666,1
+49,SSA_Subtropical humid forest_Urban,0,0,0.0761,0.038,1
+50,SSA_Subtropical humid forest_Cropland,0.25,0.22,40,6,0
+51,SSA_Subtropical humid forest_Pasture Rangeland,0.27,0.24,37,10,0
+52,SSA_Subtropical humid forest_Managed Forest,0.08,0.07,131,28,0
+53,SSA_Subtropical humid forest_Unmanaged Forest,0.15,0.14,65,18,0
+54,SSA_Subtropical humid forest_Unmanaged Grass Shrubland,0.13,0.12,74.1712170470898,23.2744230666738,0
+55,SSA_Subtropical humid forest_Sparse No Vegetation,0,0,0.0575,0.0288,1
+56,SSA_Subtropical humid forest_Water,0,0,0.9881,0.494,1
+57,SSA_Subtropical dry forest_Urban,0,0,0.063,0.0315,1
+58,SSA_Subtropical dry forest_Cropland,0.33,0.3,29,4,0
+59,SSA_Subtropical dry forest_Pasture Rangeland,0.25,0.23,38,10,0
+60,SSA_Subtropical dry forest_Managed Forest,0.07,0.07,130,28,0
+61,SSA_Subtropical dry forest_Unmanaged Forest,0.14,0.12,70,23,0
+62,SSA_Subtropical dry forest_Unmanaged Grass Shrubland,0.23,0.21,41,4,0
+63,SSA_Subtropical dry forest_Sparse No Vegetation,0,0,0.0739,0.0369,1
+64,SSA_Subtropical dry forest_Water,0,0,0.7089,0.3544,1
+65,SSA_Subtropical mountain system_Urban,0,0,0.0478,0.0239,1
+66,SSA_Subtropical mountain system_Cropland,0.56,0.5,18,4,0
+67,SSA_Subtropical mountain system_Pasture Rangeland,0.4,0.36,25,10,0
+68,SSA_Subtropical mountain system_Managed Forest,0.08,0.07,131,16,0
+69,SSA_Subtropical mountain system_Unmanaged Forest,0.19,0.17,53,16,0
+70,SSA_Subtropical mountain system_Unmanaged Grass Shrubland,0.45,0.41,22,3,0
+71,SSA_Subtropical mountain system_Sparse No Vegetation,0,0,0.2912,0.1456,1
+72,SSA_Subtropical mountain system_Water,0,0,0.4457,0.2228,1
+73,SSA_Water_Urban,0,0,0.0252,0.0126,1
+74,SSA_Water_Cropland,0.02,0.01,32,15,0
+75,SSA_Water_Pasture Rangeland,0.02,0.01,43,17,0
+76,SSA_Water_Managed Forest,0.02,0.01,141,35,0
+77,SSA_Water_Unmanaged Forest,0.02,0.01,255,32,0
+78,SSA_Water_Unmanaged Grass Shrubland,0.02,0.01,56,15,0
+79,SSA_Water_Sparse No Vegetation,0,0,0.0218,0.0109,1
+80,SSA_Water_Water,0,0,0.5864,0.2932,1
+81,LATAM_Tropical rainforest_Urban,0,0,0.2138,0.1069,1
+82,LATAM_Tropical rainforest_Cropland,0.35,0.15,67,21,0
+83,LATAM_Tropical rainforest_Pasture Rangeland,0.25,0.1,96,27,0
+84,LATAM_Tropical rainforest_Managed Forest,0.09,0.04,249,23,0
+85,LATAM_Tropical rainforest_Unmanaged Forest,0.06,0.02,403,32,0
+86,LATAM_Tropical rainforest_Unmanaged Grass Shrubland,0.13,0.06,178,23,0
+87,LATAM_Tropical rainforest_Sparse No Vegetation,0,0,1.0706,0.5353,1
+88,LATAM_Tropical rainforest_Water,0,0,1.9686,0.9843,1
+89,LATAM_Tropical moist forest_Urban,0,0,0.2634,0.1317,1
+90,LATAM_Tropical moist forest_Cropland,0.44,0.2,47,12,0
+91,LATAM_Tropical moist forest_Pasture Rangeland,0.35,0.15,60,16,0
+92,LATAM_Tropical moist forest_Managed Forest,0.16,0.07,128,36,0
+93,LATAM_Tropical moist forest_Unmanaged Forest,0.05,0.02,410,28,0
+94,LATAM_Tropical moist forest_Unmanaged Grass Shrubland,0.32,0.14,66,25,0
+95,LATAM_Tropical moist forest_Sparse No Vegetation,0,0,0.5967,0.2984,1
+96,LATAM_Tropical moist forest_Water,0,0,0.8279,0.414,1
+97,LATAM_Tropical dry forest_Urban,0,0,0.1825,0.0912,1
+98,LATAM_Tropical dry forest_Cropland,0.35,0.22,44,12,0
+99,LATAM_Tropical dry forest_Pasture Rangeland,0.28,0.17,55,13,0
+100,LATAM_Tropical dry forest_Managed Forest,0.16,0.1,96,23,0
+101,LATAM_Tropical dry forest_Unmanaged Forest,0.12,0.07,128,18,0
+102,LATAM_Tropical dry forest_Unmanaged Grass Shrubland,0.3,0.18,52,19,0
+103,LATAM_Tropical dry forest_Sparse No Vegetation,0,0,0.205,0.1025,1
+104,LATAM_Tropical dry forest_Water,0,0,0.5915,0.2958,1
+105,LATAM_Tropical shrubland_Urban,0,0,0.2255,0.1128,1
+106,LATAM_Tropical shrubland_Cropland,0.42,0.38,38,11,0
+107,LATAM_Tropical shrubland_Pasture Rangeland,0.26,0.23,62,27,0
+108,LATAM_Tropical shrubland_Managed Forest,0.09,0.08,184,17,0
+109,LATAM_Tropical shrubland_Unmanaged Forest,0.1,0.09,165,5,0
+110,LATAM_Tropical shrubland_Unmanaged Grass Shrubland,0.16,0.15,98,17,0
+111,LATAM_Tropical shrubland_Sparse No Vegetation,0,0,0.1223,0.0612,1
+112,LATAM_Tropical shrubland_Water,0,0,0.3316,0.1658,1
+113,LATAM_Tropical desert_Urban,0,0,0.0235,0.0118,1
+114,LATAM_Tropical desert_Cropland,0.025,0.0125,29,7,0
+115,LATAM_Tropical desert_Pasture Rangeland,0.025,0.0125,24,0,0
+116,LATAM_Tropical desert_Managed Forest,0.025,0.0125,32,0,0
+117,LATAM_Tropical desert_Unmanaged Forest,0.025,0.0125,27,0,0
+118,LATAM_Tropical desert_Unmanaged Grass Shrubland,0.025,0.0125,35,2,0
+119,LATAM_Tropical desert_Sparse No Vegetation,0,0,0.0239,0.012,1
+120,LATAM_Tropical desert_Water,0,0,0.0742,0.0371,1
+121,LATAM_Tropical mountain system_Urban,0,0,0.2713,0.1356,1
+122,LATAM_Tropical mountain system_Cropland,0.3,0.11,59,16,0
+123,LATAM_Tropical mountain system_Pasture Rangeland,0.23,0.09,75,18,0
+124,LATAM_Tropical mountain system_Managed Forest,0.09,0.03,192,21,0
+125,LATAM_Tropical mountain system_Unmanaged Forest,0.06,0.02,280,20,0
+126,LATAM_Tropical mountain system_Unmanaged Grass Shrubland,0.15,0.05,120,20,0
+127,LATAM_Tropical mountain system_Sparse No Vegetation,0,0,0.0864,0.0432,1
+128,LATAM_Tropical mountain system_Water,0,0,0.3761,0.188,1
+129,LATAM_Subtropical humid forest_Urban,0,0,0.1015,0.0508,1
+130,LATAM_Subtropical humid forest_Cropland,0.29,0.26,35,8,0
+131,LATAM_Subtropical humid forest_Pasture Rangeland,0.23,0.21,43,9,0
+132,LATAM_Subtropical humid forest_Managed Forest,0.07,0.07,135,14,0
+133,LATAM_Subtropical humid forest_Unmanaged Forest,0.06,0.05,168,7,0
+134,LATAM_Subtropical humid forest_Unmanaged Grass Shrubland,0.29,0.26,34,12,0
+135,LATAM_Subtropical humid forest_Sparse No Vegetation,0,0,0.1593,0.0796,1
+136,LATAM_Subtropical humid forest_Water,0,0,0.3856,0.1928,1
+137,LATAM_Subtropical dry forest_Urban,0,0,0,0,1
+138,LATAM_Subtropical dry forest_Cropland,0.39,0.35,40.9853442560849,10.5833057107681,0
+139,LATAM_Subtropical dry forest_Pasture Rangeland,0.33,0.3,48,6,0
+140,LATAM_Subtropical dry forest_Managed Forest,0.1,0.09,161.502059963514,26.1741191735702,0
+141,LATAM_Subtropical dry forest_Unmanaged Forest,0.11,0.1,140,10,0
+142,LATAM_Subtropical dry forest_Unmanaged Grass Shrubland,0.12,0.11,135,0,0
+143,LATAM_Subtropical dry forest_Sparse No Vegetation,0,0,0.0352,0.0176,1
+144,LATAM_Subtropical dry forest_Water,0,0,0,0,1
+145,LATAM_Subtropical steppe_Urban,0,0,0.0663,0.0332,1
+146,LATAM_Subtropical steppe_Cropland,0.76,0.69,21,6,0
+147,LATAM_Subtropical steppe_Pasture Rangeland,0.84,0.76,19,9,0
+148,LATAM_Subtropical steppe_Managed Forest,0.17,0.15,93,14,0
+149,LATAM_Subtropical steppe_Unmanaged Forest,0.16,0.15,99,8,0
+150,LATAM_Subtropical steppe_Unmanaged Grass Shrubland,0.89,0.8,18,10,0
+151,LATAM_Subtropical steppe_Sparse No Vegetation,0,0,0.0795,0.0398,1
+152,LATAM_Subtropical steppe_Water,0,0,0.1823,0.0911,1
+153,LATAM_Subtropical desert_Urban,0,0,0.0347,0.0174,1
+154,LATAM_Subtropical desert_Cropland,0.02,0.01,12,3,0
+155,LATAM_Subtropical desert_Pasture Rangeland,0.02,0.01,21,12,0
+156,LATAM_Subtropical desert_Managed Forest,0.02,0.01,83,10,0
+157,LATAM_Subtropical desert_Unmanaged Forest,0.02,0.01,80,12,0
+158,LATAM_Subtropical desert_Unmanaged Grass Shrubland,0.02,0.01,22,11,0
+159,LATAM_Subtropical desert_Sparse No Vegetation,0,0,0.045,0.0225,1
+160,LATAM_Subtropical desert_Water,0,0,0.1465,0.0732,1
+161,LATAM_Subtropical mountain system_Urban,0,0,0.0521,0.026,1
+162,LATAM_Subtropical mountain system_Cropland,0.31,0.28,32,10,0
+163,LATAM_Subtropical mountain system_Pasture Rangeland,0.23,0.2,44,11,0
+164,LATAM_Subtropical mountain system_Managed Forest,0.09,0.08,109,18,0
+165,LATAM_Subtropical mountain system_Unmanaged Forest,0.08,0.07,130,21,0
+166,LATAM_Subtropical mountain system_Unmanaged Grass Shrubland,0.24,0.21,42,13,0
+167,LATAM_Subtropical mountain system_Sparse No Vegetation,0,0,0.022,0.011,1
+168,LATAM_Subtropical mountain system_Water,0,0,0.4113,0.2056,1
+169,LATAM_Temperate oceanic forest_Urban,0,0,0.0932,0.0466,1
+170,LATAM_Temperate oceanic forest_Cropland,0.48,0.02,40.9853442560849,10.5833057107681,0
+171,LATAM_Temperate oceanic forest_Pasture Rangeland,0.31,0.02,63,33,0
+172,LATAM_Temperate oceanic forest_Managed Forest,0.12,0.01,164,15,0
+173,LATAM_Temperate oceanic forest_Unmanaged Forest,0.11,0.01,176,44,0
+174,LATAM_Temperate oceanic forest_Unmanaged Grass Shrubland,0.15,0.01,136,30,0
+175,LATAM_Temperate oceanic forest_Sparse No Vegetation,0,0,0.0403,0.0202,1
+176,LATAM_Temperate oceanic forest_Water,0,0,0.9115,0.4558,1
+177,LATAM_Temperate steppe_Urban,0,0,0.0161,0.008,1
+178,LATAM_Temperate steppe_Cropland,0.72,0.03,8,0,0
+179,LATAM_Temperate steppe_Pasture Rangeland,0.32,0.01,18,14,0
+180,LATAM_Temperate steppe_Managed Forest,0.05,0,112,13,0
+181,LATAM_Temperate steppe_Unmanaged Forest,0.04,0,161,16,0
+182,LATAM_Temperate steppe_Unmanaged Grass Shrubland,0.57,0.02,10,18,0
+183,LATAM_Temperate steppe_Sparse No Vegetation,0,0,0.0114,0.0057,1
+184,LATAM_Temperate steppe_Water,0,0,0.0987,0.0494,1
+185,LATAM_Temperate mountain system_Urban,0,0,0.2035,0.1017,1
+186,LATAM_Temperate mountain system_Cropland,0.2,0,40.9853442560849,10.5833057107681,0
+187,LATAM_Temperate mountain system_Pasture Rangeland,0.16,0,53,23,0
+188,LATAM_Temperate mountain system_Managed Forest,0.06,0,140,22,0
+189,LATAM_Temperate mountain system_Unmanaged Forest,0.05,0,177,19,0
+190,LATAM_Temperate mountain system_Unmanaged Grass Shrubland,0.06,0,129,24,0
+191,LATAM_Temperate mountain system_Sparse No Vegetation,0,0,0.0151,0.0076,1
+192,LATAM_Temperate mountain system_Water,0,0,0.7862,0.3931,1
+193,LATAM_Water_Urban,0,0,0.2825,0.1412,1
+194,LATAM_Water_Cropland,0.02,0.01,46,31,0
+195,LATAM_Water_Pasture Rangeland,0.02,0.01,107,12,0
+196,LATAM_Water_Managed Forest,0.02,0.01,246,12,0
+197,LATAM_Water_Unmanaged Forest,0.02,0.01,254,3,0
+198,LATAM_Water_Unmanaged Grass Shrubland,0.02,0.01,165,24,0
+199,LATAM_Water_Sparse No Vegetation,0,0,1.735,0.8675,1
+200,LATAM_Water_Water,0,0,0.9669,0.4834,1
+201,ASIA_Tropical rainforest_Urban,0,0,0.6615,0.3308,1
+202,ASIA_Tropical rainforest_Cropland,0.14,0.16,97,27,0
+203,ASIA_Tropical rainforest_Pasture Rangeland,0.09,0.1,153,41,0
+204,ASIA_Tropical rainforest_Managed Forest,0.05,0.06,264,33,0
+205,ASIA_Tropical rainforest_Unmanaged Forest,0.04,0.05,340,29,0
+206,ASIA_Tropical rainforest_Unmanaged Grass Shrubland,0.06,0.07,226,54,0
+207,ASIA_Tropical rainforest_Sparse No Vegetation,0,0,2.1419,1.071,1
+208,ASIA_Tropical rainforest_Water,0,0,0.802,0.401,1
+209,ASIA_Tropical moist forest_Urban,0,0,0.3262,0.1631,1
+210,ASIA_Tropical moist forest_Cropland,0.18,0.02,52,22,0
+211,ASIA_Tropical moist forest_Pasture Rangeland,0.08,0.01,114,48,0
+212,ASIA_Tropical moist forest_Managed Forest,0.04,0.01,215,24,0
+213,ASIA_Tropical moist forest_Unmanaged Forest,0.04,0,273,22,0
+214,ASIA_Tropical moist forest_Unmanaged Grass Shrubland,0.07,0.01,147,40,0
+215,ASIA_Tropical moist forest_Sparse No Vegetation,0,0,1.0505,0.5252,1
+216,ASIA_Tropical moist forest_Water,0,0,0.4163,0.2082,1
+217,ASIA_Tropical dry forest_Urban,0,0,0.2229,0.1114,1
+218,ASIA_Tropical dry forest_Cropland,0.46,0.41,34,11,0
+219,ASIA_Tropical dry forest_Pasture Rangeland,0.23,0.21,67,23,0
+220,ASIA_Tropical dry forest_Managed Forest,0.1,0.09,150,26,0
+221,ASIA_Tropical dry forest_Unmanaged Forest,0.07,0.06,222,21,0
+222,ASIA_Tropical dry forest_Unmanaged Grass Shrubland,0.19,0.17,81,23,0
+223,ASIA_Tropical dry forest_Sparse No Vegetation,0,0,0.4285,0.2142,1
+224,ASIA_Tropical dry forest_Water,0,0,0.2574,0.1287,1
+225,ASIA_Tropical shrubland_Urban,0,0,0.0812,0.0406,1
+226,ASIA_Tropical shrubland_Cropland,0.82,0.74,17,7,0
+227,ASIA_Tropical shrubland_Pasture Rangeland,0.3,0.27,46,36,0
+228,ASIA_Tropical shrubland_Managed Forest,0.12,0.11,114,68,0
+229,ASIA_Tropical shrubland_Unmanaged Forest,0.08,0.08,165,58,0
+230,ASIA_Tropical shrubland_Unmanaged Grass Shrubland,0.25,0.22,57,57,0
+231,ASIA_Tropical shrubland_Sparse No Vegetation,0,0,0.1937,0.0969,1
+232,ASIA_Tropical shrubland_Water,0,0,0.1474,0.0737,1
+233,ASIA_Tropical desert_Urban,0,0,0.0505,0.0253,1
+234,ASIA_Tropical desert_Cropland,0.025,0.0125,10,4,0
+235,ASIA_Tropical desert_Pasture Rangeland,0.025,0.0125,26,57,0
+236,ASIA_Tropical desert_Managed Forest,0.025,0.0125,33,32,0
+237,ASIA_Tropical desert_Unmanaged Forest,0.025,0.0125,24,17,0
+238,ASIA_Tropical desert_Unmanaged Grass Shrubland,0.025,0.0125,8,12,0
+239,ASIA_Tropical desert_Sparse No Vegetation,0,0,0.0097,0.0049,1
+240,ASIA_Tropical desert_Water,0,0,0.0219,0.011,1
+241,ASIA_Tropical mountain system_Urban,0,0,0.5499,0.275,1
+242,ASIA_Tropical mountain system_Cropland,0.1,0,118,29,0
+243,ASIA_Tropical mountain system_Pasture Rangeland,0.07,0,156,49,0
+244,ASIA_Tropical mountain system_Managed Forest,0.05,0,248,32,0
+245,ASIA_Tropical mountain system_Unmanaged Forest,0.03,0,337,26,0
+246,ASIA_Tropical mountain system_Unmanaged Grass Shrubland,0.04,0,268,39,0
+247,ASIA_Tropical mountain system_Sparse No Vegetation,0,0,0.2523,0.1262,1
+248,ASIA_Tropical mountain system_Water,0,0,1.821,0.9105,1
+249,ASIA_Subtropical humid forest_Urban,0,0,0.1484,0.0742,1
+250,ASIA_Subtropical humid forest_Cropland,0.2,0.06,51,12,0
+251,ASIA_Subtropical humid forest_Pasture Rangeland,0.13,0.04,76,18,0
+252,ASIA_Subtropical humid forest_Managed Forest,0.06,0.02,155,43,0
+253,ASIA_Subtropical humid forest_Unmanaged Forest,0.05,0.02,212,24,0
+254,ASIA_Subtropical humid forest_Unmanaged Grass Shrubland,0.08,0.02,133,21,0
+255,ASIA_Subtropical humid forest_Sparse No Vegetation,0,0,0.4994,0.2497,1
+256,ASIA_Subtropical humid forest_Water,0,0,0.4751,0.2376,1
+257,ASIA_Subtropical dry forest_Urban,0,0,0.0372,0.0186,1
+258,ASIA_Subtropical dry forest_Cropland,1.44,1.3,18,10,0
+259,ASIA_Subtropical dry forest_Pasture Rangeland,0.6,0.54,43,19,0
+260,ASIA_Subtropical dry forest_Managed Forest,0.22,0.2,116,28,0
+261,ASIA_Subtropical dry forest_Unmanaged Forest,0.5,0.45,52,19,0
+262,ASIA_Subtropical dry forest_Unmanaged Grass Shrubland,0.52,0.47,50,13,0
+263,ASIA_Subtropical dry forest_Sparse No Vegetation,0,0,0.1544,0.0772,1
+264,ASIA_Subtropical dry forest_Water,0,0,0.2016,0.1008,1
+265,ASIA_Subtropical steppe_Urban,0,0,0.0114,0.0057,1
+266,ASIA_Subtropical steppe_Cropland,1.27,1.15,11,8,0
+267,ASIA_Subtropical steppe_Pasture Rangeland,1,0.9,14,12,0
+268,ASIA_Subtropical steppe_Managed Forest,0.1,0.09,144,39,0
+269,ASIA_Subtropical steppe_Unmanaged Forest,0.13,0.12,108,52,0
+270,ASIA_Subtropical steppe_Unmanaged Grass Shrubland,0.45,0.41,31,21,0
+271,ASIA_Subtropical steppe_Sparse No Vegetation,0,0,0.0011,6e-04,1
+272,ASIA_Subtropical steppe_Water,0,0,0.0375,0.0187,1
+273,ASIA_Subtropical desert_Urban,0,0,0.0042,0.0021,1
+274,ASIA_Subtropical desert_Cropland,0.02,0.01,3,3,0
+275,ASIA_Subtropical desert_Pasture Rangeland,0.02,0.01,11,7,0
+276,ASIA_Subtropical desert_Managed Forest,0.02,0.01,12,4,0
+277,ASIA_Subtropical desert_Unmanaged Forest,0.02,0.01,16,7,0
+278,ASIA_Subtropical desert_Unmanaged Grass Shrubland,0.02,0.01,21,4,0
+279,ASIA_Subtropical desert_Sparse No Vegetation,0,0,0,0,1
+280,ASIA_Subtropical desert_Water,0,0,0.0081,0.004,1
+281,ASIA_Subtropical mountain system_Urban,0,0,0.055,0.0275,1
+282,ASIA_Subtropical mountain system_Cropland,0.31,0,32,28,0
+283,ASIA_Subtropical mountain system_Pasture Rangeland,0.17,0,59,41,0
+284,ASIA_Subtropical mountain system_Managed Forest,0.05,0,220,28,0
+285,ASIA_Subtropical mountain system_Unmanaged Forest,0.04,0,271,24,0
+286,ASIA_Subtropical mountain system_Unmanaged Grass Shrubland,0.05,0,186,36,0
+287,ASIA_Subtropical mountain system_Sparse No Vegetation,0,0,0.0172,0.0086,1
+288,ASIA_Subtropical mountain system_Water,0,0,0.1908,0.0954,1
+289,ASIA_Temperate continental forest_Urban,0,0,0.0974,0.0487,1
+290,ASIA_Temperate continental forest_Cropland,0.19,0,42,10,0
+291,ASIA_Temperate continental forest_Pasture Rangeland,0.12,0,66,17,0
+292,ASIA_Temperate continental forest_Managed Forest,0.05,0,150,29,0
+293,ASIA_Temperate continental forest_Unmanaged Forest,0.05,0,162,35,0
+294,ASIA_Temperate continental forest_Unmanaged Grass Shrubland,0.08,0,95,29,0
+295,ASIA_Temperate continental forest_Sparse No Vegetation,0,0,0.4029,0.2014,1
+296,ASIA_Temperate continental forest_Water,0,0,0.3744,0.1872,1
+297,ASIA_Temperate steppe_Urban,0,0,0.0604,0.0302,1
+298,ASIA_Temperate steppe_Cropland,0.0165,0.0082,23,6,0
+299,ASIA_Temperate steppe_Pasture Rangeland,0.0165,0.0082,15,15,0
+300,ASIA_Temperate steppe_Managed Forest,0.0165,0.0082,119,18,0
+301,ASIA_Temperate steppe_Unmanaged Forest,0.0165,0.0082,129,14,0
+302,ASIA_Temperate steppe_Unmanaged Grass Shrubland,0.0165,0.0082,20,12,0
+303,ASIA_Temperate steppe_Sparse No Vegetation,0,0,0.0233,0.0117,1
+304,ASIA_Temperate steppe_Water,0,0,0.1088,0.0544,1
+305,ASIA_Temperate desert_Urban,0,0,0.0367,0.0184,1
+306,ASIA_Temperate desert_Cropland,0.0165,0.0082,12,5,0
+307,ASIA_Temperate desert_Pasture Rangeland,0.0165,0.0082,10,7,0
+308,ASIA_Temperate desert_Managed Forest,0.0165,0.0082,119,11,0
+309,ASIA_Temperate desert_Unmanaged Forest,0.0165,0.0082,113,19,0
+310,ASIA_Temperate desert_Unmanaged Grass Shrubland,0.0165,0.0082,11,10,0
+311,ASIA_Temperate desert_Sparse No Vegetation,0,0,0.0046,0.0023,1
+312,ASIA_Temperate desert_Water,0,0,0.0669,0.0334,1
+313,ASIA_Temperate mountain system_Urban,0,0,0.0587,0.0294,1
+314,ASIA_Temperate mountain system_Cropland,0.35,0,24,11,0
+315,ASIA_Temperate mountain system_Pasture Rangeland,0.28,0,30,23,0
+316,ASIA_Temperate mountain system_Managed Forest,0.06,0,134,42,0
+317,ASIA_Temperate mountain system_Unmanaged Forest,0.04,0,235,19,0
+318,ASIA_Temperate mountain system_Unmanaged Grass Shrubland,0.05,0,168,29,0
+319,ASIA_Temperate mountain system_Sparse No Vegetation,0,0,0.0049,0.0024,1
+320,ASIA_Temperate mountain system_Water,0,0,0.0566,0.0283,1
+321,ASIA_Boreal coniferous forest_Urban,0,0,0.1797,0.0898,1
+322,ASIA_Boreal coniferous forest_Cropland,0.14,0.12,32,8,0
+323,ASIA_Boreal coniferous forest_Pasture Rangeland,0.07,0.07,60,7,0
+324,ASIA_Boreal coniferous forest_Managed Forest,0.04,0.04,102,6,0
+325,ASIA_Boreal coniferous forest_Unmanaged Forest,0.04,0.04,111,9,0
+326,ASIA_Boreal coniferous forest_Unmanaged Grass Shrubland,0.05,0.04,89,9,0
+327,ASIA_Boreal coniferous forest_Sparse No Vegetation,0,0,1.2825,0.6412,1
+328,ASIA_Boreal coniferous forest_Water,0,0,0.4169,0.2084,1
+329,ASIA_Boreal mountain system_Urban,0,0,0.0111,0.0056,1
+330,ASIA_Boreal mountain system_Cropland,0.21,0.19,25,4,0
+331,ASIA_Boreal mountain system_Pasture Rangeland,0.19,0.17,28,10,0
+332,ASIA_Boreal mountain system_Managed Forest,0.04,0.04,131,12,0
+333,ASIA_Boreal mountain system_Unmanaged Forest,0.05,0.04,114,14,0
+334,ASIA_Boreal mountain system_Unmanaged Grass Shrubland,0.07,0.07,70,12,0
+335,ASIA_Boreal mountain system_Sparse No Vegetation,0,0,0.0151,0.0076,1
+336,ASIA_Boreal mountain system_Water,0,0,0.4779,0.239,1
+337,ASIA_Water_Urban,0,0,0.08,0.04,1
+338,ASIA_Water_Cropland,0.02,0.01,10,4,0
+339,ASIA_Water_Pasture Rangeland,0.02,0.01,20,11,0
+340,ASIA_Water_Managed Forest,0.02,0.01,53,9,0
+341,ASIA_Water_Unmanaged Forest,0.02,0.01,72,40,0
+342,ASIA_Water_Unmanaged Grass Shrubland,0.02,0.01,27,8,0
+343,ASIA_Water_Sparse No Vegetation,0,0,0.0039,0.0019,1
+344,ASIA_Water_Water,0,0,0.0641,0.0321,1
+345,NorAfr_Tropical shrubland_Urban,0,0,0,0,1
+346,NorAfr_Tropical shrubland_Cropland,0.5,0.45,7.26546341463415,3.03048780487805,0
+347,NorAfr_Tropical shrubland_Pasture Rangeland,0.32,0.29,11.1499864755207,6.37571003516365,0
+348,NorAfr_Tropical shrubland_Managed Forest,0.05,0.05,66.9119685767098,15.108595194085,0
+349,NorAfr_Tropical shrubland_Unmanaged Forest,0.27,0.24,13.310592459605,12.096947935368,0
+350,NorAfr_Tropical shrubland_Unmanaged Grass Shrubland,0.13,0.12,27.0625,2.65957446808511,0
+351,NorAfr_Tropical shrubland_Sparse No Vegetation,0,0,0,0,1
+352,NorAfr_Tropical shrubland_Water,0,0,0,0,1
+353,NorAfr_Tropical desert_Urban,0,0,0.0331,0.0165,1
+354,NorAfr_Tropical desert_Cropland,0.025,0.0125,16,3,0
+355,NorAfr_Tropical desert_Pasture Rangeland,0.025,0.0125,3,3,0
+356,NorAfr_Tropical desert_Managed Forest,0.025,0.0125,23,3,0
+357,NorAfr_Tropical desert_Unmanaged Forest,0.025,0.0125,22,4,0
+358,NorAfr_Tropical desert_Unmanaged Grass Shrubland,0.025,0.0125,26,2,0
+359,NorAfr_Tropical desert_Sparse No Vegetation,0,0,0,0,1
+360,NorAfr_Tropical desert_Water,0,0,0.0206,0.0103,1
+361,NorAfr_Tropical mountain system_Urban,0,0,0,0,1
+362,NorAfr_Tropical mountain system_Cropland,3.03,3.74,7.26546341463415,3.03048780487805,0
+363,NorAfr_Tropical mountain system_Pasture Rangeland,1.97,2.44,11.1499864755207,6.37571003516365,0
+364,NorAfr_Tropical mountain system_Managed Forest,0.33,0.41,66.9119685767098,15.108595194085,0
+365,NorAfr_Tropical mountain system_Unmanaged Forest,1.65,2.04,13.310592459605,12.096947935368,0
+366,NorAfr_Tropical mountain system_Unmanaged Grass Shrubland,0.81,1.01,27.0625,2.65957446808511,0
+367,NorAfr_Tropical mountain system_Sparse No Vegetation,0,0,0,0,1
+368,NorAfr_Tropical mountain system_Water,0,0,0,0,1
+369,NorAfr_Subtropical dry forest_Urban,0,0,0.0149,0.0074,1
+370,NorAfr_Subtropical dry forest_Cropland,1.92,1.73,5,3,0
+371,NorAfr_Subtropical dry forest_Pasture Rangeland,0.53,0.48,18,10,0
+372,NorAfr_Subtropical dry forest_Managed Forest,0.12,0.11,77,15,0
+373,NorAfr_Subtropical dry forest_Unmanaged Forest,0.69,0.62,14,14,0
+374,NorAfr_Subtropical dry forest_Unmanaged Grass Shrubland,0.64,0.58,15,0,0
+375,NorAfr_Subtropical dry forest_Sparse No Vegetation,0,0,0.0147,0.0073,1
+376,NorAfr_Subtropical dry forest_Water,0,0,0.1254,0.0627,1
+377,NorAfr_Subtropical steppe_Urban,0,0,0.0132,0.0066,1
+378,NorAfr_Subtropical steppe_Cropland,0.44,0.39,11,3,0
+379,NorAfr_Subtropical steppe_Pasture Rangeland,0.96,0.86,5,3,0
+380,NorAfr_Subtropical steppe_Managed Forest,0.4,0.36,12,5,0
+381,NorAfr_Subtropical steppe_Unmanaged Forest,0.96,0.86,5,5,0
+382,NorAfr_Subtropical steppe_Unmanaged Grass Shrubland,0.17,0.15,28,3,0
+383,NorAfr_Subtropical steppe_Sparse No Vegetation,0,0,0.0018,9e-04,1
+384,NorAfr_Subtropical steppe_Water,0,0,0.0434,0.0217,1
+385,NorAfr_Subtropical mountain system_Urban,0,0,0.0165,0.0082,1
+386,NorAfr_Subtropical mountain system_Cropland,2.5,2.25,4,4,0
+387,NorAfr_Subtropical mountain system_Pasture Rangeland,0.71,0.64,14,8,0
+388,NorAfr_Subtropical mountain system_Managed Forest,0.19,0.17,54,17,0
+389,NorAfr_Subtropical mountain system_Unmanaged Forest,0.53,0.47,19,14,0
+390,NorAfr_Subtropical mountain system_Unmanaged Grass Shrubland,0.37,0.33,27.0625,2.65957446808511,0
+391,NorAfr_Subtropical mountain system_Sparse No Vegetation,0,0,0.0021,0.001,1
+392,NorAfr_Subtropical mountain system_Water,0,0,0.2231,0.1115,1
+393,OCEANIA_Tropical rainforest_Urban,0,0,1.0256,0.5128,1
+394,OCEANIA_Tropical rainforest_Cropland,0.14,0.16,100,12,0
+395,OCEANIA_Tropical rainforest_Pasture Rangeland,0.16,0.19,83,21,0
+396,OCEANIA_Tropical rainforest_Managed Forest,0.04,0.04,351,30,0
+397,OCEANIA_Tropical rainforest_Unmanaged Forest,0.04,0.04,383,31,0
+398,OCEANIA_Tropical rainforest_Unmanaged Grass Shrubland,0.05,0.06,267,50,0
+399,OCEANIA_Tropical rainforest_Sparse No Vegetation,0,0,3.5317,1.7658,1
+400,OCEANIA_Tropical rainforest_Water,0,0,2.5538,1.2769,1
+401,OCEANIA_Tropical moist forest_Urban,0,0,0,0,1
+402,OCEANIA_Tropical moist forest_Cropland,0.19,0.02,50,0,0
+403,OCEANIA_Tropical moist forest_Pasture Rangeland,0.1,0.01,97,3,0
+404,OCEANIA_Tropical moist forest_Managed Forest,0.03,0,329,18,0
+405,OCEANIA_Tropical moist forest_Unmanaged Forest,0.03,0,308,41,0
+406,OCEANIA_Tropical moist forest_Unmanaged Grass Shrubland,0.05,0.01,178,60,0
+407,OCEANIA_Tropical moist forest_Sparse No Vegetation,0,0,2.04,1.02,1
+408,OCEANIA_Tropical moist forest_Water,0,0,2.4192,1.2096,1
+409,OCEANIA_Tropical dry forest_Urban,0,0,0.5366,0.2683,1
+410,OCEANIA_Tropical dry forest_Cropland,0.16,0.14,98,0,0
+411,OCEANIA_Tropical dry forest_Pasture Rangeland,0.2,0.18,78,8,0
+412,OCEANIA_Tropical dry forest_Managed Forest,0.06,0.05,265,38,0
+413,OCEANIA_Tropical dry forest_Unmanaged Forest,0.05,0.04,343,46,0
+414,OCEANIA_Tropical dry forest_Unmanaged Grass Shrubland,0.1,0.09,160,60,0
+415,OCEANIA_Tropical dry forest_Sparse No Vegetation,0,0,1.4271,0.7136,1
+416,OCEANIA_Tropical dry forest_Water,0,0,2.0071,1.0035,1
+417,OCEANIA_Tropical mountain system_Urban,0,0,1.0049,0.5024,1
+418,OCEANIA_Tropical mountain system_Cropland,0.12,0,94.8,12,0
+419,OCEANIA_Tropical mountain system_Pasture Rangeland,0.12,0,97,15,0
+420,OCEANIA_Tropical mountain system_Managed Forest,0.04,0,325,33,0
+421,OCEANIA_Tropical mountain system_Unmanaged Forest,0.03,0,397,31,0
+422,OCEANIA_Tropical mountain system_Unmanaged Grass Shrubland,0.04,0,276,39,0
+423,OCEANIA_Tropical mountain system_Sparse No Vegetation,0,0,2.109,1.0545,1
+424,OCEANIA_Tropical mountain system_Water,0,0,0,0,1

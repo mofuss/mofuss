@@ -1,0 +1,10 @@
+luc_code_orig,luc_code,luc_cat,TOF_luc,luc_cat_original
+0,0,Ocean No Data,0,Ocean; excluded from terrestrial supply
+11,11,Urban,1,Urban
+22,22,Cropland,0,Cropland
+33,33,Pasture Rangeland,0,Pasture/rangeland
+441,44,Managed Forest,0,Managed forest
+442,45,Unmanaged Forest,0,Unmanaged forest
+55,55,Unmanaged Grass Shrubland,0,Unmanaged grass/shrubland
+66,66,Sparse No Vegetation,1,Sparse/no vegetation
+77,77,Water,1,Water

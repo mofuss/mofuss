@@ -91,6 +91,7 @@ native_urban_label <- function(dataset) {
   switch(
     tolower(dataset),
     modis = "Urban and Built-up Lands",
+    woodman = "Urban",
     copernicus = "Urban built up",
     stop("Unsupported LULC dataset: ", dataset)
   )
@@ -102,6 +103,7 @@ assert_current_tof_policy <- function(data, dataset) {
   water_pattern <- switch(
     tolower(dataset),
     modis = "_Water Bodies$",
+    woodman = "_Water$",
     copernicus = "_(Permanent water bodies|Oceans seas)$"
   )
   water <- data[grepl(water_pattern, as.character(data$LULC)), ]
@@ -116,7 +118,7 @@ assert_current_tof_policy <- function(data, dataset) {
       toupper(dataset),
       " growth parameters still use the legacy fixed Urban/Water TOF policy. ",
       "Regenerate the growth table and its matching classified raster with ",
-      "7pre_lulcc_v6.R before running the country pipeline."
+      "the matching 7pre LULC script before running the country pipeline."
     )
   }
   invisible(data)
@@ -328,13 +330,17 @@ country_parameters %>%
 #             overwrite = TRUE, recursive = TRUE, copy.mode = TRUE)
 # }
 
-if (LULCt1map == "YES" & LULCt2map == "YES"){
-  lucavailablemaps <- c("modis", "copernicus")
-} else if (LULCt1map == "YES" & LULCt2map != "YES"){
-  lucavailablemaps <- c("modis")
-} else if (LULCt1map != "YES" & LULCt2map == "YES"){
-  lucavailablemaps <- c("copernicus")
+luc_t1_dataset <- country_parameters %>%
+  dplyr::filter(Var == "LULCt1map_dataset") %>% pull(ParCHR)
+if (length(luc_t1_dataset) == 0L) luc_t1_dataset <- "modis"
+luc_t1_dataset <- tolower(trimws(luc_t1_dataset[[1L]]))
+if (!luc_t1_dataset %in% c("modis", "woodman")) {
+  stop("LULCt1map_dataset must be modis or woodman.")
 }
+lucavailablemaps <- c(
+  if (LULCt1map == "YES") luc_t1_dataset,
+  if (LULCt2map == "YES") "copernicus"
+)
 lucavailablemaps
 
 for (lucinputdataset in lucavailablemaps) {
@@ -343,7 +349,7 @@ for (lucinputdataset in lucavailablemaps) {
 setwd(countrydir)
 
 # Prepare the rural urban mask ----
-if (lucinputdataset == "modis") {
+if (lucinputdataset %in% c("modis", "woodman")) {
   
   country_parameters %>%
     dplyr::filter(Var == "LULCt1map_name") %>%
@@ -352,7 +358,14 @@ if (lucinputdataset == "modis") {
     dplyr::filter(Var == "LULCt1map_yr") %>%
     pull(ParCHR) %>%
     as.integer(.) -> LULCt1map_yr
-  lucmodis_2001_merge_rcl <- rast(paste0(countrydir,"/LULCC/DownloadedDatasets/SourceData",country_name,"/InRaster/pre",LULCt1map_yr,"_v1_",LULCt1map_name))
+  channel1_input_dir <- if (lucinputdataset == "woodman") {
+    file.path(countrydir, "LULCC", "DownloadedDatasets", "SourceDataGlobal", "InRaster")
+  } else {
+    file.path(countrydir, "LULCC", "DownloadedDatasets", paste0("SourceData", country_name), "InRaster")
+  }
+  lucmodis_2001_merge_rcl <- rast(file.path(
+    channel1_input_dir, paste0("pre", LULCt1map_yr, "_v1_", LULCt1map_name)
+  ))
 
   rururb_gcs <- rast(paste0(demanddir,"/pop_out/WorldPop_rururbR_2020.tif"))
   rururb_pcs <- rururb_gcs %>% 
@@ -361,7 +374,8 @@ if (lucinputdataset == "modis") {
   
   # Reads growth parameters correctly
   # Define the file path
-  file_pathm <- paste0(countrydir, "/LULCC/DownloadedDatasets/SourceData", country_name, "/InTables/growth_parameters_v3_modis.csv")
+  file_pathm <- paste0(countrydir, "/LULCC/DownloadedDatasets/SourceData", country_name,
+                       "/InTables/growth_parameters_v3_", lucinputdataset, ".csv")
   
   # Check the first line of the file to determine the delimiter
   first_linem <- readLines(file_pathm, n = 1)
@@ -372,9 +386,10 @@ if (lucinputdataset == "modis") {
   # Read and validate without changing parameters produced upstream.
   growth_parameters_v3_modis <- read_delim(file_pathm, delim = delimiterm)
   validate_growth_parameters(
-    growth_parameters_v3_modis, "MODIS growth-parameter table"
+    growth_parameters_v3_modis,
+    paste(toupper(lucinputdataset), "growth-parameter table")
   )
-  assert_current_tof_policy(growth_parameters_v3_modis, "modis")
+  assert_current_tof_policy(growth_parameters_v3_modis, lucinputdataset)
   
   lastid <- max(as.integer(growth_parameters_v3_modis[["Key*"]])) + 1L
   rururb_rcl <- data.frame(c(1,2),c(NA,lastid)) %>%
@@ -390,7 +405,7 @@ if (lucinputdataset == "modis") {
     growth_parameters_v3_modis,
     lucmodis_2001_merge_rcl,
     mask_urbanforced,
-    "modis"
+    lucinputdataset
   )
   lucmodis_2001_final <- ifel(mask_urbanforced, rururb_pcs_rcl, lucmodis_2001_merge_rcl)
   
@@ -406,7 +421,10 @@ if (lucinputdataset == "modis") {
       KSD = forced_urban_parameters$KSD,
       TOF = 1
     ))
-  validate_growth_parameters(growth_parameters_v4, "Final MODIS growth-parameter table")
+  validate_growth_parameters(
+    growth_parameters_v4,
+    paste("Final", toupper(lucinputdataset), "growth-parameter table")
+  )
   str(growth_parameters_v4)
   write.csv(growth_parameters_v4, paste0(countrydir,"/LULCC/DownloadedDatasets/SourceDataGlobal/InTables/growth_parameters1.csv"), row.names=FALSE, quote=FALSE)
   write.csv(growth_parameters_v4, paste0(countrydir,"/LULCC/TempTables/growth_parameters1.csv"), row.names=FALSE, quote=FALSE)

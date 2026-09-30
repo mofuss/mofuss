@@ -396,6 +396,7 @@ scripts <- list(
   "3_demand4IDW_v13.R",
   "4_produce_growth_and_stock_csv_v2.R",
   "5_harmonizer_v8.R",
+  "5b_harmonizer_woodman_multitemp_v1.R",
   "6_scenarios_v4.R",
   "7_parameters_dinamica_v1.R",
   "8_prepare_directional_IDW_inputs_v3.R"
