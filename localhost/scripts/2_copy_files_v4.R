@@ -45,6 +45,11 @@
 # Internal parameters ----
 
 # Load libraries ----
+# BEGIN USER INPUTS ----------------------------------------------------------
+# The calling workflow supplies countrydir, scriptsmofuss and scenario
+# settings. Configure those in the main preprocessing workflow.
+# END USER INPUTS ------------------------------------------------------------
+
 library(conflicted)
 
 library(dplyr)
@@ -54,6 +59,58 @@ library(tcltk)
 
 # Detect OS
 os <- Sys.info()["sysname"]
+
+# Runtime files copied by this preprocessing step on either operating system.
+# Linux launcher support remains internal to the normal workflow.
+mofuss_runtime_bundle_files <- function() {
+  c(
+    "10_dyn_Sc17_webmofuss_ctrees_g_v13.egoml",
+    "10_dyn_Sc17_webmofuss_ctrees_g_v13_linux.egoml",
+    "rnorm_v8.R", "NRB_graphs_datasets_v8.R", "maps_animations_v8.R",
+    "finalogs_v8.R", "bypassMC_v8.R", "bypass_maps_animations_v8.R",
+    "run_linux.sh", "run_linux.py", "mofuss_r_linux.sh",
+    "README_LINUX.md", "LaTeX/generate_modern_report_v8.R"
+  )
+}
+
+mofuss_validate_runtime_bundle <- function(scripts_dir) {
+  files <- mofuss_runtime_bundle_files()
+  sources <- file.path(scripts_dir, files)
+  missing <- files[!file.exists(sources) | dir.exists(sources)]
+  if (length(missing)) {
+    stop("Incomplete Windows/Linux runtime bundle: ", paste(missing, collapse = ", "),
+         call. = FALSE)
+  }
+  invisible(sources)
+}
+
+mofuss_copy_runtime_bundle <- function(scripts_dir, destination) {
+  sources <- mofuss_validate_runtime_bundle(scripts_dir)
+  files <- mofuss_runtime_bundle_files()
+  scripts_dir <- normalizePath(scripts_dir, winslash = "/", mustWork = TRUE)
+  destination <- normalizePath(destination, winslash = "/", mustWork = TRUE)
+  if (identical(scripts_dir, destination)) stop("Source and destination must differ.")
+  targets <- file.path(destination, files)
+  for (directory in unique(dirname(targets))) {
+    dir.create(directory, recursive = TRUE, showWarnings = FALSE)
+  }
+  copied <- file.copy(sources, targets, overwrite = TRUE, copy.mode = TRUE)
+  if (!all(copied)) stop("Could not copy: ", paste(files[!copied], collapse = ", "))
+  if (!identical(unname(tools::md5sum(sources)), unname(tools::md5sum(targets)))) {
+    stop("Runtime bundle verification failed after copying.")
+  }
+  shell_files <- targets[grepl("[.]sh$", targets)]
+  if (.Platform$OS.type != "windows") {
+    Sys.chmod(shell_files, mode = "0755")
+    if (any(file.access(shell_files, mode = 1L) != 0L)) stop("Cannot make Linux launchers executable.")
+  }
+  message("Copied and verified ", length(files), " runtime files in ", destination)
+  invisible(targets)
+}
+
+# Validate before any existing inputs are removed.
+runtime_scripts_dir <- file.path(githubdir, "localhost", "scripts")
+mofuss_validate_runtime_bundle(runtime_scripts_dir)
 
 # Set working directory
 setwd(countrydir)
@@ -101,6 +158,15 @@ lapply(directories_to_remove, unlink, recursive = TRUE, force = TRUE)
 
 # Remove files matching patterns
 lapply(file_patterns_to_remove, unlink, force = TRUE)
+
+# Remove obsolete Linux fix/deployment helpers from earlier code copies.
+# run_linux.py is the retained launcher implementation.
+obsolete_linux_helpers <- c(
+  "prepare_linux_inputs.py", "mofuss_linux_env.sh",
+  "prepare_working_folder_linux.sh", "configure_linux_runtime.sh",
+  "deploy_runtime_bundle_v1.R", "__pycache__"
+)
+unlink(obsolete_linux_helpers, recursive = TRUE, force = TRUE)
 
 # Create MoFuSS directory structure ----
 dirs_to_create <- c(
@@ -250,6 +316,7 @@ lapply(file.names.DS, function(RO.DS) {
 })
 
 # Copy additional files ----
+<<<<<<< HEAD
 # V13 adds runtime country-sourcing capture and exact static-IDW caching.
 # It also corrects the legacy regional pooling of domestic W TOF shortfalls.
 # W inputs must be domestic country components (or one country/own-area
@@ -294,18 +361,17 @@ if (length(missing_bundle_files) > 0L) {
     "Cannot deploy the selected Dinamica bundle; missing repository file(s): ",
     paste(missing_bundle_files, collapse = ", ")
   )
+=======
+# Both platform models and their complete portable R/Linux helper bundle.
+# This does not change scientific scenario settings or output locations.
+for (folder in c("ffmpeg32", "ffmpeg64", "LaTeX")) {
+  if (!file.copy(file.path(runtime_scripts_dir, folder), countrydir,
+                 overwrite = TRUE, recursive = TRUE, copy.mode = TRUE)) {
+    stop("Could not copy runtime support folder: ", folder)
+  }
+>>>>>>> d60b151756cd8199df4cb1f1327731212b446cf9
 }
-
-files2copy <- c(
-  "ffmpeg32/", "ffmpeg64/", "LaTeX/",
-  active_egoml,
-  v8_r_dependencies
-)
-
-
-lapply(files2copy, function(f) {
-  file.copy(from = paste0(githubdir, "/localhost/scripts/", f), to = paste0(countrydir), overwrite = TRUE, recursive = TRUE, copy.mode = TRUE)
-})
+mofuss_copy_runtime_bundle(runtime_scripts_dir, countrydir)
 
 
 # Copy contents of logos_imgs into Wizard_imgs

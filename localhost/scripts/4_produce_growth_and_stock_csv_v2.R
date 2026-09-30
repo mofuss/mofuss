@@ -28,9 +28,11 @@
 
 # 2dolist ----
 
+# BEGIN USER INPUTS ----------------------------------------------------------
 # Internal parameters ----
 temdirdefined = 1
 forced_urban_parameter_digits <- 4L
+# END USER INPUTS ------------------------------------------------------------
 
 # Load libraries ----
 library(conflicted)
