@@ -309,9 +309,12 @@
   }
   if (negative_cells && signed_policy=="error") .rs_stop("Signed negative W adjustments occurred in %d component-cells; use --signed-policy=report for explicit signed accounting",negative_cells)
   if (abs_residual > max(1e-5,abs(total_actual)*2e-6)) .rs_stop("Attribution does not reconcile with actual model harvest: absolute residual %.12g",abs_residual)
+  # v13 records the shortfall used by each origin's redistribution directly.
+  # The legacy Non_harv_AGR-based attribution need not contain that deficit;
+  # select the authoritative mechanism before validating its total.
+  if(origin_preserving) deficit[widx]<-vapply(scalars[widx],`[[`,numeric(1),"origin_tof_shortfall")
   dtotal <- sum(deficit)
   if (dtotal<=0 && sum(abs(pooled))>1e-6) .rs_stop("Pooled TOF redistribution has no attributed origin deficit")
-  if(origin_preserving) deficit[widx]<-vapply(scalars[widx],`[[`,numeric(1),"origin_tof_shortfall")
   matrix_rows <- lapply(seq_len(n),function(k) {
     origin <- index$DemandISO3[k]
     x <- data.table::as.data.table(matrix(accum[k,,],nrow=ns,ncol=length(measure_names)))
@@ -430,6 +433,11 @@
   },by=c(keys,"metric")]
 }
 
+.rs_output_files <- function() c(
+  "annual_sourcing_matrix.csv", "annual_origin_balance.csv", "period_sourcing_matrix.csv",
+  "period_origin_balance.csv", "runtime_sourcing_qa.csv", "period_origin_mc_summary.csv",
+  "README_runtime_sourcing.txt")
+
 rs_main <- function(args=commandArgs(trailingOnly=TRUE)) {
   .rs_require()
   scratch <- Sys.getenv("MOFUSS_SOURCING_TEMP_DIR", unset="")
@@ -464,9 +472,9 @@ rs_main <- function(args=commandArgs(trailingOnly=TRUE)) {
   periods <- .rs_periods(cfg$periods)
   zones <- terra::rast(cfg$zones); if(terra::nlyr(zones)!=1L).rs_stop("Zones must have one layer")
   cw <- .rs_crosswalk(cfg$crosswalk)
-  filenames <- c("annual_sourcing_matrix.csv","annual_origin_balance.csv","period_sourcing_matrix.csv",
-                 "period_origin_balance.csv","runtime_sourcing_qa.csv","period_origin_mc_summary.csv","README_runtime_sourcing.txt")
-  if(!cfg$overwrite && any(file.exists(file.path(cfg$output,filenames)))) .rs_stop("Output exists; use a new directory or --overwrite=YES")
+  filenames <- .rs_output_files()
+  if(!cfg$check && !cfg$overwrite && any(file.exists(file.path(cfg$output,filenames))))
+    .rs_stop("Output exists; use a new directory or --overwrite=YES")
   results <- list(); counter<-0L
   for(run in unique(cfg$runs)) {
     meta <- .rs_meta(run)

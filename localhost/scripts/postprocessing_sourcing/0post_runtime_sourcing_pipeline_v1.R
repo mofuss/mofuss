@@ -6,10 +6,10 @@
 # BEGIN USER INPUTS ----------------------------------------------------------
 # AUTO uses the parent of this repository, wherever it is installed.
 # Set another drive once here, e.g. "E:/" on Windows or "/mnt/data" on Linux.
-SOURCING_WORKING_ROOT <- "AUTO"
+SOURCING_WORKING_ROOT <- "D:/"
 # AUTO puts analyses under <batch root>/_mofuss_postprocessing.
 # Alternatively set one shared absolute analysis parent on any mounted drive.
-SOURCING_ANALYSIS_PARENT <- "AUTO"
+SOURCING_ANALYSIS_PARENT <- "D:/mofuss_postprocessing"
 
 # root = "" inherits SOURCING_WORKING_ROOT. Override root per batch if needed.
 # analysis_folder is a neutral folder NAME, matching the emissions pipeline.
@@ -29,12 +29,12 @@ SOURCING_BATCHES <- list(
   ECSA = list(
     enabled = TRUE,
     root = "",
-    analysis_folder = "ECSA_1000m_2050_mc30",
+    analysis_folder = "ECSA_1000m_2050_mc3",
     folders = c(
-      "ECSA_1000m_bau1_2050_mc30_capped",
-      "ECSA_1000m_bau1_2050_mc30_uncapped",
-      "ECSA_1000m_ics3_2050_mc30_capped",
-      "ECSA_1000m_ics3_2050_mc30_uncapped"
+      "ECSA_1000m_bau1_2050_mc3_capped",
+      "ECSA_1000m_bau1_2050_mc3_uncapped",
+      "ECSA_1000m_ics3_2050_mc3_capped",
+      "ECSA_1000m_ics3_2050_mc3_uncapped"
     )
   ),
   GOG = list(
@@ -106,7 +106,7 @@ SOURCING_BATCHES <- list(
 )
 
 # 1 = approximation; 2 = recorded runtime sourcing; 1:2 runs both.
-SOURCING_STAGES <- 1:2
+SOURCING_STAGES <- 2L
 # Inclusive endpoints: adjacent decades overlap at 2030 and 2040.
 SOURCING_PERIODS <- c("2020:2030", "2030:2040", "2040:2050", "2020:2050")
 SOURCING_MC_RUNS <- "all" # or "1:3", "1,3", or c(1L, 3L)
@@ -114,7 +114,7 @@ SOURCING_BLOCK_MB <- 64
 SOURCING_SIGNED_POLICY <- "error" # "report" permits diagnostic signed accounting
 SOURCING_OVERWRITE <- FALSE # TRUE replaces only the analysis output files
 SOURCING_CHECK_ONLY <- FALSE # TRUE validates all enabled batches without outputs
-SOURCING_TEMP_DIR <- NULL # Raster scratch folder; NULL uses R's temporary directory
+SOURCING_TEMP_DIR <- "E:/MoFuSS_Active/runtime_sourcing" # On Linux, set a writable local scratch path
 # Optional batch fields zones and crosswalk override automatic input discovery.
 # Use absolute paths; crosswalk accepts a CSV or a country boundary GPKG.
 # END USER INPUTS ------------------------------------------------------------
@@ -314,7 +314,8 @@ SOURCING_TEMP_DIR <- NULL # Raster scratch folder; NULL uses R's temporary direc
     if (.sp_within(output, run) || .sp_within(run, output)) .sp_stop("Analysis outputs must be outside working folders: %s", output)
   }
   scratch <- if (is.null(SOURCING_TEMP_DIR)) NULL else .sp_path(SOURCING_TEMP_DIR, repo_parent)
-  list(batches=enabled, disabled=disabled, stages=as.integer(stages), scripts=scripts, scratch=scratch)
+  list(batches=enabled, disabled=disabled, stages=as.integer(stages), scripts=scripts,
+       scratch=scratch, runtime_output_files=runtime$.rs_output_files())
 }
 run_runtime_sourcing_pipeline <- function(args=character()) {
   unknown <- base::setdiff(args, "--check")
@@ -324,6 +325,17 @@ run_runtime_sourcing_pipeline <- function(args=character()) {
   cat("MoFuSS sourcing pipeline: stages ", paste(plan$stages, collapse=" -> "), "\n", sep="")
   cat("Enabled batches: ", paste(names(plan$batches), collapse=", "), "\n", sep="")
   cat("Disabled batches: ", paste(plan$disabled, collapse=", "), "\n", sep="")
+  # --check is read-only even when tables already exist. Normal processing
+  # must detect later-batch conflicts before publishing an earlier batch.
+  if (!check_only && !SOURCING_OVERWRITE && 2L %in% plan$stages) {
+    for (batch in plan$batches) {
+      paths <- file.path(batch$outputs[[2L]], plan$runtime_output_files)
+      conflicts <- paths[file.exists(paths)]
+      if (length(conflicts)) .sp_stop(
+        "Runtime sourcing output exists for batch %s: %s. Use a new analysis_folder or set SOURCING_OVERWRITE = TRUE.",
+        batch$name, conflicts[[1L]])
+    }
+  }
   # Validate every selected analysis in every batch before publishing any output.
   for (batch in plan$batches) {
     cat("\nBatch ", batch$name, "\nWorking root: ", batch$root, "\nAnalysis: ", batch$analysis, "\n", sep="")

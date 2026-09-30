@@ -102,6 +102,24 @@ check(v13$qa$tof_mechanism=="origin_preserving_v13","v13 schema detection")
 check(v13$qa$crossborder_origin_preserving_W_realised_tonnes==0,"v13 domestic W redistribution")
 check(abs(sum(v13$matrix$realised_harvest_tonnes)-sum(maps$Harvest_tot))<1e-10,"v13 harvest reconciliation")
 check(!any(v13$matrix$term=="pooled_TOF_redistribution"),"v13 never mislabeled pooled")
+# v13's recorded per-origin shortfalls, not a legacy map-derived deficit,
+# are authoritative for its origin-preserving redistribution. Exercise the
+# contracts independently: the legacy diagnostic can contribute no mapped
+# deficit while the exact v13 capture still explains the redistribution.
+maps_before_guard<-maps
+maps$Non_harv_AGR<-rep(0,4);maps$harv_AGR<-maps$Proj_harv_Wdef
+maps$Expect_harv_tot<-maps$harv_AGR+maps$Proj_harv_Vdef+maps$Ex_agr_harv
+maps$Harvest_tot<-maps$Expect_harv_tot/2;save_maps()
+save_scalars("W",1,scalar_values$W1);save_scalars("W",2,scalar_values$W2)
+expect_error(.rs_year(meta,1,2020,zones,cw,indices,block_mb=1),"Pooled TOF redistribution has no attributed origin deficit")
+save_scalars("W",1,c(scalar_values$W1,10,1));save_scalars("W",2,c(scalar_values$W2,0,2))
+v13_recorded<-.rs_year(meta,1,2020,zones,cw,indices,block_mb=1)
+check(identical(v13_recorded$demand[channel=="W",tof_deficit_tonnes],c(10,0)),
+      "v13 deficit totals use authoritative captured shortfalls")
+check(abs(sum(v13_recorded$matrix$realised_harvest_tonnes)-sum(maps$Harvest_tot))<1e-10 &&
+      v13_recorded$qa$crossborder_origin_preserving_W_realised_tonnes==0,
+      "v13 captured-shortfall redistribution reconciles without a legacy mapped deficit")
+maps<-maps_before_guard;save_maps()
 # Exercise the public CLI entry point against the synthetic one-year capture.
 dir.create(file.path(scratch,"LULCC","TempTables"),recursive=TRUE)
 dir.create(file.path(scratch,"In","DemandScenarios"),recursive=TRUE)
@@ -110,12 +128,25 @@ fwrite(data.table(Var=c("start_year","end_year","monte_carlo_runs","uncapped_reg
 for(ch in c("W","V"))fwrite(indices[[ch]],file.path(scratch,"In","DemandScenarios",paste0(ch,"_origin_component_index.csv")))
 crosswalk_path<-file.path(scratch,"crosswalk.csv");fwrite(cw,crosswalk_path)
 output_path<-file.path(scratch,"output")
-public<-rs_main(c(paste0("--run-dir=",scratch),paste0("--zones=",zonepath),
-                  paste0("--crosswalk=",crosswalk_path),paste0("--output-dir=",output_path),
-                  "--periods=2020:2020","--mc-runs=1","--block-mb=1"))
+public_args<-c(paste0("--run-dir=",scratch),paste0("--zones=",zonepath),
+               paste0("--crosswalk=",crosswalk_path),paste0("--output-dir=",output_path),
+               "--periods=2020:2020","--mc-runs=1","--block-mb=1")
+public<-rs_main(public_args)
 check(file.exists(file.path(output_path,"period_origin_balance.csv")),"CLI writes period balances")
 check(all(abs(public$qa$origin_source_reconciliation_residual_tonnes)<1e-10),"CLI QA reconciles origin-source ledger")
 check(grepl("no_complete_frozen",public$qa$metadata_provenance),"missing provenance is explicit")
+# Read-only validation must accept existing results without overwrite permission.
+# The ordinary processing path must still refuse to overwrite those results.
+output_before<-list.files(output_path,recursive=TRUE,full.names=TRUE,all.files=TRUE)
+hash_before<-tools::md5sum(output_before)
+mtime_before<-file.info(output_before)$mtime
+expect_error(rs_main(public_args),"Output exists")
+checked<-rs_main(c(public_args,"--check"))
+check(isTRUE(checked$check) && !checked$overwrite,"CLI check accepts existing output without overwrite")
+output_after<-list.files(output_path,recursive=TRUE,full.names=TRUE,all.files=TRUE)
+check(identical(output_after,output_before) &&
+      identical(tools::md5sum(output_after),hash_before) &&
+      identical(file.info(output_after)$mtime,mtime_before),"CLI check leaves existing outputs unchanged")
 relative_index<-file.path("In","DemandScenarios","W_origin_component_index.csv")
 frozen_index<-file.path(scratch,"Sourcing","metadata","input_snapshot",relative_index)
 dir.create(dirname(frozen_index),recursive=TRUE)

@@ -65,6 +65,15 @@ verify_sourcing_pipeline <- function() {
   }
   env <- new.env(parent=globalenv()); env$MOFUSS_CONFIG_ONLY <- TRUE
   sys.source(file.path(copied_post, scripts[[1L]]), env)
+  # Tests must not inherit a user's workstation paths, selected stages, or
+  # overwrite/check settings from the editable pipeline configuration.
+  env$SOURCING_WORKING_ROOT <- "AUTO"
+  env$SOURCING_ANALYSIS_PARENT <- "AUTO"
+  env$SOURCING_STAGES <- 1:2
+  env$SOURCING_BLOCK_MB <- 1
+  env$SOURCING_SIGNED_POLICY <- "error"
+  env$SOURCING_OVERWRITE <- FALSE
+  env$SOURCING_CHECK_ONLY <- FALSE
   env$SOURCING_BATCHES <- list(
     First=list(enabled=TRUE, root="", analysis_folder="first analysis", folders=folders),
     Disabled=list(enabled=FALSE),
@@ -107,8 +116,61 @@ verify_sourcing_pipeline <- function() {
   env$SOURCING_BATCHES$Second$root <- ""
   failure <- tryCatch(env$.sp_plan(env$.sourcing_pipeline_file), error=identity)
   stopifnot(inherits(failure, "error"), grepl("reuse a scenario", conditionMessage(failure)))
+
+  # Recorded sourcing must remain runnable without the approximation-only
+  # inputs. Use a new output folder and temporarily hide only fixture data.
+  env$SOURCING_BATCHES$Second$enabled <- FALSE
+  env$SOURCING_BATCHES$First$analysis_folder <- "recorded only analysis"
+  env$SOURCING_STAGES <- 2L
+  approximation_only <- unlist(lapply(folders, function(folder) {
+    file.path(root, folder, c("LULCC/TempRaster/npa_c.tif",
+      "In/W_origin_components", "In/V_origin_components",
+      "LULCC/DownloadedDatasets/SourceDataGlobal/demand/demand_in"))
+  }), use.names=FALSE)
+  stopifnot(all(file.exists(approximation_only)),
+    all(startsWith(normalizePath(approximation_only, winslash="/"),
+      paste0(normalizePath(root, winslash="/"), "/"))))
+  held <- paste0(approximation_only, ".held")
+  stopifnot(all(file.rename(approximation_only, held)))
+  recorded_plan <- env$.sp_plan(env$.sourcing_pipeline_file)
+  recorded_outputs <- recorded_plan$batches$First$outputs
+  stopifnot(identical(recorded_plan$stages, 2L), !any(dir.exists(recorded_outputs)))
+  env$run_runtime_sourcing_pipeline("--check")
+  stopifnot(!any(dir.exists(recorded_outputs)))
+  env$run_runtime_sourcing_pipeline()
+  recorded_only <- data.table::fread(file.path(recorded_outputs[[2L]], "runtime_sourcing_qa.csv"))
+  stopifnot(!dir.exists(recorded_outputs[[1L]]), nrow(recorded_only)==4L,
+    all(abs(recorded_only$origin_source_reconciliation_residual_tonnes)<1e-8),
+    identical(previous_temp, Sys.getenv(temp_vars, unset=NA_character_)))
+
+  # A later batch's existing runtime tables must stop a normal run before the
+  # earlier empty batch publishes anything. Read-only checks may still inspect
+  # both batches, including existing results, without changing either output.
+  env$SOURCING_BATCHES$First$analysis_folder <- "empty before later conflict"
+  env$SOURCING_BATCHES$Second$enabled <- TRUE
+  env$SOURCING_BATCHES$Second$root <- roots[[2L]]
+  conflict_plan <- env$.sp_plan(env$.sourcing_pipeline_file)
+  empty_outputs <- conflict_plan$batches$First$outputs
+  existing_output <- conflict_plan$batches$Second$outputs[[2L]]
+  existing_files <- list.files(existing_output, full.names=TRUE)
+  existing_hashes <- tools::md5sum(existing_files)
+  stopifnot(!any(dir.exists(empty_outputs)), length(existing_files)>0L)
+  failure <- tryCatch(env$run_runtime_sourcing_pipeline(), error=identity)
+  stopifnot(inherits(failure, "error"),
+    grepl("Runtime sourcing output exists for batch Second", conditionMessage(failure)),
+    !any(dir.exists(empty_outputs)),
+    identical(existing_files, list.files(existing_output, full.names=TRUE)),
+    identical(existing_hashes, tools::md5sum(existing_files)))
+  env$run_runtime_sourcing_pipeline("--check")
+  stopifnot(!any(dir.exists(empty_outputs)),
+    identical(existing_files, list.files(existing_output, full.names=TRUE)),
+    identical(existing_hashes, tools::md5sum(existing_files)),
+    identical(previous_temp, Sys.getenv(temp_vars, unset=NA_character_)))
+  stopifnot(all(file.rename(held, approximation_only)))
   cat("BATCH PIPELINE PASSED: two enabled batches, both analyses, disabled placeholders,\n",
       "relocated scripts, paths with spaces/ampersands, no-write preflight, overwrite protection,\n",
-      "distinct outputs, preserved accounting and restored temporary-directory settings.\n", sep="")
+      "distinct outputs, preserved accounting, stage 2 without approximation inputs,\n",
+      "later-batch conflicts before any writes, read-only checks of existing results,\n",
+      "and restored temporary-directory settings.\n", sep="")
 }
 verify_sourcing_pipeline()
