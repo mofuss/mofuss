@@ -25,6 +25,17 @@ stopifnot(identical(unname(tools::md5sum(file.path(scripts, files))),
 if (.Platform$OS.type != "windows") {
   stopifnot(all(file.access(file.path(fixture, files[grepl("[.]sh$", files)]), 1L) == 0L))
 }
+# Preserve the Woodman branch introduced on Windows while deploying the
+# standard Linux support bundle. Validate its selected model before copying.
+woodman <- "10_dyn_Sc17_webmofuss_ctrees_g_v14.egoml"
+mofuss_copy_runtime_bundle(scripts, fixture, active_egoml = woodman)
+stopifnot(file.exists(file.path(fixture, woodman)),
+          identical(unname(tools::md5sum(file.path(scripts, woodman))),
+                    unname(tools::md5sum(file.path(fixture, woodman)))),
+          identical(before, tools::md5sum(sentinels)))
+failure <- try(mofuss_copy_runtime_bundle(scripts, fixture,
+                 active_egoml = "missing_selected_model.egoml"), silent = TRUE)
+stopifnot(inherits(failure, "try-error"), identical(before, tools::md5sum(sentinels)))
 incomplete <- tempfile("incomplete_linux_bundle_")
 dir.create(incomplete)
 failure <- try(mofuss_copy_runtime_bundle(incomplete, fixture), silent = TRUE)

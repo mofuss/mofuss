@@ -62,19 +62,20 @@ os <- Sys.info()["sysname"]
 
 # Runtime files copied by this preprocessing step on either operating system.
 # Linux launcher support remains internal to the normal workflow.
-mofuss_runtime_bundle_files <- function() {
-  c(
+mofuss_runtime_bundle_files <- function(active_egoml = "10_dyn_Sc17_webmofuss_ctrees_g_v13.egoml") {
+  unique(c(
+    active_egoml,
     "10_dyn_Sc17_webmofuss_ctrees_g_v13.egoml",
     "10_dyn_Sc17_webmofuss_ctrees_g_v13_linux.egoml",
     "rnorm_v8.R", "NRB_graphs_datasets_v8.R", "maps_animations_v8.R",
     "finalogs_v8.R", "bypassMC_v8.R", "bypass_maps_animations_v8.R",
     "run_linux.sh", "run_linux.py", "mofuss_r_linux.sh",
     "README_LINUX.md", "LaTeX/generate_modern_report_v8.R"
-  )
+  ))
 }
 
-mofuss_validate_runtime_bundle <- function(scripts_dir) {
-  files <- mofuss_runtime_bundle_files()
+mofuss_validate_runtime_bundle <- function(scripts_dir, active_egoml = "10_dyn_Sc17_webmofuss_ctrees_g_v13.egoml") {
+  files <- mofuss_runtime_bundle_files(active_egoml)
   sources <- file.path(scripts_dir, files)
   missing <- files[!file.exists(sources) | dir.exists(sources)]
   if (length(missing)) {
@@ -84,9 +85,9 @@ mofuss_validate_runtime_bundle <- function(scripts_dir) {
   invisible(sources)
 }
 
-mofuss_copy_runtime_bundle <- function(scripts_dir, destination) {
-  sources <- mofuss_validate_runtime_bundle(scripts_dir)
-  files <- mofuss_runtime_bundle_files()
+mofuss_copy_runtime_bundle <- function(scripts_dir, destination, active_egoml = "10_dyn_Sc17_webmofuss_ctrees_g_v13.egoml") {
+  sources <- mofuss_validate_runtime_bundle(scripts_dir, active_egoml)
+  files <- mofuss_runtime_bundle_files(active_egoml)
   scripts_dir <- normalizePath(scripts_dir, winslash = "/", mustWork = TRUE)
   destination <- normalizePath(destination, winslash = "/", mustWork = TRUE)
   if (identical(scripts_dir, destination)) stop("Source and destination must differ.")
@@ -108,9 +109,22 @@ mofuss_copy_runtime_bundle <- function(scripts_dir, destination) {
   invisible(targets)
 }
 
+# Select the Windows model from parameters loaded by the preceding workflow.
+# Woodman uses v14; the portable v13 Linux bundle is retained alongside it.
+model_dataset <- country_parameters$ParCHR[
+  !is.na(country_parameters$Var) &
+    country_parameters$Var == "LULCt1map_dataset"
+]
+active_egoml <- if (
+  length(model_dataset) == 1L && !is.na(model_dataset) &&
+    tolower(trimws(as.character(model_dataset))) == "woodman"
+) "10_dyn_Sc17_webmofuss_ctrees_g_v14.egoml" else
+  "10_dyn_Sc17_webmofuss_ctrees_g_v13.egoml"
+
+
 # Validate before any existing inputs are removed.
 runtime_scripts_dir <- file.path(githubdir, "localhost", "scripts")
-mofuss_validate_runtime_bundle(runtime_scripts_dir)
+mofuss_validate_runtime_bundle(runtime_scripts_dir, active_egoml)
 
 # Set working directory
 setwd(countrydir)
@@ -316,52 +330,6 @@ lapply(file.names.DS, function(RO.DS) {
 })
 
 # Copy additional files ----
-<<<<<<< HEAD
-# V13 adds runtime country-sourcing capture and exact static-IDW caching.
-# It also corrects the legacy regional pooling of domestic W TOF shortfalls.
-# W inputs must be domestic country components (or one country/own-area
-# component); V keeps its installed bilateral permissions. The unchanged V8 R
-# reporting bundle is retained. V11/V12 remain source comparison references.
-# See README_runtime_sourcing_v13.md for validation and the explicit bug fix.
-model_dataset <- country_parameters$ParCHR[
-  !is.na(country_parameters$Var) &
-    country_parameters$Var == "LULCt1map_dataset"
-]
-active_egoml <- if (
-  length(model_dataset) == 1L && !is.na(model_dataset) &&
-    tolower(trimws(as.character(model_dataset))) == "woodman"
-) "10_dyn_Sc17_webmofuss_ctrees_g_v14.egoml" else
-  "10_dyn_Sc17_webmofuss_ctrees_g_v13.egoml"
-
-v8_r_dependencies <- c(
-  "rnorm_v8.R",
-  "NRB_graphs_datasets_v8.R",
-  "maps_animations_v8.R",
-  "finalogs_v8.R",
-  "bypassMC_v8.R",
-  "bypass_maps_animations_v8.R"
-)
-
-# These transitive R dependencies are copied with the complete LaTeX folder.
-latex_r_dependencies <- c(
-  "LaTeX/generate_modern_report_v8.R"
-)
-
-bundle_files <- c(
-  active_egoml,
-  v8_r_dependencies,
-  latex_r_dependencies
-)
-bundle_sources <- file.path(
-  githubdir, "localhost", "scripts", bundle_files
-)
-missing_bundle_files <- bundle_files[!file.exists(bundle_sources)]
-if (length(missing_bundle_files) > 0L) {
-  stop(
-    "Cannot deploy the selected Dinamica bundle; missing repository file(s): ",
-    paste(missing_bundle_files, collapse = ", ")
-  )
-=======
 # Both platform models and their complete portable R/Linux helper bundle.
 # This does not change scientific scenario settings or output locations.
 for (folder in c("ffmpeg32", "ffmpeg64", "LaTeX")) {
@@ -369,9 +337,8 @@ for (folder in c("ffmpeg32", "ffmpeg64", "LaTeX")) {
                  overwrite = TRUE, recursive = TRUE, copy.mode = TRUE)) {
     stop("Could not copy runtime support folder: ", folder)
   }
->>>>>>> d60b151756cd8199df4cb1f1327731212b446cf9
 }
-mofuss_copy_runtime_bundle(runtime_scripts_dir, countrydir)
+mofuss_copy_runtime_bundle(runtime_scripts_dir, countrydir, active_egoml)
 
 
 # Copy contents of logos_imgs into Wizard_imgs
