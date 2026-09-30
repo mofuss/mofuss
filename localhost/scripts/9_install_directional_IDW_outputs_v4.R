@@ -60,6 +60,8 @@
 # mismatches, invalid values, source-domain leakage and pre-existing installed
 # components. Up to three aligned border cells per edge may be restored or trimmed.
 # It never runs CostDistance_IDW and never overwrites an installed product.
+# Batch reruns verify and skip complete single-component installs, so completed
+# BAU folders do not prevent installation of the later ICS folders.
 
 # USER INPUTS: edit this block only -----------------------------------------
 
@@ -2517,6 +2519,95 @@ install_directional_idw_outputs <- function(
   )
 }
 
+# Re-running the four-folder batch must not stop at a completed BAU install.
+# Verify the single-component certificate against current inputs before skipping.
+.idw6f_verify_single_component_install <- function(run_root) {
+  in_root <- file.path(run_root, "In")
+  demand_root <- file.path(in_root, "DemandScenarios")
+  audit_path <- file.path(demand_root, "SINGLE_COMPONENT_IDW_install_manifest.csv")
+  if (!file.exists(audit_path)) return(NULL)
+  scope <- .idw6f_resolve_single_country_scope(run_root)
+  annual_periods <- seq_len(scope$end_year - scope$start_year + 1L)
+  periods <- seq.int(1L, length(annual_periods), by = 10L)
+  audit <- read.csv(audit_path, stringsAsFactors = FALSE, check.names = FALSE)
+  required <- c("Channel", "Period", "Year", "DemandTons", "ComponentIndex",
+                "DemandISO3", "ComponentSHA256", "OutputSHA256")
+  fail <- function(detail) .idw6f_stop(
+    "Existing single-component installation failed verification in ",
+    run_root, ": ", detail, ". No files were changed."
+  )
+  if (!all(required %in% names(audit)) || nrow(audit) != 2L * length(periods) ||
+      anyNA(audit[required]) || any(audit$ComponentIndex != 1L) ||
+      any(audit$DemandISO3 != scope$country_iso3) ||
+      anyDuplicated(paste(audit$Channel, audit$Period))) {
+    fail("incomplete or inconsistent installation manifest")
+  }
+  if (!file.exists(file.path(demand_root, "README_SINGLE_COMPONENT_IDW_INSTALL.txt"))) {
+    fail("installation README is missing")
+  }
+  for (channel in c("W", "V")) {
+    rows <- audit[audit$Channel == paste0(channel, "_COMPONENT"), , drop = FALSE]
+    rows <- rows[order(rows$Period), , drop = FALSE]
+    if (!identical(as.integer(rows$Period), as.integer(periods)) ||
+        !identical(as.integer(rows$Year), as.integer(scope$start_year + periods - 1L))) {
+      fail(paste(channel, "manifest periods or years differ from parameters.csv"))
+    }
+    template_path <- file.path(in_root, paste0("fricc_", tolower(channel), ".tif"))
+    if (!file.exists(template_path)) fail(paste(channel, "template is missing"))
+    template <- terra::rast(template_path)
+    .idw6f_assert_single_raster(template, paste(channel, "template"))
+    totals <- numeric(length(annual_periods))
+    for (period in annual_periods) {
+      standard <- file.path(demand_root, sprintf("fwuse_%s_ext_fwdef%02d.csv", channel, period))
+      installed <- file.path(demand_root, sprintf("%s_origin_demand%02d.csv", channel, period))
+      if (!file.exists(standard) || !file.exists(installed)) {
+        fail(paste(channel, "annual demand lookup is missing for period", period))
+      }
+      totals[[period]] <- .idw6f_read_lookup_total(standard, "Current annual demand")
+      lookup <- read.csv(installed, check.names = FALSE)
+      if (!identical(names(lookup), c("Key", "Value")) || nrow(lookup) != 1L ||
+          !identical(as.numeric(lookup$Key), 1) ||
+          !.idw6f_demand_equal(lookup$Value, totals[[period]])) {
+        fail(paste(channel, "installed demand differs from the current lookup for period", period))
+      }
+    }
+    index_path <- file.path(demand_root, paste0(channel, "_origin_component_index.csv"))
+    if (!file.exists(index_path)) fail(paste(channel, "component index is missing"))
+    index <- read.csv(index_path, stringsAsFactors = FALSE, check.names = FALSE)
+    fields <- c("ComponentIndex", "DemandISO3", "JobID", "DirectionRule",
+                "AllowedSourceISO3", "FirstYearDemandTons", "LastYearDemandTons")
+    if (!all(fields %in% names(index)) || nrow(index) != 1L || anyNA(index[fields]) ||
+        index$ComponentIndex != 1L || index$DemandISO3 != scope$country_iso3 ||
+        index$AllowedSourceISO3 != scope$country_iso3 ||
+        index$JobID != paste0("STANDARD_", scope$country_iso3, "_", channel) ||
+        index$DirectionRule != "single_country_standard_idw" ||
+        !.idw6f_demand_equal(index$FirstYearDemandTons, totals[[1L]]) ||
+        !.idw6f_demand_equal(index$LastYearDemandTons, tail(totals, 1L))) {
+      fail(paste(channel, "component index differs from the current run"))
+    }
+    for (row in seq_along(periods)) {
+      period <- periods[[row]]
+      source <- file.path(in_root, sprintf("IDW_C++_fw_%s%02d.tif", tolower(channel), period))
+      target <- file.path(in_root, paste0(channel, "_origin_components"),
+                          sprintf("IDW_C++_fw_%s001_%02d.tif", tolower(channel), period))
+      if (!file.exists(source) || !file.exists(target)) {
+        fail(paste(channel, "IDW source or component is missing for period", period))
+      }
+      if (!grepl("^[a-f0-9]{64}$", rows$ComponentSHA256[[row]]) ||
+          !identical(rows$ComponentSHA256[[row]], rows$OutputSHA256[[row]]) ||
+          !identical(.idw6f_sha256(source), rows$ComponentSHA256[[row]]) ||
+          !identical(.idw6f_sha256(target), rows$OutputSHA256[[row]]) ||
+          !.idw6f_demand_equal(rows$DemandTons[[row]], totals[[period]])) {
+        fail(paste(channel, "IDW checksum or demand changed for period", period))
+      }
+      .idw6f_assert_same_geometry(terra::rast(source), template,
+                                paste(channel, "installed IDW source"), "channel template")
+    }
+  }
+  list(mode = "single_component", status = "already_installed", scope = scope,
+       outputs = audit)
+}
+
 .idw6f_pipeline_main <- function(args = commandArgs(trailingOnly = TRUE)) {
   allowed_args <- c("--check", "--dry-run")
   unknown_args <- setdiff(args, allowed_args)
@@ -2618,11 +2709,18 @@ install_directional_idw_outputs <- function(
         run_index, length(batch$run_roots), basename(run_root)
       ))
       batch_results[[run_index]] <- tryCatch(
-        install_directional_idw_outputs(
-          run_root = run_root,
-          output_prefix = config$output_prefix,
-          dry_run = config$dry_run
-        ),
+        {
+          verified <- .idw6f_verify_single_component_install(run_root)
+          if (!is.null(verified)) {
+            verified
+          } else {
+            install_directional_idw_outputs(
+              run_root = run_root,
+              output_prefix = config$output_prefix,
+              dry_run = config$dry_run
+            )
+          }
+        },
         error = function(error) {
           .idw6f_stop(
             "Batch '", batch$name, "', run '", basename(run_root),
@@ -2632,7 +2730,9 @@ install_directional_idw_outputs <- function(
       )
       cat(sprintf(
         "%s: %s\n",
-        if (config$dry_run) "RUN VALIDATED" else "RUN COMPLETE",
+        if (identical(batch_results[[run_index]]$status, "already_installed")) {
+          "RUN VERIFIED (already installed; skipped)"
+        } else if (config$dry_run) "RUN VALIDATED" else "RUN COMPLETE",
         basename(run_root)
       ))
     }

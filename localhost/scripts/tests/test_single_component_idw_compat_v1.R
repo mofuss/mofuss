@@ -208,6 +208,33 @@ stopifnot(
   all(audit$DemandISO3 == "AAA")
 )
 
+# Repeated batch verification reads the existing installation without writes.
+installed_paths <- list.files(fixture, recursive = TRUE, full.names = TRUE)
+before_hashes <- tools::md5sum(installed_paths)
+verified <- .idw6f_verify_single_component_install(fixture)
+stopifnot(identical(verified$status, "already_installed"),
+          identical(before_hashes, tools::md5sum(installed_paths)))
+tampered <- file.path(fixture, "In", "W_origin_components", "IDW_C++_fw_w001_01.tif")
+original_bytes <- readBin(tampered, "raw", n = file.info(tampered)$size)
+writeBin(as.raw(0L), tampered)
+verification_error <- tryCatch(.idw6f_verify_single_component_install(fixture), error = identity)
+stopifnot(inherits(verification_error, "error"),
+          grepl("checksum", conditionMessage(verification_error), fixed = TRUE))
+writeBin(original_bytes, tampered)
+unlink(tampered)
+verification_error <- tryCatch(.idw6f_verify_single_component_install(fixture), error = identity)
+stopifnot(inherits(verification_error, "error"),
+          grepl("missing", conditionMessage(verification_error), fixed = TRUE))
+writeBin(original_bytes, tampered)
+# Changed standard IDW inputs must not silently reuse stale installed components.
+standard <- file.path(fixture, "In", "IDW_C++_fw_w01.tif")
+standard_bytes <- readBin(standard, "raw", n = file.info(standard)$size)
+writeBin(as.raw(0L), standard)
+verification_error <- tryCatch(.idw6f_verify_single_component_install(fixture), error = identity)
+stopifnot(inherits(verification_error, "error"),
+          grepl("checksum", conditionMessage(verification_error), fixed = TRUE))
+writeBin(standard_bytes, standard)
+
 overwrite_error <- tryCatch(
   {
     install_directional_idw_outputs(fixture)

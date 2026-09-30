@@ -10,11 +10,13 @@ scripts support both operating systems.
 1. Create the four working folders with their scenario parameter tables.
 2. Run the R preprocessing scripts sourced by `000_main_localhost_v1.R` for
    each folder. Step `2_copy_files_v4.R` copies the Windows/Linux model files,
-   required R scripts, script 9, report code and Linux launcher into each folder.
+   required R scripts, report code and Linux launcher into each folder.
 3. Run directional IDW externally for each folder, or restore its backed-up IDW.
-4. Run `9_install_directional_IDW_outputs_v4.R` for the four working folders.
-   The script is copied into each working folder; use its user-input batch
-   parameters to select the working-folder parent and folder names.
+4. Run `localhost/scripts/9_install_directional_IDW_outputs_v4.R` from the
+   repository for the four working folders. Use its user-input batch parameters
+   to select the working-folder parent and folder names.
+   Batch reruns verify and skip completed single-country component installs,
+   so an already-installed BAU pair does not block later ICS installation.
 5. Run the capped and uncapped BAU simulations first; then run their matching
    ICS/CCTS simulations.
 

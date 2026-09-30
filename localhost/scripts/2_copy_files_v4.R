@@ -69,7 +69,6 @@ mofuss_runtime_bundle_files <- function() {
     "rnorm_v8.R", "NRB_graphs_datasets_v8.R", "maps_animations_v8.R",
     "finalogs_v8.R", "bypassMC_v8.R", "bypass_maps_animations_v8.R",
     "run_linux.sh", "run_linux.py", "mofuss_r_linux.sh",
-    "9_install_directional_IDW_outputs_v4.R",
     "README_LINUX.md", "LaTeX/generate_modern_report_v8.R"
   )
 }
