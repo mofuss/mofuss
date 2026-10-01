@@ -63,6 +63,20 @@ library(tidyverse)
 setwd(countrydir)
 getwd()
 
+# Demand exports are already on disk. The downstream scripts read those files;
+# keeping script 3's duplicate tables and raster stacks leaves little room for
+# scenario preparation in a single long-running RStudio session.
+prepared_demand_intermediates <- c(
+  "wf_w_db4idw", "wf_v_db4idw", "partitioned_w_dbs", "partitioned_v_dbs",
+  "partitioned_w", "partitioned_v", "wf_w_st", "wf_v_st",
+  "country_index_raster", "country_index_raster_centres",
+  "country_index_raster_touches"
+)
+rm(list = base::intersect(prepared_demand_intermediates, ls(all.names = TRUE)),
+   envir = environment())
+rm(prepared_demand_intermediates)
+invisible(gc())
+
 # Read parameters table ----
 if (webmofuss == 1) {
   # Read parameters table in webmofuss
@@ -192,32 +206,29 @@ last_yr <- tail(annostxt, n=1)
 unlink("In/DemandScenarios/fwuse_*.csv",force=TRUE)
 # Read whatever name and scenario!
 
+# Keep the annual tables out of the shared preprocessing environment. Neither
+# friction preparation nor the following scripts use these large intermediates.
+local({
 for (j in (c("v","w"))) {
   locs_c<-raster(paste0("LULCC/TempRaster/locs_c_",j,".tif"))
   db_locs <- as.data.frame(getValues(locs_c))
   db_locs_f<-db_locs[complete.cases(db_locs),]
   
-  DemSce_semicolon<-read.csv(paste0("In/DemandScenarios/",substr(SceCode, 1, 3),"_fwch_",j,".csv"), sep=";", stringsAsFactors=FALSE)
-  DemSce_comma<-read.csv(paste0("In/DemandScenarios/",substr(SceCode, 1, 3),"_fwch_",j,".csv"), sep=",", stringsAsFactors=FALSE)
-  if (is.null(DemSce_semicolon$X2027_ch_v[1])) { # Read in the arguments listed at the command line in DINAMICA'S "Run external process"
-    DemSceX<-DemSce_comma
-  } else {
-    DemSceX<-DemSce_semicolon
+  demand_file <- paste0("In/DemandScenarios/", substr(SceCode, 1, 3), "_fwch_", j, ".csv")
+  demand_header <- readLines(demand_file, n = 1L, warn = FALSE)
+  demand_delimiter <- if (grepl(";", demand_header, fixed = TRUE)) ";" else ","
+  # Detect the delimiter from the header instead of reading the entire table
+  # twice. Replace missing demand by column, avoiding a table-sized NA matrix.
+  DemSce <- read.csv(demand_file, sep = demand_delimiter, stringsAsFactors = FALSE)
+  for (column in seq_along(DemSce)) {
+    missing <- is.na(DemSce[[column]])
+    if (any(missing)) DemSce[[column]][missing] <- 0
   }
-  
-  DemSceX %>%
-    replace(is.na(.), 0) -> DemSce
-  
-  # country_parameters %>%
-  #   dplyr::filter(Var == "locs_fieldname") %>%
-  #   pull(ParCHR) -> locs_fieldname
-  locs_fieldname <- paste0("locs_c_",j)
-  
-  names(DemSce) [1] <- locs_fieldname
-  lastrow<- nrow(DemSce) 
-  lastcol<- ncol(DemSce) 
-  DemSce_s<-DemSce[1:lastrow,1:lastcol]
-  DemSce_clean <- DemSce_s[DemSce_s %>% pull(locs_fieldname) %in% db_locs_f, ]
+  locs_fieldname <- paste0("locs_c_", j)
+  names(DemSce)[1L] <- locs_fieldname
+  DemSce_clean <- DemSce[DemSce[[locs_fieldname]] %in% db_locs_f, , drop = FALSE]
+  rm(DemSce, db_locs, db_locs_f)
+  invisible(gc())
   yrs<-first_yr:last_yr #Calibration+Simulation period
   steps_dif<-(last_yr-first_yr)+1	
   steps<-1:steps_dif #Stdyn+1 e.g. 2027-2003=24->24+1=25
@@ -281,8 +292,12 @@ for (j in (c("v","w"))) {
       }
     }
   }
+  rm(DemSce_clean)
+  invisible(gc())
   Sys.sleep(10)
 }
+})
+invisible(gc())
 
 make_tof_key_table <- function(data, label) {
   required <- c("Key*", "TOF")
@@ -360,7 +375,32 @@ countrydir.sys <- gsub("/", "\\", countrydir, fixed=TRUE)
 
 # Friction ----
 # WARNING: MARITIME AND ATRACTION LAYERS NEED TO BE FLESHED OUT AND DEBUG AS OF JULY 2023
-if (friction == "R"){ 
+if (friction == "R"){
+  build_friction_rasters <- function() {
+    # A large regional grid must remain on disk throughout this calculation.
+    # The legacy [] assignments bypassed raster's memory checks and loaded
+    # each entire grid into R, even when its other operations used blocks.
+    invisible(capture.output(previous_options <- raster::rasterOptions()))
+    previous_progress <- getOption("rasterProgress")
+    previous_options <- previous_options[
+      names(previous_options) %in% setdiff(names(formals(raster::rasterOptions)), "progress")
+    ]
+    on.exit({
+      do.call(raster::rasterOptions, previous_options)
+      # rasterOptions reports its default as "none", but its setter rejects
+      # that value. Restore the original underlying option directly.
+      options(rasterProgress = previous_progress)
+    }, add = TRUE)
+    raster::rasterOptions(
+      todisk = TRUE, maxmemory = 5e8, chunksize = 3.2e7,
+      memfrac = 0.1, datatype = "FLT8S"
+    )
+    fill_missing_friction <- function(x) {
+      raster::calc(x, fun = function(values) {
+        values[is.na(values)] <- 0
+        values
+      })
+    }
   
   unlink("in/fricc_w.tif")
   unlink("in/fricc_v.tif")
@@ -380,11 +420,11 @@ if (friction == "R"){
     rivers_reclass.m <- reclassify(rivers_c,
                                    as.data.frame(rivers_rectable),
                                    right=NA)
-    rivers_reclass.m[is.na(rivers_reclass.m[])] <- 0
+    rivers_reclass.m <- fill_missing_friction(rivers_reclass.m)
     
     # Add maritime chunk
     maritime_c <- raster("LULCC/TempRaster/maritime_c.tif")
-    maritime_c[is.na(maritime_c[])] <- 0
+    maritime_c <- fill_missing_friction(maritime_c)
     rivers_reclass <- overlay(maritime_c, rivers_reclass.m,  
                               fun = function(x,y) {ifelse(x==1, x*0.8, y)} ) #empezar por aca
     
@@ -396,7 +436,7 @@ if (friction == "R"){
     rivers_reclass_prelakes <- reclassify(rivers_c,
                                           as.data.frame(rivers_rectable),
                                           right=NA)
-    rivers_reclass_prelakes[is.na(rivers_reclass_prelakes[])] <- 0
+    rivers_reclass_prelakes <- fill_missing_friction(rivers_reclass_prelakes)
     # writeRaster(rivers_reclass_prelakes, "In/rivers_reclass_prelakes.tif", overwrite = TRUE)
     
   }
@@ -409,11 +449,11 @@ if (friction == "R"){
     lakes_reclass.m <- reclassify(lakes_c,
                                   as.data.frame(lakes_rectable),
                                   right=NA)
-    lakes_reclass.m[is.na(lakes_reclass.m[])] <- 0
+    lakes_reclass.m <- fill_missing_friction(lakes_reclass.m)
     
     # Add maritime chunk
     maritime_c <- raster("LULCC/TempRaster/maritime_c.tif")
-    maritime_c[is.na(maritime_c[])] <- 0
+    maritime_c <- fill_missing_friction(maritime_c)
     lakes_reclass <- overlay(lakes_c, lakes_reclass.m,  
                              fun = function(x,y) {ifelse(x==1, x*0.8, y)} ) #empezar por aca
     
@@ -424,7 +464,7 @@ if (friction == "R"){
     lakes_reclass <- reclassify(lakes_c,
                                 as.data.frame(lakes_rectable),
                                 right=NA)
-    lakes_reclass[is.na(lakes_reclass[])] <- 0
+    lakes_reclass <- fill_missing_friction(lakes_reclass)
     # writeRaster(lakes_reclass, "In/lakes_reclass.tif", overwrite = TRUE)
     
   }
@@ -450,12 +490,12 @@ if (friction == "R"){
   borders_reclass <- reclassify(borders_c,
                                 as.data.frame(borders_rectable),
                                 right=NA)
-  borders_reclass[is.na(borders_reclass[])] <- 0
+  borders_reclass <- fill_missing_friction(borders_reclass)
   # writeRaster(borders_reclass, "In/borders_reclass.tif", overwrite = TRUE)
   
   roads_reclass <- overlay(borders_reclass, roads_reclass_preborder, 
                            fun = function(x,y) {ifelse(x > 0, x, y)})
-  roads_reclass[is.na(roads_reclass[])] <- 0
+  roads_reclass <- fill_missing_friction(roads_reclass)
   # writeRaster(roads_reclass, "In/roads_reclass.tif", overwrite = TRUE)
   
   
@@ -466,7 +506,7 @@ if (friction == "R"){
   walkingcrosscountry_table <- read_csv("LULCC/TempTables/Friction_walkingcrosscountry_r.csv")
   slope_reclass <- reclassify(slope_c,
                               as.data.frame(walkingcrosscountry_table))
-  slope_reclass[is.na(slope_reclass[])] <- 0
+  slope_reclass <- fill_missing_friction(slope_reclass)
   # writeRaster(slope_reclass, "In/slope_reclass.tif", overwrite = TRUE)
   
   rivers_O_Wslope <- overlay(rivers_reclass, slope_reclass, 
@@ -483,7 +523,7 @@ if (friction == "R"){
     stack(.,slope_c) %>%
     calc(., sum) %>%
     reclassify(.,as.data.frame(walkingoverroads_table))
-  slopeoverroads[is.na(slopeoverroads[])] <- 0
+  slopeoverroads <- fill_missing_friction(slopeoverroads)
   
   fricc_ww_preborder <- overlay(
     slopeoverroads,
@@ -537,18 +577,18 @@ if (friction == "R"){
                          fun = function(x,y) {ifelse(is.na(y), x, x+y)} )
       fricc_v <- reclassify(fricc_v10000, cbind(-Inf, 0, NA), right=TRUE)
       
-      writeRaster(slope_c, "LULCC/TempRaster/Slope.tif", overwrite = TRUE)
-      writeRaster(fricc_w, "In/fricc_w.tif", overwrite = TRUE)
-      writeRaster(fricc_v, "In/fricc_v.tif", overwrite = TRUE)
+      writeRaster(slope_c, "LULCC/TempRaster/Slope.tif", overwrite = TRUE, datatype = "FLT4S")
+      writeRaster(fricc_w, "In/fricc_w.tif", overwrite = TRUE, datatype = "FLT4S")
+      writeRaster(fricc_v, "In/fricc_v.tif", overwrite = TRUE, datatype = "FLT4S")
       
     } else if (maritime == "NO"){
       
       fricc_w <- reclassify(fricc_ww, cbind(-Inf, 0, NA), right=TRUE)
       fricc_v <- reclassify(fricc_v10000, cbind(-Inf, 0, NA), right=TRUE)
       
-      writeRaster(slope_c, "LULCC/TempRaster/Slope.tif", overwrite = TRUE)
-      writeRaster(fricc_w, "In/fricc_w.tif", overwrite = TRUE)
-      writeRaster(fricc_v, "In/fricc_v.tif", overwrite = TRUE)
+      writeRaster(slope_c, "LULCC/TempRaster/Slope.tif", overwrite = TRUE, datatype = "FLT4S")
+      writeRaster(fricc_w, "In/fricc_w.tif", overwrite = TRUE, datatype = "FLT4S")
+      writeRaster(fricc_v, "In/fricc_v.tif", overwrite = TRUE, datatype = "FLT4S")
       
     }
     
@@ -561,18 +601,18 @@ if (friction == "R"){
                          fun = function(x,y) {ifelse(is.na(y), x, x+y)} )
       fricc_v <- reclassify(fricc_vv, cbind(-Inf, 0, NA), right=TRUE)
       
-      writeRaster(slope_c, "LULCC/TempRaster/Slope.tif", overwrite = TRUE)
-      writeRaster(fricc_w, "In/fricc_w.tif", overwrite = TRUE)
-      writeRaster(fricc_v, "In/fricc_v.tif", overwrite = TRUE)
+      writeRaster(slope_c, "LULCC/TempRaster/Slope.tif", overwrite = TRUE, datatype = "FLT4S")
+      writeRaster(fricc_w, "In/fricc_w.tif", overwrite = TRUE, datatype = "FLT4S")
+      writeRaster(fricc_v, "In/fricc_v.tif", overwrite = TRUE, datatype = "FLT4S")
       
     } else if (maritime == "NO") {
       
       fricc_w <- reclassify(fricc_ww, cbind(-Inf, 0, NA), right=TRUE)
       fricc_v <- reclassify(fricc_vv, cbind(-Inf, 0, NA), right=TRUE)
       
-      writeRaster(slope_c, "LULCC/TempRaster/Slope.tif", overwrite = TRUE)
-      writeRaster(fricc_w, "In/fricc_w.tif", overwrite = TRUE)
-      writeRaster(fricc_v, "In/fricc_v.tif", overwrite = TRUE)
+      writeRaster(slope_c, "LULCC/TempRaster/Slope.tif", overwrite = TRUE, datatype = "FLT4S")
+      writeRaster(fricc_w, "In/fricc_w.tif", overwrite = TRUE, datatype = "FLT4S")
+      writeRaster(fricc_v, "In/fricc_v.tif", overwrite = TRUE, datatype = "FLT4S")
       
       unlink("in/*.xml")
       # plot(fricc_w)
@@ -582,6 +622,10 @@ if (friction == "R"){
     
   }
   
+  }
+  build_friction_rasters()
+  rm(build_friction_rasters)
+  invisible(gc())
 } else if (friction == "Dinamica"){
   unlink("in/fricc_w.tif")
   unlink("in/fricc_v.tif")
@@ -601,4 +645,3 @@ if (idw_debug == "YES") {
 }
 
 # End of script ----
-

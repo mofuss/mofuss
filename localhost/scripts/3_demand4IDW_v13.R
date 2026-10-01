@@ -2084,20 +2084,20 @@ wf_v_db4idw %>%
     geom = c("x", "y"),
     crs = terra::crs(template)
   )
-  location_raster <- terra::rasterize(
+  # Write IDs directly as integers. A default FLT4S intermediate on disk
+  # rounds IDs above 2^24 before a later INT4S conversion can preserve them.
+  terra::rasterize(
     location_points,
     terra::rast(template),
     field = "ID",
-    background = NA
-  )
-  names(location_raster) <- paste0("location_id_", channel)
-  terra::writeRaster(
-    location_raster,
-    location_file,
-    filetype = "GTiff",
-    datatype = "INT4S",
-    gdal = c("COMPRESS=DEFLATE"),
-    overwrite = TRUE
+    background = NA,
+    filename = location_file,
+    overwrite = TRUE,
+    wopt = list(
+      datatype = "INT4S",
+      names = paste0("location_id_", channel),
+      gdal = c("COMPRESS=DEFLATE")
+    )
   )
   .validate_location_id_raster(
     location_file,
