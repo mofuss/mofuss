@@ -13,14 +13,25 @@ harvest. `annual_*` files contain the same information for individual years.
 mean and empirical 2.5th/97.5th percentiles. Three MC runs provide a preliminary
 description, not reliable uncertainty bounds.
 
+`3post_runtime_sourcing_graphics_v1.R` turns the completed V-channel CSVs into
+publication figures. For each selected period and regrowth setting it places
+BAU1 and ICS3 on one page. Bars show domestic, imported, unmet and (if present)
+clearing-credit shares of V demand by country; the adjacent matrix identifies
+foreign supplier countries. Bar labels give imported tonnes and the share of
+demand. Figures are saved as vector PDF and 300-dpi PNG, alongside the exact
+aggregated plotting data.
+
 ## Run recorded sourcing by batch (Windows or Linux)
 
 Open `0post_runtime_sourcing_pipeline_v1.R` in RStudio. Edit only the marked
 `BEGIN USER INPUTS` / `END USER INPUTS` block, then Source the saved file.
 This entry point runs the selected stages in separate R sessions for each batch.
-Stage 2 (recorded runtime sourcing) is selected; it does **not** require running
-Stage 1 (the older approximation) first. Simply sourcing the `2post_` file
-only loads its functions; Source the `0post_` pipeline to run the analysis.
+Stage 3 (V sourcing graphics) is selected by default and reads the completed
+Stage 2 tables. Set `SOURCING_STAGES <- 2L` to recompute the recorded tables,
+or `SOURCING_STAGES <- 2:3` to run the tables and graphics together. Stage 2
+does **not** require Stage 1 (the older approximation). Source the `0post_`
+pipeline to run the selected stages; sourcing either helper file alone only
+loads its functions.
 It requires R with `terra` and `data.table` installed. It does not require Codex.
 
 - Set each entry in `SOURCING_BATCHES` to `enabled = TRUE` or `FALSE`.
@@ -43,8 +54,11 @@ It requires R with `terra` and `data.table` installed. It does not require Codex
   `<batch root>/_mofuss_postprocessing/<analysis_folder>/`, in separate
   `model_implied_sourcing/` and `runtime_sourcing/` subfolders.
   Set an absolute analysis parent to store all batches elsewhere.
-- `SOURCING_STAGES = 1:2` runs both; use `1L` or `2L` to select one.
-  `SOURCING_MC_RUNS = "all"` processes the configured realizations.
+- `SOURCING_STAGES = 3L` draws from the completed Stage 2 CSVs without reading
+  working-folder rasters. Use `1L`, `2L`, or `1:3` to select other workflows.
+  `SOURCING_MC_RUNS = "all"` includes the available realizations. The graphics
+  use the ratio of mean attributed tonnes to mean demand across the selected MC
+  runs, rather than an unweighted average of percentages.
 - `SOURCING_TEMP_DIR` holds disposable raster scratch, not final tables.
   On this Windows machine it is `E:/MoFuSS_Active/runtime_sourcing`;
   change it to a writable local path when moving the configuration to Linux.
@@ -57,11 +71,13 @@ It requires R with `terra` and `data.table` installed. It does not require Codex
   `TRUE` to replace the selected analyses' output files. Working folders are
   read only.
 
-The pipeline discovers each run's country-zone raster (`admin_c.tif`) and
-country crosswalk, preferring frozen metadata when available. All four runs
-must agree. Optional batch fields `zones` and `crosswalk` accept explicit
-paths to override discovery, for example a validated emissions country-zone
-raster. Keep the three scripts together in the repository.
+When Stage 1 or 2 is selected, the pipeline discovers each run's country-zone
+raster (`admin_c.tif`) and country crosswalk, preferring frozen metadata when
+available. All four runs must agree. Optional batch fields `zones` and
+`crosswalk` accept explicit paths to override discovery. Stage 3 uses only the
+three completed Stage 2 CSVs and saves to
+`<analysis_folder>/runtime_sourcing/runtime_sourcing_graphics/`. Keep all four scripts together
+in the repository.
 
 From a terminal with `Rscript` available, use the full script path, quoted
 if it contains spaces. For example on this Linux computer:

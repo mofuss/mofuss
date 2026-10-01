@@ -1,5 +1,5 @@
 # MoFuSS sourcing pipeline: run after the completed Dinamica simulations.
-# Stage 1: model-implied approximation. Stage 2: recorded runtime sourcing.
+# Stage 1: approximation. Stage 2: recorded sourcing. Stage 3: V graphics.
 # Edit the USER INPUTS block, then Source this file in RStudio, or use Rscript.
 # Rscript 0post_runtime_sourcing_pipeline_v1.R --check validates without outputs.
 
@@ -105,8 +105,9 @@ SOURCING_BATCHES <- list(
   )
 )
 
-# 1 = approximation; 2 = recorded runtime sourcing; 1:2 runs both.
-SOURCING_STAGES <- 2L
+# 1 = approximation; 2 = recorded sourcing; 3 = publication graphics; 2:3 for more than one.
+# Stage 3 reads the completed Stage 2 CSVs and does not rerun any rasters.
+SOURCING_STAGES <- 3:3
 # Inclusive endpoints: adjacent decades overlap at 2030 and 2040.
 SOURCING_PERIODS <- c("2020:2030", "2030:2040", "2040:2050", "2020:2050")
 SOURCING_MC_RUNS <- "all" # or "1:3", "1,3", or c(1L, 3L)
@@ -237,12 +238,14 @@ SOURCING_TEMP_DIR <- "E:/MoFuSS_Active/runtime_sourcing" # On Linux, set a writa
 }
 .sp_plan <- function(script_path) {
   script_dir <- dirname(script_path)
-  scripts <- file.path(script_dir, c("1post_model_implied_sourcing_v1.R", "2post_runtime_sourcing_v1.R"))
+  scripts <- file.path(script_dir, c("1post_model_implied_sourcing_v1.R",
+                                     "2post_runtime_sourcing_v1.R",
+                                     "3post_runtime_sourcing_graphics_v1.R"))
   if (any(!file.exists(scripts))) .sp_stop("Sourcing scripts must be kept together in %s", script_dir)
   stages <- SOURCING_STAGES
-  if (!is.numeric(stages) || !length(stages) || anyNA(stages) || any(!stages %in% 1:2) ||
+  if (!is.numeric(stages) || !length(stages) || anyNA(stages) || any(!stages %in% 1:3) ||
       anyDuplicated(stages) || !identical(as.integer(stages), sort(as.integer(stages))))
-    .sp_stop("SOURCING_STAGES must be 1L, 2L, or 1:2")
+    .sp_stop("SOURCING_STAGES must be an ordered selection from 1:3")
   overwrite <- .sp_bool(SOURCING_OVERWRITE, "SOURCING_OVERWRITE")
   .sp_bool(SOURCING_CHECK_ONLY, "SOURCING_CHECK_ONLY")
   if (!is.numeric(SOURCING_BLOCK_MB) || length(SOURCING_BLOCK_MB)!=1L ||
@@ -262,8 +265,17 @@ SOURCING_TEMP_DIR <- "E:/MoFuSS_Active/runtime_sourcing" # On Linux, set a writa
       .sp_stop("SOURCING_MC_RUNS must be all, a range such as 1:3, or positive MC indices")
     mc_arg <- paste0("--mc-runs=", mc)
   }
-  runtime <- new.env(parent=globalenv()); sys.source(scripts[[2L]], runtime); runtime$.rs_require()
-  runtime$.rs_periods(periods)
+  needs_model_inputs <- any(stages %in% 1:2)
+  runtime <- NULL
+  if (needs_model_inputs) {
+    runtime <- new.env(parent=globalenv())
+    sys.source(scripts[[2L]], runtime); runtime$.rs_require()
+    runtime$.rs_periods(periods)
+  } else {
+    graphics <- new.env(parent=globalenv())
+    sys.source(scripts[[3L]], graphics)
+    graphics$.sg_periods(periods)
+  }
   repo_parent <- normalizePath(file.path(script_dir, "../../../.."), winslash="/", mustWork=TRUE)
   default_root <- if (identical(SOURCING_WORKING_ROOT, "AUTO")) repo_parent else
     .sp_path(SOURCING_WORKING_ROOT, repo_parent)
@@ -286,22 +298,29 @@ SOURCING_TEMP_DIR <- "E:/MoFuSS_Active/runtime_sourcing" # On Linux, set a writa
       .sp_stop("Batch %s must list four unique scenario folders", name)
     children <- vapply(entry$folders, .sp_child_name, character(1), label=paste0(name, "$folders"))
     runs <- file.path(root, children)
-    missing <- runs[!dir.exists(runs)]
-    if (length(missing)) .sp_stop("Batch %s is missing scenario folder: %s", name, missing[[1L]])
-    runs <- vapply(runs, normalizePath, character(1), winslash="/", mustWork=TRUE)
+    if (needs_model_inputs) {
+      missing <- runs[!dir.exists(runs)]
+      if (length(missing)) .sp_stop("Batch %s is missing scenario folder: %s", name, missing[[1L]])
+      runs <- vapply(runs, normalizePath, character(1), winslash="/", mustWork=TRUE)
+    } else runs <- character()
     parent <- if (identical(SOURCING_ANALYSIS_PARENT, "AUTO")) file.path(root, "_mofuss_postprocessing") else
       .sp_path(SOURCING_ANALYSIS_PARENT, root)
     analysis <- file.path(parent, folder)
-    inputs <- .sp_inputs(runs, entry, runtime)
-    outputs <- file.path(analysis, c("model_implied_sourcing", "runtime_sourcing"))
+    inputs <- if (needs_model_inputs) .sp_inputs(runs, entry, runtime) else NULL
+    outputs <- c(file.path(analysis, "model_implied_sourcing"),
+                 file.path(analysis, "runtime_sourcing"),
+                 file.path(analysis, "runtime_sourcing", "runtime_sourcing_graphics"))
     common <- c(paste0("--zones=", inputs$zones), paste0("--periods=", paste(periods, collapse=",")),
       mc_arg, paste0("--overwrite=", if (overwrite) "TRUE" else "FALSE"))
     args <- list(
-      c(paste0("--scenario-dir=", runs), paste0("--boundaries=", inputs$crosswalk),
+      if (needs_model_inputs) c(paste0("--scenario-dir=", runs), paste0("--boundaries=", inputs$crosswalk),
         paste0("--output-dir=", outputs[[1L]]), common),
-      c(paste0("--run-dir=", runs), paste0("--crosswalk=", inputs$crosswalk),
+      if (needs_model_inputs) c(paste0("--run-dir=", runs), paste0("--crosswalk=", inputs$crosswalk),
         paste0("--output-dir=", outputs[[2L]]), paste0("--block-mb=", SOURCING_BLOCK_MB),
-        paste0("--signed-policy=", SOURCING_SIGNED_POLICY), common)
+        paste0("--signed-policy=", SOURCING_SIGNED_POLICY), common),
+      c(paste0("--input-dir=", outputs[[2L]]), paste0("--output-dir=", outputs[[3L]]),
+        paste0("--periods=", paste(periods, collapse=",")), mc_arg,
+        paste0("--overwrite=", if (overwrite) "TRUE" else "FALSE"))
     )
     enabled[[name]] <- list(name=name, root=root, runs=runs, analysis=analysis, outputs=outputs, args=args)
   }
@@ -315,7 +334,7 @@ SOURCING_TEMP_DIR <- "E:/MoFuSS_Active/runtime_sourcing" # On Linux, set a writa
   }
   scratch <- if (is.null(SOURCING_TEMP_DIR)) NULL else .sp_path(SOURCING_TEMP_DIR, repo_parent)
   list(batches=enabled, disabled=disabled, stages=as.integer(stages), scripts=scripts,
-       scratch=scratch, runtime_output_files=runtime$.rs_output_files())
+       scratch=scratch, runtime_output_files=if (2L %in% stages) runtime$.rs_output_files() else character())
 }
 run_runtime_sourcing_pipeline <- function(args=character()) {
   unknown <- base::setdiff(args, "--check")
@@ -336,17 +355,33 @@ run_runtime_sourcing_pipeline <- function(args=character()) {
         batch$name, conflicts[[1L]])
     }
   }
+  if (!check_only && !SOURCING_OVERWRITE && 3L %in% plan$stages) {
+    for (batch in plan$batches) {
+      output <- batch$outputs[[3L]]
+      if (dir.exists(output) && length(list.files(output,all.files=TRUE,no..=TRUE)))
+        .sp_stop("Sourcing graphics already exist for batch %s: %s. Use a new analysis_folder or set SOURCING_OVERWRITE = TRUE.",
+                 batch$name,output)
+    }
+  }
   # Validate every selected analysis in every batch before publishing any output.
   for (batch in plan$batches) {
     cat("\nBatch ", batch$name, "\nWorking root: ", batch$root, "\nAnalysis: ", batch$analysis, "\n", sep="")
-    for (stage in plan$stages) .sp_run(plan$scripts[[stage]], c(batch$args[[stage]], "--check"))
+    for (stage in plan$stages) {
+      if (stage==3L && 2L %in% plan$stages && !dir.exists(batch$outputs[[2L]])) {
+        cat("Stage 3 input will be created by Stage 2.\n")
+        next
+      }
+      .sp_run(plan$scripts[[stage]], c(batch$args[[stage]], "--check"))
+    }
   }
   if (check_only) {
     cat("\nCHECK COMPLETE: all enabled sourcing inputs are valid; no analysis outputs were written.\n")
     return(invisible(plan))
   }
   for (batch in plan$batches) for (stage in plan$stages) {
-    cat(sprintf("\n========== Sourcing %s: Stage %d/2 ==========\n", batch$name, stage))
+    cat(sprintf("\n========== Sourcing %s: Stage %d/3 ==========\n", batch$name, stage))
+    if (stage==3L && 2L %in% plan$stages)
+      .sp_run(plan$scripts[[stage]], c(batch$args[[stage]], "--check"))
     .sp_run(plan$scripts[[stage]], batch$args[[stage]], plan$scratch)
   }
   cat("\nSOURCING PIPELINE COMPLETE\n")

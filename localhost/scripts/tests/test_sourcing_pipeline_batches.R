@@ -15,7 +15,8 @@ verify_sourcing_pipeline <- function() {
   copied_post <- file.path(root, "repo with spaces", post)
   dir.create(copied_post, recursive=TRUE)
   scripts <- c("0post_runtime_sourcing_pipeline_v1.R",
-               "1post_model_implied_sourcing_v1.R", "2post_runtime_sourcing_v1.R")
+               "1post_model_implied_sourcing_v1.R", "2post_runtime_sourcing_v1.R",
+               "3post_runtime_sourcing_graphics_v1.R")
   stopifnot(all(file.copy(file.path(repo, post, scripts), copied_post)))
   folders <- c("AAA_bau1_capped", "AAA_bau1_uncapped", "AAA_ics3_capped", "AAA_ics3_uncapped")
   roots <- c(root, file.path(root, "another drive & folder"))
@@ -143,6 +144,41 @@ verify_sourcing_pipeline <- function() {
     all(abs(recorded_only$origin_source_reconciliation_residual_tonnes)<1e-8),
     identical(previous_temp, Sys.getenv(temp_vars, unset=NA_character_)))
 
+  # Stage 3 consumes Stage 2 CSVs alone. Missing model working folders must
+  # not force another raster or simulation preflight.
+  env$SOURCING_STAGES <- 3L
+  env$SOURCING_BATCHES$First$folders <- paste0("not-present-",1:4)
+  graphics_plan <- env$.sp_plan(env$.sourcing_pipeline_file)
+  graphics_output <- graphics_plan$batches$First$outputs[[3L]]
+  stopifnot(identical(dirname(graphics_output),recorded_outputs[[2L]]),
+    !dir.exists(graphics_output), !length(graphics_plan$batches$First$runs))
+  env$run_runtime_sourcing_pipeline("--check")
+  stopifnot(!dir.exists(graphics_output))
+  env$run_runtime_sourcing_pipeline()
+  expected_graphics <- c("V_sourcing_2020-2020_capped.pdf", "V_sourcing_2020-2020_capped.png",
+    "V_sourcing_2020-2020_uncapped.pdf", "V_sourcing_2020-2020_uncapped.png",
+    "V_sourcing_plot_data.csv", "README_graphics.txt")
+  graphic_paths <- file.path(graphics_output,expected_graphics)
+  stopifnot(all(file.exists(graphic_paths)), all(file.info(graphic_paths)$size>0))
+  plot_data <- data.table::fread(file.path(graphics_output,"V_sourcing_plot_data.csv"))
+  fixture_balance <- data.table::fread(file.path(recorded_outputs[[2L]],"period_origin_balance.csv"))
+  fixture_matrix <- data.table::fread(file.path(recorded_outputs[[2L]],"period_sourcing_matrix.csv"))
+  shown <- plot_data[run_name=="AAA_bau1_capped" & origin_iso3=="AAA" & source_iso3=="BBB"]
+  demand <- fixture_balance[run_name=="AAA_bau1_capped" & origin_iso3=="AAA" & channel=="V",demand_tonnes]
+  imported <- fixture_matrix[run_name=="AAA_bau1_capped" & origin_iso3=="AAA" &
+    source_iso3=="BBB" & channel=="V",sum(realised_harvest_tonnes)]
+  stopifnot(nrow(shown)==1L, length(demand)==1L,
+    abs(shown$source_share_demand_pct-100*imported/demand)<1e-9)
+  figure_hashes <- tools::md5sum(graphic_paths)
+  figure_conflict <- tryCatch(env$run_runtime_sourcing_pipeline(),error=identity)
+  stopifnot(inherits(figure_conflict,"error"),
+    grepl("graphics already exist",conditionMessage(figure_conflict)),
+    identical(figure_hashes,tools::md5sum(graphic_paths)))
+  env$run_runtime_sourcing_pipeline("--check")
+  stopifnot(identical(figure_hashes,tools::md5sum(graphic_paths)))
+  env$SOURCING_STAGES <- 2L
+  env$SOURCING_BATCHES$First$folders <- folders
+
   # A later batch's existing runtime tables must stop a normal run before the
   # earlier empty batch publishes anything. Read-only checks may still inspect
   # both batches, including existing results, without changing either output.
@@ -170,6 +206,7 @@ verify_sourcing_pipeline <- function() {
   cat("BATCH PIPELINE PASSED: two enabled batches, both analyses, disabled placeholders,\n",
       "relocated scripts, paths with spaces/ampersands, no-write preflight, overwrite protection,\n",
       "distinct outputs, preserved accounting, stage 2 without approximation inputs,\n",
+      "stage 3 graphics from completed CSVs without working folders,\n",
       "later-batch conflicts before any writes, read-only checks of existing results,\n",
       "and restored temporary-directory settings.\n", sep="")
 }
