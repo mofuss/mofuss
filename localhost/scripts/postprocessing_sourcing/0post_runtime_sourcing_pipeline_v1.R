@@ -6,10 +6,10 @@
 # BEGIN USER INPUTS ----------------------------------------------------------
 # AUTO uses the parent of this repository, wherever it is installed.
 # Set another drive once here, e.g. "E:/" on Windows or "/mnt/data" on Linux.
-SOURCING_WORKING_ROOT <- "D:/"
+SOURCING_WORKING_ROOT <- "F:/"
 # AUTO puts analyses under <batch root>/_mofuss_postprocessing.
 # Alternatively set one shared absolute analysis parent on any mounted drive.
-SOURCING_ANALYSIS_PARENT <- "D:/mofuss_postprocessing"
+SOURCING_ANALYSIS_PARENT <- "F:/mofuss_postprocessing"
 
 # root = "" inherits SOURCING_WORKING_ROOT. Override root per batch if needed.
 # analysis_folder is a neutral folder NAME, matching the emissions pipeline.
@@ -17,7 +17,7 @@ SOURCING_ANALYSIS_PARENT <- "D:/mofuss_postprocessing"
 SOURCING_BATCHES <- list(
   AGO = list(
     enabled = FALSE,
-    root = "",
+    root = "/home/mofuss/Documents",
     analysis_folder = "AGO_1000m_2050_mc3",
     folders = c(
       "AGO_1000m_bau1_2050_mc3_capped",
@@ -28,7 +28,7 @@ SOURCING_BATCHES <- list(
   ),
   ECSA = list(
     enabled = TRUE,
-    root = "",
+    root = "F:/",
     analysis_folder = "ECSA_1000m_2050_mc3",
     folders = c(
       "ECSA_1000m_bau1_2050_mc3_capped",
@@ -39,7 +39,7 @@ SOURCING_BATCHES <- list(
   ),
   GOG = list(
     enabled = FALSE,
-    root = "",
+    root = "E:/",
     analysis_folder = "GOG_1000m_2050_mc30",
     folders = c(
       "GOG_1000m_bau1_2050_mc30_capped",
@@ -50,7 +50,7 @@ SOURCING_BATCHES <- list(
   ),
   MDG = list(
     enabled = FALSE,
-    root = "",
+    root = "F:/",
     analysis_folder = "MDG_1000m_2050_mc3",
     folders = c(
       "MDG_1000m_bau1_2050_mc3_capped",
@@ -61,7 +61,7 @@ SOURCING_BATCHES <- list(
   ),
   LSO = list(
     enabled = FALSE,
-    root = "",
+    root = "F:/",
     analysis_folder = "LSO_1000m_2050_mc3",
     folders = c(
       "LSO_1000m_bau1_2050_mc3_capped",
@@ -72,7 +72,7 @@ SOURCING_BATCHES <- list(
   ),
   MLI = list(
     enabled = FALSE,
-    root = "",
+    root = "F:/",
     analysis_folder = "MLI_1000m_2050_mc3",
     folders = c(
       "MLI_1000m_bau1_2050_mc3_capped",
@@ -83,7 +83,7 @@ SOURCING_BATCHES <- list(
   ),
   GAB = list(
     enabled = FALSE,
-    root = "",
+    root = "F:/",
     analysis_folder = "GAB_1000m_2050_mc3",
     folders = c(
       "GAB_1000m_bau1_2050_mc3_capped",
@@ -91,29 +91,18 @@ SOURCING_BATCHES <- list(
       "GAB_1000m_ics3_2050_mc3_capped",
       "GAB_1000m_ics3_2050_mc3_uncapped"
     )
-  ),
-  GLEA = list(
-    enabled = FALSE,
-    root = "",
-    analysis_folder = "GLEA_1000m_2050_mc3",
-    folders = c(
-      "GLEA_1000m_bau1_2050_mc3_capped",
-      "GLEA_1000m_bau1_2050_mc3_uncapped",
-      "GLEA_1000m_ics3_2050_mc3_capped",
-      "GLEA_1000m_ics3_2050_mc3_uncapped"
-    )
   )
 )
 
 # 1 = approximation; 2 = recorded sourcing; 3 = publication graphics; 2:3 for more than one.
 # Stage 3 reads the completed Stage 2 CSVs and does not rerun any rasters.
-SOURCING_STAGES <- 3:3
+SOURCING_STAGES <- 2:3
 # Inclusive endpoints: adjacent decades overlap at 2030 and 2040.
-SOURCING_PERIODS <- c("2020:2030", "2030:2040", "2040:2050", "2020:2050")
+SOURCING_PERIODS <- c("2020:2050") #c("2020:2030", "2030:2040", "2040:2050", "2020:2050")
 SOURCING_MC_RUNS <- "all" # or "1:3", "1,3", or c(1L, 3L)
 SOURCING_BLOCK_MB <- 64
 SOURCING_SIGNED_POLICY <- "error" # "report" permits diagnostic signed accounting
-SOURCING_OVERWRITE <- FALSE # TRUE replaces only the analysis output files
+SOURCING_OVERWRITE <- TRUE # TRUE replaces only the analysis output files
 SOURCING_CHECK_ONLY <- FALSE # TRUE validates all enabled batches without outputs
 SOURCING_TEMP_DIR <- "E:/MoFuSS_Active/runtime_sourcing" # On Linux, set a writable local scratch path
 # Optional batch fields zones and crosswalk override automatic input discovery.
