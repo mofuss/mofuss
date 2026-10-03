@@ -110,16 +110,56 @@ mofuss_copy_runtime_bundle <- function(scripts_dir, destination, active_egoml = 
 }
 
 # Select the Windows model from parameters loaded by the preceding workflow.
-# Woodman uses v14; the portable v13 Linux bundle is retained alongside it.
-model_dataset <- country_parameters$ParCHR[
-  !is.na(country_parameters$Var) &
-    country_parameters$Var == "LULCt1map_dataset"
-]
-active_egoml <- if (
-  length(model_dataset) == 1L && !is.na(model_dataset) &&
-    tolower(trimws(as.character(model_dataset))) == "woodman"
-) "10_dyn_Sc17_webmofuss_ctrees_g_v14.egoml" else
-  "10_dyn_Sc17_webmofuss_ctrees_g_v13.egoml"
+# Woodman uses v14 in either channel 3 or the earlier channel 1 arrangement.
+model_parameter <- function(name, default) {
+  value <- country_parameters$ParCHR[
+    !is.na(country_parameters$Var) & country_parameters$Var == name
+  ]
+  if (!length(value)) return(default)
+  if (length(value) != 1L) stop("Duplicate model parameter: ", name)
+  if (is.na(value[[1L]]) || !nzchar(trimws(value[[1L]]))) return(default)
+  tolower(trimws(as.character(value)))
+}
+woodman_luc1 <- model_parameter("LULCt1map", "NO") == "yes" &&
+  model_parameter("LULCt1map_dataset", "modis") == "woodman"
+woodman_luc3 <- model_parameter("LULCt3map", "NO") == "yes" &&
+  model_parameter("LULCt3map_dataset", "dynamicworld") == "woodman"
+if (woodman_luc1 && woodman_luc3) {
+  stop("Woodman must be selected in only one LULC channel.")
+}
+woodman_slot <- if (woodman_luc3) 3L else if (woodman_luc1) 1L else NA_integer_
+active_egoml <- if (!is.na(woodman_slot))
+  "10_dyn_Sc17_webmofuss_ctrees_g_v14.egoml" else
+    "10_dyn_Sc17_webmofuss_ctrees_g_v13.egoml"
+
+set_copied_woodman_luc_slot <- function(model_path, slot) {
+  if (slot == 3L) return(invisible(model_path))
+  if (slot != 1L) stop("Unsupported Woodman LUC channel: ", slot)
+  lines <- readLines(model_path, warn = FALSE)
+  selector <- grep('<outputport name="object" id="v302" />',
+                   lines, fixed = TRUE)
+  if (length(selector) != 1L || selector[[1L]] < 4L ||
+      !grepl('value="LUC map version"', lines[selector - 3L], fixed = TRUE) ||
+      !grepl('value="Int_constant_4"', lines[selector - 2L], fixed = TRUE) ||
+      !grepl('<inputport name="constant">3</inputport>',
+             lines[selector - 1L], fixed = TRUE)) {
+    stop("Could not locate the verified v14 LUC selector in ", model_path)
+  }
+  lines[selector - 1L] <- sub(
+    '<inputport name="constant">3</inputport>',
+    '<inputport name="constant">1</inputport>',
+    lines[selector - 1L], fixed = TRUE
+  )
+  temporary_path <- tempfile(pattern = "woodman_luc1_model_",
+                             tmpdir = dirname(model_path), fileext = ".egoml")
+  on.exit(unlink(temporary_path), add = TRUE)
+  writeLines(lines, temporary_path, useBytes = TRUE)
+  if (!file.copy(temporary_path, model_path, overwrite = TRUE) ||
+      !identical(readLines(model_path, warn = FALSE), lines)) {
+    stop("Could not set copied v14 model to legacy Woodman LUC1.")
+  }
+  invisible(model_path)
+}
 
 
 # Validate before any existing inputs are removed.
@@ -339,6 +379,9 @@ for (folder in c("ffmpeg32", "ffmpeg64", "LaTeX")) {
   }
 }
 mofuss_copy_runtime_bundle(runtime_scripts_dir, countrydir, active_egoml)
+if (!is.na(woodman_slot)) {
+  set_copied_woodman_luc_slot(file.path(countrydir, active_egoml), woodman_slot)
+}
 
 
 # Copy contents of logos_imgs into Wizard_imgs

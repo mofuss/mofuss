@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # Woodman annual LULC, TOF and forest-transition maps on the country grid.
 # Source after 5_harmonizer_v8.R, which defines userarea_r and the static
-# LULCt1_c.tif map. This script runs only when LULCt1map_dataset=woodman.
+# LULCt<channel>_c.tif map. Woodman may occupy LUC3 or legacy LUC1.
 
 library(dplyr)
 library(terra)
@@ -17,7 +17,26 @@ woodman_parameter <- function(name, default = NULL) {
   trimws(as.character(value[[1L]]))
 }
 
-if (tolower(woodman_parameter("LULCt1map_dataset", "modis")) == "woodman") {
+woodman_optional_parameter <- function(name, default) {
+  value <- country_parameters$ParCHR[
+    !is.na(country_parameters$Var) & country_parameters$Var == name
+  ]
+  if (!length(value)) return(default)
+  if (length(value) != 1L) stop("Duplicate Woodman parameter: ", name)
+  if (is.na(value[[1L]]) || !nzchar(trimws(value[[1L]]))) return(default)
+  trimws(as.character(value[[1L]]))
+}
+
+woodman_luc1 <- toupper(woodman_optional_parameter("LULCt1map", "YES")) == "YES" &&
+  tolower(woodman_optional_parameter("LULCt1map_dataset", "modis")) == "woodman"
+woodman_luc3 <- toupper(woodman_optional_parameter("LULCt3map", "NO")) == "YES" &&
+  tolower(woodman_optional_parameter("LULCt3map_dataset", "dynamicworld")) == "woodman"
+if (woodman_luc1 && woodman_luc3) {
+  stop("Woodman must be selected in only one LULC channel.")
+}
+
+if (woodman_luc1 || woodman_luc3) {
+  woodman_slot <- if (woodman_luc3) 3L else 1L
   if (!exists("userarea_r", inherits = TRUE) ||
       !exists("align_raster_to_template", mode = "function")) {
     stop("Run 5_harmonizer_v8.R before Woodman annual harmonization.")
@@ -41,8 +60,14 @@ if (tolower(woodman_parameter("LULCt1map_dataset", "modis")) == "woodman") {
   )
   zone_path <- file.path(global_data, "InRaster", "woodman_zone_pcs.tif")
   key_path <- file.path(source_data, "InTables", "woodman_key_crosswalk.csv")
-  growth_path <- file.path(countrydir, "LULCC", "TempTables", "growth_parameters1.csv")
-  base_path <- file.path(countrydir, "LULCC", "TempRaster", "LULCt1_c.tif")
+  growth_path <- file.path(
+    countrydir, "LULCC", "TempTables",
+    sprintf("growth_parameters%d.csv", woodman_slot)
+  )
+  base_path <- file.path(
+    countrydir, "LULCC", "TempRaster",
+    sprintf("LULCt%d_c.tif", woodman_slot)
+  )
   required <- c(zone_path, key_path, growth_path, base_path)
   missing <- required[!file.exists(required)]
   if (length(missing)) stop("Missing Woodman prerequisite: ", missing[[1L]])
@@ -70,17 +95,36 @@ if (tolower(woodman_parameter("LULCt1map_dataset", "modis")) == "woodman") {
   previous_forest <- NULL
   output_dir <- file.path(countrydir, "LULCC", "TempRaster")
 
-  for (year in 2000:end_year) {
-    annual_path <- file.path(
-      global_data, "InRaster", series_dir,
-      sprintf("woodman_luc_%d_gcs.tif", year)
-    )
-    if (!file.exists(annual_path)) {
-      stop("Missing Woodman annual map: ", annual_path)
+  years <- 2000:end_year
+  pcs_paths <- file.path(
+    global_data, "InRaster", sprintf("woodman_luc_%d_pcs.tif", years)
+  )
+  gcs_paths <- lapply(c("InRaster_GCS", "InRaster"), function(parent) {
+    file.path(global_data, parent, series_dir,
+              sprintf("woodman_luc_%d_gcs.tif", years))
+  })
+  annual_paths <- if (all(file.exists(pcs_paths))) {
+    pcs_paths
+  } else {
+    complete_gcs <- which(vapply(gcs_paths, function(paths) {
+      all(file.exists(paths))
+    }, logical(1)))
+    if (!length(complete_gcs)) {
+      stop("Missing a complete Woodman annual LULC series for ",
+           years[[1L]], "–", tail(years, 1L),
+           " in SourceDataGlobal/InRaster or InRaster_GCS.")
     }
+    gcs_paths[[complete_gcs[[1L]]]]
+  }
+  message("Preparing Woodman LUC", woodman_slot, " annual maps from ",
+          dirname(annual_paths[[1L]]))
+
+  for (i in seq_along(years)) {
+    year <- years[[i]]
     luc <- align_raster_to_template(
-      terra::rast(annual_path), userarea_r, method = "near"
+      terra::rast(annual_paths[[i]]), userarea_r, method = "near"
     )
+    luc <- terra::ifel(luc == 0, NA, luc)
     combined <- zone + luc
     annual_key <- terra::classify(
       combined, key_matrix, right = NA, others = NA
@@ -111,12 +155,14 @@ if (tolower(woodman_parameter("LULCt1map_dataset", "modis")) == "woodman") {
       )
     }
     terra::writeRaster(
-      key, file.path(output_dir, sprintf("LULCt1_c_%d.tif", year)),
+      key, file.path(output_dir,
+                     sprintf("LULCt%d_c_%d.tif", woodman_slot, year)),
       datatype = "INT2S", overwrite = TRUE,
       wopt = list(gdal = c("COMPRESS=LZW"))
     )
     terra::writeRaster(
-      tof, file.path(output_dir, sprintf("TOFvsFOR_mask1_%d.tif", year)),
+      tof, file.path(output_dir,
+                     sprintf("TOFvsFOR_mask%d_%d.tif", woodman_slot, year)),
       datatype = "INT2S", overwrite = TRUE,
       wopt = list(gdal = c("COMPRESS=LZW"))
     )
@@ -127,6 +173,7 @@ if (tolower(woodman_parameter("LULCt1map_dataset", "modis")) == "woodman") {
       wopt = list(gdal = c("COMPRESS=LZW"))
     )
     previous_forest <- forest
-    message("Prepared Woodman LULC, TOF and transition maps for ", year)
+    message("Prepared Woodman LUC", woodman_slot,
+            ", TOF and transition maps for ", year)
   }
 }

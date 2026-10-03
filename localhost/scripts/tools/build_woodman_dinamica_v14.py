@@ -39,11 +39,17 @@ def annual_loader() -> str:
 </containerfunctor>
 <containerfunctor name="CreateString">
     <property key="dff.functor.alias" value="Woodman annual LULC filename" />
-    <inputport name="format">&quot;LULCC/TempRaster/LULCt1_c_&lt;v1&gt;.tif&quot;</inputport>
+    <inputport name="format">&quot;LULCC/TempRaster/LULCt&lt;v1&gt;_c_&lt;v2&gt;.tif&quot;</inputport>
     <outputport name="result" id="v90002" />
     <functor name="NumberValue">
-        <inputport name="value" peerid="v90001" />
+        <property key="dff.functor.alias" value="Selected LUC channel" />
+        <inputport name="value" peerid="v302" />
         <inputport name="valueNumber">1</inputport>
+    </functor>
+    <functor name="NumberValue">
+        <property key="dff.functor.alias" value="Annual year" />
+        <inputport name="value" peerid="v90001" />
+        <inputport name="valueNumber">2</inputport>
     </functor>
 </containerfunctor>
 <functor name="LoadMap">
@@ -58,11 +64,17 @@ def annual_loader() -> str:
 </functor>
 <containerfunctor name="CreateString">
     <property key="dff.functor.alias" value="Woodman annual TOF filename" />
-    <inputport name="format">&quot;LULCC/TempRaster/TOFvsFOR_mask1_&lt;v1&gt;.tif&quot;</inputport>
+    <inputport name="format">&quot;LULCC/TempRaster/TOFvsFOR_mask&lt;v1&gt;_&lt;v2&gt;.tif&quot;</inputport>
     <outputport name="result" id="v90004" />
     <functor name="NumberValue">
-        <inputport name="value" peerid="v90001" />
+        <property key="dff.functor.alias" value="Selected LUC channel" />
+        <inputport name="value" peerid="v302" />
         <inputport name="valueNumber">1</inputport>
+    </functor>
+    <functor name="NumberValue">
+        <property key="dff.functor.alias" value="Annual year" />
+        <inputport name="value" peerid="v90001" />
+        <inputport name="valueNumber">2</inputport>
     </functor>
 </containerfunctor>
 <functor name="LoadMap">
@@ -118,7 +130,7 @@ def annual_loader() -> str:
 
 def main() -> None:
     source = SOURCE.read_text(encoding="utf-8")
-    for new_id in range(90001, 90009):
+    for new_id in range(90001, 90010):
         if re.search(rf'\bv{new_id}\b', source):
             raise ValueError(f"New Dinamica ID is already in use: v{new_id}")
     marker = '<property key="dff.functor.alias" value="repeat874" />'
@@ -169,6 +181,40 @@ def main() -> None:
                     </functor>''',
     )
     output = source[:start] + annual + source[end:]
+    output = replace_once(
+        output,
+        "&quot;1 = MODIS 2001 (proxy 2000) - 2 = Copernicus 2015&quot;",
+        "&quot;Woodman annual maps: 1 = legacy LUC1 slot, 3 = LUC3 slot&quot;",
+    )
+    output = replace_once(
+        output,
+        '''<property key="dff.functor.alias" value="LUC map version" />
+            <property key="wizard.constant.input" value="Int_constant_4" />
+            <inputport name="constant">1</inputport>
+            <outputport name="object" id="v302" />''',
+        '''<property key="dff.functor.alias" value="LUC map version" />
+            <property key="wizard.constant.input" value="Int_constant_4" />
+            <inputport name="constant">3</inputport>
+            <outputport name="object" id="v302" />''',
+    )
+    output = replace_once(
+        output,
+        '''<functor name="LoadLookupTable">
+            <property key="dff.functor.alias" value="loadLookupTable3952" />
+            <inputport name="filename">&quot;LULCC/TempTables/TOFvsFOR_Categories1.csv&quot;</inputport>''',
+        '''<containerfunctor name="CreateString">
+            <property key="dff.functor.alias" value="Selected LUC TOF categories filename" />
+            <inputport name="format">&quot;LULCC/TempTables/TOFvsFOR_Categories&lt;v1&gt;.csv&quot;</inputport>
+            <outputport name="result" id="v90009" />
+            <functor name="NumberValue">
+                <inputport name="value" peerid="v302" />
+                <inputport name="valueNumber">1</inputport>
+            </functor>
+        </containerfunctor>
+        <functor name="LoadLookupTable">
+            <property key="dff.functor.alias" value="loadLookupTable3952" />
+            <inputport name="filename" peerid="v90009" />''',
+    )
     ET.fromstring(output)
     TARGET.write_text(output, encoding="utf-8")
     print(f"Wrote {TARGET}")

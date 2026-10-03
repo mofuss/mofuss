@@ -332,17 +332,36 @@ country_parameters %>%
 #             overwrite = TRUE, recursive = TRUE, copy.mode = TRUE)
 # }
 
-luc_t1_dataset <- country_parameters %>%
-  dplyr::filter(Var == "LULCt1map_dataset") %>% pull(ParCHR)
-if (length(luc_t1_dataset) == 0L) luc_t1_dataset <- "modis"
-luc_t1_dataset <- tolower(trimws(luc_t1_dataset[[1L]]))
+optional_luc_parameter <- function(name, default) {
+  value <- country_parameters$ParCHR[
+    !is.na(country_parameters$Var) & country_parameters$Var == name
+  ]
+  if (!length(value)) return(default)
+  if (length(value) != 1L) stop("Duplicate LULC parameter: ", name)
+  if (is.na(value[[1L]]) || !nzchar(trimws(value[[1L]]))) return(default)
+  tolower(trimws(as.character(value[[1L]])))
+}
+luc_t1_dataset <- optional_luc_parameter("LULCt1map_dataset", "modis")
 if (!luc_t1_dataset %in% c("modis", "woodman")) {
   stop("LULCt1map_dataset must be modis or woodman.")
 }
+luc_t3_enabled <- toupper(optional_luc_parameter("LULCt3map", "no"))
+luc_t3_dataset <- optional_luc_parameter("LULCt3map_dataset", "dynamicworld")
+if (luc_t3_enabled == "YES" &&
+    (is.na(luc_t3_dataset) ||
+     !luc_t3_dataset %in% c("dynamicworld", "woodman"))) {
+  stop("LULCt3map_dataset must be dynamicworld or woodman.")
+}
 lucavailablemaps <- c(
   if (LULCt1map == "YES") luc_t1_dataset,
-  if (LULCt2map == "YES") "copernicus"
+  if (LULCt2map == "YES") "copernicus",
+  if (luc_t3_enabled == "YES" && luc_t3_dataset == "woodman") "woodman"
 )
+if (anyDuplicated(lucavailablemaps)) {
+  stop("Woodman must be selected in only one LULC channel.")
+}
+woodman_slot <- if (luc_t3_enabled == "YES" &&
+                    luc_t3_dataset == "woodman") 3L else 1L
 lucavailablemaps
 
 for (lucinputdataset in lucavailablemaps) {
@@ -352,22 +371,33 @@ setwd(countrydir)
 
 # Prepare the rural urban mask ----
 if (lucinputdataset %in% c("modis", "woodman")) {
-  
-  country_parameters %>%
-    dplyr::filter(Var == "LULCt1map_name") %>%
-    pull(ParCHR) -> LULCt1map_name
-  country_parameters %>%
-    dplyr::filter(Var == "LULCt1map_yr") %>%
-    pull(ParCHR) %>%
-    as.integer(.) -> LULCt1map_yr
-  channel1_input_dir <- if (lucinputdataset == "woodman") {
+  active_luc_slot <- if (lucinputdataset == "woodman") woodman_slot else 1L
+  active_luc_prefix <- paste0("LULCt", active_luc_slot, "map")
+  active_luc_name <- country_parameters$ParCHR[
+    country_parameters$Var == paste0(active_luc_prefix, "_name")
+  ]
+  active_luc_year <- suppressWarnings(as.integer(country_parameters$ParCHR[
+    country_parameters$Var == paste0(active_luc_prefix, "_yr")
+  ]))
+  if (length(active_luc_name) != 1L || is.na(active_luc_name) ||
+      !nzchar(trimws(active_luc_name)) || length(active_luc_year) != 1L ||
+      is.na(active_luc_year)) {
+    stop("Invalid name or year for ", active_luc_prefix, ".")
+  }
+  active_luc_name <- trimws(active_luc_name)
+  raster_input_dir <- if (lucinputdataset == "woodman") {
     file.path(countrydir, "LULCC", "DownloadedDatasets", "SourceDataGlobal", "InRaster")
   } else {
     file.path(countrydir, "LULCC", "DownloadedDatasets", paste0("SourceData", country_name), "InRaster")
   }
-  lucmodis_2001_merge_rcl <- rast(file.path(
-    channel1_input_dir, paste0("pre", LULCt1map_yr, "_v1_", LULCt1map_name)
-  ))
+  initial_key_path <- file.path(
+    raster_input_dir, paste0("pre", active_luc_year, "_v1_", active_luc_name)
+  )
+  if (!file.exists(initial_key_path)) {
+    stop("Missing ", toupper(lucinputdataset), " baseline key raster: ",
+         initial_key_path)
+  }
+  lucmodis_2001_merge_rcl <- rast(initial_key_path)
 
   rururb_gcs <- rast(paste0(demanddir,"/pop_out/WorldPop_rururbR_2020.tif"))
   rururb_pcs <- rururb_gcs %>% 
@@ -413,8 +443,12 @@ if (lucinputdataset %in% c("modis", "woodman")) {
   
   # terra::writeRaster(lucmodis_2010_final, paste0(lulccfiles,"/out_pcs/rururb_rcl2.tif"),
   #                    filetype = "GTiff", overwrite = TRUE)
-  terra::writeRaster(lucmodis_2001_final, paste0(countrydir,"/LULCC/DownloadedDatasets/SourceDataGlobal/InRaster/",LULCt1map_name), 
-                     filetype = "GTiff", overwrite = TRUE)
+  terra::writeRaster(
+    lucmodis_2001_final,
+    file.path(countrydir, "LULCC", "DownloadedDatasets", "SourceDataGlobal",
+              "InRaster", active_luc_name),
+    filetype = "GTiff", overwrite = TRUE
+  )
   
   growth_parameters_v4 <- growth_parameters_v3_modis %>%
     add_row(tibble_row(
@@ -428,8 +462,14 @@ if (lucinputdataset %in% c("modis", "woodman")) {
     paste("Final", toupper(lucinputdataset), "growth-parameter table")
   )
   str(growth_parameters_v4)
-  write.csv(growth_parameters_v4, paste0(countrydir,"/LULCC/DownloadedDatasets/SourceDataGlobal/InTables/growth_parameters1.csv"), row.names=FALSE, quote=FALSE)
-  write.csv(growth_parameters_v4, paste0(countrydir,"/LULCC/TempTables/growth_parameters1.csv"), row.names=FALSE, quote=FALSE)
+  growth_table_name <- paste0("growth_parameters", active_luc_slot, ".csv")
+  write.csv(growth_parameters_v4,
+            file.path(countrydir, "LULCC", "DownloadedDatasets",
+                      "SourceDataGlobal", "InTables", growth_table_name),
+            row.names=FALSE, quote=FALSE)
+  write.csv(growth_parameters_v4,
+            file.path(countrydir, "LULCC", "TempTables", growth_table_name),
+            row.names=FALSE, quote=FALSE)
   tail(growth_parameters_v4)
 
   # These rasters use the 453-million-cell global grid and are not consumed as

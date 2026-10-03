@@ -13,9 +13,13 @@
 # MoFuSS global LULC growth-parameter preprocessing
 # Version 7
 # Date: Sep 2026
-# Woodman annual 2000-2050 inputs are staged in the portable 1000m seed.
-# This script creates the baseline growth table and a zone/class crosswalk;
-# country-sized annual maps are prepared by 5b_harmonizer_woodman_multitemp_v1.R.
+# Source this script in the same RStudio session used for v6. It uses the same
+# countrydir, country_name, parameters_file_path and admindir inputs. In
+# RStudio it asks for a separate calculation folder, e.g. E:/lulcc_multitemporal.
+# Woodman occupies LULC channel 3 while channel 1 can remain MODIS. This script
+# calibrates one growth table against 2000 CTrees AGB and writes a compatible
+# keyed LULC map for each year from 2000 through the configured end year.
+# Country-sized annual maps are prepared by 5b_harmonizer_woodman_multitemp_v1.R.
 
 # References for forest growth, agroforestry accumulation and TOF definitions
 # https://www.ipcc-nggip.iges.or.jp/public/2019rf/index.html
@@ -397,6 +401,19 @@ country_parameters %>%
   pull(ParCHR) -> LULCt2map
 
 country_parameters %>%
+  dplyr::filter(Var == "LULCt3map") %>%
+  pull(ParCHR) -> LULCt3map
+if (length(LULCt3map) > 1L) {
+  stop("LULCt3map must occur at most once in the parameters table.")
+}
+if (!length(LULCt3map) || is.na(LULCt3map) ||
+    !nzchar(trimws(LULCt3map))) {
+  LULCt3map <- "NO"
+} else {
+  LULCt3map <- toupper(trimws(LULCt3map))
+}
+
+country_parameters %>%
   dplyr::filter(Var == "pdecil") %>%
   pull(ParCHR) %>%
   as.numeric(.) -> pdecil
@@ -440,19 +457,39 @@ message(
   " | ", normalizePath(selected_agb_path, winslash = "/")
 )
 
-if (exists("lulccfiles") == FALSE) {
-  choose_directory71 = function(caption = "Choose the directory where land use/cover files are") {
-    if(.Platform$OS.type == "unix")  {
-      setwd(tk_choose.dir("/home/mofuss/Documents", caption = caption))
-    } else {
-      setwd(choose.dir("/home/mofuss/Documents", caption = caption))
-    }
+# Ask for v7's calculation folder in RStudio, even when v6 left lulccfiles
+# in the session. Keep that v6 variable unchanged. Non-interactive runs may
+# provide lulccfiles_v7 explicitly; the old launcher can still use lulccfiles.
+if (interactive()) {
+  v7_default_dir <- if (dir.exists("E:/lulcc_multitemporal")) {
+    "E:/lulcc_multitemporal"
+  } else {
+    getwd()
   }
-  choose_directory71()
-  lulccfiles <- getwd()
+  lulccfiles_v7 <- if (.Platform$OS.type == "windows") {
+    choose.dir(
+      default = v7_default_dir,
+      caption = "Choose the Woodman multitemporal calculation folder"
+    )
+  } else {
+    tcltk::tk_choose.dir(
+      default = v7_default_dir,
+      caption = "Choose the Woodman multitemporal calculation folder"
+    )
+  }
+} else if (!exists("lulccfiles_v7", inherits = FALSE)) {
+  if (!exists("lulccfiles", inherits = FALSE)) {
+    stop("Set lulccfiles_v7 before a non-interactive v7 run.")
+  }
+  lulccfiles_v7 <- lulccfiles
+}
+if (length(lulccfiles_v7) != 1L || is.na(lulccfiles_v7) ||
+    !nzchar(trimws(lulccfiles_v7))) {
+  stop("No multitemporal calculation folder was selected.")
 }
 
-# Reads input datasets from parameters csv. Channel 1 can be MODIS or Woodman.
+# Read the enabled channels from the same parameters table as v6. The Woodman
+# channel-3 setting leaves the working MODIS channel-1 entries untouched.
 luc_t1_dataset <- country_parameters %>%
   dplyr::filter(Var == "LULCt1map_dataset") %>%
   pull(ParCHR)
@@ -461,29 +498,116 @@ luc_t1_dataset <- tolower(trimws(luc_t1_dataset[[1L]]))
 if (!luc_t1_dataset %in% c("modis", "woodman")) {
   stop("LULCt1map_dataset must be modis or woodman.")
 }
-lucavailablemaps <- c(
+luc_t3_dataset <- country_parameters %>%
+  dplyr::filter(Var == "LULCt3map_dataset") %>%
+  pull(ParCHR)
+if (!length(luc_t3_dataset)) luc_t3_dataset <- "dynamicworld"
+luc_t3_dataset <- tolower(trimws(luc_t3_dataset[[1L]]))
+if (LULCt3map == "YES" &&
+    (is.na(luc_t3_dataset) ||
+     !luc_t3_dataset %in% c("dynamicworld", "woodman"))) {
+  stop("LULCt3map_dataset must be dynamicworld or woodman.")
+}
+enabled_luc_datasets <- c(
   if (LULCt1map == "YES") luc_t1_dataset,
-  if (LULCt2map == "YES") "copernicus"
+  if (LULCt2map == "YES") "copernicus",
+  if (LULCt3map == "YES" && luc_t3_dataset == "woodman") "woodman"
 )
-if (length(lucavailablemaps) == 0L) {
-  stop("At least one of LULCt1map or LULCt2map must be YES.")
+if (!length(enabled_luc_datasets)) {
+  stop("Enable MODIS, Copernicus, or Woodman in the LULC parameters.")
+}
+if (anyDuplicated(enabled_luc_datasets)) {
+  stop("Woodman must be selected in only one LULC channel.")
+}
+# V6 already calibrated the single-year channels. When Woodman is enabled,
+# avoid recalculating and republishing the existing MODIS/Copernicus products.
+lucavailablemaps <- if ("woodman" %in% enabled_luc_datasets) {
+  "woodman"
+} else {
+  enabled_luc_datasets
 }
 if (plot_dataset == "AUTO") plot_dataset <- toupper(lucavailablemaps[[1L]])
-temp_dir <- file.path(lulccfiles, "temp")
-out_gcs_dir <- file.path(lulccfiles, "out_gcs")
-out_pcs_dir <- file.path(lulccfiles, "out_pcs")
-out_figure_dir <- file.path(lulccfiles, "out_figures")
-out_diagnostics_dir <- file.path(lulccfiles, "out_diagnostics")
-unlink(temp_dir, recursive = TRUE)
-unlink(out_gcs_dir, recursive = TRUE)
-unlink(out_pcs_dir, recursive = TRUE)
-unlink(out_diagnostics_dir, recursive = TRUE)
+if ("woodman" %in% lucavailablemaps) {
+  woodman_slot <- if (LULCt3map == "YES" && luc_t3_dataset == "woodman") {
+    3L
+  } else {
+    1L # Compatibility with the earlier channel-1 Woodman setup.
+  }
+  woodman_map_name <- get_required_parameter(
+    country_parameters, paste0("LULCt", woodman_slot, "map_name")
+  )
+  woodman_base_year <- as.integer(get_required_parameter(
+    country_parameters, paste0("LULCt", woodman_slot, "map_yr")
+  ))
+  if (is.na(woodman_base_year) || woodman_base_year != 2000L) {
+    stop("Woodman requires LULCt", woodman_slot, "map_yr = 2000.")
+  }
+  woodman_series_dir <- get_required_parameter(
+    country_parameters, "woodman_series_dir"
+  )
+  if (grepl("[/\\\\]", woodman_series_dir) ||
+      woodman_series_dir %in% c(".", "..")) {
+    stop("woodman_series_dir must be a single directory name.")
+  }
+  woodman_start_year <- as.integer(get_required_parameter(
+    country_parameters, "start_year"
+  ))
+  woodman_end_year <- as.integer(get_required_parameter(
+    country_parameters, "end_year"
+  ))
+  if (is.na(woodman_start_year) || is.na(woodman_end_year) ||
+      woodman_start_year != 2000L || woodman_end_year < 2000L ||
+      woodman_end_year > 2050L) {
+    stop("Woodman requires start_year = 2000 and end_year <= 2050.")
+  }
+  source_global <- file.path(
+    countrydir, "LULCC", "DownloadedDatasets", "SourceDataGlobal"
+  )
+  series_candidates <- file.path(
+    source_global, c("InRaster_GCS", "InRaster"), woodman_series_dir
+  )
+  woodman_years <- woodman_start_year:woodman_end_year
+  series_complete <- vapply(series_candidates, function(path) {
+    all(file.exists(file.path(
+      path, as.vector(outer(
+        c("luc", "tof"), woodman_years,
+        function(kind, year) sprintf("woodman_%s_%d_gcs.tif", kind, year)
+      ))
+    )))
+  }, logical(1))
+  if (!any(series_complete)) {
+    stop(
+      "The full Woodman LULC/TOF series is missing from both: ",
+      paste(series_candidates, collapse = "; ")
+    )
+  }
+  woodman_series_path <- series_candidates[which(series_complete)[[1L]]]
+  message("Woodman channel ", woodman_slot, " annual source: ",
+          normalizePath(woodman_series_path, winslash = "/"))
+  message("V7 calibrates Woodman against 2000 AGB and writes ",
+          length(woodman_years), " annual global maps. Country-grid maps ",
+          "and Dinamica channel-3 routing are separate steps.")
+}
+lulcc_input_dir <- normalizePath(lulccfiles_v7, winslash = "/", mustWork = TRUE)
+gez_input_path <- file.path(lulcc_input_dir, "gez_2010_wgs84.shp")
+if (!file.exists(gez_input_path)) {
+  stop("Missing the GEZ shapefile used by v6: ", gez_input_path)
+}
+# The user chooses a distinct base folder for v7; use its normal v6-style
+# temp/out_pcs/out_gcs layout directly without creating another nested folder.
+lulcc_work_dir <- lulcc_input_dir
+temp_dir <- file.path(lulcc_work_dir, "temp")
+out_gcs_dir <- file.path(lulcc_work_dir, "out_gcs")
+out_pcs_dir <- file.path(lulcc_work_dir, "out_pcs")
+out_figure_dir <- file.path(lulcc_work_dir, "out_figures")
+out_diagnostics_dir <- file.path(lulcc_work_dir, "out_diagnostics")
 dir.create(temp_dir, recursive = TRUE, showWarnings = FALSE)
 dir.create(out_gcs_dir, recursive = TRUE, showWarnings = FALSE)
 dir.create(out_pcs_dir, recursive = TRUE, showWarnings = FALSE)
 dir.create(out_figure_dir, recursive = TRUE, showWarnings = FALSE)
 dir.create(out_diagnostics_dir, recursive = TRUE, showWarnings = FALSE)
-setwd(lulccfiles)
+terraOptions(tempdir = temp_dir)
+setwd(lulcc_work_dir)
 
 agb4stats_rcr <- NULL
 growth_parameters_by_dataset <- list()
@@ -494,7 +618,7 @@ region_f <- data.frame(
 )
 
 for (lucinputdataset in lucavailablemaps) {
-  setwd(lulccfiles)
+  setwd(lulcc_work_dir)
   # Rasterize
   if (lucinputdataset != "woodman") {
     DTEM_gcs <- rast(paste0(
@@ -526,7 +650,7 @@ for (lucinputdataset in lucavailablemaps) {
                      filetype = "GTiff", overwrite = TRUE)
   
   # Global Ecological Zones ----
-  gez <- st_read("gez_2010_wgs84.shp")
+  gez <- st_read(gez_input_path)
   st_write(gez, "temp/gez_gcs.gpkg", delete_layer=TRUE)
   
   country_parameters %>%
@@ -611,24 +735,8 @@ for (lucinputdataset in lucavailablemaps) {
         anyDuplicated(lucwoodman_cat_vx$luc_code_orig)) {
       stop("Woodman class crosswalk has duplicate source or model codes.")
     }
-    LULCt1map_name <- get_required_parameter(country_parameters, "LULCt1map_name")
-    woodman_base_year <- as.integer(get_required_parameter(
-      country_parameters, "LULCt1map_yr"
-    ))
-    if (length(woodman_base_year) != 1L || is.na(woodman_base_year) ||
-        woodman_base_year != 2000L) {
-      stop("Woodman multitemporal preprocessing requires LULCt1map_yr = 2000.")
-    }
-    woodman_series_dir <- get_required_parameter(
-      country_parameters, "woodman_series_dir"
-    )
-    if (grepl("[/\\\\]", woodman_series_dir) ||
-        woodman_series_dir %in% c(".", "..")) {
-      stop("woodman_series_dir must be a single directory name.")
-    }
     woodman_baseline_path <- file.path(
-      countrydir, "LULCC", "DownloadedDatasets", "SourceDataGlobal",
-      "InRaster", woodman_series_dir,
+      woodman_series_path,
       paste0("woodman_luc_", woodman_base_year, "_gcs.tif")
     )
     if (!file.exists(woodman_baseline_path)) {
@@ -660,9 +768,11 @@ for (lucinputdataset in lucavailablemaps) {
       file.path(temp_dir, "lucwoodman_2000_merge_pcs.tif"),
       datatype = "INT4S", overwrite = TRUE
     )
-    baseline_ids <- as.integer(unique(lucwoodman_merge)[[1L]])
-    zone_codes <- sort(unique((baseline_ids[!is.na(baseline_ids)] %/% 100L) * 100L))
-    if (!length(zone_codes)) stop("Woodman baseline has no valid analysis zones.")
+    # A valid zone can have no land in 2000 and gain it later. Enumerate the
+    # static analysis-zone raster, not only the baseline land-cover overlap.
+    zone_codes <- sort(unique(as.integer(unique(woodman_zone)[[1L]])))
+    zone_codes <- zone_codes[!is.na(zone_codes)]
+    if (!length(zone_codes)) stop("Woodman has no valid analysis zones.")
     # Every future class needs a stable model key, including zone/class pairs
     # absent in 2000. Their AGB calibration receives an explicit fallback below.
     all_zone_classes <- expand.grid(
@@ -687,6 +797,13 @@ for (lucinputdataset in lucavailablemaps) {
       dplyr::relocate(reg_gez_luc, .after = reg_gez)
     if (anyDuplicated(growth_para_v1$IDorig)) {
       stop("Woodman zone/class crosswalk contains duplicate IDs.")
+    }
+    missing_zone_classes <- setdiff(luc_2000_df$continent,
+                                    growth_para_v1$IDorig)
+    if (length(missing_zone_classes)) {
+      stop("Woodman region/GEZ/category joins omitted ",
+           length(missing_zone_classes), " zone/class IDs; first missing ID: ",
+           missing_zone_classes[[1L]])
     }
     write.csv(
       data.frame(reg_gez = unique(growth_para_v1$reg_gez)),
@@ -972,6 +1089,15 @@ for (lucinputdataset in lucavailablemaps) {
   if (nrow(growth_parameters_included) == 0) {
     stop("No valid growth-parameter rows were generated for ", lucinputdataset, ".")
   }
+  if (lucinputdataset == "woodman") {
+    missing_growth_keys <- setdiff(growth_para_v1$IDorig,
+                                   growth_parameters_included$IDorig)
+    if (length(missing_growth_keys)) {
+      stop("Woodman growth calibration omitted ", length(missing_growth_keys),
+           " zone/class IDs needed by the annual series; first missing ID: ",
+           missing_growth_keys[[1L]])
+    }
+  }
 
   invalid_growth <- growth_parameters_included %>%
     dplyr::filter(
@@ -1060,17 +1186,10 @@ for (lucinputdataset in lucavailablemaps) {
       dplyr::select(IDorig, Key) %>%
       as.matrix() %>%
       unname()
-    lucwoodman_merge_rcl <- terra::classify(
-      lucwoodman_merge, rcl_woodman,
-      include.lowest = FALSE, right = NA, others = NA
-    )
-    terra::writeRaster(
-      lucwoodman_merge_rcl,
-      file.path(out_pcs_dir, paste0(
-        "pre", woodman_base_year, "_v1_", LULCt1map_name
-      )),
-      datatype = "INT2S", overwrite = TRUE
-    )
+    rcl_woodman_tof <- growth_parameters_v2 %>%
+      dplyr::select(Key, TOF) %>%
+      as.matrix() %>%
+      unname()
     growth_parameters_v3 <- format_growth_parameters(growth_parameters_v2)
     write.csv(
       growth_parameters_v3,
@@ -1083,6 +1202,71 @@ for (lucinputdataset in lucavailablemaps) {
       file.path(out_pcs_dir, "woodman_key_crosswalk.csv"),
       row.names = FALSE, quote = FALSE
     )
+
+    # The same keys and 2000 AGB calibration apply to every annual LULC map.
+    # Reproject one year at a time so the 51 global rasters are not held in RAM.
+    for (year in woodman_years) {
+      if (year == woodman_base_year) {
+        annual_luc <- lucwoodman_baseline
+        annual_merge <- lucwoodman_merge
+      } else {
+        annual_source <- file.path(
+          woodman_series_path, sprintf("woodman_luc_%d_gcs.tif", year)
+        )
+        annual_luc <- terra::project(
+          terra::rast(annual_source), DTEM_pcs,
+          method = "near", gdal = TRUE
+        )
+        annual_luc <- terra::ifel(annual_luc == 0, NA, annual_luc)
+        terra::writeRaster(
+          annual_luc,
+          file.path(out_pcs_dir, sprintf("woodman_luc_%d_pcs.tif", year)),
+          datatype = "INT2S", overwrite = TRUE,
+          wopt = list(gdal = c("COMPRESS=LZW"))
+        )
+        annual_merge <- woodman_zone + annual_luc
+      }
+      if (!isTRUE(terra::compareGeom(
+        annual_luc, DTEM_pcs, crs = TRUE, ext = TRUE,
+        rowcol = TRUE, res = TRUE, stopOnError = FALSE
+      ))) {
+        stop("Woodman ", year, " is not on the v6 output grid.")
+      }
+      annual_key <- terra::classify(
+        annual_merge, rcl_woodman,
+        include.lowest = FALSE, right = NA, others = NA
+      )
+      unresolved <- terra::ifel(
+        !is.na(annual_luc) & !is.na(woodman_zone) & is.na(annual_key),
+        1L, 0L
+      )
+      unresolved_n <- terra::global(
+        unresolved, "sum", na.rm = TRUE
+      )[[1L, 1L]]
+      if (!is.finite(unresolved_n) || unresolved_n > 0) {
+        stop("Woodman ", year, " has ", unresolved_n,
+             " land cells without growth-parameter keys.")
+      }
+      annual_tof <- terra::classify(
+        annual_key, rcl_woodman_tof,
+        include.lowest = FALSE, right = NA, others = NA
+      )
+      terra::writeRaster(
+        annual_key,
+        file.path(out_pcs_dir, paste0("pre", year, "_v1_", woodman_map_name)),
+        datatype = "INT2S", overwrite = TRUE,
+        wopt = list(gdal = c("COMPRESS=LZW"))
+      )
+      terra::writeRaster(
+        annual_tof,
+        file.path(out_pcs_dir, sprintf("woodman_tof_%d_pcs.tif", year)),
+        datatype = "INT2S", overwrite = TRUE,
+        wopt = list(gdal = c("COMPRESS=LZW"))
+      )
+      message("Prepared Woodman global LULC and TOF maps for ", year)
+      rm(annual_luc, annual_merge, annual_key, annual_tof, unresolved)
+      gc(verbose = FALSE)
+    }
 
   } else if (lucinputdataset == "copernicus") {
     
@@ -1116,33 +1300,88 @@ for (lucinputdataset in lucavailablemaps) {
 
 # Copy 2 MoFuSS ----
 if (publish_lulcc_outputs) {
-copy2mofussfiles1 <- list.files(path = paste0(lulccfiles,"/out_gcs/"),
-                                pattern = ".*\\.tif$", full.names = TRUE)
-for (f1 in copy2mofussfiles1) {
-  file.copy(from=f1,
-            to=paste0(countrydir,"/LULCC/DownloadedDatasets/SourceData",country_name,"/InRaster_GCS/"),
-            overwrite = TRUE, recursive = TRUE, copy.mode = TRUE)
-}
-
-copy2mofussfiles2 <- list.files(path = paste0(lulccfiles,"/out_pcs/"),
-                                pattern = ".*\\.tif$", full.names = TRUE)
-for (f2 in copy2mofussfiles2) {
-  file.copy(from=f2,
-            to=paste0(countrydir,"/LULCC/DownloadedDatasets/SourceData",country_name,"/InRaster/"),
-            overwrite = TRUE, recursive = TRUE, copy.mode = TRUE)
-}
-
-copy2mofussfiles3 <- list.files(path = paste0(lulccfiles,"/out_pcs/"),
-                                pattern = ".*\\.csv$", full.names = TRUE)
-for (f3 in copy2mofussfiles3) {
-  file.copy(from=f3,
-            to=paste0(countrydir,"/LULCC/DownloadedDatasets/SourceData",country_name,"/InTables/"),
-            overwrite = TRUE, recursive = TRUE, copy.mode = TRUE)
-}
+  # Publish only this run's known products. The dedicated v7 directory may
+  # contain older runs, which must never be copied into a new calibration.
+  raster_names <- character()
+  table_names <- character()
+  if ("woodman" %in% lucavailablemaps) {
+    raster_names <- c(
+      "woodman_zone_pcs.tif",
+      sprintf("woodman_luc_%d_pcs.tif", woodman_years),
+      paste0("pre", woodman_years, "_v1_", woodman_map_name),
+      sprintf("woodman_tof_%d_pcs.tif", woodman_years)
+    )
+    table_names <- c(
+      "growth_parameters_v3_woodman.csv", "woodman_key_crosswalk.csv"
+    )
+  } else {
+    if ("modis" %in% lucavailablemaps) {
+      raster_names <- c(raster_names, paste0(
+        "pre", modis_base_year, "_v1_", LULCt1map_name
+      ))
+      table_names <- c(table_names, "growth_parameters_v3_modis.csv")
+    }
+    if ("copernicus" %in% lucavailablemaps) {
+      raster_names <- c(raster_names, paste0(
+        "pre", copernicus_base_year, "_v1_", LULCt2map_name
+      ))
+      table_names <- c(table_names, "growth_parameters_v3_copernicus.csv")
+    }
+  }
+  country_source_data <- file.path(
+    countrydir, "LULCC", "DownloadedDatasets",
+    paste0("SourceData", country_name)
+  )
+  source_data <- if ("woodman" %in% lucavailablemaps) source_global else
+    country_source_data
+  country_table_dir <- if ("woodman" %in% lucavailablemaps &&
+    normalizePath(country_source_data, winslash = "/", mustWork = FALSE) !=
+    normalizePath(source_global, winslash = "/", mustWork = FALSE)) {
+    file.path(country_source_data, "InTables")
+  } else {
+    NULL
+  }
+  destinations <- c(
+    file.path(source_data, "InRaster"),
+    file.path(source_data, "InTables"),
+    country_table_dir
+  )
+  missing_destinations <- destinations[!dir.exists(destinations)]
+  if (length(missing_destinations)) {
+    stop("Missing MoFuSS output directory: ", missing_destinations[[1L]])
+  }
+  expected_outputs <- file.path(out_pcs_dir,
+                                unique(c(raster_names, table_names)))
+  missing_outputs <- expected_outputs[!file.exists(expected_outputs)]
+  if (length(missing_outputs)) {
+    stop("Missing v7 output: ", missing_outputs[[1L]])
+  }
+  publish_files <- function(names, destination) {
+    for (index in seq_along(names)) {
+      name <- names[[index]]
+      source <- file.path(out_pcs_dir, name)
+      if (!file.copy(source, file.path(destination, name),
+                     overwrite = TRUE, copy.mode = TRUE)) {
+        stop("Could not publish v7 output: ", name)
+      }
+      if (length(names) > 10L &&
+          (index %% 10L == 0L || index == length(names))) {
+        message("Published ", index, "/", length(names),
+                " rasters to ", destination)
+      }
+    }
+  }
+  publish_files(raster_names, file.path(source_data, "InRaster"))
+  publish_files(table_names, file.path(source_data, "InTables"))
+  if (!is.null(country_table_dir)) {
+    # Country preprocessing reads its own InTables even though the annual
+    # global rasters and zone raster are shared through SourceDataGlobal.
+    publish_files(table_names, country_table_dir)
+  }
 } else {
   message(
     "publish_lulcc_outputs is FALSE; validation outputs remain in ",
-    normalizePath(file.path(lulccfiles, "out_pcs"), winslash = "/")
+    normalizePath(out_pcs_dir, winslash = "/")
   )
 }
 
@@ -1392,3 +1631,7 @@ if (plot_curves == 1) {
     normalizePath(out_figure_dir, winslash = "/")
   )
 }
+
+setwd(lulcc_input_dir)
+message("V7 preprocessing finished. Working outputs: ",
+        normalizePath(out_pcs_dir, winslash = "/"))

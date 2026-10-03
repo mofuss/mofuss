@@ -192,6 +192,12 @@ country_parameters %>%
 country_parameters %>%
   dplyr::filter(Var == "LULCt3map") %>%
   pull(ParCHR) -> LULCt3map
+luc_t3_dataset <- country_parameters %>%
+  dplyr::filter(Var == "LULCt3map_dataset") %>%
+  pull(ParCHR)
+if (!length(luc_t3_dataset)) luc_t3_dataset <- "dynamicworld"
+woodman_luc3 <- identical(toupper(trimws(LULCt3map)), "YES") &&
+  identical(tolower(trimws(luc_t3_dataset[[1L]])), "woodman")
 
 country_parameters %>%
   dplyr::filter(Var == "nameuser") %>%
@@ -445,6 +451,11 @@ growth_parameters2 <- if (file.exists("LULCC/TempTables/growth_parameters2.csv")
     {if(is.null(.$TOF[1])) read_csv2("LULCC/TempTables/growth_parameters2.csv") else .}
 }
 
+if (woodman_luc3 &&
+    !file.exists("LULCC/TempTables/growth_parameters3.csv")) {
+  stop("Woodman LUC3 requires growth_parameters3.csv. Run ",
+       "4_produce_growth_and_stock_csv_v2.R first.")
+}
 growth_parameters3 <- if (file.exists("LULCC/TempTables/growth_parameters3.csv") == TRUE) {
   read_csv("LULCC/TempTables/growth_parameters3.csv") %>% 
     {if(is.null(.$TOF[1])) read_csv2("LULCC/TempTables/growth_parameters3.csv") else .}
@@ -3006,7 +3017,7 @@ if (os == "Windows") {
     system(paste0(countrydir, "/LULCC/lucdynamics_luc2/LULCC_blackbox_scripts2.bat"))
   }
 
-  if (LULCt3map == "YES"){
+  if (LULCt3map == "YES" && !woodman_luc3){
     dir.create("LULCC/lucdynamics_luc3")
     dir.create("LULCC/lucdynamics_luc3/out_lulcc")
     lulcc.egoml <- list.files(
@@ -3071,7 +3082,7 @@ if (os == "Windows") {
 
   }
 
-  if (LULCt3map == "YES"){
+  if (LULCt3map == "YES" && !woodman_luc3){
     dir.create("LULCC/lucdynamics_luc3")
     dir.create("LULCC/lucdynamics_luc3/out_lulcc")
     lulcc.egoml <- list.files(
