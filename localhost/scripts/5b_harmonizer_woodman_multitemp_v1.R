@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # Woodman annual LULC, TOF and forest-transition maps on the country grid.
 # Source after 5_harmonizer_v8.R, which defines userarea_r and the static
-# LULCt<channel>_c.tif map. Woodman may occupy LUC3 or legacy LUC1.
+# LULCt<channel>_c.tif map. LUC1 is MODIS and LUC3 is Woodman.
 
 library(dplyr)
 library(terra)
@@ -27,23 +27,14 @@ woodman_optional_parameter <- function(name, default) {
   trimws(as.character(value[[1L]]))
 }
 
-woodman_luc1 <- toupper(woodman_optional_parameter("LULCt1map", "YES")) == "YES" &&
-  tolower(woodman_optional_parameter("LULCt1map_dataset", "modis")) == "woodman"
-woodman_luc3 <- toupper(woodman_optional_parameter("LULCt3map", "NO")) == "YES" &&
-  tolower(woodman_optional_parameter("LULCt3map_dataset", "dynamicworld")) == "woodman"
-if (woodman_luc1 && woodman_luc3) {
-  stop("Woodman must be selected in only one LULC channel.")
-}
+modis_luc1 <- toupper(woodman_optional_parameter("LULCt1map", "NO")) == "YES"
+woodman_luc3 <- toupper(woodman_optional_parameter("LULCt3map", "NO")) == "YES"
 
-if (woodman_luc1 || woodman_luc3) {
-  woodman_slot <- if (woodman_luc3) 3L else 1L
+if (woodman_luc3) {
+  woodman_slot <- 3L
   if (!exists("userarea_r", inherits = TRUE) ||
       !exists("align_raster_to_template", mode = "function")) {
     stop("Run 5_harmonizer_v8.R before Woodman annual harmonization.")
-  }
-  series_dir <- woodman_parameter("woodman_series_dir")
-  if (grepl("[/\\\\]", series_dir) || series_dir %in% c(".", "..")) {
-    stop("woodman_series_dir must be a single directory name.")
   }
   start_year <- as.integer(woodman_parameter("start_year"))
   end_year <- as.integer(woodman_parameter("end_year"))
@@ -102,25 +93,44 @@ if (woodman_luc1 || woodman_luc3) {
   pcs_paths <- file.path(
     global_data, "InRaster", sprintf("woodman_luc_%d_pcs.tif", years)
   )
-  gcs_paths <- lapply(c("InRaster_GCS", "InRaster"), function(parent) {
-    file.path(global_data, parent, series_dir,
-              sprintf("woodman_luc_%d_gcs.tif", years))
-  })
-  annual_paths <- if (all(file.exists(pcs_paths))) {
-    pcs_paths
-  } else {
-    complete_gcs <- which(vapply(gcs_paths, function(paths) {
-      all(file.exists(paths))
-    }, logical(1)))
-    if (!length(complete_gcs)) {
-      stop("Missing a complete Woodman annual LULC series for ",
-           years[[1L]], "–", tail(years, 1L),
-           " in SourceDataGlobal/InRaster or InRaster_GCS.")
-    }
-    gcs_paths[[complete_gcs[[1L]]]]
+  missing_pcs <- pcs_paths[!file.exists(pcs_paths)]
+  if (length(missing_pcs)) {
+    stop("Missing projected Woodman annual input: ", missing_pcs[[1L]],
+         ". Publish v7 out_pcs to the input seed before country preparation.")
   }
+  annual_paths <- pcs_paths
   message("Preparing Woodman LUC", woodman_slot, " annual maps from ",
           dirname(annual_paths[[1L]]))
+
+  # v14 uses one annual filename contract for either selectable LUC channel.
+  # MODIS is static, so its annual aliases and zero transitions preserve the
+  # v13 supply behavior when the wizard's LUC selector is set to 1.
+  if (modis_luc1) {
+    modis_luc <- file.path(output_dir, "LULCt1_c.tif")
+    modis_tof <- file.path(output_dir, "TOFvsFOR_mask1.tif")
+    missing_modis <- c(modis_luc, modis_tof)[!file.exists(c(modis_luc, modis_tof))]
+    if (length(missing_modis)) stop("Missing MODIS LUC1 map: ", missing_modis[[1L]])
+    modis_zero <- terra::ifel(is.na(terra::rast(modis_luc)), NA, 0)
+    for (year in years) {
+      targets <- file.path(output_dir, c(
+        sprintf("LULCt1_c_%d.tif", year),
+        sprintf("TOFvsFOR_mask1_%d.tif", year)
+      ))
+      sources <- c(modis_luc, modis_tof)
+      copied <- file.copy(sources, targets, overwrite = annual_overwrite,
+                          copy.mode = TRUE)
+      if (!all(copied)) stop("Could not prepare annual MODIS map: ",
+                            targets[which(!copied)[[1L]]])
+      terra::writeRaster(
+        modis_zero,
+        file.path(output_dir, sprintf("LULCt1_transition_%d.tif", year)),
+        datatype = "INT2S", overwrite = annual_overwrite,
+        wopt = list(gdal = c("COMPRESS=LZW"))
+      )
+    }
+    message("Prepared static MODIS LUC1/TOF aliases and zero transitions for ",
+            length(years), " simulation years")
+  }
 
   for (i in seq_along(years)) {
     year <- years[[i]]
@@ -182,7 +192,7 @@ if (woodman_luc1 || woodman_luc3) {
     )
     terra::writeRaster(
       transition,
-      file.path(output_dir, sprintf("WoodmanTransition_%d.tif", year)),
+      file.path(output_dir, sprintf("LULCt3_transition_%d.tif", year)),
       datatype = "INT2S", overwrite = annual_overwrite,
       wopt = list(gdal = c("COMPRESS=LZW"))
     )

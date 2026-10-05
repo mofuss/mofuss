@@ -192,12 +192,7 @@ country_parameters %>%
 country_parameters %>%
   dplyr::filter(Var == "LULCt3map") %>%
   pull(ParCHR) -> LULCt3map
-luc_t3_dataset <- country_parameters %>%
-  dplyr::filter(Var == "LULCt3map_dataset") %>%
-  pull(ParCHR)
-if (!length(luc_t3_dataset)) luc_t3_dataset <- "dynamicworld"
-woodman_luc3 <- identical(toupper(trimws(LULCt3map)), "YES") &&
-  identical(tolower(trimws(luc_t3_dataset[[1L]])), "woodman")
+woodman_luc3 <- identical(toupper(trimws(LULCt3map)), "YES")
 
 country_parameters %>%
   dplyr::filter(Var == "nameuser") %>%

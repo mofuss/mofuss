@@ -55,19 +55,19 @@ DTEM_name,DTEM_pcs.tif
 LAND USE COVER MAPS,
 LULCt1map,YES
 LULCt2map,NO
-LULCt3map,NO
+LULCt3map,YES
 LULCt1map_yr,2001
 LULCt2map_yr,2015
-LULCt3map_yr,2015
+LULCt3map_yr,2000
 LULCt1map_name,modis_lc_type1_pcs.tif
 LULCt2map_name,cgls_lc100_pcs.tif
-LULCt3map_name,dw_pcs.tif
+LULCt3map_name,woodman_luc_pcs.tif
 LULCt1map_in_GCS,NO
 LULCt2map_in_GCS,NO
-LULCt3map_in_GCS,
+LULCt3map_in_GCS,YES
 LULCt1map_in_raster,YES
 LULCt2map_in_raster,YES
-LULCt3map_in_raster,
+LULCt3map_in_raster,YES
 LULCt1map_fieldname,Value
 LULCt2map_fieldname,Value
 LULCt3map_fieldname,
@@ -76,8 +76,8 @@ gain_name,gain_pcs.tif
 lossyear_name,lossyear_pcs.tif
 treecover_name,treecover2000_pcs.tif
 ABOVEGROUND BIOMASS MAPS,
-AGB1map,YES
-AGB2map,YES
+AGB1map,NO
+AGB2map,NO
 AGB3map,YES
 AGB1map_yr,2010
 AGB2map_yr,2007
@@ -89,6 +89,8 @@ AGB1map_fieldname,
 AGB2map_fieldname,
 AGB3map_fieldname,
 AGB1map_uncer_name,AGB2010uncer_pcs.tif
+AGB2map_uncer_name,
+AGB3map_uncer_name,
 CTREES CHAPMAN RICHARDS GROWTH MAPS,
 A_mofuss,A_MgDM_mofuss.tif
 k_mofuss,k_mofuss.tif

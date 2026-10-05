@@ -55,10 +55,11 @@ class WoodmanDinamicaV14StaticTest(unittest.TestCase):
     def test_selected_luc_channel_routes_both_annual_maps_and_tof_table(self) -> None:
         selector = node_with_output(self.v14, "v302")
         self.assertEqual(selector.find("inputport[@name='constant']").text, "3")
-        for output_id in ("v90002", "v90004", "v90009"):
+        for output_id in ("v90002", "v90004", "v90006", "v90009"):
             self.assertIn("v302", peers(node_with_output(self.v14, output_id)))
         self.assertIn("LULCt<v1>_c_<v2>.tif", "".join(node_with_output(self.v14, "v90002").itertext()))
         self.assertIn("TOFvsFOR_mask<v1>_<v2>.tif", "".join(node_with_output(self.v14, "v90004").itertext()))
+        self.assertIn("LULCt<v1>_transition_<v2>.tif", "".join(node_with_output(self.v14, "v90006").itertext()))
         self.assertIn("TOFvsFOR_Categories<v1>.csv", "".join(node_with_output(self.v14, "v90009").itertext()))
 
     def test_baseline_initial_stock_and_calibration_are_preserved(self) -> None:

@@ -53,6 +53,8 @@ for (root in c(target, prepared)) {
 put_raster(prepared, "LULCC/TempRaster/mask_c.tif",
            c(rep(1, 8), NA))
 put_raster(prepared, "LULCC/TempRaster/LULCt1_c.tif", modis)
+put_raster(prepared, "LULCC/TempRaster/TOFvsFOR_mask1.tif",
+           ifelse(is.na(modis), NA, 0L))
 writeLines("prepared vector", file.path(
   prepared, "LULCC/TempVector/boundary.txt"
 ))
@@ -138,13 +140,6 @@ target_parameters$ParCHR[
 target_parameters$ParCHR[
   target_parameters$Var == "LULCt3map_yr"
 ] <- "2000"
-target_parameters <- rbind(
-  target_parameters,
-  data.frame(
-    Var = c("LULCt3map_dataset", "woodman_series_dir"),
-    ParCHR = c("woodman", "woodman_test_2000_2001")
-  )
-)
 write.csv(target_parameters, file.path(
   target, "LULCC/DownloadedDatasets/SourceDataGlobal/parameters.csv"
 ), row.names = FALSE)
@@ -180,7 +175,7 @@ stopifnot(
     as.numeric(c(4, 2, 1, 5, 3, 9, 7, 8, NA))
   )),
   isTRUE(all.equal(
-    read_cells("WoodmanTransition_2001.tif"),
+    read_cells("LULCt3_transition_2001.tif"),
     as.numeric(c(1, 2, 0, 0, 3, 0, 4, 0, NA))
   )),
   identical(idw_before, unname(tools::md5sum(idw_path))),

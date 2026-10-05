@@ -5,6 +5,13 @@ title "Land Use/Cover Change submodel in Mofuss v1.0"
 
 @echo off & setLocal EnableDELAYedeXpansion
 
+rem Scope D:\dinTemp to these DinamicaConsole children only.
+set "DINAMICA_TEMP=D:\dinTemp"
+if defined MOFUSS_DINAMICA_TEMP_DIR set "DINAMICA_TEMP=%MOFUSS_DINAMICA_TEMP_DIR%"
+if exist "%DINAMICA_TEMP%\" (
+  set "TEMP=%DINAMICA_TEMP%"
+  set "TMP=%DINAMICA_TEMP%"
+)
 cd \
 for %%d in (c) do (
 	if exist %%d: (
@@ -42,4 +49,3 @@ for %%d in (c) do (
 		)
 	)
 )
-	

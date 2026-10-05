@@ -21,7 +21,7 @@
 
 # BEGIN USER INPUTS ----------------------------------------------------------
 # Supply --parameters, --template and --output-dir, or use the interactive
-# folder/file selectors when sourcing this script.
+# folder/file selectors when sourcing this script. All data come from the seed.
 # END USER INPUTS ------------------------------------------------------------
 
 options(stringsAsFactors = FALSE)
@@ -223,6 +223,82 @@ set_parameter <- function(table, key, value) {
   table
 }
 
+optional_parameter <- function(table, key, default) {
+  rows <- which(trimws(table$Var) == key)
+  if (!length(rows)) return(default)
+  if (length(rows) != 1L) {
+    stopf("parameters.csv has duplicate '%s' rows.", key)
+  }
+  value <- trimws(table$ParCHR[[rows]])
+  if (is.na(value) || !nzchar(value)) default else value
+}
+
+woodman_input_spec <- function(table) {
+  if (toupper(optional_parameter(table, "LULCt3map", "NO")) != "YES") {
+    return(NULL)
+  }
+  map_name <- parameter_value(table, "LULCt3map_name")
+  if (grepl("[/\\\\]", map_name) || !grepl("[.]tif$", map_name,
+                                             ignore.case = TRUE)) {
+    stopf("Woodman map name must be a .tif filename: %s", map_name)
+  }
+  start_year <- positive_integer(parameter_value(table, "start_year"),
+                                 "start_year")
+  end_year <- positive_integer(parameter_value(table, "end_year"),
+                               "end_year")
+  if (start_year != 2000L || end_year < start_year || end_year > 2050L) {
+    stopf("Woodman requires start_year=2000 and end_year no later than 2050.")
+  }
+  years <- start_year:end_year
+  list(
+    rasters = c(
+      "woodman_zone_pcs.tif",
+      sprintf("woodman_luc_%d_pcs.tif", years),
+      paste0("pre", years, "_v1_", map_name),
+      sprintf("woodman_tof_%d_pcs.tif", years)
+    ),
+    tables = c("growth_parameters_v3_woodman.csv",
+               "woodman_key_crosswalk.csv")
+  )
+}
+
+resolve_woodman_inputs <- function(spec, template) {
+  if (is.null(spec)) return(NULL)
+  seed_base <- file.path(template, "LULCC", "DownloadedDatasets",
+                         "SourceDataGlobal")
+  seed_rasters <- file.path(seed_base, "InRaster", spec$rasters)
+  seed_tables <- file.path(seed_base, "InTables", spec$tables)
+  required <- c(seed_rasters, seed_tables)
+  missing <- required[!file.exists(required) | dir.exists(required)]
+  if (length(missing)) {
+    stopf(paste0(
+      "The seed has Woodman source maps but is missing a calibrated input: %s. ",
+      "Publish v7 out_pcs into SourceDataGlobal/InRaster and InTables first."
+    ), missing[[1L]])
+  }
+  sizes <- file.info(required)$size
+  if (anyNA(sizes) || any(sizes <= 0)) {
+    stopf("The seed contains an empty Woodman input file.")
+  }
+  c(spec, list(origin = paste0("seed: ", seed_base), sizes = sizes))
+}
+
+verify_woodman_inputs <- function(inputs, destination) {
+  if (is.null(inputs)) return(invisible(TRUE))
+  base <- file.path(destination, "LULCC", "DownloadedDatasets",
+                    "SourceDataGlobal")
+  paths <- c(file.path(base, "InRaster", inputs$rasters),
+             file.path(base, "InTables", inputs$tables))
+  missing <- paths[!file.exists(paths)]
+  if (length(missing)) stopf("Copied folder lacks Woodman input: %s", missing[[1L]])
+  actual_sizes <- file.info(paths)$size
+  if (!identical(unname(actual_sizes), unname(inputs$sizes))) {
+    stopf("Copied folder has a missing or truncated Woodman input: %s",
+          destination)
+  }
+  invisible(TRUE)
+}
+
 positive_integer <- function(value, key) {
   if (!grepl("^[0-9]+$", value)) {
     stopf("Parameter '%s' must be a whole number; found '%s'.", key, value)
@@ -359,11 +435,17 @@ preflight_destinations <- function(plan, template) {
   }
 }
 
-print_plan <- function(parameters_path, template, output_dir, plan) {
+print_plan <- function(parameters_path, template, output_dir, plan,
+                       woodman_inputs = NULL) {
   cat("\nMoFuSS working-folder plan\n")
   cat("  Parameters: ", parameters_path, "\n", sep = "")
   cat("  Seed folder: ", template, " (read-only)\n", sep = "")
   cat("  Output root: ", output_dir, "\n", sep = "")
+  if (!is.null(woodman_inputs)) {
+    cat("  Woodman inputs: ", woodman_inputs$origin, "\n", sep = "")
+    cat("  Woodman products: ", length(woodman_inputs$rasters),
+        " rasters, ", length(woodman_inputs$tables), " tables\n", sep = "")
+  }
   cat("\nFolders and parameter changes:\n")
   for (row in seq_len(nrow(plan))) {
     cat(
@@ -464,7 +546,8 @@ write_parameters <- function(
   target
 }
 
-verify_output <- function(destination, expected_scenario, expected_uncapped) {
+verify_output <- function(destination, expected_scenario, expected_uncapped,
+                          woodman_inputs = NULL) {
   target <- file.path(
     destination,
     "LULCC",
@@ -479,6 +562,7 @@ verify_output <- function(destination, expected_scenario, expected_uncapped) {
       !identical(actual_uncapped, expected_uncapped)) {
     stopf("Parameter verification failed in: %s", target)
   }
+  verify_woodman_inputs(woodman_inputs, destination)
   invisible(TRUE)
 }
 
@@ -501,7 +585,9 @@ main <- function() {
 
   # Complete all non-mutating validation before the first large copy.
   preflight_destinations(plan, template)
-  print_plan(input$path, template, output_dir, plan)
+  woodman_inputs <- resolve_woodman_inputs(woodman_input_spec(input$table),
+                                           template)
+  print_plan(input$path, template, output_dir, plan, woodman_inputs)
 
   if (opts$dry_run) {
     cat("\nDry run complete. No folders were created or changed.\n")
@@ -525,7 +611,8 @@ main <- function() {
   verify_output(
     plan$destination[[1L]],
     plan$scenario_ver[[1L]],
-    plan$uncapped_regrowth[[1L]]
+    plan$uncapped_regrowth[[1L]],
+    woodman_inputs
   )
 
   for (row in 2L:nrow(plan)) {
@@ -540,7 +627,8 @@ main <- function() {
     verify_output(
       plan$destination[[row]],
       plan$scenario_ver[[row]],
-      plan$uncapped_regrowth[[row]]
+      plan$uncapped_regrowth[[row]],
+      woodman_inputs
     )
   }
 

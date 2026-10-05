@@ -13,10 +13,8 @@ global_data <- file.path(
 source_data <- file.path(
   fixture, "LULCC", "DownloadedDatasets", "SourceDataTest"
 )
-series_dir <- "woodman_test_2000_2001"
 for (path in c(
   file.path(global_data, "InRaster"),
-  file.path(global_data, "InRaster_GCS", series_dir),
   file.path(source_data, "InTables"),
   file.path(fixture, "LULCC", "TempTables"),
   file.path(fixture, "LULCC", "TempRaster")
@@ -39,11 +37,6 @@ annual_luc <- list(`2000` = luc2000, `2001` = luc2001)
 for (year in names(annual_luc)) {
   writeRaster(with_values(annual_luc[[year]]), file.path(
     global_data, "InRaster", sprintf("woodman_luc_%s_pcs.tif", year)
-  ))
-  # A complete but invalid GCS series proves that 5b chooses the PCS maps.
-  writeRaster(with_values(rep(0, 9)), file.path(
-    global_data, "InRaster_GCS", series_dir,
-    sprintf("woodman_luc_%s_gcs.tif", year)
   ))
 }
 writeRaster(with_values(rep(11100L, 9)), file.path(
@@ -77,11 +70,10 @@ writeRaster(with_values(rep(0L, 9)), tof1_path)
 luc1_hash_before <- unname(tools::md5sum(c(luc1_path, tof1_path)))
 
 country_parameters <- data.frame(
-  Var = c("LULCt1map", "LULCt1map_dataset", "LULCt3map",
-          "LULCt3map_dataset", "LULCt3map_name", "LULCt3map_yr",
-          "woodman_series_dir", "start_year", "end_year"),
-  ParCHR = c("YES", "modis", "YES", "woodman", "woodman_luc_pcs.tif",
-             "2000", series_dir, "2000", "2001")
+  Var = c("LULCt1map", "LULCt3map", "LULCt3map_name", "LULCt3map_yr",
+          "start_year", "end_year"),
+  ParCHR = c("YES", "YES", "woodman_luc_pcs.tif",
+             "2000", "2000", "2001")
 )
 userarea_r <- grid
 align_raster_to_template <- function(x, template, method, mask_output = TRUE) {
@@ -101,13 +93,14 @@ stopifnot(
                    as.numeric(c(1, 4, 1, 4, 1, 9, 3, 8, NA)))),
   isTRUE(all.equal(read_cells("TOFvsFOR_mask3_2000.tif"), expected_tof_2000)),
   isTRUE(all.equal(read_cells("TOFvsFOR_mask3_2001.tif"), expected_tof_2001)),
-  isTRUE(all.equal(read_cells("WoodmanTransition_2000.tif"),
+  isTRUE(all.equal(read_cells("LULCt3_transition_2000.tif"),
                    as.numeric(c(0, 0, 0, 0, 0, 0, 0, 0, NA)))),
-  isTRUE(all.equal(read_cells("WoodmanTransition_2001.tif"),
+  isTRUE(all.equal(read_cells("LULCt3_transition_2001.tif"),
                    as.numeric(c(1, 2, 0, 0, 3, 0, 4, 0, NA)))),
   identical(unname(tools::md5sum(c(luc1_path, tof1_path))),
             luc1_hash_before),
-  !file.exists(file.path(output_dir, "LULCt1_c_2001.tif")),
-  !file.exists(file.path(output_dir, "TOFvsFOR_mask1_2001.tif"))
+  isTRUE(all.equal(read_cells("LULCt1_c_2001.tif"), rep(2, 9))),
+  isTRUE(all.equal(read_cells("TOFvsFOR_mask1_2001.tif"), rep(0, 9))),
+  isTRUE(all.equal(read_cells("LULCt1_transition_2001.tif"), rep(0, 9)))
 )
 cat("Woodman LUC3 annual raster fixture passed.\n")

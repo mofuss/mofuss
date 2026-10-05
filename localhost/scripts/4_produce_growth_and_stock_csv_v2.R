@@ -341,27 +341,12 @@ optional_luc_parameter <- function(name, default) {
   if (is.na(value[[1L]]) || !nzchar(trimws(value[[1L]]))) return(default)
   tolower(trimws(as.character(value[[1L]])))
 }
-luc_t1_dataset <- optional_luc_parameter("LULCt1map_dataset", "modis")
-if (!luc_t1_dataset %in% c("modis", "woodman")) {
-  stop("LULCt1map_dataset must be modis or woodman.")
-}
-luc_t3_enabled <- toupper(optional_luc_parameter("LULCt3map", "no"))
-luc_t3_dataset <- optional_luc_parameter("LULCt3map_dataset", "dynamicworld")
-if (luc_t3_enabled == "YES" &&
-    (is.na(luc_t3_dataset) ||
-     !luc_t3_dataset %in% c("dynamicworld", "woodman"))) {
-  stop("LULCt3map_dataset must be dynamicworld or woodman.")
-}
 lucavailablemaps <- c(
-  if (LULCt1map == "YES") luc_t1_dataset,
+  if (LULCt1map == "YES") "modis",
   if (LULCt2map == "YES") "copernicus",
-  if (luc_t3_enabled == "YES" && luc_t3_dataset == "woodman") "woodman"
+  if (toupper(optional_luc_parameter("LULCt3map", "no")) == "YES") "woodman"
 )
-if (anyDuplicated(lucavailablemaps)) {
-  stop("Woodman must be selected in only one LULC channel.")
-}
-woodman_slot <- if (luc_t3_enabled == "YES" &&
-                    luc_t3_dataset == "woodman") 3L else 1L
+woodman_slot <- 3L
 lucavailablemaps
 
 for (lucinputdataset in lucavailablemaps) {

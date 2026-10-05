@@ -88,17 +88,23 @@ def annual_loader() -> str:
     <outputport name="map" id="v90005" />
 </functor>
 <containerfunctor name="CreateString">
-    <property key="dff.functor.alias" value="Woodman forest transition filename" />
-    <inputport name="format">&quot;LULCC/TempRaster/WoodmanTransition_&lt;v1&gt;.tif&quot;</inputport>
+    <property key="dff.functor.alias" value="Selected LUC transition filename" />
+    <inputport name="format">&quot;LULCC/TempRaster/LULCt&lt;v1&gt;_transition_&lt;v2&gt;.tif&quot;</inputport>
     <outputport name="result" id="v90006" />
     <functor name="NumberValue">
-        <inputport name="value" peerid="v90001" />
+        <property key="dff.functor.alias" value="Selected LUC channel" />
+        <inputport name="value" peerid="v302" />
         <inputport name="valueNumber">1</inputport>
+    </functor>
+    <functor name="NumberValue">
+        <property key="dff.functor.alias" value="Annual year" />
+        <inputport name="value" peerid="v90001" />
+        <inputport name="valueNumber">2</inputport>
     </functor>
 </containerfunctor>
 <functor name="LoadMap">
-    <property key="dff.functor.alias" value="Woodman annual forest transitions" />
-    <property key="dff.functor.comment" value="1 forest cleared; 2 new forest; 3 TOF gained; 4 TOF lost" />
+    <property key="dff.functor.alias" value="Selected LUC annual transitions" />
+    <property key="dff.functor.comment" value="MODIS transitions stay zero; Woodman codes: 1 forest cleared; 2 new forest; 3 TOF gained; 4 TOF lost" />
     <inputport name="filename" peerid="v90006" />
     <inputport name="nullValue">.none</inputport>
     <inputport name="loadAsSparse">.no</inputport>
@@ -379,7 +385,7 @@ def main() -> None:
     output = replace_once(
         output,
         "&quot;1 = MODIS 2001 (proxy 2000) - 2 = Copernicus 2015&quot;",
-        "&quot;Woodman annual maps: 1 = legacy LUC1 slot, 3 = LUC3 slot&quot;",
+        "&quot;LUC data: 1 = MODIS static; 3 = Woodman annual&quot;",
     )
     output = replace_once(
         output,

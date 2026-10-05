@@ -72,7 +72,7 @@ woodman_static_manifest <- function(target_dir, prepared_dir) {
     if (identical(folder, "LULCC/TempRaster")) {
       relative_files <- relative_files[
         !grepl(
-          "^(LULCt3_c(_[0-9]{4})?|TOFvsFOR_mask3(_[0-9]{4})?|WoodmanTransition_[0-9]{4})[.]tif$",
+          "^(LULCt[13]_c_[0-9]{4}|TOFvsFOR_mask[13]_[0-9]{4}|LULCt[13]_transition_[0-9]{4}|LULCt3_c|TOFvsFOR_mask3)[.]tif$",
           basename(relative_files)
         )
       ]
@@ -192,8 +192,7 @@ prepare_woodman_country_additive <- function(
   target_parameters <- woodman_read_parameters(target_parameters_path)
   prepared_parameters <- woodman_read_parameters(prepared_parameters_path)
   allowed_differences <- c(
-    "LULCt3map", "LULCt3map_dataset", "LULCt3map_name",
-    "LULCt3map_yr", "woodman_series_dir"
+    "LULCt3map", "LULCt3map_name", "LULCt3map_yr"
   )
   old <- prepared_parameters[
     !prepared_parameters$Var %in% allowed_differences, c("Var", "ParCHR")
@@ -210,7 +209,6 @@ prepare_woodman_country_additive <- function(
   }
   required_values <- c(
     LULCt1map = "YES", LULCt3map = "YES",
-    LULCt3map_dataset = "woodman",
     LULCt3map_name = "woodman_luc_pcs.tif",
     LULCt3map_yr = "2000", start_year = "2000"
   )
@@ -361,9 +359,12 @@ prepare_woodman_country_additive <- function(
     woodman_country_path(
       target_dir, "TempRaster",
       c(
+        sprintf("LULCt1_c_%d.tif", year),
+        sprintf("TOFvsFOR_mask1_%d.tif", year),
+        sprintf("LULCt1_transition_%d.tif", year),
         sprintf("LULCt3_c_%d.tif", year),
         sprintf("TOFvsFOR_mask3_%d.tif", year),
-        sprintf("WoodmanTransition_%d.tif", year)
+        sprintf("LULCt3_transition_%d.tif", year)
       )
     )
   }), use.names = FALSE)

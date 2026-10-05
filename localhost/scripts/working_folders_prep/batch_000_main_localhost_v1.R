@@ -6,7 +6,7 @@
 
 # BEGIN USER INPUTS ----------------------------------------------------------
 batch_root <- "D:/"      # Location containing the working folders.
-batch_apply <- TRUE      # Preview; change to TRUE to run them sequentially.
+batch_apply <- TRUE      # FALSE previews; TRUE runs them sequentially.
 # END USER INPUTS ------------------------------------------------------------
 
 run_mofuss_preprocessing_batch <- function(
@@ -48,7 +48,7 @@ run_mofuss_preprocessing_batch <- function(
     list.files(base, pattern = "^parameters\\.csv$", recursive = TRUE,
                full.names = TRUE, ignore.case = TRUE)
   }
-  scenario_for <- function(path) {
+  configuration_for <- function(path) {
     header <- readLines(path, n = 1L, warn = FALSE)
     delimiter <- if (grepl(";", header, fixed = TRUE)) ";" else ","
     parameters <- read.csv(path, sep = delimiter, colClasses = "character",
@@ -63,7 +63,26 @@ run_mofuss_preprocessing_batch <- function(
                       "ICS1_v2", "ICS2_v2", "ICS3_v2")) {
       stop("Missing or unsupported scenario_ver in: ", path)
     }
-    value
+    option <- function(name, default) {
+      selected <- parameters$ParCHR[
+        !is.na(parameters$Var) & parameters$Var == name
+      ]
+      if (!length(selected)) return(default)
+      if (length(selected) != 1L) stop("Duplicate ", name, " in: ", path)
+      if (is.na(selected[[1L]]) || !nzchar(trimws(selected[[1L]]))) {
+        return(default)
+      }
+      tolower(trimws(selected[[1L]]))
+    }
+    channels <- c(
+      if (option("LULCt1map", "no") == "yes") "LUC1 MODIS",
+      if (option("LULCt2map", "no") == "yes") "LUC2 Copernicus",
+      if (option("LULCt3map", "no") == "yes") "LUC3 Woodman"
+    )
+    if (!length(channels)) stop("No LULC channel is enabled in: ", path)
+    c(scenario = value,
+      model = if ("LUC3 Woodman" %in% channels) "v14 selectable" else "v13 static",
+      channels = paste(channels, collapse = " + "))
   }
 
   root <- existing_dir(root, "Working-folder location")
@@ -92,14 +111,18 @@ run_mofuss_preprocessing_batch <- function(
     stop("Expected exactly one parameters.csv in: ",
          paste(folders[ambiguous], collapse = ", "))
   }
-  scenarios <- vapply(parameter_paths, function(paths) scenario_for(paths[[1L]]),
-                      character(1))
+  configurations <- lapply(parameter_paths, function(paths) {
+    configuration_for(paths[[1L]])
+  })
   if (any(file.exists(file.path(folders, ".env")))) {
     stop("A working folder has a .env file that could override batch paths: ",
          paste(folders[file.exists(file.path(folders, ".env"))],
                collapse = ", "))
   }
-  plan <- data.frame(folder = folders, scenario = scenarios,
+  plan <- data.frame(
+    folder = folders,
+    scenario = vapply(configurations, `[[`, character(1), "scenario"),
+    model = vapply(configurations, `[[`, character(1), "model"),
                      stringsAsFactors = FALSE)
   print(plan, row.names = FALSE, right = FALSE)
   if (!apply) {
