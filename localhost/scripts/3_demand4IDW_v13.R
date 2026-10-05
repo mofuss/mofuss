@@ -1586,7 +1586,41 @@ if (subcountry != 1) {
   invisible(location_file)
 }
 
-.preserve_projected_stack_mass <- function(projected_stack, source_files, channel_label) {
+# With a CRS and resolution, Terra first projects an empty copy of the input
+# to determine the output grid. Giving it 51 layers makes GDAL allocate 51
+# full-size empty bands just for geometry. Determine that grid with one empty
+# layer, then use the original multi-file stack and bilinear warp unchanged.
+.project_demand_stack <- function(source_files, target_crs, resolution,
+                                   output_dir = file.path(
+                                     terra::terraOptions(print = FALSE)$tempdir,
+                                     "demand_projected"
+                                   )) {
+  if (length(source_files) == 0L) stop("No annual demand rasters were supplied.")
+  dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
+  first_source <- terra::rast(source_files[[1L]])
+  for (k in seq_along(source_files)) {
+    source <- terra::rast(source_files[[k]])
+    if (terra::nlyr(source) != 1L || !isTRUE(terra::compareGeom(
+      first_source, source, stopOnError = FALSE
+    ))) {
+      stop("Annual demand rasters must be single layers on the same source grid.")
+    }
+  }
+  template <- terra::project(terra::rast(first_source), target_crs)
+  terra::res(template) <- resolution
+  cat(sprintf("[project] Warping %d annual layers using a single-layer grid template.\n", length(source_files)))
+  terra::project(
+    terra::rast(source_files), template, method = "bilinear",
+    filename = tempfile("projected_", tmpdir = output_dir, fileext = ".tif"),
+    wopt = list(gdal = c("COMPRESS=DEFLATE", "BIGTIFF=IF_SAFER"))
+  )
+}
+
+.preserve_projected_stack_mass <- function(projected_stack, source_files, channel_label,
+                                           output_dir = file.path(
+                                             terra::terraOptions(print = FALSE)$tempdir,
+                                             "demand_projected"
+                                           )) {
   if (terra::nlyr(projected_stack) != length(source_files)) {
     stop(
       channel_label, " projected stack has ", terra::nlyr(projected_stack),
@@ -1616,12 +1650,23 @@ if (subcountry != 1) {
     1,
     source_totals / projected_totals
   )
-  corrected_layers <- lapply(
-    seq_len(terra::nlyr(projected_stack)),
-    function(layer_index) projected_stack[[layer_index]] * correction_factors[[layer_index]]
+  # A country-sized layer can fit Terra's per-operation memory budget while
+  # all annual layers together do not. Building a list of scaled rasters, then
+  # combining and renaming it, makes several full native-memory copies that
+  # R's garbage collector cannot budget. Always write the correction in blocks.
+  # FLT8S preserves the double precision required by the mass audit.
+  dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
+  corrected_stack <- terra::lapp(
+    projected_stack,
+    fun = function(...) {
+      sweep(cbind(...), 2L, correction_factors, FUN = "*")
+    },
+    filename = tempfile("corrected_", tmpdir = output_dir, fileext = ".tif"),
+    wopt = list(
+      datatype = "FLT8S", names = names(projected_stack),
+      gdal = c("COMPRESS=DEFLATE", "BIGTIFF=IF_SAFER")
+    )
   )
-  corrected_stack <- terra::rast(corrected_layers)
-  names(corrected_stack) <- names(projected_stack)
   corrected_totals <- as.numeric(
     terra::global(corrected_stack, "sum", na.rm = TRUE)[, 1]
   )
@@ -1650,6 +1695,104 @@ if (subcountry != 1) {
   )
 }
 
+# Build one row per raster cell, rather than 51 coordinate tables and full
+# joins. Two bounded reads find the retained cells and fill their annual values.
+# IDs remain the original cell numbers, including IDs above 2^24. Row order is
+# the legacy full-join order: first-layer cells, then cells first seen later.
+.build_idw_demand_table <- function(stack, years, channel, block_mb = 32,
+                                    min_total = 0.1) {
+  if (terra::nlyr(stack) != length(years)) {
+    stop("Demand raster count does not match the simulation year count.")
+  }
+  if (length(channel) != 1L || !channel %in% c("w", "v")) {
+    stop("Demand table channel must be 'w' or 'v'.")
+  }
+  if (length(block_mb) != 1L || !is.finite(block_mb) || block_mb <= 0) {
+    stop("Demand table block_mb must be positive.")
+  }
+  if (terra::ncell(stack) > .Machine$integer.max) {
+    stop("Demand cell IDs exceed the signed 32-bit location-raster limit.")
+  }
+  rows_per_block <- max(1L, min(
+    terra::nrow(stack),
+    floor(block_mb * 1024^2 / (8 * terra::ncol(stack) * terra::nlyr(stack)))
+  ))
+  block_starts <- seq.int(1L, terra::nrow(stack), by = rows_per_block)
+  cell_chunks <- first_layer_chunks <- keep_chunks <- vector(
+    "list", length(block_starts)
+  )
+  terra::readStart(stack)
+  on.exit(terra::readStop(stack), add = TRUE)
+  for (b in seq_along(block_starts)) {
+    start_row <- block_starts[[b]]
+    nrows <- min(rows_per_block, terra::nrow(stack) - start_row + 1L)
+    block <- terra::readValues(stack, row = start_row, nrows = nrows, mat = TRUE)
+    present <- !is.na(block)
+    valid_rows <- which(rowSums(present) > 0L)
+    cell_chunks[[b]] <- as.integer(
+      (start_row - 1) * terra::ncol(stack) + valid_rows
+    )
+    first_layer_chunks[[b]] <- max.col(
+      present[valid_rows, , drop = FALSE], ties.method = "first"
+    )
+    keep_chunks[[b]] <- rowSums(block[valid_rows, , drop = FALSE], na.rm = TRUE) >= min_total
+  }
+  cells <- unlist(cell_chunks, use.names = FALSE)
+  first_layer <- unlist(first_layer_chunks, use.names = FALSE)
+  keep <- unlist(keep_chunks, use.names = FALSE)
+  if (length(cells) == 0L) {
+    stop("Demand rasters contain no non-missing cells.")
+  }
+  # Preserve the existing all-zero/low-demand fallback exactly.
+  use_fallback <- !any(keep)
+  if (!use_fallback) {
+    cells <- cells[keep]
+    first_layer <- first_layer[keep]
+  }
+  row_order <- order(first_layer, cells)
+  cells <- cells[row_order]
+  first_layer <- first_layer[row_order]
+  xy <- terra::xyFromCell(stack, cells)
+  annual_values <- lapply(years, function(year) {
+    rep(if (use_fallback) 0.2 else 0, length(cells))
+  })
+  names(annual_values) <- paste0(years, "_fw_", channel)
+  rm(cell_chunks, first_layer_chunks, keep_chunks, keep, row_order,
+     block, present, valid_rows)
+  if (!use_fallback) {
+    # A single integer lookup for the grid avoids coordinate hashing and joins.
+    output_row <- integer(terra::ncell(stack))
+    output_row[cells] <- seq_along(cells)
+    for (start_row in block_starts) {
+      nrows <- min(rows_per_block, terra::nrow(stack) - start_row + 1L)
+      first_cell <- (start_row - 1) * terra::ncol(stack) + 1
+      last_cell <- first_cell + nrows * terra::ncol(stack) - 1
+      destination <- output_row[seq.int(first_cell, last_cell)]
+      selected <- which(destination > 0L)
+      if (length(selected) == 0L) next
+      block <- terra::readValues(stack, row = start_row, nrows = nrows, mat = TRUE)
+      block <- block[selected, , drop = FALSE]
+      block[is.na(block)] <- 0
+      for (k in seq_along(years)) {
+        annual_values[[k]][destination[selected]] <- block[, k]
+      }
+    }
+  }
+  result <- c(
+    list(ID = cells, x = xy[, 1L], y = xy[, 2L]),
+    annual_values,
+    list(centroids = first_layer == 1L)
+  )
+  result <- as.data.frame(result, check.names = FALSE)
+  rownames(result) <- NULL
+  cat(sprintf(
+    "[IDW table] %s: %d cells, %d years; block budget %.0f MiB%s\n",
+    toupper(channel), nrow(result), length(years), block_mb,
+    if (use_fallback) "; low-demand fallback" else ""
+  ))
+  result
+}
+
 ## Walking ----
 if (optimizeD == 1) {
   keep(annos, optimizeD, , country, countrydir, #endpath,
@@ -1657,7 +1800,9 @@ if (optimizeD == 1) {
        proj_gcs, epsg_gcs, proj_pcs, epsg_pcs, proj_authority, GEE_scale,
        byregion, effective_byregion, scenario_ver, pop_ver, mofuss_region,
        adm0_reg, aoi_poly,
-       rTempdir, .validate_location_id_raster, .preserve_projected_stack_mass,
+       rTempdir, .validate_location_id_raster, .project_demand_stack,
+       .preserve_projected_stack_mass,
+       .build_idw_demand_table,
        sure=TRUE) # shows you which variables will not be removed
   ls()
   gc()
@@ -1667,8 +1812,9 @@ if (optimizeD == 1) {
 wf_w_list <- list.files(path = "demand_out/",
                         pattern = "_wftons_w.*\\.tif$", full.names = TRUE)
 
-wf_w_stNoAdj <- rast(wf_w_list) %>%
-  terra::project(paste0(proj_authority,":",epsg_pcs), method= "bilinear", res = GEE_scale) #, threads=TRUE)
+wf_w_stNoAdj <- .project_demand_stack(
+  wf_w_list, paste0(proj_authority, ":", epsg_pcs), GEE_scale
+)
 
 # Bilinear reprojection is not exactly mass preserving, and its bias changes as
 # the demand surface changes. Correct every annual layer independently.
@@ -1684,7 +1830,7 @@ write.csv(
 )
 
 terra::writeRaster(wf_w_st[[1]], paste0("demand_out/wf_w_st_2010_db.tif"),
-                   filetype = "GTiff", overwrite = TRUE)
+                   filetype = "GTiff", datatype = "FLT4S", overwrite = TRUE)
 # terra::writeRaster(wf_w_st[[41]], paste0("demand_out/wf_w_st_2050_db.tif"),
 #                    filetype = "GTiff", overwrite = TRUE)# Keep turned off
 
@@ -1693,89 +1839,10 @@ if (optimizeD == 1) {
   Sys.sleep(5)
 }
 
-# --- 1) Build value dfs (x, y, <layer_value>) ---
-if (nlyr(wf_w_st) != length(annos)) {
-  stop("Walking raster count does not match the simulation year count")
-}
-
 names(wf_w_st) <- paste0("y", annos)
-layer_namesw <- names(wf_w_st)
-
-val_dfsw <- map2(seq_len(nlyr(wf_w_st)), layer_namesw, function(k, nm) {
-  dfw <- as.data.frame(wf_w_st[[k]], xy = TRUE, na.rm = TRUE)
-  val_colw <- setdiff(names(dfw), c("x", "y"))[1]
-  transmute(dfw, x, y, !!nm := .data[[val_colw]])
-})
-
-# --- 2) Build a single (x, y) -> ID lookup from ANY layer (first non-NA) ---
-id_dfw <- map(seq_len(nlyr(wf_w_st)), function(k) {
-  dfw <- as.data.frame(wf_w_st[[k]], xy = TRUE, na.rm = TRUE)
-  tibble(x = dfw$x, y = dfw$y, ID = as.integer(row.names(dfw)))
-}) %>% bind_rows() %>%
-  group_by(x, y) %>%
-  summarise(ID = dplyr::first(ID), .groups = "drop")   # take the first if duplicated
-
-# --- 3) Align all values by (x, y) ---
-wf_w_dbx <- reduce(val_dfsw, full_join, by = c("x", "y"))
-
-# centroids = present in first layer; move it to the end later
-first_val_namew <- names(val_dfsw[[1]])[3]
-wf_w_dbx <- wf_w_dbx %>%
-  mutate(centroids = !is.na(.data[[first_val_namew]]))
-
-# add ID by (x, y)
-wf_w_dbx <- wf_w_dbx %>%
-  left_join(id_dfw, by = c("x", "y"))
-
-# --- 4) Fill NAs only in value columns (not x,y,centroids,ID) ---
-val_colsw <- setdiff(names(wf_w_dbx), c("x", "y", "centroids", "ID"))
-wf_w_dbx[val_colsw] <- lapply(wf_w_dbx[val_colsw], function(v) replace(v, is.na(v), 0))
-
-# --- 5) Final column order: ID first, centroids last ---
-wf_w_db <- wf_w_dbx %>%
-  relocate(ID) %>%
-  relocate(centroids, .after = last_col())
-
-# Preview
-head(wf_w_db)
-
-id_conflictsw <- map(seq_len(nlyr(wf_w_st)), function(k) {
-  dfw <- as.data.frame(wf_w_st[[k]], xy = TRUE, na.rm = TRUE)
-  tibble(x = dfw$x, y = dfw$y, ID = as.integer(row.names(dfw)))
-}) %>% bind_rows() %>%
-  distinct(x, y, ID) %>%
-  count(x, y) %>%
-  dplyr::filter(n > 1)
-
-if (nrow(id_conflictsw) > 0) {
-  warning("Found (x,y) points with multiple IDs across layers; using the first one.")
-}
-
-# wf_w_db <- wf_w_dbx %>%
-#   relocate(centroids, .after = last_col())
-
-# Output result
-head(wf_w_db) # Check the structure
-# all.equal(wf_w_db, wf_w_db2)
-colnames(wf_w_db) <- c("ID","x","y",paste0(annos,"_fw_w"),"centroids")
-# wf_w_db4idw_prezero <- tibble::rownames_to_column(wf_w_db, "ID")
-wf_w_db4idw_prezero <- wf_w_db
-head(wf_w_db4idw_prezero)
-
-### Take out zero here! Walking ----
-# Calculate the row sums for the specified columns
-target_colsw <- grep("^[0-9]{4}_fw_w$", names(wf_w_db4idw_prezero))
-rowSumsSubsetW <- rowSums(wf_w_db4idw_prezero[, target_colsw])
-
-# Check if all rows were filtered out
-if (all(rowSumsSubsetW < 0.1)) {
-  # Replace all values in the target columns with 0.2
-  wf_w_db4idw <- wf_w_db4idw_prezero
-  wf_w_db4idw[, target_colsw] <- 0.2
-} else {
-  # Keep only rows where the sum is >= 0.1
-  wf_w_db4idw <- wf_w_db4idw_prezero[rowSumsSubsetW >= 0.1, ]
-}
+wf_w_db4idw <- .build_idw_demand_table(wf_w_st, annos, "w")
+target_colsw <- grep("^[0-9]{4}_fw_w$", names(wf_w_db4idw))
+invisible(gc())
 
 # Creates a raster based in locs IDs - check the snaps
 # ext_wf_w <- ext(wf_w_st[[1]])
@@ -1807,8 +1874,8 @@ if (optimizeD == 1) {
        proj_gcs, epsg_gcs, proj_pcs, epsg_pcs, proj_authority, GEE_scale,
        byregion, effective_byregion, scenario_ver, pop_ver, mofuss_region,
        adm0_reg, aoi_poly,
-       wf_w_db4idw, target_colsw, rTempdir, .validate_location_id_raster,
-       .preserve_projected_stack_mass,
+       wf_w_db4idw, wf_w_st, target_colsw, rTempdir, .validate_location_id_raster,
+       .project_demand_stack, .preserve_projected_stack_mass, .build_idw_demand_table,
        sure=TRUE)
   ls()
   gc()
@@ -1817,8 +1884,9 @@ if (optimizeD == 1) {
 
 wf_v_list <- list.files(path = "demand_out/",
                         pattern = "_wftons_v.*\\.tif$", full.names = TRUE)
-wf_v_stNoAdj <- rast(wf_v_list) %>%
-  terra::project(paste0(proj_authority,":",epsg_pcs), method= "bilinear", res = GEE_scale) #, threads=TRUE)
+wf_v_stNoAdj <- .project_demand_stack(
+  wf_v_list, paste0(proj_authority, ":", epsg_pcs), GEE_scale
+)
 
 # Apply the same per-year conservation rule to vehicle demand.
 v_projection <- .preserve_projected_stack_mass(
@@ -1833,7 +1901,7 @@ write.csv(
 )
 
 terra::writeRaster(wf_v_st[[1]], paste0("demand_out/wf_v_st_2010_db.tif"),
-                   filetype = "GTiff", overwrite = TRUE)
+                   filetype = "GTiff", datatype = "FLT4S", overwrite = TRUE)
 # terra::writeRaster(wf_v_st[[41]], paste0("demand_out/wf_v_st_2050_db.tif"),
 #                    filetype = "GTiff", overwrite = TRUE) # Keep turned off
 
@@ -1842,86 +1910,10 @@ if (optimizeD == 1) {
   Sys.sleep(5)
 }
 
-# --- 1) Build value dfs (x, y, <layer_value>) ---
-if (nlyr(wf_v_st) != length(annos)) {
-  stop("Vehicle raster count does not match the simulation year count")
-}
-
 names(wf_v_st) <- paste0("y", annos)
-layer_namesv <- names(wf_v_st)
-
-val_dfsv <- map2(seq_len(nlyr(wf_v_st)), layer_namesv, function(k, nm) {
-  dfv <- as.data.frame(wf_v_st[[k]], xy = TRUE, na.rm = TRUE)
-  val_colv <- setdiff(names(dfv), c("x", "y"))[1]
-  transmute(dfv, x, y, !!nm := .data[[val_colv]])
-})
-
-# --- 2) Build a single (x, y) -> ID lookup from ANY layer (first non-NA) ---
-id_dfv <- map(seq_len(nlyr(wf_v_st)), function(k) {
-  dfv <- as.data.frame(wf_v_st[[k]], xy = TRUE, na.rm = TRUE)
-  tibble(x = dfv$x, y = dfv$y, ID = as.integer(row.names(dfv)))
-}) %>% bind_rows() %>%
-  group_by(x, y) %>%
-  summarise(ID = dplyr::first(ID), .groups = "drop")   # take the first if duplicated
-
-# --- 3) Align all values by (x, y) ---
-wf_v_dbx <- reduce(val_dfsv, full_join, by = c("x", "y"))
-
-# centroids = present in first layer; move it to the end later
-first_val_namev <- names(val_dfsv[[1]])[3]
-wf_v_dbx <- wf_v_dbx %>%
-  mutate(centroids = !is.na(.data[[first_val_namev]]))
-
-# add ID by (x, y)
-wf_v_dbx <- wf_v_dbx %>%
-  left_join(id_dfv, by = c("x", "y"))
-
-# --- 4) Fill NAs only in value columns (not x,y,centroids,ID) ---
-val_colsv <- setdiff(names(wf_v_dbx), c("x", "y", "centroids", "ID"))
-wf_v_dbx[val_colsv] <- lapply(wf_v_dbx[val_colsv], function(v) replace(v, is.na(v), 0))
-
-# --- 5) Final column order: ID first, centroids last ---
-wf_v_db <- wf_v_dbx %>%
-  relocate(ID) %>%
-  relocate(centroids, .after = last_col())
-
-# Preview
-head(wf_v_db)
-
-id_conflictsv <- map(seq_len(nlyr(wf_v_st)), function(k) {
-  dfv <- as.data.frame(wf_v_st[[k]], xy = TRUE, na.rm = TRUE)
-  tibble(x = dfv$x, y = dfv$y, ID = as.integer(row.names(dfv)))
-}) %>% bind_rows() %>%
-  distinct(x, y, ID) %>%
-  count(x, y) %>%
-  dplyr::filter(n > 1)
-
-if (nrow(id_conflictsv) > 0) {
-  warning("Found (x,y) points with multiple IDs across layers; using the first one.")
-}
-
-# Output result
-head(wf_v_db) # Check the structure
-# all.equal(wf_w_db, wf_w_db2)
-colnames(wf_v_db) <- c("ID","x","y",paste0(annos,"_fw_v"),"centroids")
-# wf_v_db4idw_prezero <- tibble::rownames_to_column(wf_v_db, "ID")
-wf_v_db4idw_prezero <- wf_v_db
-head(wf_v_db4idw_prezero)
-
-### Take out zero here! Vehicle ----
-# Calculate the row sums for the specified columns
-target_colsv <- grep("^[0-9]{4}_fw_v$", names(wf_v_db4idw_prezero))
-rowSumsSubsetV <- rowSums(wf_v_db4idw_prezero[, target_colsv])
-
-# Check if all rows were filtered out
-if (all(rowSumsSubsetV < 0.1)) {
-  # Replace all values in the target columns with 0.2
-  wf_v_db4idw <- wf_v_db4idw_prezero
-  wf_v_db4idw[, target_colsv] <- 0.2
-} else {
-  # Keep only rows where the sum is >= 0.1
-  wf_v_db4idw <- wf_v_db4idw_prezero[rowSumsSubsetV >= 0.1, ]
-}
+wf_v_db4idw <- .build_idw_demand_table(wf_v_st, annos, "v")
+target_colsv <- grep("^[0-9]{4}_fw_v$", names(wf_v_db4idw))
+invisible(gc())
 
 # Creates a raster based in locs IDs - check the snaps
 # ext_wf_w <- ext(wf_w_st[[1]])
@@ -2840,4 +2832,3 @@ if (cube_rasters == 1){
 }
 
 # End of script ----
-
