@@ -98,7 +98,7 @@ def annual_loader() -> str:
 </containerfunctor>
 <functor name="LoadMap">
     <property key="dff.functor.alias" value="Woodman annual forest transitions" />
-    <property key="dff.functor.comment" value="1 forest cleared; 2 new forest; neither creates fuelwood" />
+    <property key="dff.functor.comment" value="1 forest cleared; 2 new forest; 3 TOF gained; 4 TOF lost" />
     <inputport name="filename" peerid="v90006" />
     <inputport name="nullValue">.none</inputport>
     <inputport name="loadAsSparse">.no</inputport>
@@ -108,9 +108,183 @@ def annual_loader() -> str:
     <outputport name="map" id="v90007" />
 </functor>
 <containerfunctor name="CalculateMap">
-    <property key="dff.functor.alias" value="Reset stock on Woodman forest transitions" />
-    <property key="dff.functor.comment" value="Clearing removes stock without fuelwood credit; new forest starts at zero" />
-    <inputport name="expression">[&#x0A;    if isNull(i1) or isNull(i2) then&#x0A;        null&#x0A;    else if i2 = 1 or i2 = 2 then&#x0A;        0&#x0A;    else&#x0A;        i1&#x0A;]</inputport>
+    <property key="dff.functor.alias" value="Woodman transition in current annual domain" />
+    <property key="dff.functor.comment" value="New cells absent from the previous map start with transition code zero" />
+    <inputport name="expression">[if isNull(i1) then null else if isNull(i2) then 0 else i2]</inputport>
+    <inputport name="cellType">.int32</inputport>
+    <inputport name="nullValue">.default</inputport>
+    <inputport name="resultIsSparse">.no</inputport>
+    <inputport name="resultFormat">.none</inputport>
+    <outputport name="result" id="v90018" />
+    <functor name="NumberMap">
+        <inputport name="map" peerid="v90003" />
+        <inputport name="mapNumber">1</inputport>
+    </functor>
+    <functor name="NumberMap">
+        <inputport name="map" peerid="v90007" />
+        <inputport name="mapNumber">2</inputport>
+    </functor>
+</containerfunctor>
+<containerfunctor name="CalculateMap">
+    <property key="dff.functor.alias" value="Woodman annual category K" />
+    <property key="dff.functor.comment" value="Current land-cover category K, including the table-defined TOF allowance" />
+    <inputport name="expression">[if isNull(i1) then null else t1[[v1][i1 + 1]]]</inputport>
+    <inputport name="cellType">.float32</inputport>
+    <inputport name="nullValue">.default</inputport>
+    <inputport name="resultIsSparse">.no</inputport>
+    <inputport name="resultFormat">.none</inputport>
+    <outputport name="result" id="v90010" />
+    <functor name="NumberMap">
+        <inputport name="map" peerid="v90003" />
+        <inputport name="mapNumber">1</inputport>
+    </functor>
+    <functor name="NumberTable">
+        <inputport name="table" peerid="v244" />
+        <inputport name="tableNumber">1</inputport>
+    </functor>
+    <functor name="NumberValue">
+        <inputport name="value" peerid="v10" />
+        <inputport name="valueNumber">1</inputport>
+    </functor>
+</containerfunctor>
+<containerfunctor name="CalculateMap">
+    <property key="dff.functor.alias" value="Woodman annual category rmax" />
+    <property key="dff.functor.comment" value="Current category rate; forest clearing and TOF loss provide no conversion-year fuelwood" />
+    <inputport name="expression">[if isNull(i1) or isNull(i2) then null else if i2 = 1 or i2 = 2 or i2 = 4 then 0 else t1[[v1][i1 + 1]] / v2 * v3]</inputport>
+    <inputport name="cellType">.float32</inputport>
+    <inputport name="nullValue">.default</inputport>
+    <inputport name="resultIsSparse">.no</inputport>
+    <inputport name="resultFormat">.none</inputport>
+    <outputport name="result" id="v90011" />
+    <functor name="NumberMap">
+        <inputport name="map" peerid="v90003" />
+        <inputport name="mapNumber">1</inputport>
+    </functor>
+    <functor name="NumberMap">
+        <inputport name="map" peerid="v90018" />
+        <inputport name="mapNumber">2</inputport>
+    </functor>
+    <functor name="NumberTable">
+        <inputport name="table" peerid="v243" />
+        <inputport name="tableNumber">1</inputport>
+    </functor>
+    <functor name="NumberValue">
+        <inputport name="value" peerid="v10" />
+        <inputport name="valueNumber">1</inputport>
+    </functor>
+    <functor name="NumberValue">
+        <inputport name="value" peerid="v6" />
+        <inputport name="valueNumber">2</inputport>
+    </functor>
+    <functor name="NumberValue">
+        <inputport name="value" peerid="v5" />
+        <inputport name="valueNumber">3</inputport>
+    </functor>
+</containerfunctor>
+<containerfunctor name="CalculateMap">
+    <property key="dff.functor.alias" value="Woodman annual effective forest K" />
+    <property key="dff.functor.comment" value="Keep baseline calibrated K for an unchanged class; use current category K after a class change" />
+    <inputport name="expression">[if isNull(i1) or isNull(i2) then null else if isNull(i3) or isNull(i4) then i2 else if i1 = i3 then i4 else i2]</inputport>
+    <inputport name="cellType">.float32</inputport>
+    <inputport name="nullValue">.default</inputport>
+    <inputport name="resultIsSparse">.no</inputport>
+    <inputport name="resultFormat">.none</inputport>
+    <outputport name="result" id="v90012" />
+    <functor name="NumberMap">
+        <inputport name="map" peerid="v90003" />
+        <inputport name="mapNumber">1</inputport>
+    </functor>
+    <functor name="NumberMap">
+        <inputport name="map" peerid="v90010" />
+        <inputport name="mapNumber">2</inputport>
+    </functor>
+    <functor name="NumberMap">
+        <inputport name="map" peerid="v298" />
+        <inputport name="mapNumber">3</inputport>
+    </functor>
+    <functor name="NumberMap">
+        <inputport name="map" peerid="v209" />
+        <inputport name="mapNumber">4</inputport>
+    </functor>
+</containerfunctor>
+<containerfunctor name="CalculateMap">
+    <property key="dff.functor.alias" value="Woodman annual TOF eligibility" />
+    <property key="dff.functor.comment" value="Annual equivalent of baseline v317: current TOF mask except category key 1" />
+    <inputport name="expression">[if isNull(i1) or isNull(i2) then null else if i1 = 1 then null else i2]</inputport>
+    <inputport name="cellType">.int32</inputport>
+    <inputport name="nullValue">.default</inputport>
+    <inputport name="resultIsSparse">.no</inputport>
+    <inputport name="resultFormat">.none</inputport>
+    <outputport name="result" id="v90013" />
+    <functor name="NumberMap">
+        <inputport name="map" peerid="v90003" />
+        <inputport name="mapNumber">1</inputport>
+    </functor>
+    <functor name="NumberMap">
+        <inputport name="map" peerid="v90005" />
+        <inputport name="mapNumber">2</inputport>
+    </functor>
+</containerfunctor>
+<containerfunctor name="CalculateCategoricalMap">
+    <property key="dff.functor.alias" value="Woodman annual self-gather Patcher domain" />
+    <inputport name="expression">[if i1 &gt; 0 then 0 else null]</inputport>
+    <inputport name="cellType">.int32</inputport>
+    <inputport name="nullValue">.default</inputport>
+    <inputport name="resultIsSparse">.no</inputport>
+    <inputport name="resultFormat">.none</inputport>
+    <outputport name="result" id="v90014" />
+    <functor name="NumberMap">
+        <inputport name="map" peerid="v90003" />
+        <inputport name="mapNumber">1</inputport>
+    </functor>
+</containerfunctor>
+<containerfunctor name="CalculateCategoricalMap">
+    <property key="dff.functor.alias" value="Woodman annual sold-fuelwood Patcher domain" />
+    <inputport name="expression">[if i1 &gt; 0 then 0 else null]</inputport>
+    <inputport name="cellType">.int32</inputport>
+    <inputport name="nullValue">.default</inputport>
+    <inputport name="resultIsSparse">.no</inputport>
+    <inputport name="resultFormat">.none</inputport>
+    <outputport name="result" id="v90015" />
+    <functor name="NumberMap">
+        <inputport name="map" peerid="v90013" />
+        <inputport name="mapNumber">1</inputport>
+    </functor>
+</containerfunctor>
+<containerfunctor name="CalculateMap">
+    <property key="dff.functor.alias" value="Woodman annual accumulator zero map" />
+    <inputport name="expression">[if isNull(i1) then null else 0]</inputport>
+    <inputport name="cellType">.float32</inputport>
+    <inputport name="nullValue">.default</inputport>
+    <inputport name="resultIsSparse">.no</inputport>
+    <inputport name="resultFormat">.none</inputport>
+    <outputport name="result" id="v90016" />
+    <functor name="NumberMap">
+        <inputport name="map" peerid="v90003" />
+        <inputport name="mapNumber">1</inputport>
+    </functor>
+</containerfunctor>
+<containerfunctor name="CalculateMap">
+    <property key="dff.functor.alias" value="Baseline initial stock extended to new Woodman cells" />
+    <inputport name="expression">[if isNull(i2) then null else if isNull(i1) then 0 else i1]</inputport>
+    <inputport name="cellType">.float32</inputport>
+    <inputport name="nullValue">.default</inputport>
+    <inputport name="resultIsSparse">.no</inputport>
+    <inputport name="resultFormat">.none</inputport>
+    <outputport name="result" id="v90017" />
+    <functor name="NumberMap">
+        <inputport name="map" peerid="v200" />
+        <inputport name="mapNumber">1</inputport>
+    </functor>
+    <functor name="NumberMap">
+        <inputport name="map" peerid="v90003" />
+        <inputport name="mapNumber">2</inputport>
+    </functor>
+</containerfunctor>
+<containerfunctor name="CalculateMap">
+    <property key="dff.functor.alias" value="Start-year stock under Woodman land transitions" />
+    <property key="dff.functor.comment" value="Forest clearing, forest gain and TOF loss start at zero; current TOF receives only its annual category allowance" />
+    <inputport name="expression">[if isNull(i3) or isNull(i4) or isNull(i2) then null else if i2 = 1 or i2 = 2 or i2 = 4 then 0 else if i3 = 1 then i4 else if isNull(i1) then 0 else i1]</inputport>
     <inputport name="cellType">.float32</inputport>
     <inputport name="nullValue">.default</inputport>
     <inputport name="resultIsSparse">.no</inputport>
@@ -121,8 +295,16 @@ def annual_loader() -> str:
         <inputport name="mapNumber">1</inputport>
     </functor>
     <functor name="NumberMap">
-        <inputport name="map" peerid="v90007" />
+        <inputport name="map" peerid="v90018" />
         <inputport name="mapNumber">2</inputport>
+    </functor>
+    <functor name="NumberMap">
+        <inputport name="map" peerid="v90005" />
+        <inputport name="mapNumber">3</inputport>
+    </functor>
+    <functor name="NumberMap">
+        <inputport name="map" peerid="v90010" />
+        <inputport name="mapNumber">4</inputport>
     </functor>
 </containerfunctor>'''
     return textwrap.indent(textwrap.dedent(block).strip(), "                ")
@@ -130,7 +312,7 @@ def annual_loader() -> str:
 
 def main() -> None:
     source = SOURCE.read_text(encoding="utf-8")
-    for new_id in range(90001, 90010):
+    for new_id in range(90001, 90019):
         if re.search(rf'\bv{new_id}\b', source):
             raise ValueError(f"New Dinamica ID is already in use: v{new_id}")
     marker = '<property key="dff.functor.alias" value="repeat874" />'
@@ -151,6 +333,19 @@ def main() -> None:
     annual = annual.replace('peerid="v298"', 'peerid="v90003"')
     annual = annual.replace('peerid="v204"', 'peerid="v90005"')
     annual = annual.replace('peerid="v40"', 'peerid="v90008"')
+    annual = annual.replace('peerid="v213"', 'peerid="v90011"')
+    annual = annual.replace('peerid="v209"', 'peerid="v90012"')
+    annual = annual.replace('peerid="v317"', 'peerid="v90013"')
+    annual = annual.replace('peerid="v190"', 'peerid="v90014"')
+    annual = annual.replace('peerid="v192"', 'peerid="v90015"')
+    annual = annual.replace('peerid="v191"', 'peerid="v90016"')
+    annual = replace_once(
+        annual,
+        '''<property key="dff.functor.alias" value="numberMap5206" />
+                                <inputport name="map" peerid="v200" />''',
+        '''<property key="dff.functor.alias" value="numberMap5206" />
+                                <inputport name="map" peerid="v90017" />''',
+    )
     annual = replace_once(
         annual,
         '<internaloutputport name="step" id="v39" />',
@@ -159,12 +354,12 @@ def main() -> None:
     annual = replace_once(
         annual,
         'if i2 = 0 and i1 &lt;= 0 then',
-        'if i3 = 1 or i3 = 2 then&#x0A;        0&#x0A;    else if i2 = 0 and i1 &lt;= 0 then',
+        'if i3 = 1 or i3 = 2 or i3 = 4 then&#x0A;        0&#x0A;    else if i2 = 0 and i1 &lt;= 0 then',
     )
     annual = replace_once(
         annual,
         'value="Seed depleted forest stock with 2 Mg per cell; TOF stock remains at K, including zero"',
-        'value="Forest transitions end at zero stock; ordinary depleted forest retains the 2 Mg seed"',
+        'value="Forest clearing, new forest and TOF loss end at zero stock; ordinary depleted forest retains the 2 Mg seed"',
     )
     old_tof_input = '''<property key="dff.functor.alias" value="numberMap20022" />
                         <inputport name="map" peerid="v90005" />
@@ -176,7 +371,7 @@ def main() -> None:
         old_tof_input + '''
                     <functor name="NumberMap">
                         <property key="dff.functor.alias" value="Woodman transition at end of year" />
-                        <inputport name="map" peerid="v90007" />
+                        <inputport name="map" peerid="v90018" />
                         <inputport name="mapNumber">3</inputport>
                     </functor>''',
     )

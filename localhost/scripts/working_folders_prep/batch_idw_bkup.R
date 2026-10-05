@@ -9,7 +9,7 @@
 # Parent containing the scenario folders. Use forward slashes on both systems.
 # Examples: "E:/" on Windows or "/home/mofuss/Documents" on Linux.
 WORKING_FOLDERS_ROOT <- if (.Platform$OS.type == "windows") {
-  "E:/"
+  "F:/"
 } else {
   path.expand("~/Documents")
 }

@@ -30,10 +30,11 @@ with_values <- function(x) {
   result
 }
 
-# Cell 1 clears forest, cell 2 gains forest, cell 6 remains forced urban,
-# and source code 0 at cell 9 must become NoData.
+# Cell 1 clears forest and gains TOF (clearing has priority), cell 2 gains
+# forest, cell 5 gains TOF without forest change, cell 6 remains forced urban,
+# cell 7 loses TOF without forest change, and source code 0 at cell 9 is NoData.
 luc2000 <- c(44, 22, 11, 45, 33, 22, 66, 77, NA)
-luc2001 <- c(22, 44, 11, 44, 33, 44, 66, 77, 0)
+luc2001 <- c(11, 44, 11, 44, 11, 44, 33, 77, 0)
 annual_luc <- list(`2000` = luc2000, `2001` = luc2001)
 for (year in names(annual_luc)) {
   writeRaster(with_values(annual_luc[[year]]), file.path(
@@ -92,15 +93,18 @@ source("localhost/scripts/5b_harmonizer_woodman_multitemp_v1.R")
 read_cells <- function(name) {
   as.vector(values(rast(file.path(output_dir, name))))
 }
-expected_tof <- as.numeric(c(0, 0, 1, 0, 0, 1, 1, 1, NA))
+expected_tof_2000 <- as.numeric(c(0, 0, 1, 0, 0, 1, 1, 1, NA))
+expected_tof_2001 <- as.numeric(c(1, 0, 1, 0, 1, 1, 0, 1, NA))
 stopifnot(
   isTRUE(all.equal(read_cells("LULCt3_c_2000.tif"), as.numeric(base))),
   isTRUE(all.equal(read_cells("LULCt3_c_2001.tif"),
-                   as.numeric(c(2, 4, 1, 4, 3, 9, 7, 8, NA)))),
-  isTRUE(all.equal(read_cells("TOFvsFOR_mask3_2000.tif"), expected_tof)),
-  isTRUE(all.equal(read_cells("TOFvsFOR_mask3_2001.tif"), expected_tof)),
+                   as.numeric(c(1, 4, 1, 4, 1, 9, 3, 8, NA)))),
+  isTRUE(all.equal(read_cells("TOFvsFOR_mask3_2000.tif"), expected_tof_2000)),
+  isTRUE(all.equal(read_cells("TOFvsFOR_mask3_2001.tif"), expected_tof_2001)),
+  isTRUE(all.equal(read_cells("WoodmanTransition_2000.tif"),
+                   as.numeric(c(0, 0, 0, 0, 0, 0, 0, 0, NA)))),
   isTRUE(all.equal(read_cells("WoodmanTransition_2001.tif"),
-                   as.numeric(c(1, 2, 0, 0, 0, 0, 0, 0, NA)))),
+                   as.numeric(c(1, 2, 0, 0, 3, 0, 4, 0, NA)))),
   identical(unname(tools::md5sum(c(luc1_path, tof1_path))),
             luc1_hash_before),
   !file.exists(file.path(output_dir, "LULCt1_c_2001.tif")),

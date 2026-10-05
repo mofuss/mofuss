@@ -29,7 +29,7 @@ with_values <- function(values) {
   result
 }
 luc2000 <- c(44, 22, 11, 45, 33, 22, 66, 77, NA)
-luc2001 <- c(22, 44, 11, 44, 33, 44, 66, 77, NA)
+luc2001 <- c(22, 44, 11, 44, 33, 44, 33, 77, NA)
 writeRaster(with_values(luc2000), file.path(
   global_data, "InRaster", series_dir, "woodman_luc_2000_gcs.tif"
 ))
@@ -76,10 +76,10 @@ read_cells <- function(name) as.vector(values(rast(file.path(result, name))))
 stopifnot(
   isTRUE(all.equal(read_cells("LULCt1_c_2000.tif"), as.numeric(base))),
   isTRUE(all.equal(read_cells("LULCt1_c_2001.tif"),
-                   as.numeric(c(2, 4, 1, 4, 3, 9, 7, 8, NA)))),
+                   as.numeric(c(2, 4, 1, 4, 3, 9, 3, 8, NA)))),
   isTRUE(all.equal(read_cells("TOFvsFOR_mask1_2001.tif"),
-                   as.numeric(c(0, 0, 1, 0, 0, 1, 1, 1, NA)))),
+                   as.numeric(c(0, 0, 1, 0, 0, 1, 0, 1, NA)))),
   isTRUE(all.equal(read_cells("WoodmanTransition_2001.tif"),
-                   as.numeric(c(1, 2, 0, 0, 0, 0, 0, 0, NA))))
+                   as.numeric(c(1, 2, 0, 0, 0, 0, 4, 0, NA))))
 )
 cat("Woodman annual harmonizer raster fixture passed.\n")

@@ -93,6 +93,9 @@ if (woodman_luc1 || woodman_luc3) {
   tof_matrix <- as.matrix(growth[, c("Key*", "TOF")])
   forest_keys <- as.integer(keys$Key[keys$luc_code %in% c(44L, 45L)])
   previous_forest <- NULL
+  previous_tof <- NULL
+  annual_overwrite <- !exists("woodman_no_overwrite", inherits = TRUE) ||
+    !isTRUE(get("woodman_no_overwrite", inherits = TRUE))
   output_dir <- file.path(countrydir, "LULCC", "TempRaster")
 
   years <- 2000:end_year
@@ -148,31 +151,43 @@ if (woodman_luc1 || woodman_luc3) {
     if (is.null(previous_forest)) {
       transition <- terra::ifel(is.na(forest), NA, 0)
     } else {
+      # Forest loss/gain take priority. Remaining TOF gains and losses are
+      # codes 3 and 4; all other valid pixels keep code 0.
       transition <- terra::ifel(
         is.na(forest) | is.na(previous_forest), NA,
         terra::ifel(previous_forest == 1 & forest == 0, 1,
-                    terra::ifel(previous_forest == 0 & forest == 1, 2, 0))
+                    terra::ifel(
+                      previous_forest == 0 & forest == 1, 2,
+                      terra::ifel(
+                        is.na(previous_tof) | is.na(tof), 0,
+                        terra::ifel(
+                          previous_tof == 0 & tof == 1, 3,
+                          terra::ifel(previous_tof == 1 & tof == 0, 4, 0)
+                        )
+                      )
+                    ))
       )
     }
     terra::writeRaster(
       key, file.path(output_dir,
                      sprintf("LULCt%d_c_%d.tif", woodman_slot, year)),
-      datatype = "INT2S", overwrite = TRUE,
+      datatype = "INT2S", overwrite = annual_overwrite,
       wopt = list(gdal = c("COMPRESS=LZW"))
     )
     terra::writeRaster(
       tof, file.path(output_dir,
                      sprintf("TOFvsFOR_mask%d_%d.tif", woodman_slot, year)),
-      datatype = "INT2S", overwrite = TRUE,
+      datatype = "INT2S", overwrite = annual_overwrite,
       wopt = list(gdal = c("COMPRESS=LZW"))
     )
     terra::writeRaster(
       transition,
       file.path(output_dir, sprintf("WoodmanTransition_%d.tif", year)),
-      datatype = "INT2S", overwrite = TRUE,
+      datatype = "INT2S", overwrite = annual_overwrite,
       wopt = list(gdal = c("COMPRESS=LZW"))
     )
     previous_forest <- forest
+    previous_tof <- tof
     message("Prepared Woodman LUC", woodman_slot,
             ", TOF and transition maps for ", year)
   }

@@ -378,6 +378,11 @@ if (PublishExistingBatch == 1L) {
   cat("[OK] Existing completed BAU batch adopted; no simulation outputs changed.\n")
   quit(save = "no", status = 0L, runLast = FALSE)
 }
+if (LUCmap_v == 3L &&
+    !file.exists("LULCC/TempTables/growth_parameters3.csv")) {
+  stop("LUCmap_v=3 requires LULCC/TempTables/growth_parameters3.csv. ",
+       "Run the Woodman harmonizer before rnorm_v8.R.")
+}
 if (DryRun == 1L) {
   cat(
     sprintf(
@@ -561,24 +566,26 @@ if (LUCmap_v == 1) {
   # writeRaster(TOFvsFOR_mask2, "LULCC/TempRaster/TOFvsFOR_mask.tif", datatype="INT2S", overwrite=TRUE)
   
 } else if (LUCmap_v == 3) {
-  
-  # if (file.exists("LULCC/TempTables/growth_parameters3.csv") == TRUE) {
-  #   data_semicolon<-read.csv("LULCC/TempTables/growth_parameters3.csv", sep=";", header=T)
-  #   data_comma<-read.csv("LULCC/TempTables/growth_parameters3.csv", sep=",", header=T)
-  #   if (is.null(data_semicolon$TOF[1])) { 
-  #     data_all3<-data_comma
-  #   } else {
-  #     data_all3<-data_semicolon
-  #   }
-  #   data_FOR3<-subset(data_all3, data_all3$TOF==0)
-  #   data_TOF3<-subset(data_all3, data_all3$TOF==1)
-  #   max_tot3<-nrow(data_all3)
-  #   
-  #   LULC_Categories3<-as.data.frame(data_all3[ ,1])
-  #   colnames(LULC_Categories3)<-("x")
-  #   LULC_Categories3=data.frame(Key=c(1:max_tot3),LULC_Categories3)
-  #   write.csv(LULC_Categories3,"Temp/LULC_Categories3.csv",row.names = FALSE)
-  # }
+  growth_parameters3_file <- "LULCC/TempTables/growth_parameters3.csv"
+  if (!file.exists(growth_parameters3_file)) {
+    stop("LUCmap_v=3 requires ", growth_parameters3_file,
+         ". Run the Woodman harmonizer before rnorm_v8.R.")
+  }
+  first_linegp3 <- readLines(growth_parameters3_file, n = 1)
+  delimitergp3 <- ifelse(grepl(";", first_linegp3), ";", ",")
+  data_all3 <- read.csv(growth_parameters3_file, sep = delimitergp3)
+  if (!"TOF" %in% names(data_all3) || nrow(data_all3) == 0L ||
+      anyNA(data_all3$TOF) || !all(data_all3$TOF %in% c(0, 1))) {
+    stop(growth_parameters3_file, " needs nonempty rows and a TOF column containing only 0 or 1.")
+  }
+  data_FOR3 <- subset(data_all3, data_all3$TOF == 0)
+  data_TOF3 <- subset(data_all3, data_all3$TOF == 1)
+  max_tot3 <- nrow(data_all3)
+
+  LULC_Categories3 <- as.data.frame(data_all3[, 1])
+  colnames(LULC_Categories3) <- "x"
+  LULC_Categories3 <- data.frame(Key = seq_len(max_tot3), LULC_Categories3)
+  write.csv(LULC_Categories3, "Temp/LULC_Categories3.csv", row.names = FALSE)
   
   # dataTOFvsFOR_3 <- read.csv ("LULCC/TempTables/TOFvsFOR_Categories3.csv")
   # write.csv(dataTOFvsFOR_3,"LULCC/TempTables/TOFvsFOR_Categories.csv",row.names = FALSE)
