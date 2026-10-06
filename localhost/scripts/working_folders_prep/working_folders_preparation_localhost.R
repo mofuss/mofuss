@@ -256,9 +256,7 @@ woodman_input_spec <- function(table) {
       sprintf("woodman_luc_%d_pcs.tif", years),
       paste0("pre", years, "_v1_", map_name),
       sprintf("woodman_tof_%d_pcs.tif", years)
-    ),
-    tables = c("growth_parameters_v3_woodman.csv",
-               "woodman_key_crosswalk.csv")
+    )
   )
 }
 
@@ -267,18 +265,20 @@ resolve_woodman_inputs <- function(spec, template) {
   seed_base <- file.path(template, "LULCC", "DownloadedDatasets",
                          "SourceDataGlobal")
   seed_rasters <- file.path(seed_base, "InRaster", spec$rasters)
-  seed_tables <- file.path(seed_base, "InTables", spec$tables)
-  required <- c(seed_rasters, seed_tables)
+  # Calibrated tables are copied from global_growth by
+  # 0_set_directories_and_region_v3.R, just as for MODIS. Folder preparation
+  # only requires the projected maps supplied by the seed.
+  required <- seed_rasters
   missing <- required[!file.exists(required) | dir.exists(required)]
   if (length(missing)) {
     stopf(paste0(
-      "The seed has Woodman source maps but is missing a calibrated input: %s. ",
-      "Publish v7 out_pcs into SourceDataGlobal/InRaster and InTables first."
+      "The seed is missing a projected Woodman raster: %s. ",
+      "Publish v7 out_pcs rasters into SourceDataGlobal/InRaster first."
     ), missing[[1L]])
   }
   sizes <- file.info(required)$size
   if (anyNA(sizes) || any(sizes <= 0)) {
-    stopf("The seed contains an empty Woodman input file.")
+    stopf("The seed contains an empty Woodman raster.")
   }
   c(spec, list(origin = paste0("seed: ", seed_base), sizes = sizes))
 }
@@ -287,8 +287,7 @@ verify_woodman_inputs <- function(inputs, destination) {
   if (is.null(inputs)) return(invisible(TRUE))
   base <- file.path(destination, "LULCC", "DownloadedDatasets",
                     "SourceDataGlobal")
-  paths <- c(file.path(base, "InRaster", inputs$rasters),
-             file.path(base, "InTables", inputs$tables))
+  paths <- file.path(base, "InRaster", inputs$rasters)
   missing <- paths[!file.exists(paths)]
   if (length(missing)) stopf("Copied folder lacks Woodman input: %s", missing[[1L]])
   actual_sizes <- file.info(paths)$size
@@ -444,7 +443,7 @@ print_plan <- function(parameters_path, template, output_dir, plan,
   if (!is.null(woodman_inputs)) {
     cat("  Woodman inputs: ", woodman_inputs$origin, "\n", sep = "")
     cat("  Woodman products: ", length(woodman_inputs$rasters),
-        " rasters, ", length(woodman_inputs$tables), " tables\n", sep = "")
+        " rasters\n", sep = "")
   }
   cat("\nFolders and parameter changes:\n")
   for (row in seq_len(nrow(plan))) {
