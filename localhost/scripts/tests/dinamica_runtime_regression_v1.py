@@ -214,6 +214,9 @@ def run(args: argparse.Namespace) -> None:
             raise ValueError(f"Fixture input changed after staging: {relative}")
     command = [str(args.engine), "-processors", str(args.processors),
                "-predefined-seed", "-log-level", "4"]
+    if getattr(args, "disable_native_expressions", False):
+        command.append("-disable-native-expressions")
+    command.extend(getattr(args, "extra_engine_flags", []))
     if args.verify_only:
         command.append("-dont-run")
     command.append(str(target / "regression_model.egoml"))
@@ -234,7 +237,8 @@ def run(args: argparse.Namespace) -> None:
     result = {"command": command, "returncode": completed.returncode,
               "elapsed_seconds": time.perf_counter() - started,
               "log": str(log_path), "verify_only": args.verify_only,
-              "engine_temp": str(native_temp)}
+              "engine_temp": str(native_temp),
+              "extra_engine_flags": getattr(args, "extra_engine_flags", [])}
     if not args.verify_only:
         hashes = science_hashes(target)
         result["scientific_outputs"] = len(hashes)
@@ -313,6 +317,8 @@ def main() -> None:
     p.add_argument("--processors", type=int, default=1)
     p.add_argument("--timeout", type=int, default=600)
     p.add_argument("--verify-only", action="store_true")
+    p.add_argument("--disable-native-expressions", action="store_true",
+                   help="Use the Windows engine interpreter when native compiler DLL locks prevent execution.")
     p.set_defaults(function=run)
     p = sub.add_parser("compare")
     p.add_argument("--left", required=True)

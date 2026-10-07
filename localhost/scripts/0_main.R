@@ -116,7 +116,8 @@ scripts <- list(
   "5_harmonizer_v8.R",
   "6_scenarios_v4.R",
   "7_parameters_dinamica_v1.R",
-  "8_prepare_directional_IDW_inputs_v3.R"
+  "8_prepare_directional_IDW_inputs_v3.R",
+  "10_prepare_windows_launcher_v1.R"
 )
 inicio <- Sys.time()
 all_successful <- TRUE

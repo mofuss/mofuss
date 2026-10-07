@@ -109,6 +109,28 @@ identifies the missing files. Copying the postprocessing scripts cannot recover
 them: use a matching archived export, or a future model run configured to save
 the required diagnostics. Never fill missing pressure or clearing maps with zeros.
 
+### Windows v14 annual-eligibility captures
+
+The corrected Windows v14 model reapplies the current land-cover mask after
+the static distance/NPA cache on every year. Its recorded-sourcing format is
+identified by
+`Sourcing/static/annual_domain_after_static_npa_cache_v1.csv`.
+It records unmasked `W_npa_baseCCC_SS.tif` / `V_npa_baseCCC_SS.tif` files,
+domain-aware annual eligibility masks, and
+`Sourcing/MCxxx/accumulator_domainYY.tif`. These replace the older masked
+`W_base` / `V_base` and static accumulator inputs for replay. The normalization
+and origin-attribution arithmetic is unchanged.
+
+The reader accepts both complete formats. It rejects mixed old/new bases,
+new bases without a valid marker, missing corrected bases or annual
+accumulators, and an incompatible W scalar schema. It never silently falls
+back to an older capture when a corrected file is missing. Existing v13 and
+older v14 captures retain their legacy reader route.
+
+Normal fresh BAU and ICS initialization recreates the `Sourcing` tree before
+the simulation writes its new captures. Do not combine captures from different
+simulations. The reader does not modify a completed run.
+
 The Linux migration's removal of eight required exports was corrected in the
 repository model on 2026-09-30. New preprocessing copies include the fix;
 previously prepared Linux folders need the corrected `.egoml` before a future

@@ -47,6 +47,9 @@
 # setting, a 2000-2030 model uses 2026-2030, end-2025 as its state baseline, and
 # end-2030 as its endpoint. The primary AGB result is therefore the change in
 # the BAU-vs-CCTS AGB gap over the post-spin-up accounting period.
+# Biomass reporting always uses the finite original agb3_c reference footprint,
+# including numeric zero. Later land-cover changes cannot add reporting cells.
+# This reporting mask does not change model TOF supply or demand-based end use.
 # Code 10 is an opening stock only: demand and Harvest_tot flows begin at code
 # 11 (calendar 2010), so no 2000-2009 flow is counted.
 #
@@ -79,6 +82,7 @@
 )
 .V13_SPINUP_YEARS <- NA_integer_
 .V13_MIN_UNCERTAINTY_RUNS <- 30L
+.V14_BIOMASS_SUPPORT_POLICY <- "finite_initial_agb_reference_v1"
 
 .v13_pairing_design <- function(
   paired_mc_inputs_validated, patcher_bypassed, patcher_rng_paired
@@ -1171,26 +1175,22 @@ SCENARIO_DIRS <- character()
     BAU = file.path(bau_dir, "LULCC", "TempRaster", "agb3_c.tif"),
     ICS = file.path(ics_dir, "LULCC", "TempRaster", "agb3_c.tif")
   )
-  if (full_horizon) {
-    missing_initial <- initial_agb[!file.exists(initial_agb)]
-    if (length(missing_initial)) {
-      .v9_stop(
-        "Full-horizon accounting requires the initial AGB reference raster(s): ",
-        paste(missing_initial, collapse = ", ")
-      )
-    }
-    initial_agb <- vapply(
-      initial_agb, normalizePath, character(1), winslash = "/", mustWork = TRUE
+  missing_initial <- initial_agb[!file.exists(initial_agb) | dir.exists(initial_agb)]
+  if (length(missing_initial)) {
+    .v9_stop(
+      "Biomass accounting requires the initial AGB reference raster(s): ",
+      paste(missing_initial, collapse = ", ")
     )
-    initial_md5 <- unname(tools::md5sum(initial_agb))
-    if (!identical(initial_md5[1], initial_md5[2])) {
-      .v9_stop(
-        "Full-horizon BAU/ICS initial AGB references differ for label ", label,
-        "; a common zero-gap baseline cannot be assumed."
-      )
-    }
-  } else {
-    initial_md5 <- rep(NA_character_, 2L)
+  }
+  initial_agb <- vapply(
+    initial_agb, normalizePath, character(1), winslash = "/", mustWork = TRUE
+  )
+  initial_md5 <- unname(tools::md5sum(initial_agb))
+  if (anyNA(initial_md5) || !identical(initial_md5[1], initial_md5[2])) {
+    .v9_stop(
+      "BAU/ICS initial AGB references differ or cannot be read for label ", label,
+      "; a common biomass reporting footprint cannot be assumed."
+    )
   }
   expected_runs <- seq_len(bau_par$mc_runs)
   run_ids <- if (is.null(run_ids_requested)) expected_runs else run_ids_requested
@@ -1311,12 +1311,14 @@ SCENARIO_DIRS <- character()
     rasters <- lapply(
       c(
         selected_rows$bau_baseline_file[j], selected_rows$ics_baseline_file[j],
-        selected_rows$bau_end_file[j], selected_rows$ics_end_file[j]
+        selected_rows$bau_end_file[j], selected_rows$ics_end_file[j],
+        initial_agb[["BAU"]], initial_agb[["ICS"]]
       ),
       terra::rast
     )
-    if (!do.call(terra::compareGeom, c(rasters, list(stopOnError = FALSE)))) {
-      .v9_stop("Geometry mismatch among the four AGB endpoints for label ", label, ", run ", selected_rows$run_id[j], ".")
+    if (any(vapply(rasters, terra::nlyr, numeric(1)) != 1L) ||
+        !do.call(terra::compareGeom, c(rasters, list(stopOnError = FALSE)))) {
+      .v9_stop("Geometry mismatch among AGB endpoints and initial references for label ", label, ", run ", selected_rows$run_id[j], ".")
     }
   }
 
@@ -2089,13 +2091,18 @@ SCENARIO_DIRS <- character()
         scenario = scenario,
         period_start_year = preflight$period[1],
         period_end_year = preflight$period[2],
+        diagnostic_support_policy = "full_model_harvest_unmasked",
+        biomass_reporting_support_policy = .V14_BIOMASS_SUPPORT_POLICY,
         actual_harvest_Mg = actual,
         woody_demand_Mg_wood_equivalent = demand,
         harvest_to_demand_ratio = if (demand == 0) NA_real_ else actual / demand,
         unmet_Mg_wood_equivalent = demand - actual,
         enduse_basis = "demand",
         adjustment_applied = FALSE,
-        note = "NOT APPLIED: diagnostic only; end-use emissions use mapped demand"
+        note = paste0(
+          "NOT APPLIED: full model harvest is retained for demand balance; ",
+          "biomass reporting uses finite original AGB; end-use emissions use mapped demand"
+        )
       )
     }
   }
@@ -2106,6 +2113,32 @@ SCENARIO_DIRS <- character()
     overwrite
   )
   diagnostic
+}
+
+.v14_biomass_period <- function(reference, bau_baseline, ics_baseline, bau_end, ics_end) {
+  rasters <- list(reference, bau_baseline, ics_baseline, bau_end, ics_end)
+  if (any(vapply(rasters, terra::nlyr, numeric(1)) != 1L) ||
+      !do.call(terra::compareGeom, c(rasters, list(stopOnError = FALSE)))) {
+    .v9_stop("Biomass endpoints and initial reference must have identical single-layer geometry.")
+  }
+  reference_valid <- is.finite(reference)
+  raw_pair <- is.finite(bau_baseline) & is.finite(ics_baseline) &
+    is.finite(bau_end) & is.finite(ics_end)
+  common <- raw_pair & reference_valid
+  baseline_gap <- terra::ifel(common, ics_baseline - bau_baseline, NA)
+  end_gap <- terra::ifel(common, ics_end - bau_end, NA)
+  raw_delta <- terra::ifel(
+    raw_pair, (ics_end - bau_end) - (ics_baseline - bau_baseline), NA
+  )
+  excluded <- raw_pair & !reference_valid
+  list(
+    reference_valid = reference_valid, common_support = common,
+    baseline_gap = baseline_gap, end_gap = end_gap,
+    delta = end_gap - baseline_gap,
+    excluded_delta = terra::ifel(excluded, raw_delta, NA),
+    n_raw_pair = .v14_finite_sum(raw_pair),
+    n_excluded = .v14_finite_sum(excluded)
+  )
 }
 
 .v9_process_config <- function(preflight, overwrite) {
@@ -2234,6 +2267,7 @@ SCENARIO_DIRS <- character()
   harvest_rows <- list()
   total_rows <- list()
   country_rows <- list()
+  reference <- terra::rast(preflight$initial_agb_bau)
 
   for (j in seq_len(nrow(preflight$selected_runs))) {
     row <- preflight$selected_runs[j, ]
@@ -2246,19 +2280,20 @@ SCENARIO_DIRS <- character()
       .v9_stop("AGB endpoint geometry changed after preflight for run ", run_id, ".")
     }
 
-    # Exact v8 harvest-side cross-check: terminal CCTS-minus-BAU stock only.
+    # Legacy terminal CCTS-minus-BAU cross-check on the fixed reporting footprint.
     # This is retained for MC01 debugging, but it is not the post-spin-up
     # accounting result when a non-zero BAU/CCTS gap already exists at baseline.
-    end_support <- !is.na(bau_end) & !is.na(ics_end)
+    biomass <- .v14_biomass_period(reference, bau_baseline, ics_baseline, bau_end, ics_end)
+    end_support <- is.finite(bau_end) & is.finite(ics_end) & biomass$reference_valid
     legacy_v8_delta_agb <- terra::ifel(end_support, ics_end - bau_end, NA)
     legacy_v8_delta_co2 <- legacy_v8_delta_agb * .V9_CO2_FACTOR
     legacy_v8_harvest_tCO2e <- .v9_global_sum(legacy_v8_delta_co2)
 
-    common_support <- !is.na(bau_baseline) & !is.na(ics_baseline) &
-      !is.na(bau_end) & !is.na(ics_end)
-    baseline_gap_agb <- terra::ifel(common_support, ics_baseline - bau_baseline, NA)
-    end_gap_agb <- terra::ifel(common_support, ics_end - bau_end, NA)
-    delta_agb_period <- end_gap_agb - baseline_gap_agb
+    common_support <- biomass$common_support
+    baseline_gap_agb <- biomass$baseline_gap
+    end_gap_agb <- biomass$end_gap
+    delta_agb_period <- biomass$delta
+    excluded_delta_agb_total <- .v9_global_sum(biomass$excluded_delta)
     delta_co2_period <- delta_agb_period * .V9_CO2_FACTOR
     baseline_gap_agb_total <- .v9_global_sum(baseline_gap_agb)
     end_gap_agb_total <- .v9_global_sum(end_gap_agb)
@@ -2274,10 +2309,10 @@ SCENARIO_DIRS <- character()
     )
     delta_co2_written <- .v9_write_raster(delta_co2_period, harvest_path, overwrite)
     if (run_id == 1L) {
-      .v9_write_raster(bau_baseline, file.path(dirs$harvest, "bau_agb_baseline_mc1.tif"), overwrite)
-      .v9_write_raster(ics_baseline, file.path(dirs$harvest, "ics_agb_baseline_mc1.tif"), overwrite)
-      .v9_write_raster(bau_end, file.path(dirs$harvest, "bau_agb_end_mc1.tif"), overwrite)
-      .v9_write_raster(ics_end, file.path(dirs$harvest, "ics_agb_end_mc1.tif"), overwrite)
+      .v9_write_raster(terra::ifel(biomass$reference_valid, bau_baseline, NA), file.path(dirs$harvest, "bau_agb_baseline_mc1.tif"), overwrite)
+      .v9_write_raster(terra::ifel(biomass$reference_valid, ics_baseline, NA), file.path(dirs$harvest, "ics_agb_baseline_mc1.tif"), overwrite)
+      .v9_write_raster(terra::ifel(biomass$reference_valid, bau_end, NA), file.path(dirs$harvest, "bau_agb_end_mc1.tif"), overwrite)
+      .v9_write_raster(terra::ifel(biomass$reference_valid, ics_end, NA), file.path(dirs$harvest, "ics_agb_end_mc1.tif"), overwrite)
       .v9_write_raster(delta_agb_period, file.path(dirs$harvest, "delta_agb_period_mc1.tif"), overwrite)
       .v9_write_raster(delta_co2_period, file.path(dirs$harvest, "delta_co2_mc1.tif"), overwrite)
       .v9_write_raster(
@@ -2335,6 +2370,9 @@ SCENARIO_DIRS <- character()
     country_run$run_id <- run_id
     country_run$period_start_year <- preflight$period[[1L]]
     country_run$period_end_year <- preflight$period[[2L]]
+    country_run$biomass_support_policy <- .V14_BIOMASS_SUPPORT_POLICY
+    country_run$biomass_support_reference <- preflight$initial_agb_bau
+    country_run$biomass_support_reference_md5 <- preflight$initial_agb_md5
     country_run$harvest_avoided_tCO2e <- harvest_country_values
     country_run$enduse_avoided_tCO2e <- enduse_country_values
     country_run$total_avoided_tCO2e <- harvest_country_values + enduse_country_values
@@ -2353,6 +2391,15 @@ SCENARIO_DIRS <- character()
       baseline_source = preflight$baseline_source,
       baseline_timing = preflight$baseline_timing,
       end_year_code = preflight$end_code,
+      biomass_support_policy = .V14_BIOMASS_SUPPORT_POLICY,
+      biomass_support_reference = preflight$initial_agb_bau,
+      biomass_support_reference_md5 = preflight$initial_agb_md5,
+      initial_agb_md5 = preflight$initial_agb_md5,
+      n_raw_pair_period_common = biomass$n_raw_pair,
+      n_reference_excluded_pair_cells = biomass$n_excluded,
+      raw_reference_excluded_delta_mg = excluded_delta_agb_total,
+      raw_reference_excluded_positive_mg = .v9_global_sum(terra::ifel(biomass$excluded_delta > 0, biomass$excluded_delta, 0)),
+      raw_reference_excluded_negative_mg = .v9_global_sum(terra::ifel(biomass$excluded_delta < 0, biomass$excluded_delta, 0)),
       agb_avoided_tCO2e = sumco2,
       # Retained for compatibility with stage-3 versions written before v13.
       # Despite its historical name, this column is also tCO2e, not Mg AGB.
@@ -2377,6 +2424,9 @@ SCENARIO_DIRS <- character()
       included_in_mc_batch = TRUE,
       period_start_year = preflight$period[1],
       period_end_year = preflight$period[2],
+      biomass_support_policy = .V14_BIOMASS_SUPPORT_POLICY,
+      biomass_support_reference = preflight$initial_agb_bau,
+      biomass_support_reference_md5 = preflight$initial_agb_md5,
       harvest_tCO2e = sumco2,
       enduse_tCO2e = enduse$total_tCO2e,
       total_tCO2e = expected_total,
@@ -2676,6 +2726,9 @@ SCENARIO_DIRS <- character()
     initial_agb_bau = preflight$initial_agb_bau,
     initial_agb_ics = preflight$initial_agb_ics,
     initial_agb_md5 = preflight$initial_agb_md5,
+    biomass_support_policy = .V14_BIOMASS_SUPPORT_POLICY,
+    biomass_support_reference = preflight$initial_agb_bau,
+    biomass_support_reference_md5 = preflight$initial_agb_md5,
     end_year_code = preflight$end_code,
     selected_run_ids = paste(preflight$run_ids, collapse = ","),
     analysis_products = if (!preflight$patcher_bypassed) {

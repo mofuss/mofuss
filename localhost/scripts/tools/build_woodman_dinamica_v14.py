@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import re
+import importlib.util
+import sys
 import textwrap
 import xml.etree.ElementTree as ET
 from pathlib import Path
@@ -14,12 +16,73 @@ TARGET = HERE / "10_dyn_Sc17_webmofuss_ctrees_g_v14.egoml"
 
 
 def replace_once(source: str, before: str, after: str) -> str:
+    # ElementTree preserves quotes literally in element text. The legacy EGO
+    # writer escapes them; accept either equivalent serialization for filenames.
+    if source.count(before) == 0 and '&quot;' in before:
+        literal = before.replace('&quot;', '"')
+        if source.count(literal) == 1:
+            before = literal
     if source.count(before) != 1:
         raise ValueError(f"Expected one match, found {source.count(before)}: {before[:90]}")
     return source.replace(before, after, 1)
 
 
-def annual_loader() -> str:
+def _fixed_input_branch(block: str) -> str:
+    """Select static maps for LUC=1 without opening any annual input file.
+
+    The original initialization already loads the static LUC and TOF maps.
+    Conditional branches provide mutually exclusive values to MapJunctions;
+    an untaken annual branch cannot request year-labelled files. The fixed
+    transition map is zero over the static LUC domain, then the existing
+    immutable initial-stock support guard is applied downstream.
+    """
+    fragment = ET.fromstring("<fragment>" + block + "</fragment>")
+    by_id = {p.get("id"): n for n in fragment for p in n.findall("outputport")}
+    routing = ET.Element("fragment")
+    condition = ET.SubElement(routing, "containerfunctor", name="CalculateValue")
+    ET.SubElement(condition, "property", key="dff.functor.alias", value="Use fixed LUC inputs")
+    ET.SubElement(condition, "inputport", name="expression").text = "[v1 = 1]"
+    ET.SubElement(condition, "inputport", name="defaultValue").text = ".none"
+    ET.SubElement(condition, "outputport", name="result", id="v90030")
+    selector = ET.SubElement(condition, "functor", name="NumberValue")
+    ET.SubElement(selector, "inputport", name="value", peerid="v302")
+    ET.SubElement(selector, "inputport", name="valueNumber").text = "1"
+    fixed = ET.SubElement(routing, "containerfunctor", name="IfThen")
+    ET.SubElement(fixed, "property", key="dff.functor.alias", value="Fixed MODIS inputs without annual files")
+    ET.SubElement(fixed, "inputport", name="condition", peerid="v90030")
+    dynamic = ET.SubElement(routing, "containerfunctor", name="IfNotThen")
+    ET.SubElement(dynamic, "property", key="dff.functor.alias", value="Annual Woodman input files")
+    ET.SubElement(dynamic, "inputport", name="condition", peerid="v90030")
+    for name, filename_id, output_id, annual_id, fixed_id, static_id, expression in (
+        ("LUC", "v90002", "v90020", "v90031", "v90032", "v298", "[i1]"),
+        ("TOF", "v90004", "v90021", "v90033", "v90034", "v204", "[i1]"),
+        ("transition", "v90006", "v90007", "v90035", "v90036", "v298", "[if isNull(i1) then null else 0]"),
+    ):
+        for ident in (filename_id, output_id):
+            n = by_id[ident]
+            fragment.remove(n)
+            dynamic.append(n)
+        by_id[output_id].find("outputport").set("id", annual_id)
+        value = ET.SubElement(fixed, "containerfunctor", name="CalculateMap")
+        ET.SubElement(value, "property", key="dff.functor.alias", value="Static " + name + " input")
+        for key, text in (("expression", expression), ("cellType", ".int32"),
+                          ("nullValue", ".default"), ("resultIsSparse", ".no"), ("resultFormat", ".none")):
+            ET.SubElement(value, "inputport", name=key).text = text
+        ET.SubElement(value, "outputport", name="result", id=fixed_id)
+        number = ET.SubElement(value, "functor", name="NumberMap")
+        ET.SubElement(number, "inputport", name="map", peerid=static_id)
+        ET.SubElement(number, "inputport", name="mapNumber").text = "1"
+        junction = ET.SubElement(routing, "functor", name="MapJunction")
+        ET.SubElement(junction, "property", key="dff.functor.alias", value="Selected fixed or annual " + name)
+        ET.SubElement(junction, "inputport", name="possibleMap1", peerid=fixed_id)
+        ET.SubElement(junction, "inputport", name="possibleMap2", peerid=annual_id)
+        ET.SubElement(junction, "outputport", name="map", id=output_id)
+    for index, n in enumerate(routing, 1):
+        fragment.insert(index, n)
+    return "\n".join(ET.tostring(n, encoding="unicode") for n in fragment)
+
+
+def annual_loader(fixed_inputs: bool = True) -> str:
     block = '''
 <containerfunctor name="CalculateValue">
     <property key="dff.functor.alias" value="Woodman annual year" />
@@ -60,8 +123,26 @@ def annual_loader() -> str:
     <inputport name="suffixDigits">0</inputport>
     <inputport name="step">.none</inputport>
     <inputport name="workdir">.none</inputport>
-    <outputport name="map" id="v90003" />
+    <outputport name="map" id="v90020" />
 </functor>
+<containerfunctor name="CalculateMap">
+    <property key="dff.functor.alias" value="Woodman annual LUC within initial model stock support" />
+    <property key="dff.functor.comment" value="Keep cells with valid initial model stock, including numeric zero and the v13 TOF allowance; initial NoData never becomes a fuelwood source after a land-cover transition" />
+    <inputport name="expression">[if isNull(i2) then null else i1]</inputport>
+    <inputport name="cellType">.int32</inputport>
+    <inputport name="nullValue">.default</inputport>
+    <inputport name="resultIsSparse">.no</inputport>
+    <inputport name="resultFormat">.none</inputport>
+    <outputport name="result" id="v90003" />
+    <functor name="NumberMap">
+        <inputport name="map" peerid="v90020" />
+        <inputport name="mapNumber">1</inputport>
+    </functor>
+    <functor name="NumberMap">
+        <inputport name="map" peerid="v200" />
+        <inputport name="mapNumber">2</inputport>
+    </functor>
+</containerfunctor>
 <containerfunctor name="CreateString">
     <property key="dff.functor.alias" value="Woodman annual TOF filename" />
     <inputport name="format">&quot;LULCC/TempRaster/TOFvsFOR_mask&lt;v1&gt;_&lt;v2&gt;.tif&quot;</inputport>
@@ -85,8 +166,26 @@ def annual_loader() -> str:
     <inputport name="suffixDigits">0</inputport>
     <inputport name="step">.none</inputport>
     <inputport name="workdir">.none</inputport>
-    <outputport name="map" id="v90005" />
+    <outputport name="map" id="v90021" />
 </functor>
+<containerfunctor name="CalculateMap">
+    <property key="dff.functor.alias" value="Woodman annual TOF within initial model stock support" />
+    <property key="dff.functor.comment" value="A later TOF category cannot create an allowance where the original v13 model initialization was NoData" />
+    <inputport name="expression">[if isNull(i2) then null else i1]</inputport>
+    <inputport name="cellType">.int32</inputport>
+    <inputport name="nullValue">.default</inputport>
+    <inputport name="resultIsSparse">.no</inputport>
+    <inputport name="resultFormat">.none</inputport>
+    <outputport name="result" id="v90005" />
+    <functor name="NumberMap">
+        <inputport name="map" peerid="v90021" />
+        <inputport name="mapNumber">1</inputport>
+    </functor>
+    <functor name="NumberMap">
+        <inputport name="map" peerid="v200" />
+        <inputport name="mapNumber">2</inputport>
+    </functor>
+</containerfunctor>
 <containerfunctor name="CreateString">
     <property key="dff.functor.alias" value="Selected LUC transition filename" />
     <inputport name="format">&quot;LULCC/TempRaster/LULCt&lt;v1&gt;_transition_&lt;v2&gt;.tif&quot;</inputport>
@@ -187,10 +286,16 @@ def annual_loader() -> str:
         <inputport name="valueNumber">3</inputport>
     </functor>
 </containerfunctor>
+<functor name="MuxMap">
+    <property key="dff.functor.alias" value="Previous annual LUC domain" />
+    <inputport name="initial" peerid="v298" />
+    <inputport name="feedback" peerid="v90003" />
+    <outputport name="map" id="v90019" />
+</functor>
 <containerfunctor name="CalculateMap">
     <property key="dff.functor.alias" value="Woodman annual effective forest K" />
-    <property key="dff.functor.comment" value="Keep baseline calibrated K for an unchanged class; use current category K after a class change" />
-    <inputport name="expression">[if isNull(i1) or isNull(i2) then null else if isNull(i3) or isNull(i4) then i2 else if i1 = i3 then i4 else i2]</inputport>
+    <property key="dff.functor.comment" value="Retain baseline calibrated K, including zero and NoData, when the current class matches the baseline; otherwise use current category K" />
+    <inputport name="expression">[if isNull(i1) or isNull(i2) then null else if isNull(i3) then i2 else if i1 = i3 then i4 else i2]</inputport>
     <inputport name="cellType">.float32</inputport>
     <inputport name="nullValue">.default</inputport>
     <inputport name="resultIsSparse">.no</inputport>
@@ -214,9 +319,9 @@ def annual_loader() -> str:
     </functor>
 </containerfunctor>
 <containerfunctor name="CalculateMap">
-    <property key="dff.functor.alias" value="Woodman annual TOF eligibility" />
-    <property key="dff.functor.comment" value="Annual equivalent of baseline v317: current TOF mask except category key 1" />
-    <inputport name="expression">[if isNull(i1) or isNull(i2) then null else if i1 = 1 then null else i2]</inputport>
+    <property key="dff.functor.alias" value="Woodman annual sold-fuelwood forest domain" />
+    <property key="dff.functor.comment" value="Annual equivalent of baseline v317: retain current LUC category for forest and exclude TOF" />
+    <inputport name="expression">[if isNull(i1) or isNull(i2) then null else if i2 = 1 then null else i1]</inputport>
     <inputport name="cellType">.int32</inputport>
     <inputport name="nullValue">.default</inputport>
     <inputport name="resultIsSparse">.no</inputport>
@@ -271,26 +376,9 @@ def annual_loader() -> str:
     </functor>
 </containerfunctor>
 <containerfunctor name="CalculateMap">
-    <property key="dff.functor.alias" value="Baseline initial stock extended to new Woodman cells" />
-    <inputport name="expression">[if isNull(i2) then null else if isNull(i1) then 0 else i1]</inputport>
-    <inputport name="cellType">.float32</inputport>
-    <inputport name="nullValue">.default</inputport>
-    <inputport name="resultIsSparse">.no</inputport>
-    <inputport name="resultFormat">.none</inputport>
-    <outputport name="result" id="v90017" />
-    <functor name="NumberMap">
-        <inputport name="map" peerid="v200" />
-        <inputport name="mapNumber">1</inputport>
-    </functor>
-    <functor name="NumberMap">
-        <inputport name="map" peerid="v90003" />
-        <inputport name="mapNumber">2</inputport>
-    </functor>
-</containerfunctor>
-<containerfunctor name="CalculateMap">
     <property key="dff.functor.alias" value="Start-year stock under Woodman land transitions" />
-    <property key="dff.functor.comment" value="Forest clearing, forest gain and TOF loss start at zero; current TOF receives only its annual category allowance" />
-    <inputport name="expression">[if isNull(i3) or isNull(i4) or isNull(i2) then null else if i2 = 1 or i2 = 2 or i2 = 4 then 0 else if i3 = 1 then i4 else if isNull(i1) then 0 else i1]</inputport>
+    <property key="dff.functor.comment" value="Within immutable initial model stock support, preserve stock including zero and later NoData; explicit transitions and returning annual LUC start at zero; eligible TOF receives its annual category allowance" />
+    <inputport name="expression">[if isNull(i3) or isNull(i4) or isNull(i2) then null else if i2 = 1 or i2 = 2 or i2 = 4 then 0 else if i3 = 1 then i4 else if isNull(i5) then 0 else i1]</inputport>
     <inputport name="cellType">.float32</inputport>
     <inputport name="nullValue">.default</inputport>
     <inputport name="resultIsSparse">.no</inputport>
@@ -312,13 +400,19 @@ def annual_loader() -> str:
         <inputport name="map" peerid="v90010" />
         <inputport name="mapNumber">4</inputport>
     </functor>
+    <functor name="NumberMap">
+        <inputport name="map" peerid="v90019" />
+        <inputport name="mapNumber">5</inputport>
+    </functor>
 </containerfunctor>'''
+    if fixed_inputs:
+        block = _fixed_input_branch(block)
     return textwrap.indent(textwrap.dedent(block).strip(), "                ")
 
 
-def main() -> None:
-    source = SOURCE.read_text(encoding="utf-8")
-    for new_id in range(90001, 90019):
+def build_model(source: str, *, annual_cache: bool = True, fixed_inputs: bool = True) -> str:
+    """Build v14 from v13; opt-outs are only for regression reference graphs."""
+    for new_id in (*range(90001, 90022), *range(90030, 90037)):
         if re.search(rf'\bv{new_id}\b', source):
             raise ValueError(f"New Dinamica ID is already in use: v{new_id}")
     marker = '<property key="dff.functor.alias" value="repeat874" />'
@@ -345,27 +439,51 @@ def main() -> None:
     annual = annual.replace('peerid="v190"', 'peerid="v90014"')
     annual = annual.replace('peerid="v192"', 'peerid="v90015"')
     annual = annual.replace('peerid="v191"', 'peerid="v90016"')
-    annual = replace_once(
-        annual,
-        '''<property key="dff.functor.alias" value="numberMap5206" />
-                                <inputport name="map" peerid="v200" />''',
-        '''<property key="dff.functor.alias" value="numberMap5206" />
-                                <inputport name="map" peerid="v90017" />''',
-    )
+    # Keep v13's initialization, including raw-AGB-independent TOF allowances.
+    # Its resulting model-stock support is immutable: v90003/v90005 exclude
+    # initially missing cells from both annual dynamics and supply allocation.
+    # Numeric zero is eligible; missing growth parameters after initialization
+    # do not change the support. Reentry inside it is handled by v90008.
+    # Both growth branches must suppress conversion-year growth before harvest
+    # is calculated: setting category rmax to zero only affects logistic growth.
+    # Guard the capped branch's final clamp too: a missing calibrated K must
+    # not turn the explicit conversion-year zero back into NoData.
+    for alias in ("calculateMap1879", "calculateMap1133", "calculateMapForestStockClampV6"):
+        marker = f'<property key="dff.functor.alias" value="{alias}" />'
+        node_start = annual.rfind('<containerfunctor name="CalculateMap">', 0, annual.index(marker))
+        node_end = annual.index('</containerfunctor>', annual.index(marker))
+        block = annual[node_start:node_end]
+        block = replace_once(
+            block,
+            '<inputport name="expression">[',
+            '<inputport name="expression">[if isNull(i98) then null else if i99 = 1 or i99 = 2 or i99 = 4 then 0 else ',
+        )
+        block += '''    <functor name="NumberMap">
+                                <property key="dff.functor.alias" value="Immutable initial model stock support" />
+                                <inputport name="map" peerid="v200" />
+                                <inputport name="mapNumber">98</inputport>
+                            </functor>
+                            <functor name="NumberMap">
+                                <property key="dff.functor.alias" value="Annual conversion growth suppression" />
+                                <inputport name="map" peerid="v90018" />
+                                <inputport name="mapNumber">99</inputport>
+                            </functor>
+                        '''
+        annual = annual[:node_start] + block + annual[node_end:]
     annual = replace_once(
         annual,
         '<internaloutputport name="step" id="v39" />',
-        '<internaloutputport name="step" id="v39" />\n' + annual_loader(),
+        '<internaloutputport name="step" id="v39" />\n' + annual_loader(fixed_inputs),
     )
     annual = replace_once(
         annual,
         'if i2 = 0 and i1 &lt;= 0 then',
-        'if i3 = 1 or i3 = 2 or i3 = 4 then&#x0A;        0&#x0A;    else if i2 = 0 and i1 &lt;= 0 then',
+        'if isNull(i4) then&#x0A;        null&#x0A;    else if i3 = 1 or i3 = 2 or i3 = 4 then&#x0A;        0&#x0A;    else if i2 = 0 and i1 &lt;= 0 then',
     )
     annual = replace_once(
         annual,
         'value="Seed depleted forest stock with 2 Mg per cell; TOF stock remains at K, including zero"',
-        'value="Forest clearing, new forest and TOF loss end at zero stock; ordinary depleted forest retains the 2 Mg seed"',
+        'value="Initial model NoData remains NoData; eligible forest clearing, new forest and TOF loss end at zero stock; ordinary depleted forest retains the 2 Mg seed"',
     )
     old_tof_input = '''<property key="dff.functor.alias" value="numberMap20022" />
                         <inputport name="map" peerid="v90005" />
@@ -379,6 +497,11 @@ def main() -> None:
                         <property key="dff.functor.alias" value="Woodman transition at end of year" />
                         <inputport name="map" peerid="v90018" />
                         <inputport name="mapNumber">3</inputport>
+                    </functor>
+                    <functor name="NumberMap">
+                        <property key="dff.functor.alias" value="Immutable initial model stock support" />
+                        <inputport name="map" peerid="v200" />
+                        <inputport name="mapNumber">4</inputport>
                     </functor>''',
     )
     output = source[:start] + annual + source[end:]
@@ -416,7 +539,30 @@ def main() -> None:
             <property key="dff.functor.alias" value="loadLookupTable3952" />
             <inputport name="filename" peerid="v90009" />''',
     )
+    if 'value="Exact selected MC row for v242"' in output:
+        # Optimized v13 already has the three MC-row helpers. Reuse those for
+        # the two annual lookup maps just introduced by this builder.
+        path = HERE / "tools" / "optimize_dinamica_windows.py"
+        spec = importlib.util.spec_from_file_location("windows_lookup_builder", path)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        output, _ = module.optimize_table_lookups(output)
+    if annual_cache:
+        # This scientific correction is intentionally distinct from the
+        # performance transforms. Source text retains an explicit contract.
+        tool_dir = str(HERE / "tools")
+        sys.path.insert(0, tool_dir)
+        try:
+            from fix_woodman_annual_sourcing_cache import correct_annual_sourcing_cache
+            output, _ = correct_annual_sourcing_cache(output)
+        finally:
+            sys.path.remove(tool_dir)
     ET.fromstring(output)
+    return output
+
+
+def main() -> None:
+    output = build_model(SOURCE.read_text(encoding="utf-8"))
     TARGET.write_text(output, encoding="utf-8")
     print(f"Wrote {TARGET}")
 

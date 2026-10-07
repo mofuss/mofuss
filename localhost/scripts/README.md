@@ -18,6 +18,50 @@ the active workflow.
 - Files under `older_versions` are archival and are not part of the active
   workflow.
 
+## Windows simulation launchers
+
+The localhost preprocessing workflows (`000_main_localhost_v1.R`, including its
+batch runner, and `0_main.R`) finish with
+`10_prepare_windows_launcher_v1.R`. On Windows this creates **`RUN_MoFuSS.cmd`**
+inside each country/region working folder. It does not launch the simulation.
+The earlier working-folder cloning step alone does not generate this launcher.
+
+After preprocessing and the usual IDW output installation are complete,
+double-click `RUN_MoFuSS.cmd` in Windows File Explorer. It uses the installed
+Windows Dinamica 2.4.1 console at
+`C:/Program Files/Dinamica EGO/DinamicaConsole.exe`, two processors, and a
+separate temporary folder for each invocation under
+`E:/MoFuSS_Active/windows_runs`. The command window shows the exit code and stays
+open until a key is pressed. Missing engine/model files or unavailable temporary
+storage produce a visible error. The command does not change the engine seed.
+
+The final R step configures only the copied model's LUC and Monte Carlo wizard
+constants; the repository's model and all scientific expressions remain intact:
+
+| Prepared land-cover channels | Selected Windows model | LUC |
+| --- | --- | ---: |
+| Woodman enabled (`LULCt3map=YES`, including when MODIS is also enabled) | v14 | 3 |
+| MODIS enabled, Woodman disabled | v13 | 1 |
+| Only Copernicus enabled | v13 | 2 |
+
+`scenario_ver` starting with `BaU` sets **MC rerun = Yes**; `ICS` or `CCTS` sets
+**No**. Other scenario prefixes are rejected rather than assigned an assumed
+MC policy. Each ICS/CCTS must wait for its matching BAU's **new complete** MC
+batch. Existing `bypassMC_v8.R` checks still select and validate the matching
+BAU; the launcher does not guess a partner from the country name.
+
+On the current four-core workstation, use at most four simultaneous simulations.
+Launch each folder once and allow the preparation step to finish. Do not run
+the wizard and CMD simultaneously for the same folder. Open the `.egoml` in
+the wizard when interactive settings are needed; `.cmd` files run from Explorer.
+
+For another Windows computer, change the settings at the top of
+`10_prepare_windows_launcher_v1.R`. The paths also accept the environment
+overrides `MOFUSS_DINAMICA_CONSOLE` and `MOFUSS_WINDOWS_TEMP_ROOT` at preparation
+time. Existing MDG launchers and running simulations are not updated by this
+repository change. Do not rerun preprocessing over a completed/running run just
+to generate a launcher, because earlier preprocessing steps rebuild inputs.
+
 ## Script header contract
 
 Active numbered scripts identify the script version and date, execution mode,

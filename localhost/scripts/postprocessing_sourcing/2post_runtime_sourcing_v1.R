@@ -2,7 +2,7 @@
 # Reconstruct recorded Dinamica origin pressures, then account for model-implied
 # harvest by demand-origin and source country. This is not observed trade.
 # Sourceable: no work runs on source(). Run rs_main() or invoke with Rscript.
-# Runtime masks/bases/scalars must come from the v12 capture contract; the
+# Runtime masks/bases/scalars must come from one complete capture contract; the
 # existing annual model rasters remain the authority for total realised harvest.
 
 # BEGIN USER INPUTS ----------------------------------------------------------
@@ -201,6 +201,32 @@
 .rs_maps <- c("Proj_harv_Wtot","Proj_harv_Vtot","Proj_harv_Wdef","Proj_harv_Vdef",
               "Non_harv_AGR","Ex_agr_harv","harv_AGR","Expect_harv_tot","Harvest_tot")
 
+# Distinct filenames and a runtime marker prevent a partially regenerated v14
+# capture from silently falling back to the old, landscape-masked static bases.
+# The static accumulator left by older captures is harmless: corrected runs
+# always select the current MC/year's accumulator and never read that file.
+.rs_capture_contract <- function(run) {
+  contract <- "annual_domain_after_static_npa_cache_v1"
+  static <- file.path(run,"Sourcing","static")
+  names <- list.files(static)
+  marker <- file.path(static,paste0(contract,".csv"))
+  legacy <- any(grepl("^[WV]_base[0-9]+_[0-9]+\\.tif$",names,ignore.case=TRUE))
+  new_base <- any(grepl("^[WV]_npa_base[0-9]+_[0-9]+\\.tif$",names,ignore.case=TRUE))
+  mc_dirs <- list.files(file.path(run,"Sourcing"),pattern="^MC[0-9]+$",full.names=TRUE)
+  annual <- any(vapply(mc_dirs,function(path)
+    length(list.files(path,pattern="^accumulator_domain[0-9]+\\.tif$",ignore.case=TRUE))>0L,logical(1)))
+  corrected <- file.exists(marker) || new_base || annual
+  if (!corrected) return("legacy_static_domain_v12_v13")
+  if (legacy) .rs_stop("Mixed runtime sourcing capture contracts: legacy W/V_base and corrected annual-domain captures coexist in %s",run)
+  if (!file.exists(marker)) .rs_stop("Missing corrected runtime sourcing contract marker: %s. Refusing legacy fallback.",marker)
+  tab <- tryCatch(data.table::fread(marker,showProgress=FALSE),error=function(e)NULL)
+  if (is.null(tab) || nrow(tab)!=1L || ncol(tab)!=2L ||
+      !identical(suppressWarnings(as.numeric(unlist(tab,use.names=FALSE))),c(1,1)))
+    .rs_stop("Invalid corrected runtime sourcing contract marker: %s",marker)
+  if (!new_base || !annual) .rs_stop("Incomplete corrected runtime sourcing capture contract in %s: static NPA bases and annual accumulator captures are both required. Refusing legacy fallback.",run)
+  contract
+}
+
 .rs_year_inputs <- function(meta, mc, year, indices) {
   step <- year-meta$start+1L
   cap <- file.path(meta$run,"Sourcing",sprintf("MC%03d",mc))
@@ -216,16 +242,24 @@
     .rs_stop("Mixed or invalid v12/v13 W scalar schema")
   origin_preserving <- any(v13_w)
   if (length(unique(source_steps)) != 1L) .rs_stop("Components disagree on IDW snapshot for %d MC%d",year,mc)
+  capture_contract <- .rs_capture_contract(meta$run)
+  annual_domain <- identical(capture_contract,"annual_domain_after_static_npa_cache_v1")
+  if(annual_domain && !origin_preserving)
+    .rs_stop("Corrected annual-domain captures require v13 origin-preserving W scalars; legacy 18-key W scalars cannot be mixed with this contract")
+  base_stem <- if(annual_domain)"npa_base" else "base"
   base_paths <- vapply(seq_len(nrow(index)),function(k) file.path(meta$run,"Sourcing","static",
-                 sprintf("%s_base%03d_%02d.tif",index$channel[k],index$ComponentIndex[k],source_steps[k])),character(1))
+                 sprintf("%s_%s%03d_%02d.tif",index$channel[k],base_stem,index$ComponentIndex[k],source_steps[k])),character(1))
   other_paths <- c(vapply(c("W","V"),function(ch) file.path(cap,sprintf("mask_%s%02d.tif",ch,step)),character(1)),
     vapply(.rs_maps,function(stem) file.path(meta$run,sprintf("debugging_%d",mc),sprintf("%s%02d.tif",stem,step)),character(1)))
-  paths <- c(base_paths,other_paths,file.path(meta$run,"Sourcing","static","accumulator_domain.tif"),
+  accumulator <- if(annual_domain)file.path(cap,sprintf("accumulator_domain%02d.tif",step)) else
+    file.path(meta$run,"Sourcing","static","accumulator_domain.tif")
+  paths <- c(base_paths,other_paths,accumulator,
              if(origin_preserving)file.path(cap,sprintf("forest_state%02d.tif",step)))
   if (any(!file.exists(paths))) .rs_stop(paste0("Missing runtime/annual raster: %s. ",
     "Compact Sourcing captures also require the annual diagnostic rasters exported by Dinamica; ",
     "this analysis cannot recreate missing exports."),paste(paths[!file.exists(paths)],collapse="; "))
-  list(index=index, scalars=scalars, origin_preserving=origin_preserving, paths=paths)
+  list(index=index, scalars=scalars, origin_preserving=origin_preserving,
+       capture_contract=capture_contract, paths=paths)
 }
 
 .rs_year <- function(meta, mc, year, zones, crosswalk, indices, block_mb=64, signed_policy="report") {
@@ -351,6 +385,7 @@
        attribution_rounding_residual_tonnes=total_residual,absolute_rounding_residual_tonnes=abs_residual,
        negative_component_cells=negative_cells,unmapped_expected_cells=unknown_zone_cells,
        tof_mechanism=if(origin_preserving)"origin_preserving_v13" else "pooled_v12",
+       sourcing_capture_contract=inputs$capture_contract,
        metadata_provenance=if(is.null(meta$provenance))"diagnostic_fixture_no_snapshot" else meta$provenance,
        exact_normalised_pressure_check="passed on country-zone domain",
        forbidden_direct_W_realised_tonnes=matrix[channel=="W" & term=="direct" & source_iso3!=origin_iso3,
@@ -522,6 +557,7 @@ rs_main <- function(args=commandArgs(trailingOnly=TRUE)) {
     "Clearing credits are allocated in proportion to origin pressure. Their country is the pixel where the credit was APPLIED, not the country where clearing biomass was produced. They are not an observed source of wood.",
     "Pooled TOF redistribution uses each W origin's total TOF deficit share. It is explicit because the legacy model pools that pressure across the region.",
     "When 24-key W captures are present, each v13 origin TOF pressure is reconstructed separately and reported as origin_preserving_TOF_redistribution; it is not pooled.",
+    "Corrected annual-domain captures require the annual_domain_after_static_npa_cache_v1 marker, static W/V_npa_base rasters, annual eligibility masks and each MC/year's accumulator domain. Legacy static-domain captures remain supported; mixed or incomplete contracts are rejected.",
     "Signed negative adjustments are retained. Domestic/import/source percentages are withheld when those adjustments occur; negative harvest is accounting, not physical trade.",
     "The CLI defaults to --signed-policy=error. Use --signed-policy=report explicitly only when inspecting legacy signed adjustments.",
     "Each period includes both endpoints. Adjacent decades overlap at 2030 and 2040; use the independent 2020-2050 row for the complete period.",

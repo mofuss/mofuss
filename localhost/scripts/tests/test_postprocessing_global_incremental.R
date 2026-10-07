@@ -27,7 +27,9 @@ write_analysis <- function(id, totals) {
         period_regrowth_tco2e = total / 4,
         agb_avoided_stage2_tco2e = total * 3 / 4,
         enduse_avoided_tco2e = total / 4,
-        total_avoided_tco2e = total, all_invariants_ok = TRUE
+        total_avoided_tco2e = total, all_invariants_ok = TRUE,
+        biomass_support_policy = "finite_initial_agb_reference_v1",
+        agb_reference_md5 = paste(rep("a", 32L), collapse = "")
       )
     }))
   }))
@@ -119,6 +121,19 @@ expect_failure(c("--mode=strict", paste0("--regionalization-file=", catalog_path
 
 # Reject repeated rows and overlapping analysis roots rather than double count.
 singleton <- read.csv(singleton_path)
+# Prevent aggregation of pre-mask results with the new reporting footprint.
+old_policy <- singleton
+old_policy$biomass_support_policy <- "unrestricted_endpoint_support"
+write.csv(old_policy, singleton_path, row.names = FALSE)
+expect_failure(character(), "biomass support policy")
+old_policy$biomass_support_policy <- NULL
+write.csv(old_policy, singleton_path, row.names = FALSE)
+expect_failure(character(), "biomass_support_policy")
+old_policy <- singleton
+old_policy$agb_reference_md5[[1L]] <- paste(rep("b", 32L), collapse = "")
+write.csv(old_policy, singleton_path, row.names = FALSE)
+expect_failure(character(), "original AGB reference MD5")
+write.csv(singleton, singleton_path, row.names = FALSE)
 write.csv(rbind(singleton, singleton[1L, ]), singleton_path, row.names = FALSE)
 expect_failure(character(), "repeats country/configuration/run rows")
 write.csv(singleton, singleton_path, row.names = FALSE)

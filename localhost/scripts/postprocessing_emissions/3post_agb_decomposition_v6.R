@@ -35,6 +35,9 @@
 # The default period starts after the configured modeled spin-up years. It
 # evaluates the decomposition state at end-(START-1) and at END, then subtracts
 # the former from the latter.
+# All biomass accounting uses the finite original agb3_c footprint, including
+# numeric zero. Benefits outside it are diagnostics only; no missing reference
+# is imputed from later stock or from modeled TOF allowances.
 #
 # Default: infer BAU/CCTS pairs, the post-spin-up period, all configured runs,
 # and outputs. One execution writes the direct nominal MC01 decomposition and
@@ -56,6 +59,7 @@ stopf <- function(fmt, ...) {
 
 V5_SPINUP_YEARS <- NA_integer_
 V5_MIN_UNCERTAINTY_RUNS <- 30L
+V6_BIOMASS_SUPPORT_POLICY <- "finite_initial_agb_reference_v1"
 
 pairing_design_status <- function(
   paired_mc_inputs_validated, patcher_bypassed, patcher_rng_paired
@@ -1281,6 +1285,26 @@ read_country_partition <- function(cfg, parameters, raster_template, run_id, per
   )
 }
 
+validate_stage2_biomass_support <- function(tab, initial_agb_md5, path) {
+  required <- c("biomass_support_policy", "initial_agb_md5")
+  missing <- setdiff(required, names(tab))
+  if (length(missing)) {
+    stopf("Stage-2 biomass support metadata is missing (%s); rerun Stage 2: %s",
+          paste(missing, collapse = ", "), path)
+  }
+  policy <- trimws(as.character(tab$biomass_support_policy[[1L]]))
+  if (!identical(policy, V6_BIOMASS_SUPPORT_POLICY)) {
+    stopf("Stage-2 biomass support policy does not match %s; rerun Stage 2: %s",
+          V6_BIOMASS_SUPPORT_POLICY, path)
+  }
+  saved_md5 <- tolower(trimws(as.character(tab$initial_agb_md5[[1L]])))
+  if (is.na(saved_md5) || !grepl("^[a-f0-9]{32}$", saved_md5) ||
+      !identical(saved_md5, tolower(initial_agb_md5))) {
+    stopf("Stage-2 initial AGB MD5 does not match the current reference: %s", path)
+  }
+  invisible(TRUE)
+}
+
 read_stage2_run_manifest <- function(
   cfg, period, run_id, timing, initial_agb_md5, pairing
 ) {
@@ -1301,6 +1325,7 @@ read_stage2_run_manifest <- function(
     col_types = readr::cols(.default = readr::col_character())
   )
   if (nrow(tab) != 1L) stopf("Stage-2 run manifest must contain exactly one row: %s", path)
+  validate_stage2_biomass_support(tab, initial_agb_md5, path)
   required <- c(
     "label", "bau_dir", "ics_dir", "emissions_dir", "period_start_year",
     "period_end_year", "baseline_year_code", "end_year_code",
@@ -1469,10 +1494,6 @@ read_stage2_run_manifest <- function(
     if (!full_value %in% c("true", "t", "1")) {
       stopf("Stage-2 run manifest does not declare full_horizon=TRUE: %s", path)
     }
-    saved_md5 <- tolower(trimws(as.character(tab$initial_agb_md5[[1]])))
-    if (!identical(saved_md5, tolower(initial_agb_md5))) {
-      stopf("Stage-2 initial AGB MD5 does not match the current reference: %s", path)
-    }
   }
 
   list(
@@ -1605,6 +1626,14 @@ component_stats <- function(r, eps) {
   )
 }
 
+v6_biomass_support <- function(r) {
+  raw_pair <- is.finite(r$bau_baseline) & is.finite(r$ics_baseline) &
+    is.finite(r$bau_end) & is.finite(r$ics_end)
+  reference_valid <- is.finite(r$ref_bau)
+  list(raw_pair = raw_pair, pair_valid = raw_pair & reference_valid,
+       excluded = raw_pair & !reference_valid)
+}
+
 decompose_state <- function(bau, ics, reference, eps) {
   delta <- ics - bau
   gate <- bau < (reference - eps)
@@ -1652,6 +1681,7 @@ v6_country_zonal_values <- function(metrics, zones, scope, label) {
 
 v6_country_decomposition_rows <- function(
   meta, run_id, period, co2_factor, eps, r, pair_valid, period_valid,
+  raw_pair_valid, raw_excluded_delta,
   b0, i0, b1, i1, state0, state1, pair_period_delta,
   period_delta, period_avoided, period_regrowth, regional_row
 ) {
@@ -1659,6 +1689,11 @@ v6_country_decomposition_rows <- function(
   metric_layers <- c(
     b0, i0, b1, i1,
     state0$delta, state1$delta, pair_period_delta, period_delta,
+    raw_excluded_delta,
+    v6_signed_part(raw_excluded_delta, raw_excluded_delta > eps, is.finite(raw_excluded_delta)),
+    v6_signed_part(raw_excluded_delta, raw_excluded_delta < -eps, is.finite(raw_excluded_delta)),
+    v6_indicator(raw_pair_valid),
+    v6_indicator(raw_pair_valid & !is.finite(r$ref_bau)),
     v6_signed_part(period_delta, period_delta > eps, support),
     v6_signed_part(period_delta, period_delta < -eps, support),
     period_avoided,
@@ -1693,6 +1728,9 @@ v6_country_decomposition_rows <- function(
     "bau_end_agb_mg", "ics_end_agb_mg",
     "baseline_delta_agb_mg", "end_delta_agb_mg",
     "pair_period_delta_agb_mg", "period_delta_agb_mg",
+    "raw_reference_excluded_delta_mg", "raw_reference_excluded_positive_mg",
+    "raw_reference_excluded_negative_mg", "n_raw_pair_period_common",
+    "n_reference_excluded_pair_cells",
     "period_delta_positive_mg", "period_delta_negative_mg",
     "period_avoided_loss_mg", "period_avoided_loss_positive_mg",
     "period_avoided_loss_negative_mg", "period_regrowth_mg",
@@ -1725,6 +1763,10 @@ v6_country_decomposition_rows <- function(
   )
   rows$safe_label <- meta$safe_label
   rows$regrowth_mode <- meta$regrowth_mode
+  rows$biomass_support_policy <- V6_BIOMASS_SUPPORT_POLICY
+  rows$biomass_support_reference <- meta$raster_paths$ref_bau
+  rows$biomass_support_reference_md5 <- meta$reference_md5
+  rows$agb_reference_md5 <- meta$reference_md5
   rows$pairing_policy <- meta$pairing$pairing_policy
   rows$mc_table_rows_paired <- meta$mc_table_pairing_validated
   rows$patcher_bypassed <- meta$pairing$patcher_bypassed
@@ -1810,6 +1852,9 @@ v6_country_decomposition_rows <- function(
     "period_avoided_loss_tco2e", "period_regrowth_tco2e",
     "agb_avoided_stage2_tco2e", "enduse_avoided_tco2e",
     "total_avoided_tco2e", "n_reference_valid", "n_bau_baseline_valid",
+    "raw_reference_excluded_delta_mg", "raw_reference_excluded_positive_mg",
+    "raw_reference_excluded_negative_mg", "n_raw_pair_period_common",
+    "n_reference_excluded_pair_cells",
     "n_ics_baseline_valid", "n_bau_end_valid", "n_ics_end_valid",
     "n_pair_period_common", "n_decomposition_period_common",
     "n_gated_baseline", "n_gated_end", "n_ics_exceeds_reference_baseline",
@@ -1847,9 +1892,15 @@ process_config <- function(meta, run_id, period, co2_factor, eps) {
     }
   }
 
-  pair_valid <- is.finite(r$bau_baseline) & is.finite(r$ics_baseline) &
-    is.finite(r$bau_end) & is.finite(r$ics_end)
-  period_valid <- pair_valid & is.finite(r$ref_bau)
+  biomass_support <- v6_biomass_support(r)
+  raw_pair_valid <- biomass_support$raw_pair
+  pair_valid <- biomass_support$pair_valid
+  period_valid <- pair_valid
+  raw_excluded_delta <- terra::ifel(
+    biomass_support$excluded,
+    (r$ics_end - r$bau_end) - (r$ics_baseline - r$bau_baseline), NA
+  )
+  excluded_stats <- component_stats(raw_excluded_delta, eps)
   n_pair_common <- count_true(pair_valid)
   n_period_common <- count_true(period_valid)
   if (n_period_common <= 0) stopf("Config '%s' has no common valid period cells.", meta$label)
@@ -1941,6 +1992,10 @@ process_config <- function(meta, run_id, period, co2_factor, eps) {
     analysis_area_id = analysis_area_id,
     analysis_area_name = analysis_area_name,
     regrowth_mode = meta$regrowth_mode,
+    biomass_support_policy = V6_BIOMASS_SUPPORT_POLICY,
+    biomass_support_reference = meta$raster_paths$ref_bau,
+    biomass_support_reference_md5 = meta$reference_md5,
+    agb_reference_md5 = meta$reference_md5,
     pairing_policy = meta$pairing$pairing_policy,
     mc_table_rows_paired = meta$mc_table_pairing_validated,
     patcher_bypassed = meta$pairing$patcher_bypassed,
@@ -1984,6 +2039,11 @@ process_config <- function(meta, run_id, period, co2_factor, eps) {
     enduse_avoided_tco2e = meta$enduse$tco2e,
     total_avoided_tco2e = meta$harvest$tco2e + meta$enduse$tco2e,
     n_reference_valid = n_ref_valid,
+    n_raw_pair_period_common = count_true(raw_pair_valid),
+    n_reference_excluded_pair_cells = count_true(biomass_support$excluded),
+    raw_reference_excluded_delta_mg = excluded_stats$net_mg,
+    raw_reference_excluded_positive_mg = excluded_stats$positive_mg,
+    raw_reference_excluded_negative_mg = excluded_stats$negative_mg,
     n_bau_baseline_valid = count_true(is.finite(r$bau_baseline)),
     n_ics_baseline_valid = count_true(is.finite(r$ics_baseline)),
     n_bau_end_valid = count_true(is.finite(r$bau_end)),
@@ -2032,6 +2092,8 @@ process_config <- function(meta, run_id, period, co2_factor, eps) {
     r = r,
     pair_valid = pair_valid,
     period_valid = period_valid,
+    raw_pair_valid = raw_pair_valid,
+    raw_excluded_delta = raw_excluded_delta,
     b0 = b0,
     i0 = i0,
     b1 = b1,
@@ -2199,6 +2261,9 @@ build_provenance <- function(processed, summary, manifest_path, output_dir,
       stage2_pairing_design = m$stage2_manifest$pairing_design,
       stage2_uncertainty_status = m$stage2_manifest$uncertainty_status,
       agb_reference_md5 = m$reference_md5,
+      biomass_support_policy = V6_BIOMASS_SUPPORT_POLICY,
+      biomass_support_reference = m$raster_paths$ref_bau,
+      biomass_support_reference_md5 = m$reference_md5,
       bau_baseline_raster = m$raster_paths$bau_baseline,
       bau_baseline_md5 = m$raster_md5[["bau_baseline"]],
       ics_baseline_raster = m$raster_paths$ics_baseline,
@@ -2233,6 +2298,8 @@ build_provenance <- function(processed, summary, manifest_path, output_dir,
       split_residual_mg = s$split_residual_mg,
       raster_identity_max_mg = s$raster_identity_max_mg,
       reference_excluded_delta_mg = s$reference_excluded_delta_mg,
+      raw_reference_excluded_delta_mg = s$raw_reference_excluded_delta_mg,
+      n_reference_excluded_pair_cells = s$n_reference_excluded_pair_cells,
       harvest_residual_tco2e = s$harvest_residual_tco2e,
       all_invariants_ok = s$all_invariants_ok,
       output_delta_mg = m$out_files$delta_mg,
@@ -3037,6 +3104,10 @@ main <- function(args = commandArgs(trailingOnly = TRUE), source_mode = interact
   script_path <- v5_script_path()
   run_manifest <- data.frame(
     script_version = 6L,
+    biomass_support_policy = V6_BIOMASS_SUPPORT_POLICY,
+    biomass_support_reference = paste(unique(provenance$reference_raster_bau), collapse = ","),
+    biomass_support_reference_md5 = paste(unique(provenance$agb_reference_md5), collapse = ","),
+    agb_reference_md5 = paste(unique(provenance$agb_reference_md5), collapse = ","),
     script_path = script_path,
     script_md5 = if (!is.na(script_path) && file.exists(script_path)) file_md5(script_path) else NA_character_,
     analysis_products = if (any(!per_run_summary$patcher_bypassed)) {

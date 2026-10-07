@@ -416,6 +416,17 @@ country_scope_path <- file.path(agb_dir, "country_scope.csv")
 country_boundaries_path <- file.path(agb_dir, "country_boundaries.gpkg")
 
 per_run <- read_csv_required(agb_per_run_path, "Stage 3 per-run decomposition")
+require_columns(per_run, c("biomass_support_policy", "agb_reference_md5"),
+                "Stage 3 biomass reporting support; rerun Stages 2-3 if missing")
+if (anyNA(per_run$biomass_support_policy) ||
+    any(per_run$biomass_support_policy != "finite_initial_agb_reference_v1")) {
+  stopf("Stage 3 biomass support policy is outdated or inconsistent; rerun Stages 2-3.")
+}
+biomass_reference_md5 <- unique(as.character(per_run$agb_reference_md5))
+if (length(biomass_reference_md5) != 1L || anyNA(biomass_reference_md5) ||
+    !grepl("^[0-9a-fA-F]{32}$", biomass_reference_md5)) {
+  stopf("Stage 3 rows must identify one common original AGB reference MD5.")
+}
 require_columns(
   per_run,
   c(
@@ -531,6 +542,14 @@ country_required <- c(
   "all_invariants_ok"
 )
 require_columns(country_per_run, country_required, "Stage 3 country per-run decomposition")
+require_columns(country_per_run, c("biomass_support_policy", "agb_reference_md5"),
+                "Stage 3 country biomass reporting support")
+if (anyNA(country_per_run$biomass_support_policy) ||
+    anyNA(country_per_run$agb_reference_md5) ||
+    any(country_per_run$biomass_support_policy != "finite_initial_agb_reference_v1") ||
+    any(country_per_run$agb_reference_md5 != biomass_reference_md5)) {
+  stopf("Country and regional biomass reporting policies or reference hashes disagree.")
+}
 country_per_run$country_id <- suppressWarnings(as.integer(country_per_run$country_id))
 country_per_run$country_iso <- toupper(trimws(as.character(country_per_run$country_iso)))
 country_per_run$country_name <- trimws(decode_unicode_tokens(country_per_run$country_name))
@@ -1321,6 +1340,12 @@ for (configuration in CONFIGURATION_ORDER) {
 # All scalar and raster inputs have passed their preflight checks. Only now is
 # the exact manuscript_outputs directory removed and rebuilt.
 prepare_output_dir(output_dir, source_dir, overwrite, uncertainty_adequate)
+write_csv_utf8(data.frame(
+  biomass_support_policy = "finite_initial_agb_reference_v1",
+  agb_reference_md5 = biomass_reference_md5,
+  biomass_support_description = "Finite original AGB reference; numeric zero retained",
+  enduse_support_description = "Demand-based end-use accounting unchanged"
+), file.path(output_dir, "biomass_support_policy.csv"))
 write_csv_utf8(mc1_table, table_mc1_path)
 write_table_png(
   mc1_table, table_mc1_png_path,

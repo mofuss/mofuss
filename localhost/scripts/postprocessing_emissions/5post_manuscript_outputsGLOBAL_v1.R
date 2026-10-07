@@ -345,9 +345,19 @@ manifest <- do.call(rbind, lapply(seq_along(candidate_roots), function(i) {
   )
   require_columns(
     preview,
-    c("country_iso", "country_name", "analysis_area_id", "analysis_area_name"),
+    c("country_iso", "country_name", "analysis_area_id", "analysis_area_name",
+      "biomass_support_policy", "agb_reference_md5"),
     basename(per_run_path)
   )
+  if (anyNA(preview$biomass_support_policy) ||
+      any(preview$biomass_support_policy != "finite_initial_agb_reference_v1")) {
+    stopf("Outdated or inconsistent biomass support policy in %s; rerun Stages 2-4.", root)
+  }
+  reference_md5 <- unique(as.character(preview$agb_reference_md5))
+  if (length(reference_md5) != 1L || anyNA(reference_md5) ||
+      !grepl("^[0-9a-fA-F]{32}$", reference_md5)) {
+    stopf("Analysis %s must identify one original AGB reference MD5.", root)
+  }
   country_isos <- sort(unique(toupper(trimws(as.character(preview$country_iso)))))
   if (!length(country_isos) || anyNA(country_isos) || any(!nzchar(country_isos))) {
     stopf("Discovered analysis root has invalid country ISO codes: %s", root)
@@ -387,6 +397,8 @@ manifest <- do.call(rbind, lapply(seq_along(candidate_roots), function(i) {
     expected_country_count = length(country_isos),
     analysis_root = root,
     per_run_path = per_run_path,
+    biomass_support_policy = "finite_initial_agb_reference_v1",
+    agb_reference_md5 = reference_md5,
     discovery_source = "auto_discovered_country_per_run",
     stringsAsFactors = FALSE
   )
@@ -414,7 +426,7 @@ if (any(nonfinal)) {
 required_per_run_columns <- c(
   "country_iso", "country_name", "regrowth_mode", "run_id",
   "period_start_year", "period_end_year", unname(METRIC_FIELDS),
-  "all_invariants_ok"
+  "all_invariants_ok", "biomass_support_policy", "agb_reference_md5"
 )
 
 analysis_data <- vector("list", nrow(manifest))
@@ -426,6 +438,11 @@ for (i in seq_len(nrow(manifest))) {
 
   x <- read_csv_required(per_run_path, sprintf("%s per-run data", row$analysis_id[[1L]]))
   require_columns(x, required_per_run_columns, basename(per_run_path))
+  if (anyNA(x$biomass_support_policy) || anyNA(x$agb_reference_md5) ||
+      any(x$biomass_support_policy != row$biomass_support_policy[[1L]]) ||
+      any(x$agb_reference_md5 != row$agb_reference_md5[[1L]])) {
+    stopf("Biomass reporting support changed during preflight: %s", per_run_path)
+  }
   if (!all(as.logical(x$all_invariants_ok))) {
     stopf("%s contains a failed Stage 3 invariant.", row$analysis_id[[1L]])
   }
@@ -511,6 +528,21 @@ for (i in seq_len(nrow(manifest))) {
   )
   capped_rasters <- Sys.glob(file.path(raster_root, "*_capped_total_mean_tco2e.tif"))
   uncapped_rasters <- Sys.glob(file.path(raster_root, "*_uncapped_total_mean_tco2e.tif"))
+  if (length(capped_rasters) || length(uncapped_rasters)) {
+    support <- read_csv_required(
+      file.path(row$analysis_root[[1L]], "manuscript_outputs", "biomass_support_policy.csv"),
+      "Stage 4 biomass support policy; rerun Stage 4 if missing"
+    )
+    require_columns(support, c("biomass_support_policy", "agb_reference_md5"),
+                    "Stage 4 biomass support policy")
+    if (nrow(support) != 1L || anyNA(support$biomass_support_policy) ||
+        anyNA(support$agb_reference_md5) ||
+        support$biomass_support_policy != row$biomass_support_policy[[1L]] ||
+        support$agb_reference_md5 != row$agb_reference_md5[[1L]]) {
+      stopf("Stage 4 raster support differs from Stage 3 for %s; rerun Stage 4.",
+            row$analysis_id[[1L]])
+    }
+  }
   input_inventory[[i]] <- data.frame(
     analysis_id = row$analysis_id[[1L]],
     subregion_name = row$subregion_name[[1L]],
@@ -518,6 +550,8 @@ for (i in seq_len(nrow(manifest))) {
     analysis_root = row$analysis_root[[1L]],
     per_run_source_kind = source_kind,
     per_run_path = per_run_path,
+    biomass_support_policy = row$biomass_support_policy[[1L]],
+    agb_reference_md5 = row$agb_reference_md5[[1L]],
     country_count = nrow(countries),
     run_count = length(reference_run_ids),
     capped_total_mean_raster = if (length(capped_rasters) == 1L) capped_rasters[[1L]] else "",

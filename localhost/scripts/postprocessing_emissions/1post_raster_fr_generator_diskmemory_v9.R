@@ -36,6 +36,7 @@
 
 SCRIPT_VERSION <- "9"
 DEFAULT_OUTPUT_SUBDIR <- file.path("Out", "webmofuss_results_v9")
+BIOMASS_SUPPORT_POLICY <- "finite_initial_agb_reference_v1"
 
 # BEGIN USER INPUTS ----------------------------------------------------------
 # Scenario folders are supplied centrally by 0post_emissions_pipeline_v1.R.
@@ -74,6 +75,7 @@ usage <- function() {
     "  Explicit --period windows retain v7 semantics: baseline=end of START-1.",
     "  NRB = max(baseline AGB - Growth_less_harv[end], 0).",
     "  AGB snapshots use correctly dated post-harvest model rasters.",
+    "  All biomass summaries use the fixed finite agb3_c.tif reference support; zero is valid.",
     sep = "\n"
   )
 }
@@ -714,6 +716,9 @@ manifest_row <- function(
     processed_run_ids = processed_run_ids,
     initial_agb = initial_agb,
     initial_agb_md5 = initial_agb_md5,
+    biomass_support_policy = BIOMASS_SUPPORT_POLICY,
+    biomass_support_reference = initial_agb,
+    biomass_support_reference_md5 = initial_agb_md5,
     mc_bypass_manifest = mc_bypass_manifest,
     mc_bypass_manifest_md5 = mc_bypass_manifest_md5,
     mc_bypass_status = mc_bypass_status,
@@ -874,6 +879,23 @@ build_plan <- function(scenario_dir, periods = NULL, output_subdir) {
       ...
     )
   }
+
+  # This input is required even when no output snapshot uses the original
+  # reference values. It defines one immutable reporting domain for every
+  # biomass product and is included in the normal geometry validation.
+  add_row(
+    record_type = "input",
+    role = "biomass_support_reference",
+    metric = "biomass_support",
+    calendar_year = metadata$start_year,
+    raster_code = 0L,
+    source_family = "agb3_c",
+    path = metadata$initial_agb,
+    definition = paste0(
+      "fixed biomass reporting support: finite original AGB reference; ",
+      "numeric zero retained; policy=", BIOMASS_SUPPORT_POLICY
+    )
+  )
 
   for (period_index in seq_len(nrow(periods))) {
     period <- periods[period_index, , drop = FALSE]
@@ -1070,7 +1092,15 @@ build_plan <- function(scenario_dir, periods = NULL, output_subdir) {
     definition = "Exact inputs, outputs, parameters, formulas, versions and run IDs for this execution"
   )
   records <- do.call(rbind, rows)
+  biomass_output <- records$record_type == "output" & records$metric %in% c("nrb", "harv", "agb")
+  records$definition[biomass_output] <- paste0(
+    records$definition[biomass_output],
+    "; restricted to finite original AGB reference (numeric zero retained)"
+  )
   validate_geometry(records$path[records$record_type == "input"], scenario_name)
+  if (terra::nlyr(terra::rast(metadata$initial_agb)) != 1L) {
+    stopf("Initial AGB reporting reference must have exactly one layer: %s", metadata$initial_agb)
+  }
 
   list(
     scenario_name = scenario_name,
@@ -1094,6 +1124,8 @@ print_plan <- function(plan) {
   )
   cat("Scenario path:  ", plan$scenario_dir, "\n", sep = "")
   cat("Parameter file: ", plan$metadata$parameter_file, "\n", sep = "")
+  cat("Biomass support: ", BIOMASS_SUPPORT_POLICY, "\n", sep = "")
+  cat("Support source:  ", plan$metadata$initial_agb, "\n", sep = "")
   cat(
     "Model:           ", plan$metadata$start_year, "-", plan$metadata$end_year,
     "; STdyn=", plan$metadata$end_year - plan$metadata$start_year,
@@ -1168,6 +1200,25 @@ paths_for_code <- function(plan, family, code) {
   )
 }
 
+initial_biomass_support <- function(initial_agb) {
+  reference <- terra::rast(initial_agb)
+  if (terra::nlyr(reference) != 1L) {
+    stop("Initial AGB reporting reference must have exactly one layer.", call. = FALSE)
+  }
+  # is.finite excludes NA, NaN and infinities without excluding numeric zero.
+  is.finite(reference)
+}
+
+mask_biomass_support <- function(rasters, support) {
+  if (terra::nlyr(support) != 1L || !isTRUE(suppressWarnings(terra::compareGeom(
+    rasters, support, stopOnError = FALSE, crs = TRUE, ext = TRUE,
+    rowcol = TRUE, res = TRUE
+  )))) {
+    stop("Biomass reporting support and source raster geometry differ.", call. = FALSE)
+  }
+  terra::ifel(support, rasters, NA)
+}
+
 summarize_mc <- function(rasters) {
   if (!inherits(rasters, "SpatRaster") || terra::nlyr(rasters) < 1L) {
     stop("summarize_mc requires a nonempty SpatRaster.", call. = FALSE)
@@ -1200,6 +1251,11 @@ write_stat_triplet <- function(stats, prefix, overwrite) {
 }
 
 execute_plan <- function(plan, overwrite = FALSE) {
+  current_reference_md5 <- unname(as.character(tools::md5sum(plan$metadata$initial_agb)))
+  if (!identical(current_reference_md5, plan$metadata$initial_agb_md5)) {
+    stopf("Initial AGB reporting reference changed after validation: %s", plan$metadata$initial_agb)
+  }
+  biomass_support <- initial_biomass_support(plan$metadata$initial_agb)
   output_paths <- unique(plan$records$path[plan$records$record_type != "input"])
   existing <- output_paths[file.exists(output_paths)]
   if (length(existing) && !overwrite) {
@@ -1235,6 +1291,7 @@ execute_plan <- function(plan, overwrite = FALSE) {
     names(baseline_growth) <- names(end_post_harvest) <- layer_names
     nrb <- baseline_growth - end_post_harvest
     nrb <- terra::ifel(nrb < 0, 0, nrb)
+    nrb <- mask_biomass_support(nrb, biomass_support)
     nrb_stats <- summarize_mc(nrb)
     write_stat_triplet(
       nrb_stats,
@@ -1249,6 +1306,7 @@ execute_plan <- function(plan, overwrite = FALSE) {
     })
     harvest <- do.call(c, per_run_harvest)
     names(harvest) <- layer_names
+    harvest <- mask_biomass_support(harvest, biomass_support)
     harvest_stats <- summarize_mc(harvest)
     write_stat_triplet(
       harvest_stats,
@@ -1266,6 +1324,7 @@ execute_plan <- function(plan, overwrite = FALSE) {
       terra::rast(paths_for_code(plan, "post_harvest", snapshot$raster_code))
     }
     names(agb) <- layer_names
+    agb <- mask_biomass_support(agb, biomass_support)
     agb_stats <- summarize_mc(agb)
     write_stat_triplet(
       agb_stats,
