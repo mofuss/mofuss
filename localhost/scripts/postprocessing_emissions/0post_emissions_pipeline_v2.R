@@ -69,7 +69,7 @@ PIPELINE_BATCHES <- list(
     )
   ),
   MDG_annual_F = list(
-    enabled = FALSE,
+    enabled = TRUE,
     root = "F:/",
     analysis_parent = "F:/mofuss_postprocessing",
     analysis_folder = "MDG_1000m_2050_mc3",

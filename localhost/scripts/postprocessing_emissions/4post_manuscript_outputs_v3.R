@@ -1712,6 +1712,7 @@ if (uncertainty_adequate) {
 }
 
 expected_files <- c(
+  "biomass_support_policy.csv",
   file.path("figures", "mc_1", basename(figure_path)),
   file.path("tables", basename(table_mc1_path)),
   file.path("tables", basename(table_mc1_png_path)),
@@ -1746,8 +1747,15 @@ for (configuration in CONFIGURATION_ORDER) {
   }
 }
 actual_files <- list.files(output_dir, recursive = TRUE, all.files = FALSE)
-if (!setequal(gsub("\\\\", "/", actual_files), gsub("\\\\", "/", expected_files))) {
-  stopf("Final package inventory differs from the expected %d files.", length(expected_files))
+missing_files <- setdiff(gsub("\\\\", "/", expected_files), gsub("\\\\", "/", actual_files))
+unexpected_files <- setdiff(gsub("\\\\", "/", actual_files), gsub("\\\\", "/", expected_files))
+if (length(missing_files) || length(unexpected_files)) {
+  stopf(
+    "Final package inventory differs: expected %d files, found %d. Missing: %s. Unexpected: %s.",
+    length(expected_files), length(actual_files),
+    if (length(missing_files)) paste(sort(missing_files), collapse = ", ") else "none",
+    if (length(unexpected_files)) paste(sort(unexpected_files), collapse = ", ") else "none"
+  )
 }
 
 if (!uncertainty_adequate) {
