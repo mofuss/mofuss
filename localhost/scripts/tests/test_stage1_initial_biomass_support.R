@@ -25,6 +25,9 @@ tables <- file.path(scenario, "LULCC", "TempTables")
 rasters <- file.path(scenario, "LULCC", "TempRaster")
 parameters <- file.path(scenario, "LULCC", "DownloadedDatasets", "SourceDataTest")
 for (path in c(tables, rasters, parameters)) dir.create(path, recursive = TRUE)
+dir.create(file.path(scenario, "Temp"))
+write.csv(data.frame(status = "ready", lulc_version = 1L),
+          file.path(scenario, "Temp", "mc_batch_ready.csv"), row.names = FALSE)
 write.csv(data.frame(Key = 1L, Country = "Test"), file.path(tables, "Country.csv"), row.names = FALSE)
 pars <- c(
   start_year = "2000", end_year = "2011", monte_carlo_runs = "2",
@@ -52,7 +55,10 @@ for (run in 1:2) {
   dir.create(path)
   for (code in 1:12) {
     write_values(file.path(path, sprintf("Growth%02d.tif", code)), baseline[[run]])
-    write_values(file.path(path, sprintf("Growth_less_harv%02d.tif", code)), ending[[run]])
+    # Explicit windows start after the previous year's harvest. Make that
+    # endpoint differ from Growth so this also guards the baseline timing.
+    write_values(file.path(path, sprintf("Growth_less_harv%02d.tif", code)),
+                 if (code == 10L) baseline[[run]] else ending[[run]])
     write_values(file.path(path, sprintf("Harvest_tot%02d.tif", code)), harvest[[run]])
   }
 }
@@ -69,9 +75,10 @@ near <- function(actual, expected) {
   stopifnot(identical(is.na(actual), is.na(expected)))
   stopifnot(all(abs(actual[!is.na(expected)] - expected[!is.na(expected)]) < 1e-6))
 }
-near(read_output("nrb_10_11_mean.tif"), c(NA, 0, 5, 8, NA, NA))
-near(read_output("nrb_10_11_sd.tif"), c(NA, 0, sqrt(2), sqrt(128), NA, NA))
-near(read_output("nrb_10_11_se.tif"), c(NA, 0, 1, 8, NA, NA))
+# NRB is bounded by the matching period harvest; no-harvest cells cannot be NRB.
+near(read_output("nrb_10_11_mean.tif"), c(NA, 0, 4, 0, NA, NA))
+near(read_output("nrb_10_11_sd.tif"), c(NA, 0, 0, 0, NA, NA))
+near(read_output("nrb_10_11_se.tif"), c(NA, 0, 0, 0, NA, NA))
 near(read_output("harv_10_11_mean.tif"), c(NA, 4, 6, 0, NA, 20))
 near(read_output("harv_10_11_se.tif"), c(NA, 2, 2, 0, NA, NA))
 near(read_output("agb_2011_mean.tif"), c(NA, 3, 6, 16, NA, 5))

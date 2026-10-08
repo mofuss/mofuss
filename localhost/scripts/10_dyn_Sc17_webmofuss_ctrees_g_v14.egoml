@@ -1,4 +1,5 @@
 <script>
+    <property key="mofuss.nrb.attribution.contract" value="woodfuel_attributed_signed_balance_v1" />
     <property key="mofuss.sourcing.capture.contract" value="annual_domain_after_static_npa_cache_v1" />
     <property key="dff.date" value="Sat Sep 05 2026" />
     <property key="dff.version" value="2.4.1.20140602" />
@@ -609,6 +610,23 @@
                     <outputport name="map" id="v174" />
                 </functor>
             </containerfunctor>
+            <containerfunctor name="CalculateMap">
+                <property key="dff.functor.alias" value="Initial signed woodfuel balance on immutable stock support" />
+                <inputport name="expression">[
+    if isNull(i1) then null else 0
+]</inputport>
+                <inputport name="cellType">.float32</inputport>
+                <inputport name="nullValue">.default</inputport>
+                <inputport name="resultIsSparse">.no</inputport>
+                <inputport name="resultFormat">.none</inputport>
+                <outputport name="result" id="v93000" />
+                <functor name="NumberMap">
+                    <property key="dff.functor.alias" value="Sourcing input 1" />
+                    <inputport name="map" peerid="v200" />
+                    <inputport name="mapNumber">1</inputport>
+                </functor>
+            </containerfunctor>
+
             <containerfunctor name="Repeat">
                 <property key="dff.functor.alias" value="repeat874" />
                 <inputport name="iterations" peerid="v199" />
@@ -3728,65 +3746,26 @@ if abs(v1) &gt; 0 then (v1 * (2 ^ (-floor(v2 / 2))) * (2 ^ (floor(v2 / 2) - v2))
                     <property key="dff.container.collapsed" value="no" />
                     <property key="dff.functor.alias" value="calculateMap1144" />
                     <inputport name="expression">[
-    if i4 = 0 then
-        if i1 - i2 &gt; 0 then
-            (i1 - i2) / i3
-        else 
-            0
-    else 
-        0
+    if isNull(i3) then null else if isNull(i2) then null else if i2 &lt;= 0 then 0 else i1 / i2
 ]</inputport>
                     <inputport name="cellType">.float32</inputport>
                     <inputport name="nullValue">.default</inputport>
                     <inputport name="resultIsSparse">.no</inputport>
                     <inputport name="resultFormat">.none</inputport>
                     <outputport name="result" id="v96" />
-                    <functor name="NumberMap">
-                        <property key="dff.functor.alias" value="numberMap952" />
-                        <inputport name="map" peerid="v90008" />
-                        <inputport name="mapNumber">1</inputport>
-                    </functor>
-                    <functor name="NumberMap">
-                        <property key="dff.functor.alias" value="numberMap953" />
-                        <inputport name="map" peerid="v131" />
-                        <inputport name="mapNumber">2</inputport>
-                    </functor>
-                    <functor name="NumberMap">
-                        <property key="dff.functor.alias" value="numberMap954" />
-                        <inputport name="map" peerid="v130" />
-                        <inputport name="mapNumber">3</inputport>
-                    </functor>
-                    <functor name="NumberMap">
-                        <property key="dff.functor.alias" value="numberMap1645" />
-                        <inputport name="map" peerid="v112" />
-                        <inputport name="mapNumber">4</inputport>
-                    </functor>
-                </containerfunctor>
+                    <property key="dff.functor.comment" value="Annual woodfuel NRB divided by realized harvest; zero-harvest cells use legacy zero before division" /><functor name="NumberMap"><property key="dff.functor.alias" value="NRB attribution input 1" /><inputport name="map" peerid="v97" /><inputport name="mapNumber">1</inputport></functor><functor name="NumberMap"><property key="dff.functor.alias" value="NRB attribution input 2" /><inputport name="map" peerid="v130" /><inputport name="mapNumber">2</inputport></functor><functor name="NumberMap"><property key="dff.functor.alias" value="NRB attribution input 3" /><inputport name="map" peerid="v200" /><inputport name="mapNumber">3</inputport></functor></containerfunctor>
                 <containerfunctor name="CalculateMap">
                     <property key="dff.container.collapsed" value="no" />
                     <property key="dff.functor.alias" value="calculateMap1145" />
                     <inputport name="expression">[
-    if isNull(i1) then
-        null
-    else 
-        i1 * i3
+    if isNull(i6) then null else if isNull(i3) then null else if i3 &lt;= 0 then 0 else if isNull(i1) or isNull(i2) or isNull(i5) then null else if i7 = 1 then 0 else if i4 = 0 then max(0, min(i3, min(i1, i5) - i2)) else 0
 ]</inputport>
                     <inputport name="cellType">.float32</inputport>
                     <inputport name="nullValue">.default</inputport>
                     <inputport name="resultIsSparse">.no</inputport>
                     <inputport name="resultFormat">.none</inputport>
                     <outputport name="result" id="v97" />
-                    <functor name="NumberMap">
-                        <property key="dff.functor.alias" value="numberMap956" />
-                        <inputport name="map" peerid="v96" />
-                        <inputport name="mapNumber">1</inputport>
-                    </functor>
-                    <functor name="NumberMap">
-                        <property key="dff.functor.alias" value="numberMap957" />
-                        <inputport name="map" peerid="v130" />
-                        <inputport name="mapNumber">3</inputport>
-                    </functor>
-                </containerfunctor>
+                    <property key="dff.functor.comment" value="Woodfuel-only annual NRB: bound realized depletion by harvest; exclude LUC resets, negative preharvest clamps and nondegradable TOF; preserve legacy deforestation gate" /><functor name="NumberMap"><property key="dff.functor.alias" value="NRB attribution input 1" /><inputport name="map" peerid="v90008" /><inputport name="mapNumber">1</inputport></functor><functor name="NumberMap"><property key="dff.functor.alias" value="NRB attribution input 2" /><inputport name="map" peerid="v131" /><inputport name="mapNumber">2</inputport></functor><functor name="NumberMap"><property key="dff.functor.alias" value="NRB attribution input 3" /><inputport name="map" peerid="v130" /><inputport name="mapNumber">3</inputport></functor><functor name="NumberMap"><property key="dff.functor.alias" value="NRB attribution input 4" /><inputport name="map" peerid="v112" /><inputport name="mapNumber">4</inputport></functor><functor name="NumberMap"><property key="dff.functor.alias" value="NRB attribution input 5" /><inputport name="map" peerid="v171" /><inputport name="mapNumber">5</inputport></functor><functor name="NumberMap"><property key="dff.functor.alias" value="NRB attribution input 6" /><inputport name="map" peerid="v200" /><inputport name="mapNumber">6</inputport></functor><functor name="NumberMap"><property key="dff.functor.alias" value="NRB attribution input 7" /><inputport name="map" peerid="v90005" /><inputport name="mapNumber">7</inputport></functor></containerfunctor>
                 <containerfunctor name="CalculateMap">
                     <property key="dff.container.collapsed" value="no" />
                     <property key="dff.functor.alias" value="calculateMap1146" />
@@ -4215,24 +4194,14 @@ if abs(v1) &gt; 0 then (v1 * (2 ^ (-floor(v2 / 2))) * (2 ^ (floor(v2 / 2) - v2))
                 <containerfunctor name="CalculateMap">
                     <property key="dff.functor.alias" value="calculateMap1863" />
                     <inputport name="expression">[
-    i1 + i2
+    if isNull(i3) then null else if isNull(i2) then i1 else i1 + i2
 ]</inputport>
                     <inputport name="cellType">.float32</inputport>
                     <inputport name="nullValue">.default</inputport>
                     <inputport name="resultIsSparse">.no</inputport>
                     <inputport name="resultFormat">.none</inputport>
                     <outputport name="result" id="v117" />
-                    <functor name="NumberMap">
-                        <property key="dff.functor.alias" value="numberMap1859" />
-                        <inputport name="map" peerid="v77" />
-                        <inputport name="mapNumber">1</inputport>
-                    </functor>
-                    <functor name="NumberMap">
-                        <property key="dff.functor.alias" value="numberMap1861" />
-                        <inputport name="map" peerid="v112" />
-                        <inputport name="mapNumber">2</inputport>
-                    </functor>
-                </containerfunctor>
+                    <property key="dff.functor.comment" value="Preserve the legacy deforestation exclusion and its accumulated history across zero-harvest annual-domain gaps within initial model stock support" /><functor name="NumberMap"><property key="dff.functor.alias" value="NRB attribution input 1" /><inputport name="map" peerid="v77" /><inputport name="mapNumber">1</inputport></functor><functor name="NumberMap"><property key="dff.functor.alias" value="NRB attribution input 2" /><inputport name="map" peerid="v112" /><inputport name="mapNumber">2</inputport></functor><functor name="NumberMap"><property key="dff.functor.alias" value="NRB attribution input 3" /><inputport name="map" peerid="v200" /><inputport name="mapNumber">3</inputport></functor></containerfunctor>
                 <containerfunctor name="CalculateMap">
                     <property key="dff.functor.alias" value="calculateMap2029" />
                     <inputport name="expression">[
@@ -6025,6 +5994,135 @@ if abs(v1) &gt; 0 then (v1 * (2 ^ (-floor(v2 / 2))) * (2 ^ (floor(v2 / 2) - v2))
                     <inputport name="useCompression">.yes</inputport>
                     <inputport name="workdir">.none</inputport>
                 </functor>
+                <functor name="MuxMap">
+                    <property key="dff.functor.alias" value="Previous signed woodfuel balance including stock seed" />
+                    <inputport name="initial" peerid="v93000" />
+                    <inputport name="feedback" peerid="v93003" />
+                    <outputport name="map" id="v93001" />
+                </functor>
+                <containerfunctor name="CalculateMap">
+                    <property key="dff.functor.alias" value="Signed woodfuel balance after harvest" />
+                    <inputport name="expression">[
+    if isNull(i6) then null else if isNull(i1) or isNull(i5) then null else if isNull(i2) or isNull(i3) or isNull(i4) or isNull(i7) then if i5 &lt;= 0 then i1 else null else i1 + min(i2, i3) - i4
+]</inputport>
+                    <inputport name="cellType">.float32</inputport>
+                    <inputport name="nullValue">.default</inputport>
+                    <inputport name="resultIsSparse">.no</inputport>
+                    <inputport name="resultFormat">.none</inputport>
+                    <outputport name="result" id="v93002" />
+                    <functor name="NumberMap">
+                        <property key="dff.functor.alias" value="Sourcing input 1" />
+                        <inputport name="map" peerid="v93001" />
+                        <inputport name="mapNumber">1</inputport>
+                    </functor>
+                    <functor name="NumberMap">
+                        <property key="dff.functor.alias" value="Sourcing input 2" />
+                        <inputport name="map" peerid="v90008" />
+                        <inputport name="mapNumber">2</inputport>
+                    </functor>
+                    <functor name="NumberMap">
+                        <property key="dff.functor.alias" value="Sourcing input 3" />
+                        <inputport name="map" peerid="v171" />
+                        <inputport name="mapNumber">3</inputport>
+                    </functor>
+                    <functor name="NumberMap">
+                        <property key="dff.functor.alias" value="Sourcing input 4" />
+                        <inputport name="map" peerid="v131" />
+                        <inputport name="mapNumber">4</inputport>
+                    </functor>
+                    <functor name="NumberMap">
+                        <property key="dff.functor.alias" value="Sourcing input 5" />
+                        <inputport name="map" peerid="v130" />
+                        <inputport name="mapNumber">5</inputport>
+                    </functor>
+                    <functor name="NumberMap">
+                        <property key="dff.functor.alias" value="Sourcing input 6" />
+                        <inputport name="map" peerid="v200" />
+                        <inputport name="mapNumber">6</inputport>
+                    </functor>
+                    <functor name="NumberMap">
+                        <property key="dff.functor.alias" value="Sourcing input 7" />
+                        <inputport name="map" peerid="v98" />
+                        <inputport name="mapNumber">7</inputport>
+                    </functor>
+                    <property key="dff.functor.comment" value="Cpost = Cprevious + min(post-LUC start, preharvest stock) - postharvest stock. Signed regrowth offsets persist; zero-harvest domain gaps retain previous balance; no LUC reset enters this observer." />
+                </containerfunctor>
+                <containerfunctor name="CalculateMap">
+                    <property key="dff.functor.alias" value="Signed woodfuel balance including endpoint seed" />
+                    <inputport name="expression">[
+    if isNull(i6) then null else if isNull(i1) or isNull(i5) then null else if isNull(i2) or isNull(i3) or isNull(i7) or isNull(i8) then if i5 &lt;= 0 then i4 else null else i1 - (i2 - i3)
+]</inputport>
+                    <inputport name="cellType">.float32</inputport>
+                    <inputport name="nullValue">.default</inputport>
+                    <inputport name="resultIsSparse">.no</inputport>
+                    <inputport name="resultFormat">.none</inputport>
+                    <outputport name="result" id="v93003" />
+                    <functor name="NumberMap">
+                        <property key="dff.functor.alias" value="Sourcing input 1" />
+                        <inputport name="map" peerid="v93002" />
+                        <inputport name="mapNumber">1</inputport>
+                    </functor>
+                    <functor name="NumberMap">
+                        <property key="dff.functor.alias" value="Sourcing input 2" />
+                        <inputport name="map" peerid="v98" />
+                        <inputport name="mapNumber">2</inputport>
+                    </functor>
+                    <functor name="NumberMap">
+                        <property key="dff.functor.alias" value="Sourcing input 3" />
+                        <inputport name="map" peerid="v131" />
+                        <inputport name="mapNumber">3</inputport>
+                    </functor>
+                    <functor name="NumberMap">
+                        <property key="dff.functor.alias" value="Sourcing input 4" />
+                        <inputport name="map" peerid="v93001" />
+                        <inputport name="mapNumber">4</inputport>
+                    </functor>
+                    <functor name="NumberMap">
+                        <property key="dff.functor.alias" value="Sourcing input 5" />
+                        <inputport name="map" peerid="v130" />
+                        <inputport name="mapNumber">5</inputport>
+                    </functor>
+                    <functor name="NumberMap">
+                        <property key="dff.functor.alias" value="Sourcing input 6" />
+                        <inputport name="map" peerid="v200" />
+                        <inputport name="mapNumber">6</inputport>
+                    </functor>
+                    <functor name="NumberMap">
+                        <property key="dff.functor.alias" value="Sourcing input 7" />
+                        <inputport name="map" peerid="v90008" />
+                        <inputport name="mapNumber">7</inputport>
+                    </functor>
+                    <functor name="NumberMap">
+                        <property key="dff.functor.alias" value="Sourcing input 8" />
+                        <inputport name="map" peerid="v171" />
+                        <inputport name="mapNumber">8</inputport>
+                    </functor>
+                    <property key="dff.functor.comment" value="Cend = Cpost - (end stock - postharvest stock), retaining the existing 2 Mg forest seed. Float32 preserves compatibility with the production legacy engine." />
+                </containerfunctor>
+                <containerfunctor name="CreateString">
+                    <property key="dff.functor.alias" value="Sourcing filename" />
+                    <inputport name="format">"debugging_&lt;v1&gt;/Woodfuel_balance&lt;v2,2&gt;.tif"</inputport>
+                    <outputport name="result" id="v93004" />
+                    <functor name="NumberValue">
+                        <property key="dff.functor.alias" value="Sourcing input 1" />
+                        <inputport name="value" peerid="v38" />
+                        <inputport name="valueNumber">1</inputport>
+                    </functor>
+                    <functor name="NumberValue">
+                        <property key="dff.functor.alias" value="Sourcing input 2" />
+                        <inputport name="value" peerid="v39" />
+                        <inputport name="valueNumber">2</inputport>
+                    </functor>
+                </containerfunctor>
+                <functor name="SaveMap">
+                    <property key="dff.functor.alias" value="Sourcing capture Map" />
+                    <inputport name="map" peerid="v93002" />
+                    <inputport name="filename" peerid="v93004" />
+                    <inputport name="suffixDigits">0</inputport>
+                    <inputport name="step">.none</inputport>
+                    <inputport name="useCompression">.yes</inputport>
+                    <inputport name="workdir">.none</inputport>
+                </functor>
 </containerfunctor>
             <containerfunctor name="CalculateCategoricalMap">
                 <property key="dff.container.collapsed" value="yes" />
@@ -6091,57 +6189,26 @@ if abs(v1) &gt; 0 then (v1 * (2 ^ (-floor(v2 / 2))) * (2 ^ (floor(v2 / 2) - v2))
                 <property key="dff.container.collapsed" value="no" />
                 <property key="dff.functor.alias" value="calculateMap1163" />
                 <inputport name="expression">[
-    if i1 &gt;= i2 or i3 &gt; 0 then
-        0
-    else 
-        i2 - i1
+    if isNull(i2) then null else if isNull(i4) then null else if i4 &lt;= 0 then 0 else if isNull(i3) then max(0, min(i4, i1)) else if i3 &gt; 0 then 0 else max(0, min(i4, i1))
 ]</inputport>
                 <inputport name="cellType">.float32</inputport>
                 <inputport name="nullValue">.default</inputport>
                 <inputport name="resultIsSparse">.no</inputport>
                 <inputport name="resultFormat">.none</inputport>
                 <outputport name="result" id="v193" />
-                <functor name="NumberMap">
-                    <property key="dff.functor.alias" value="numberMap1027" />
-                    <inputport name="map" peerid="v98" />
-                    <inputport name="mapNumber">1</inputport>
-                </functor>
-                <functor name="NumberMap">
-                    <property key="dff.functor.alias" value="numberMap1028" />
-                    <inputport name="map" peerid="v200" />
-                    <inputport name="mapNumber">2</inputport>
-                </functor>
-                <functor name="NumberMap">
-                    <property key="dff.functor.alias" value="numberMap3666" />
-                    <inputport name="map" peerid="v117" />
-                    <inputport name="mapNumber">3</inputport>
-                </functor>
-            </containerfunctor>
+                <property key="dff.functor.comment" value="Terminal woodfuel-only NRB from signed depletion balance with regrowth and seed offsets; exclude prescribed LUC losses and preserve legacy deforestation gate" /><functor name="NumberMap"><property key="dff.functor.alias" value="NRB attribution input 1" /><inputport name="map" peerid="v93003" /><inputport name="mapNumber">1</inputport></functor><functor name="NumberMap"><property key="dff.functor.alias" value="NRB attribution input 2" /><inputport name="map" peerid="v200" /><inputport name="mapNumber">2</inputport></functor><functor name="NumberMap"><property key="dff.functor.alias" value="NRB attribution input 3" /><inputport name="map" peerid="v117" /><inputport name="mapNumber">3</inputport></functor><functor name="NumberMap"><property key="dff.functor.alias" value="NRB attribution input 4" /><inputport name="map" peerid="v107" /><inputport name="mapNumber">4</inputport></functor></containerfunctor>
             <containerfunctor name="CalculateMap">
                 <property key="dff.container.collapsed" value="no" />
                 <property key="dff.functor.alias" value="calculateMap1164" />
                 <inputport name="expression">[
-    if i2 = 0 then
-        0
-    else 
-        i1 / i2
+    if isNull(i3) then null else if isNull(i2) then null else if i2 &lt;= 0 then 0 else i1 / i2
 ]</inputport>
                 <inputport name="cellType">.float32</inputport>
                 <inputport name="nullValue">.default</inputport>
                 <inputport name="resultIsSparse">.no</inputport>
                 <inputport name="resultFormat">.none</inputport>
                 <outputport name="result" id="v194" />
-                <functor name="NumberMap">
-                    <property key="dff.functor.alias" value="numberMap1036" />
-                    <inputport name="map" peerid="v193" />
-                    <inputport name="mapNumber">1</inputport>
-                </functor>
-                <functor name="NumberMap">
-                    <property key="dff.functor.alias" value="numberMap1037" />
-                    <inputport name="map" peerid="v107" />
-                    <inputport name="mapNumber">2</inputport>
-                </functor>
-            </containerfunctor>
+                <property key="dff.functor.comment" value="Terminal woodfuel NRB divided by cumulative realized harvest; zero-harvest cells retain legacy zero" /><functor name="NumberMap"><property key="dff.functor.alias" value="NRB attribution input 1" /><inputport name="map" peerid="v193" /><inputport name="mapNumber">1</inputport></functor><functor name="NumberMap"><property key="dff.functor.alias" value="NRB attribution input 2" /><inputport name="map" peerid="v107" /><inputport name="mapNumber">2</inputport></functor><functor name="NumberMap"><property key="dff.functor.alias" value="NRB attribution input 3" /><inputport name="map" peerid="v200" /><inputport name="mapNumber">3</inputport></functor></containerfunctor>
             <containerfunctor name="CalculateValue">
                 <property key="dff.container.collapsed" value="no" />
                 <property key="dff.functor.alias" value="calculateValue1165" />

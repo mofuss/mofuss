@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # Windows launcher generation only; sourcing this file never starts a model.
 
-mofuss_windows_run_configuration <- function(parameters) {
+mofuss_windows_run_configuration <- function(parameters, luc = NULL) {
   if (!is.data.frame(parameters) ||
       !all(c("Var", "ParCHR") %in% names(parameters))) {
     stop("Launcher preparation requires a parameters table with Var and ParCHR.")
@@ -14,23 +14,59 @@ mofuss_windows_run_configuration <- function(parameters) {
     if (is.na(value) || !nzchar(value)) stop("Empty launcher parameter: ", name)
     value
   }
-  enabled <- vapply(1:3, function(channel) {
-    name <- paste0("LULCt", channel, "map")
-    value <- toupper(parameter(name, "NO"))
-    if (!value %in% c("YES", "NO")) stop(name, " must be YES or NO.")
-    value == "YES"
-  }, logical(1))
-  # Match the current Woodman default when both channels are prepared.
-  # Copernicus-only preparations use the existing static v13 LUC2 route.
-  luc <- c(3L, 1L, 2L)[enabled[c(3L, 1L, 2L)]][1L]
-  if (is.na(luc)) stop("Enable at least one LULCt1map/LULCt2map/LULCt3map channel.")
+  # Both supported fixed MODIS and annual Woodman runs use v14 so their NRB
+  # accounting has the same woodfuel attribution contract. Copernicus-only
+  # preparations retain the legacy static v13 LUC2 route.
+  if (is.null(luc)) {
+    enabled <- vapply(1:3, function(channel) {
+      name <- paste0("LULCt", channel, "map")
+      value <- toupper(parameter(name, "NO"))
+      if (!value %in% c("YES", "NO")) stop(name, " must be YES or NO.")
+      value == "YES"
+    }, logical(1))
+    luc <- c(3L, 1L, 2L)[enabled[c(3L, 1L, 2L)]][1L]
+    if (is.na(luc)) stop("Enable at least one LULCt1map/LULCt2map/LULCt3map channel.")
+  } else {
+    # An explicit experiment selector is authoritative even when preparation
+    # produced both channels. The caller verifies the selected input files.
+    if (length(luc) != 1L || !is.numeric(luc) || is.na(luc) ||
+        !is.finite(luc) || !luc %in% c(1L, 3L)) {
+      stop("Explicit Windows LUC override must be numeric 1 or 3.")
+    }
+    luc <- as.integer(luc)
+  }
   scenario <- parameter("scenario_ver")
   role <- if (grepl("^bau", scenario, ignore.case = TRUE)) "BAU" else
     if (grepl("^(ics|ccts)", scenario, ignore.case = TRUE)) "ICS" else
       stop("Cannot choose the MC rerun setting for scenario_ver: ", scenario)
   list(model = sprintf("10_dyn_Sc17_webmofuss_ctrees_g_v%d.egoml",
-                       if (luc == 3L) 14L else 13L),
+                       if (luc %in% c(1L, 3L)) 14L else 13L),
        luc = luc, mc_reruns = role == "BAU", role = role, scenario = scenario)
+}
+
+mofuss_configure_model_luc <- function(model_path, luc) {
+  if (length(luc) != 1L || is.na(luc) || !luc %in% 1:3) {
+    stop("Model LUC selection must be 1, 2 or 3.")
+  }
+  if (!file.exists(model_path) || dir.exists(model_path)) {
+    stop("Selected model is missing: ", model_path)
+  }
+  original <- readBin(model_path, "raw", n = file.info(model_path)$size)
+  text <- rawToChar(original)
+  if (grepl("_v14[.]egoml$", model_path)) {
+    if (!luc %in% c(1L, 3L)) stop("v14 supports MODIS LUC1 and Woodman LUC3 only.")
+    if (!grepl(paste0('key="mofuss.nrb.attribution.contract" value="',
+                     'woodfuel_attributed_signed_balance_v1"'), text, fixed = TRUE)) {
+      stop("Selected v14 model lacks the woodfuel NRB attribution contract. ",
+           "Prepare a fresh run from the current repository model.")
+    }
+  }
+  configured <- charToRaw(.mofuss_windows_constant(text, "Int", "v302", as.character(luc)))
+  if (!identical(original, configured)) writeBin(configured, model_path)
+  if (!identical(readBin(model_path, "raw", n = file.info(model_path)$size), configured)) {
+    stop("Model LUC setting readback failed: ", model_path)
+  }
+  invisible(model_path)
 }
 
 .mofuss_windows_constant <- function(text, type, id, value) {
@@ -66,8 +102,9 @@ mofuss_windows_run_configuration <- function(parameters) {
 mofuss_write_windows_launcher <- function(
     destination, parameters,
     engine = "C:/Program Files/Dinamica EGO/DinamicaConsole.exe",
-    processors = 2L, temp_root = "E:/MoFuSS_Active/windows_runs") {
-  configuration <- mofuss_windows_run_configuration(parameters)
+    processors = 2L, temp_root = "E:/MoFuSS_Active/windows_runs",
+    luc = NULL, paired_bau = NULL) {
+  configuration <- mofuss_windows_run_configuration(parameters, luc = luc)
   if (length(processors) != 1L || is.na(processors) ||
       !is.numeric(processors) || !is.finite(processors) ||
       processors < 1 || processors != floor(processors) || processors > 1024) {
@@ -75,6 +112,13 @@ mofuss_write_windows_launcher <- function(
   }
   engine_line <- .mofuss_windows_path(engine, "DinamicaConsole path")
   temp_line <- .mofuss_windows_path(temp_root, "Temporary root")
+  paired_notice <- character()
+  if (!is.null(paired_bau)) {
+    if (configuration$role != "ICS") stop("paired_bau is valid only for an ICS/CCTS launcher.")
+    paired_line <- .mofuss_windows_path(paired_bau, "Paired BAU folder")
+    paired_notice <- c(paste0('set "MOFUSS_PAIRED_BAU=', paired_line, '"'),
+                       'echo Matching BAU folder: "%MOFUSS_PAIRED_BAU%"')
+  }
   if (!grepl("[.]exe$", engine, ignore.case = TRUE)) {
     stop("DinamicaConsole path must name an .exe file.")
   }
@@ -90,6 +134,14 @@ mofuss_write_windows_launcher <- function(
     model_text, "Bool", "v256", if (configuration$mc_reruns) ".yes" else ".no")
   model_text <- .mofuss_windows_constant(model_text, "Int", "v302",
                                         as.character(configuration$luc))
+  model_text <- .mofuss_windows_constant(
+    model_text, "String", "v261", if (configuration$role == "BAU") '"BaU"' else '"ICS"')
+  if (configuration$luc %in% c(1L, 3L) &&
+      !grepl(paste0('key="mofuss.nrb.attribution.contract" value="',
+                   'woodfuel_attributed_signed_balance_v1"'), model_text, fixed = TRUE)) {
+    stop("Selected v14 model lacks the woodfuel NRB attribution contract. ",
+         "Prepare a fresh run from the current repository model.")
+  }
 
   notice <- if (configuration$mc_reruns)
     "echo BAU: this run generates a new Monte Carlo batch." else
@@ -104,6 +156,11 @@ mofuss_write_windows_launcher <- function(
     paste0('set "MOFUSS_TEMP_ROOT=', temp_line, '"'),
     'if not exist "%MOFUSS_ENGINE%" goto engine_error',
     'if not exist "%MOFUSS_MODEL%" goto model_error',
+    sprintf("echo Configured LUC: %d - %s", configuration$luc,
+            switch(as.character(configuration$luc), "1" = "fixed MODIS cover",
+                   "3" = "annual Woodman cover", "2" = "legacy Copernicus cover")),
+    paste0("echo Monte Carlo rerun: ", if (configuration$mc_reruns) "Yes" else "No"),
+    paired_notice,
     notice,
     sprintf("echo Dinamica processors: %d. Use at most four simultaneous runs on this machine.",
             as.integer(processors)),
@@ -140,5 +197,5 @@ mofuss_write_windows_launcher <- function(
           "; LUC=", configuration$luc, "; MC rerun=",
           if (configuration$mc_reruns) "Yes" else "No",
           ". Complete IDW output installation before running.")
-  invisible(c(list(path = path, model_path = model_path), configuration))
+  invisible(c(list(path = path, model_path = model_path, paired_bau = paired_bau), configuration))
 }

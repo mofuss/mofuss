@@ -324,6 +324,64 @@ generate_modern_report <- function(base_dir,
     hit <- cands[file.exists(file.path(sd, cands))]
     if (length(hit)) { summ <- file.path(sd, hit[1]); break }
   }
+  # Attribution metadata accompanies the period tables. Dynamic-cover reports
+  # must never relabel historical stock-loss tables as woodfuel NRB.
+  attribution_note <- "Legacy stock-depletion accounting; woodfuel-only attribution is not verified."
+  period_metadata <- NULL
+  if (!is.na(summ)) {
+    metadata_path <- file.path(dirname(summ), "nrb_attribution_metadata.csv")
+    period_path <- file.path(dirname(summ), "nrb_periods.csv")
+    luc_modes <- suppressWarnings(as.integer(read_param_value("LUCmap_v", "")))
+    for (relative in c("Temp/mc_batch_ready.csv", "LULCC/TempTables/mc_batch_ready.csv")) {
+      batch_path <- file.path(base_dir, relative)
+      if (file.exists(batch_path)) {
+        batch <- read.csv(batch_path, stringsAsFactors = FALSE)
+        if ("lulc_version" %in% names(batch)) luc_modes <- c(luc_modes, as.integer(batch$lulc_version))
+      }
+    }
+    preparation <- file.path(base_dir, "windows_performance_preparation.json")
+    if (file.exists(preparation)) {
+      if (!requireNamespace("jsonlite", quietly = TRUE)) stop("Reading run provenance requires jsonlite.")
+      prepared <- jsonlite::fromJSON(preparation)
+      if (!is.null(prepared$luc)) luc_modes <- c(luc_modes, as.integer(prepared$luc))
+    }
+    luc_modes <- unique(luc_modes[!is.na(luc_modes)])
+    if (length(luc_modes) > 1L) stop("Conflicting LUC provenance while building the summary report.")
+    dynamic_luc <- length(luc_modes) == 1L && luc_modes == 3L
+    if (file.exists(metadata_path)) {
+      attribution <- read.csv(metadata_path, stringsAsFactors = FALSE)
+      valid_metadata <- nrow(attribution) > 0L &&
+        all(c("schema_version", "attribution_method", "MC", "luc_mode") %in% names(attribution)) &&
+        all(!is.na(attribution$schema_version)) &&
+        all(attribution$schema_version == "woodfuel_nrb_reporting_v1") &&
+        all(attribution$attribution_method %in% c("woodfuel_attributed_signed_balance_v1", "legacy_fixed_luc_stock_difference")) &&
+        all(attribution$luc_mode %in% c(1L, 3L)) &&
+        !anyDuplicated(attribution$MC)
+      if (!valid_metadata) stop("Invalid NRB attribution metadata: ", metadata_path)
+      if (length(unique(c(luc_modes, attribution$luc_mode))) != 1L) {
+        stop("NRB reporting metadata does not match the active LUC mode.")
+      }
+      dynamic_luc <- any(attribution$luc_mode == 3L)
+      if (dynamic_luc && any(attribution$attribution_method != "woodfuel_attributed_signed_balance_v1")) {
+        stop("Annual LUC requires woodfuel-attributed NRB tables; rebuild with the corrected engine and reporting scripts.")
+      }
+      if (!file.exists(period_path)) stop("Missing NRB period definitions: ", period_path)
+      period_metadata <- read.csv(period_path, stringsAsFactors = FALSE)
+      if (!all(c("period_key", "first_year", "last_year") %in% names(period_metadata)) ||
+          anyDuplicated(period_metadata$period_key)) stop("Invalid NRB period metadata: ", period_path)
+      attribution_note <- if (all(grepl("woodfuel|ledger", attribution$attribution_method,
+                                       ignore.case = TRUE))) {
+        paste("Woodfuel-only NRB excludes direct land-cover and carrying-capacity losses.",
+              "Period NRB allows later regrowth to offset earlier harvest depletion;",
+              "it is not the sum of the non-negative annual NRB values.")
+      } else {
+        "Legacy static-cover stock-depletion accounting; no annual land-cover changes are attributed to woodfuel."
+      }
+    } else if (dynamic_luc) {
+      stop("Missing NRB attribution metadata for annual LUC: ", metadata_path,
+           ". Rebuild the simulation and period tables with the corrected engine and scripts.")
+    }
+  }
   nrb_rows <- list(); unit_name <- ""
   if (!is.na(summ)) {
     d <- read.csv(summ, check.names = FALSE,
@@ -374,11 +432,18 @@ generate_modern_report <- function(base_dir,
           harv_mean <- get_stat("Harv", "mean")
           valid_harv <- length(harv_mean) == 1L && is.finite(harv_mean) &&
             harv_mean > 0
-          fnrb_mean <- if (nrow(d) > 1 && valid_harv)
-            round(nrb_mean / harv_mean * 100) else get_stat("fNRB", "mean")
+          fnrb_mean <- if (nrow(d) > 1L) {
+            if (valid_harv && length(nrb_mean) == 1L && is.finite(nrb_mean))
+              round(nrb_mean / harv_mean * 100) else NA_real_
+          } else if (valid_harv) get_stat("fNRB", "mean") else NA_real_
           table_value <- function(x) {
             if (is.null(x) || !length(x) || !is.finite(x)) return("")
             thousands(x)
+          }
+          if (!is.null(period_metadata)) {
+            period_row <- period_metadata[period_metadata$period_key == k, , drop = FALSE]
+            if (nrow(period_row) != 1L) stop("Missing period metadata for ", k)
+            yy <- c(period_row$first_year, period_row$last_year)
           }
           nrb_rows[[length(nrb_rows) + 1]] <- list(
             period = paste0(yy[1], "\\textendash{}", yy[2]),
@@ -420,18 +485,23 @@ generate_modern_report <- function(base_dir,
     list("AGB_NRB_fNRB_+10",
       paste("Trajectories of aboveground biomass (AGB), non-renewable biomass",
             "(NRB), fraction of non-renewable biomass (fNRB) and total fuelwood",
-            "use over the simulation period. The red line uses mean user-defined",
+            "use. NRB and fNRB are annual woodfuel-attributed values; regrowth",
+            "in a later year does not alter an earlier annual value.",
+            "The red line uses mean user-defined",
             "parameters; light grey lines show individual Monte Carlo",
             "realizations."), "temporal"),
     list("Map_AGB",
       paste("Spatial distribution of aboveground biomass (AGB) for the first",
-            "Monte Carlo realization, over the full simulation period."),
+            "Monte Carlo realization, over the reported post-spin-up period."),
       "spatial"),
     list("Localities_of_Interest",
       "Sampled localities of interest within the area of analysis.", "spatial"),
     list("Boxplots_+10",
-      paste("Box-and-whisker plots of the Monte Carlo distribution for AGB,",
-            "NRB, fNRB and total fuelwood use. The dark line marks the median,",
+      paste("Box-and-whisker plots across Monte Carlo realizations of period NRB,",
+            "fNRB, total harvest, and harvest in cells with positive period NRB.",
+            "Mass totals are normalized per included iteration; period NRB",
+            "allows later regrowth to offset earlier depletion, matching the tables.",
+            "The dark line marks the median,",
             "the box the inter-quartile range (IQR), whiskers the range, and",
             "circles outliers (1.5\\textendash{}3 IQR)."), "boxplot"))
   find_and_copy <- function(stem) {
@@ -571,6 +641,8 @@ generate_modern_report <- function(base_dir,
       }
       nt <- c(nt, "\\bottomrule", "\\end{tabular}")
     }
+    nt <- c(nt, "\\par\\smallskip{\\footnotesize ", latex_escape(attribution_note),
+            " Included years are shown explicitly. A blank fNRB means zero harvest or unavailable data.}")
     wf("_nrb_table.tex", nt)
   } else {
     wf("_nrb_table.tex", "\\emph{No summary table was found for this run.}")
@@ -727,7 +799,7 @@ this run. It does not include the full set of built-in options.
 \section{NRB, fNRB and harvest summary}
 The headline results below summarize non-renewable biomass (NRB), total
 fuelwood harvest, and the fraction of non-renewable biomass (fNRB) for
-\textbf{\mfUnitName}, broken down by decade and for the full simulation period.
+\textbf{\mfUnitName}, broken down by decade and for the full reported period.
 
 \begin{table}[H]\centering
 \caption{Summary outputs for the \mfScenario over \mfUnitName.}
@@ -735,8 +807,9 @@ fuelwood harvest, and the fraction of non-renewable biomass (fNRB) for
 \end{table}
 
 \begin{mfnote}{Reading these figures}
-\textbf{NRB} and \textbf{harvest} are expressed in metric tonnes (t) accumulated
-over each period; \textbf{fNRB} is the fraction of harvested fuelwood that is
+\textbf{NRB} is the remaining harvest-attributed biomass depletion after regrowth,
+while \textbf{harvest} is accumulated fuelwood removal. Both are expressed in
+metric tonnes (t) for each period; \textbf{fNRB} is the fraction of harvested fuelwood that is
 non-renewable, expressed as a percentage. Values are means across
 \textbf{\mfMCruns} of the Monte Carlo module. When at least
 \textbf{\mfMCthreshold} realizations are available, the table also reports the

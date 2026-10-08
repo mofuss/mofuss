@@ -38,8 +38,49 @@ SCRIPT_VERSION <- "9"
 DEFAULT_OUTPUT_SUBDIR <- file.path("Out", "webmofuss_results_v9")
 BIOMASS_SUPPORT_POLICY <- "finite_initial_agb_reference_v1"
 
+# Keep attribution mechanics shared with maps/administrative reporting. Resolve
+# the sibling helper from the executing or sourced file, including RStudio.
+stage1_nrb_api <- local({
+  api <- NULL
+  # Source frames disappear when a config-only caller returns. Retain absolute
+  # helper candidates now so a later main()/build_plan() call can change cwd.
+  source_files <- unlist(lapply(sys.frames(), function(frame) {
+    unlist(lapply(c("ofile", "file"), function(key) {
+      value <- get0(key, envir = frame, inherits = FALSE, ifnotfound = NULL)
+      if (is.character(value) && length(value) == 1L &&
+          !is.na(value) && file.exists(value) && !dir.exists(value)) {
+        normalizePath(value, winslash = "/", mustWork = TRUE)
+      } else character()
+    }), use.names = FALSE)
+  }), use.names = FALSE)
+  source_candidates <- file.path(dirname(source_files), "..", "helpers", "woodfuel_nrb_attribution.R")
+  function() {
+    if (!is.null(api)) return(api)
+    command_files <- sub("^--file=", "", grep(
+      "^--file=", commandArgs(trailingOnly = FALSE), value = TRUE
+    ))
+    frame_files <- unlist(lapply(sys.frames(), function(frame) {
+      value <- get0("ofile", envir = frame, inherits = FALSE, ifnotfound = NULL)
+      if (is.character(value)) value else character()
+    }), use.names = FALSE)
+    candidates <- unique(c(
+      source_candidates,
+      file.path(dirname(c(frame_files, command_files)), "..", "helpers", "woodfuel_nrb_attribution.R"),
+      file.path(getwd(), "..", "helpers", "woodfuel_nrb_attribution.R"),
+      file.path(getwd(), "localhost", "scripts", "helpers", "woodfuel_nrb_attribution.R"),
+      file.path(getwd(), "scripts", "helpers", "woodfuel_nrb_attribution.R")
+    ))
+    found <- candidates[file.exists(candidates)]
+    if (!length(found)) stop("Cannot locate helpers/woodfuel_nrb_attribution.R.", call. = FALSE)
+    api <<- new.env(parent = environment())
+    sys.source(found[[1L]], envir = api)
+    api$source_path <- normalizePath(found[[1L]], winslash = "/", mustWork = TRUE)
+    api
+  }
+})
+
 # BEGIN USER INPUTS ----------------------------------------------------------
-# Scenario folders are supplied centrally by 0post_emissions_pipeline_v1.R.
+# Scenario folders are supplied centrally by 0post_emissions_pipeline_v2.R.
 # This empty fallback prevents a stale computer-specific path from being used
 # accidentally. Standalone Rscript execution accepts repeated --scenario-dir.
 SCENARIO_DIRS <- character()
@@ -64,7 +105,7 @@ usage <- function() {
     "    [--period=START:END ...] (default: v3 STdyn windows after spin-up)",
     "    [--output-subdir=Out/webmofuss_results_v9] [--dry-run] [--overwrite]",
     "",
-    "Normal use: configure and run 0post_emissions_pipeline_v1.R.",
+    "Normal use: configure and run 0post_emissions_pipeline_v2.R.",
     "--overwrite fully deletes each validated Stage 1 output directory first.",
     "",
     "Period semantics:",
@@ -73,7 +114,8 @@ usage <- function() {
     "  The first 10 modeled years are spin-up; no output period may start earlier.",
     "  v3 window: baseline=Growth in START. Harvest years=START..END inclusive.",
     "  Explicit --period windows retain v7 semantics: baseline=end of START-1.",
-    "  NRB = max(baseline AGB - Growth_less_harv[end], 0).",
+    "  NRB uses the signed woodfuel-depletion ledger, excluding external LUC stock changes.",
+    "  Legacy stock-deficit fallback is restricted to verified static-LUC runs.",
     "  AGB snapshots use correctly dated post-harvest model rasters.",
     "  All biomass summaries use the fixed finite agb3_c.tif reference support; zero is valid.",
     sep = "\n"
@@ -819,7 +861,8 @@ build_plan <- function(scenario_dir, periods = NULL, output_subdir) {
     year_to_code(periods$baseline_year, metadata$start_year)
   )
   periods$baseline_source <- ifelse(
-    periods$uses_initial_baseline, "initial_agb_reference", "Growth"
+    periods$uses_initial_baseline, "initial_agb_reference",
+    ifelse(periods$v3_stdyn_window, "Growth", "Growth_less_harv")
   )
   periods$baseline_timing <- ifelse(
     periods$uses_initial_baseline,
@@ -838,6 +881,20 @@ build_plan <- function(scenario_dir, periods = NULL, output_subdir) {
   }
 
   runs <- discover_runs(scenario_dir, metadata)
+  attribution <- stage1_nrb_api()
+  runs <- lapply(runs, function(run) {
+    run$nrb_context <- attribution$mofuss_nrb_context(
+      scenario_dir, expected_steps = length(metadata$expected_codes), mc = run$run_id
+    )
+    balance_files <- list.files(run$run_dir, pattern = "^Woodfuel_balance[0-9]+\\.tif$")
+    if (length(balance_files)) {
+      run$files$woodfuel_balance <- discover_family(
+        run$run_dir, "^Woodfuel_balance([0-9]+)\\.tif$", metadata$expected_codes,
+        "Woodfuel_balance"
+      )
+    }
+    run
+  })
   processed_ids <- vapply(runs, `[[`, integer(1), "run_id")
   output_dir <- normalizePath(
     file.path(scenario_dir, output_subdir), winslash = "/", mustWork = FALSE
@@ -899,25 +956,19 @@ build_plan <- function(scenario_dir, periods = NULL, output_subdir) {
 
   for (period_index in seq_len(nrow(periods))) {
     period <- periods[period_index, , drop = FALSE]
-    nrb_definition <- if (period$uses_initial_baseline) {
-      sprintf(
-        "max(initial AGB at start-of-%d - Growth_less_harv[%d], 0); baseline code 0",
-        period$baseline_year, period$end
-      )
-    } else if (period$v3_stdyn_window) {
-      sprintf(
-        paste0(
-          "max(Growth[%d] - Growth_less_harv[%d], 0); ",
-          "v3 STdyn window with corrected calendar-year raster codes"
-        ),
-        period$baseline_year, period$end
+    nrb_definition <- if (period$v3_stdyn_window) {
+      paste0(
+        "max(Cpost[end]-Cpost[start]+Growth[start]-Post[start],0); ",
+        "signed woodfuel balance; excludes external LUC stock changes; preharvest baseline"
       )
     } else {
-      sprintf(
-        "max(Growth[%d] - Growth_less_harv[%d], 0); baseline=START-1",
-        period$baseline_year, period$end
+      paste0(
+        "max(Cpost[end]-Cpost[start-1],0); signed woodfuel balance; ",
+        "excludes external LUC stock changes; previous postharvest baseline"
       )
     }
+    nrb_definition <- paste0(nrb_definition,
+      "; bounded by period harvest; verified-static legacy fallback uses matching stock endpoints; see nrb_attribution_method")
     harvest_definition <- sprintf(
       "sum(Harvest_tot[%d:%d]); inclusive calendar years",
       period$start, period$end
@@ -936,14 +987,39 @@ build_plan <- function(scenario_dir, periods = NULL, output_subdir) {
         metric = "nrb",
         calendar_year = period$baseline_year,
         raster_code = period$baseline_code,
-        source_family = if (period$uses_initial_baseline) "agb3_c" else "Growth",
+        source_family = period$baseline_source,
         path = if (period$uses_initial_baseline) {
           metadata$initial_agb
         } else {
-          unname(run$files$growth[as.character(period$baseline_code)])
+          family <- if (period$v3_stdyn_window) "growth" else "post_harvest"
+          unname(run$files[[family]][as.character(period$baseline_code)])
         },
         definition = nrb_definition
       )
+      if (!is.null(run$files$woodfuel_balance)) {
+        for (code in unique(c(period$baseline_code, period$end_code))) {
+          add_row(
+            record_type = "input", run_id = run$run_id,
+            period_start = period$start, period_end = period$end,
+            period_role = period$period_role, role = "nrb_signed_balance", metric = "nrb",
+            calendar_year = metadata$start_year + code - 1L, raster_code = code,
+            source_family = "Woodfuel_balance",
+            path = unname(run$files$woodfuel_balance[as.character(code)]),
+            definition = nrb_definition
+          )
+        }
+        if (period$v3_stdyn_window) {
+          add_row(
+            record_type = "input", run_id = run$run_id,
+            period_start = period$start, period_end = period$end,
+            period_role = period$period_role, role = "nrb_start_harvest_endpoint", metric = "nrb",
+            calendar_year = period$start, raster_code = period$start_code,
+            source_family = "Growth_less_harv",
+            path = unname(run$files$post_harvest[as.character(period$start_code)]),
+            definition = nrb_definition
+          )
+        }
+      }
       add_row(
         record_type = "input",
         run_id = run$run_id,
@@ -1092,6 +1168,17 @@ build_plan <- function(scenario_dir, periods = NULL, output_subdir) {
     definition = "Exact inputs, outputs, parameters, formulas, versions and run IDs for this execution"
   )
   records <- do.call(rbind, rows)
+  methods <- vapply(runs, function(run) run$nrb_context$method, character(1))
+  records$nrb_attribution_method <- paste(unique(methods), collapse = ";")
+  records$nrb_helper_path <- attribution$source_path
+  records$nrb_helper_md5 <- unname(tools::md5sum(attribution$source_path))
+  records$nrb_luc_mode <- runs[[1L]]$nrb_context$luc_mode
+  model_path <- runs[[1L]]$nrb_context$model_path
+  records$nrb_model_path <- if (is.null(model_path)) NA_character_ else model_path
+  records$nrb_model_md5 <- if (is.null(model_path)) NA_character_ else unname(tools::md5sum(model_path))
+  for (run in runs) {
+    records$nrb_attribution_method[which(records$run_id == run$run_id)] <- run$nrb_context$method
+  }
   biomass_output <- records$record_type == "output" & records$metric %in% c("nrb", "harv", "agb")
   records$definition[biomass_output] <- paste0(
     records$definition[biomass_output],
@@ -1282,15 +1369,15 @@ execute_plan <- function(plan, overwrite = FALSE) {
     period <- plan$periods[period_index, , drop = FALSE]
     message("  Period ", period$start, ":", period$end)
 
-    baseline_growth <- if (period$uses_initial_baseline) {
-      terra::rast(rep(plan$metadata$initial_agb, processed_count))
-    } else {
-      terra::rast(paths_for_code(plan, "growth", period$baseline_code))
-    }
-    end_post_harvest <- terra::rast(paths_for_code(plan, "post_harvest", period$end_code))
-    names(baseline_growth) <- names(end_post_harvest) <- layer_names
-    nrb <- baseline_growth - end_post_harvest
-    nrb <- terra::ifel(nrb < 0, 0, nrb)
+    per_run_nrb <- lapply(plan$runs, function(run) {
+      result <- stage1_nrb_api()$mofuss_period_nrb(
+        run$nrb_context, period$start_code, period$end_code,
+        baseline = if (period$v3_stdyn_window) "preharvest" else "previous_postharvest"
+      )
+      terra::rast(result$nrb)
+    })
+    nrb <- do.call(c, per_run_nrb)
+    names(nrb) <- layer_names
     nrb <- mask_biomass_support(nrb, biomass_support)
     nrb_stats <- summarize_mc(nrb)
     write_stat_triplet(

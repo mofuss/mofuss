@@ -23,6 +23,20 @@ library(readr)
 library(dplyr)
 library(tibble)
 
+# The engine exports a signed woodfuel-only depletion balance. Use the same
+# attribution helper as emissions postprocessing rather than total AGB loss.
+helper_dirs <- unique(c(
+  dirname(sub("^--file=", "", grep("^--file=", commandArgs(), value = TRUE))),
+  unlist(lapply(sys.frames(), function(frame) {
+    value <- get0("ofile", envir = frame, inherits = FALSE)
+    if (is.character(value) && length(value) == 1L) dirname(value) else character()
+  })), getwd(), file.path(getwd(), "localhost", "scripts")
+))
+helper_paths <- file.path(helper_dirs, "helpers", "woodfuel_nrb_attribution.R")
+helper_paths <- helper_paths[file.exists(helper_paths)]
+if (!length(helper_paths)) stop("Missing helpers/woodfuel_nrb_attribution.R; redeploy the complete script bundle.")
+source(helper_paths[[1L]])
+
 # Read in the arguments listed at the command line in Dinamica EGO'S "Run external process"
 args=(commandArgs(TRUE))
 
@@ -119,6 +133,16 @@ parameter_value <- function(key) {
   }
   trimws(as.character(value))
 }
+
+# Old annual-LUC CSVs include non-harvest biomass losses. Reject them before
+# creating figures unless every run carries the corrected attribution ledger.
+luc_value <- unique(country_parameters$ParCHR[country_parameters$Var == "LUCmap_v"])
+luc_mode <- if (length(luc_value)) suppressWarnings(as.integer(luc_value)) else NULL
+configured_steps <- as.integer(parameter_value("end_year")) - IT + 1L
+nrb_contexts <- lapply(seq_len(MC), function(j) {
+  mofuss_nrb_context(getwd(), luc_mode = luc_mode,
+                    expected_steps = configured_steps, mc = j)
+})
 
 # Print the tibble (up to 30 rows)
 print(as_tibble(country_parameters), n = 30)
@@ -332,11 +356,11 @@ for (numar in 1:MC) {
 	}
 } # for (numar in 1:MC) ## lectura de archivos ++++++++++++
 
-# Hasta aqui funciona, completar las divisines que estan abajo 5.10.10.2013.
+# A zero-harvest fraction is undefined, not evidence of renewable harvest.
 fnrb<-(DBnrb/DBcon)*100
-fnrb[] <- lapply(fnrb, function(x) replace(x, !is.finite(x), 0))
+fnrb[] <- lapply(fnrb, function(x) replace(x, !is.finite(x), NA_real_))
 fnrb_nrb<-(DBnrb/DBconnrb)*100
-fnrb_nrb[] <- lapply(fnrb_nrb, function(x) replace(x, !is.finite(x), 0))
+fnrb_nrb[] <- lapply(fnrb_nrb, function(x) replace(x, !is.finite(x), NA_real_))
 print (fnrb)
 print (fnrb_nrb)
 
@@ -359,71 +383,45 @@ colnames(DBagb)<-c(mc)
 #ejx<-seq(IT,(IT+(ST-1)),(48/IL))
 ejx<-seq(IT,(IT+(STdyn)),(IL/48))
 
-# NRB stats ####
-# Reads 3 type tables for spatial average stats
-NRB <- (read.csv("Temp//3_NRB.csv",colClasses=c("NULL",NA))/ST)
-str(NRB)
-# The idea here is to load NRB values per year, and then cropping the years off
-# Without the cropping both NRB calculations should be exactly the same 
-listNRBcsv <- list.files("Temp", pattern = "^2_NRB.+[.]csv$",ignore.case=F)
-if (!identical(listNRBcsv, basename(nrb_CadF))) {
-  stop("Temp must contain exactly the expected ordered 2_NRB01..MC CSV files.")
+# Period statistics ####
+# Full-run boxplots use the engine's initial-stock-to-terminal balance,
+# normalized per iteration. Annual trajectories above retain annual NRB.
+read_terminal_average <- function(path) {
+  value <- read.csv(path, colClasses = c("NULL", NA))
+  if (nrow(value) != MC || ncol(value) != 1L) {
+    stop("Expected one terminal total per Monte Carlo run in ", path)
+  }
+  value / ST
 }
-NRB_list = lapply(paste0("Temp/",listNRBcsv), read.csv)
-if (cutoff_yrs == 0){
-  NRB_l <- as.data.frame(sapply(NRB_list, function(df) apply(df[,-(3)], 2, mean))) 
-} else {
-  NRB_l <- as.data.frame(sapply(NRB_list, function(df) apply(df[-(1:cutoff_yrs),-(3)], 2, mean))) 
-}
-NRB_n <- as.data.frame(t(NRB_l[2,]))
-rownames(NRB_n) <- 1:MC
-str(NRB_n)
-NRB
-NRB_n
+NRB <- read_terminal_average("Temp/3_NRB.csv")
+CON_TOT <- read_terminal_average("Temp/3_CON_TOT.csv")
+CON_NRB <- read_terminal_average("Temp/3_CON_NRB.csv")
 
-CON_TOT <- (read.csv("Temp//3_CON_TOT.csv",colClasses=c("NULL",NA))/ST)
-listCON_TOTcsv <- list.files("Temp", pattern = "^2_CON_TOT.+[.]csv$",ignore.case=F)
-if (!identical(listCON_TOTcsv, basename(con_CadF))) {
-  stop("Temp must contain exactly the expected ordered 2_CON_TOT01..MC CSV files.")
-}
-CON_TOT_list = lapply(paste0("Temp/",listCON_TOTcsv), read.csv)
-if (cutoff_yrs == 0){
-  CON_TOT_l <- as.data.frame(sapply(CON_TOT_list, function(df) apply(df[,-(3)], 2, mean))) 
-} else {
-  CON_TOT_l <- as.data.frame(sapply(CON_TOT_list, function(df) apply(df[-(1:cutoff_yrs),-(3)], 2, mean))) 
-}
-CON_TOT_n <- as.data.frame(t(CON_TOT_l[2,]))
-rownames(CON_TOT_n) <- 1:MC
-str(CON_TOT_n)
-CON_TOT
-CON_TOT_n
-
-CON_NRB <- (read.csv("Temp//3_CON_NRB.csv",colClasses=c("NULL",NA))/ST)
-listCON_NRBcsv <- list.files("Temp", pattern = "^2_CON_NRB.+[.]csv$",ignore.case=F)
-if (!identical(listCON_NRBcsv, basename(connrb_CadF))) {
-  stop("Temp must contain exactly the expected ordered 2_CON_NRB01..MC CSV files.")
-}
-CON_NRB_list = lapply(paste0("Temp/",listCON_NRBcsv), read.csv)
-if (cutoff_yrs == 0){
-  CON_NRB_l <- as.data.frame(sapply(CON_NRB_list, function(df) apply(df[,-(3)], 2, mean))) 
-} else {
-  CON_NRB_l <- as.data.frame(sapply(CON_NRB_list, function(df) apply(df[-(1:cutoff_yrs),-(3)], 2, mean))) 
-}
-CON_NRB_n <- as.data.frame(t(CON_NRB_l[2,]))
-rownames(CON_NRB_n) <- 1:MC
-str(CON_NRB_n)
-CON_NRB
-CON_NRB_n
+# Post-spin-up boxplots use exactly the same preharvest-to-postharvest period
+# as maps and administrative tables. Do not sum clipped annual NRB: later
+# regrowth must remain able to offset earlier harvest depletion.
+period_totals <- do.call(rbind, lapply(nrb_contexts, function(context) {
+  period <- mofuss_period_nrb(context, cutoff_yrs + 1L, as.integer(ST))
+  harvest_nrb <- raster::overlay(period$harvest, period$nrb, fun = function(h, n) {
+    ifelse(is.na(h) | is.na(n), NA_real_, ifelse(n > 0, h, 0))
+  })
+  c(nrb = raster::cellStats(period$nrb, "sum", na.rm = TRUE),
+    harvest = raster::cellStats(period$harvest, "sum", na.rm = TRUE),
+    harvest_nrb = raster::cellStats(harvest_nrb, "sum", na.rm = TRUE))
+})) / (ST - cutoff_yrs)
+NRB_n <- data.frame(Value = period_totals[, "nrb"])
+CON_TOT_n <- data.frame(Value = period_totals[, "harvest"])
+CON_NRB_n <- data.frame(Value = period_totals[, "harvest_nrb"])
 
 fNRB <- (NRB/CON_TOT)*100
-fNRB[] <- lapply(fNRB, function(x) replace(x, !is.finite(x), 0))
+fNRB[] <- lapply(fNRB, function(x) replace(x, !is.finite(x), NA_real_))
 fNRB_nrb <- (NRB/CON_NRB)*100
-fNRB_nrb[] <- lapply(fNRB_nrb, function(x) replace(x, !is.finite(x), 0))
+fNRB_nrb[] <- lapply(fNRB_nrb, function(x) replace(x, !is.finite(x), NA_real_))
 
 fNRB_n <- (NRB_n/CON_TOT_n)*100
-fNRB_n[] <- lapply(fNRB_n, function(x) replace(x, !is.finite(x), 0))
+fNRB_n[] <- lapply(fNRB_n, function(x) replace(x, !is.finite(x), NA_real_))
 fNRB_nrb_n <- (NRB_n/CON_NRB_n)*100
-fNRB_nrb_n[] <- lapply(fNRB_nrb_n, function(x) replace(x, !is.finite(x), 0))
+fNRB_nrb_n[] <- lapply(fNRB_nrb_n, function(x) replace(x, !is.finite(x), NA_real_))
 
 NRB_summary<-summary(NRB)
 NRB_sd<-sapply(NRB,sd)
@@ -505,7 +503,7 @@ par(mfrow=c(4,1),oma=c(0,0,10,0),mar=c(5.1,5.1,1.0,2.1))
 
 plot(ejx,DBagb[,1],type="l",col="darkgrey",lwd=0.25,ylim=c(0,max(DBagb)),xlab="", ylab="agb (tDM)",cex.lab=1,
      cex.axis=1)
-for (lin in 2:MC) {
+for (lin in seq_len(MC)[-1L]) {
 	lines(ejx,DBagb[,lin],lty="solid",col="darkgrey",lwd=0.25)
 }
 	lines(ejx,DBagb[,1],lty="solid",col="red",lwd=2)
@@ -517,14 +515,14 @@ title(main=Main_Title,line=NA,outer=TRUE,adj=0.5,
 
 plot(ejx,DBnrb[,1],type="l",col="darkgrey",lwd=0.25,ylim=c(0,max(DBnrb)),xlab="",ylab="nrb (tDM)",cex.lab=1,
      cex.axis=1)
-  for (lin in 2:MC) {
+  for (lin in seq_len(MC)[-1L]) {
   lines(ejx,DBnrb[,lin],lty="solid",col="darkgrey",lwd=0.25)
 }
   lines(ejx,DBnrb[,1],lty="solid",col="red",lwd=2)
 
 plot(ejx,(fnrb[,1]),type="l",col="darkgrey",lwd=0.25,ylim=c(-0.05,100),xlab="",ylab="fnrb (%)",cex.lab=1,
      cex.axis=1)
-  for (lin in 2:MC) {
+  for (lin in seq_len(MC)[-1L]) {
   lines(ejx,(fnrb[,lin]),lty="solid",col="darkgrey",lwd=0.25)
 }
   lines(ejx,(fnrb[,1]),lty="solid",col="red",lwd=2)
@@ -532,7 +530,7 @@ plot(ejx,(fnrb[,1]),type="l",col="darkgrey",lwd=0.25,ylim=c(-0.05,100),xlab="",y
 # frnb(nrb) turned off
 # plot(ejx,(DBnrb[,1]/DBconnrb[,1]),type="l",col="darkgrey",lwd=0.25,ylim=c(0,1),xlab="years",ylab="fnrb (nrb) (%)",cex.lab=1,
 #     cex.axis=1)
-#  for (lin in 2:MC) {
+#  for (lin in seq_len(MC)[-1L]) {
 #  lines(ejx,(DBnrb[,lin]/DBconnrb[,lin]),lty="solid",col="darkgrey",lwd=0.25)
 # }
 #  lines(ejx,(DBnrb[,1]/DBconnrb[,1]),lty="solid",col="red",lwd=2)
@@ -540,7 +538,7 @@ plot(ejx,(fnrb[,1]),type="l",col="darkgrey",lwd=0.25,ylim=c(-0.05,100),xlab="",y
 
 plot(ejx,DBcon[,1],type="l",col="darkgrey",lwd=0.25,ylim=c(0,max(DBcon)),xlab="", ylab="fuelwood use (tDM)",cex.lab=1,
      cex.axis=1)
-  for (lin in 2:MC) {
+  for (lin in seq_len(MC)[-1L]) {
   lines(ejx,DBcon[,lin],lty="solid",col="darkgrey",lwd=0.25)
 }
   lines(ejx,DBcon[,1],lty="solid",col="red",lwd=2)
@@ -561,14 +559,14 @@ par(mfrow=c(4,1),oma=c(0,0,10,0),mar=c(5.1,5.1,1.0,2.1))
 
 # Slice first n years from graph ONLY
 ejx_n<-seq((IT+cutoff_yrs),(IT+(STdyn)),(IL/48)) #Esto evita que lea los primeros n años.
-DBagb_n <- DBagb[cutoff_yrs_backwards:ST, ]
-DBnrb_n <- DBnrb[cutoff_yrs_backwards:ST, ]
-fnrb_n <- fnrb[cutoff_yrs_backwards:ST, ]
-DBcon_n <- DBcon[cutoff_yrs_backwards:ST, ]
+DBagb_n <- DBagb[cutoff_yrs_backwards:ST, , drop = FALSE]
+DBnrb_n <- DBnrb[cutoff_yrs_backwards:ST, , drop = FALSE]
+fnrb_n <- fnrb[cutoff_yrs_backwards:ST, , drop = FALSE]
+DBcon_n <- DBcon[cutoff_yrs_backwards:ST, , drop = FALSE]
 
 plot(ejx_n,DBagb_n[,1],type="l",col="darkgrey",lwd=0.25,ylim=c(0,max(DBagb_n)),xlab="", ylab="agb (tDM)",cex.lab=1,
      cex.axis=1)
-for (lin in 2:MC) {
+for (lin in seq_len(MC)[-1L]) {
   lines(ejx_n,DBagb_n[,lin],lty="solid",col="darkgrey",lwd=0.25)
 }
 lines(ejx_n,DBagb_n[,1],lty="solid",col="red",lwd=2)
@@ -580,14 +578,14 @@ title(main=Main_Title,line=NA,outer=TRUE,adj=0.5,
 
 plot(ejx_n,DBnrb_n[,1],type="l",col="darkgrey",lwd=0.25,ylim=c(0,max(DBnrb_n)),xlab="",ylab="nrb (tDM)",cex.lab=1,
      cex.axis=1)
-for (lin in 2:MC) {
+for (lin in seq_len(MC)[-1L]) {
   lines(ejx_n,DBnrb_n[,lin],lty="solid",col="darkgrey",lwd=0.25)
 }
 lines(ejx_n,DBnrb_n[,1],lty="solid",col="red",lwd=2)
 
 plot(ejx_n,(fnrb_n[,1]),type="l",col="darkgrey",lwd=0.25,ylim=c(-0.05,100),xlab="",ylab="fnrb (%)",cex.lab=1,
      cex.axis=1)
-for (lin in 2:MC) {
+for (lin in seq_len(MC)[-1L]) {
   lines(ejx_n,(fnrb_n[,lin]),lty="solid",col="darkgrey",lwd=0.25)
 }
 lines(ejx_n,(fnrb_n[,1]),lty="solid",col="red",lwd=2)
@@ -595,14 +593,14 @@ lines(ejx_n,(fnrb_n[,1]),lty="solid",col="red",lwd=2)
 #frnb(nrb) turned off
 #plot(ejx,(DBnrb[,1]/DBconnrb[,1]),type="l",col="darkgrey",lwd=0.25,ylim=c(0,1),xlab="years",ylab="fnrb (nrb) (%)",cex.lab=1,
 #     cex.axis=1)
-#  for (lin in 2:MC) {
+#  for (lin in seq_len(MC)[-1L]) {
 #  lines(ejx,(DBnrb[,lin]/DBconnrb[,lin]),lty="solid",col="darkgrey",lwd=0.25)
 #}
 #  lines(ejx,(DBnrb[,1]/DBconnrb[,1]),lty="solid",col="red",lwd=2)
 
 plot(ejx_n,DBcon_n[,1],type="l",col="darkgrey",lwd=0.25,ylim=c(0,max(DBcon_n)),xlab="", ylab="fuelwood use (tDM)",cex.lab=1,
      cex.axis=1)
-for (lin in 2:MC) {
+for (lin in seq_len(MC)[-1L]) {
   lines(ejx_n,DBcon_n[,lin],lty="solid",col="darkgrey",lwd=0.25)
 }
 lines(ejx_n,DBcon_n[,1],lty="solid",col="red",lwd=2)

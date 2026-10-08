@@ -60,6 +60,7 @@ stopf <- function(fmt, ...) {
 V5_SPINUP_YEARS <- NA_integer_
 V5_MIN_UNCERTAINTY_RUNS <- 30L
 V6_BIOMASS_SUPPORT_POLICY <- "finite_initial_agb_reference_v1"
+V6_BIOMASS_ESTIMAND <- "net_retained_stock_under_prescribed_luc_v1"
 
 pairing_design_status <- function(
   paired_mc_inputs_validated, patcher_bypassed, patcher_rng_paired
@@ -1286,13 +1287,16 @@ read_country_partition <- function(cfg, parameters, raster_template, run_id, per
 }
 
 validate_stage2_biomass_support <- function(tab, initial_agb_md5, path) {
-  required <- c("biomass_support_policy", "initial_agb_md5")
+  required <- c("biomass_support_policy", "initial_agb_md5", "biomass_estimand")
   missing <- setdiff(required, names(tab))
   if (length(missing)) {
     stopf("Stage-2 biomass support metadata is missing (%s); rerun Stage 2: %s",
           paste(missing, collapse = ", "), path)
   }
   policy <- trimws(as.character(tab$biomass_support_policy[[1L]]))
+  if (!identical(as.character(tab$biomass_estimand[[1L]]), V6_BIOMASS_ESTIMAND)) {
+    stopf("Stage-2 biomass estimand is incompatible; rerun Stage 2: %s", path)
+  }
   if (!identical(policy, V6_BIOMASS_SUPPORT_POLICY)) {
     stopf("Stage-2 biomass support policy does not match %s; rerun Stage 2: %s",
           V6_BIOMASS_SUPPORT_POLICY, path)
@@ -1764,6 +1768,7 @@ v6_country_decomposition_rows <- function(
   rows$safe_label <- meta$safe_label
   rows$regrowth_mode <- meta$regrowth_mode
   rows$biomass_support_policy <- V6_BIOMASS_SUPPORT_POLICY
+  rows$biomass_estimand <- V6_BIOMASS_ESTIMAND
   rows$biomass_support_reference <- meta$raster_paths$ref_bau
   rows$biomass_support_reference_md5 <- meta$reference_md5
   rows$agb_reference_md5 <- meta$reference_md5
@@ -1918,6 +1923,8 @@ process_config <- function(meta, run_id, period, co2_factor, eps) {
   b1 <- mask_with(r$bau_end, period_valid)
   i1 <- mask_with(r$ics_end, period_valid)
   ref <- mask_with(r$ref_bau, period_valid)
+  # This reference-relative algebraic split is not a process attribution.
+  # LUC can alter either component; neither is harvest-only NRB.
   state0 <- decompose_state(b0, i0, ref, eps)
   state1 <- decompose_state(b1, i1, ref, eps)
   period_delta <- state1$delta - state0$delta
@@ -1993,6 +2000,7 @@ process_config <- function(meta, run_id, period, co2_factor, eps) {
     analysis_area_name = analysis_area_name,
     regrowth_mode = meta$regrowth_mode,
     biomass_support_policy = V6_BIOMASS_SUPPORT_POLICY,
+    biomass_estimand = V6_BIOMASS_ESTIMAND,
     biomass_support_reference = meta$raster_paths$ref_bau,
     biomass_support_reference_md5 = meta$reference_md5,
     agb_reference_md5 = meta$reference_md5,
@@ -2146,11 +2154,11 @@ make_comparison_table <- function(summary) {
       "period_delta_agb_mg",
       sprintf("Period delta AGB %d-%d (Mg)", period_start, end_year)
     ),
-    "Period avoided loss (Mg)" = "period_avoided_loss_mg",
-    "Period regrowth (Mg)" = "period_regrowth_mg",
-    "Period avoided loss (tCO2e)" = "period_avoided_loss_tco2e",
-    "Period regrowth (tCO2e)" = "period_regrowth_tco2e",
-    "AGB avoided - stage 2 (tCO2e)" = "agb_avoided_stage2_tco2e",
+    "Period stock-loss component (Mg)" = "period_avoided_loss_mg",
+    "Period stock-gain component (Mg)" = "period_regrowth_mg",
+    "Period stock-loss component (tCO2e)" = "period_avoided_loss_tco2e",
+    "Period stock-gain component (tCO2e)" = "period_regrowth_tco2e",
+    "Net biomass carbon - stage 2 (tCO2e)" = "agb_avoided_stage2_tco2e",
     "End-use avoided (tCO2e)" = "enduse_avoided_tco2e",
     "Total avoided (tCO2e)" = "total_avoided_tco2e",
     "Common decomposition cells" = "n_decomposition_period_common"
@@ -2262,6 +2270,7 @@ build_provenance <- function(processed, summary, manifest_path, output_dir,
       stage2_uncertainty_status = m$stage2_manifest$uncertainty_status,
       agb_reference_md5 = m$reference_md5,
       biomass_support_policy = V6_BIOMASS_SUPPORT_POLICY,
+      biomass_estimand = V6_BIOMASS_ESTIMAND,
       biomass_support_reference = m$raster_paths$ref_bau,
       biomass_support_reference_md5 = m$reference_md5,
       bau_baseline_raster = m$raster_paths$bau_baseline,
@@ -2315,8 +2324,8 @@ build_provenance <- function(processed, summary, manifest_path, output_dir,
 
 write_plot <- function(summary, path) {
   mat <- rbind(
-    `Avoided loss` = summary$period_avoided_loss_tco2e,
-    Regrowth = summary$period_regrowth_tco2e
+    `Stock-loss component` = summary$period_avoided_loss_tco2e,
+    `Stock-gain component` = summary$period_regrowth_tco2e
   ) / 1e6
   colnames(mat) <- summary$label
   beside <- any(mat < 0)
@@ -2341,7 +2350,7 @@ write_plot <- function(summary, path) {
     graphics::par(op)
     grDevices::dev.off()
   }, add = TRUE)
-  cols <- c(`Avoided loss` = "#E1A100", Regrowth = "#1B9E77")
+  cols <- c(`Stock-loss component` = "#E1A100", `Stock-gain component` = "#1B9E77")
   pairing_title <- if (all(summary$full_stochastic_pairing_validated)) {
     "fully paired"
   } else if (all(summary$comparison_validated)) {
@@ -2351,9 +2360,9 @@ write_plot <- function(summary, path) {
   }
   bp <- graphics::barplot(
     mat, beside = beside, col = cols, border = NA,
-    ylab = expression("Period avoided emissions (Mt CO"[2] * "e)"),
+    ylab = expression("Net biomass carbon benefit (Mt CO"[2] * "e)"),
     main = paste0(
-      "Period AGB decomposition: signed avoided loss and regrowth\n",
+      "Net biomass carbon: signed stock-loss and stock-gain components\n",
       pairing_title
     ),
     las = 2, cex.names = 0.9, cex.axis = 0.9, ylim = plot_limits
@@ -2546,7 +2555,7 @@ write_uncertainty_plot <- function(summary, path) {
   metrics <- c("period_avoided_loss_tco2e", "period_regrowth_tco2e")
   value <- lower <- upper <- matrix(
     NA_real_, nrow = length(metrics), ncol = length(configs),
-    dimnames = list(c("Avoided loss", "Regrowth"), configs)
+    dimnames = list(c("Stock-loss component", "Stock-gain component"), configs)
   )
   for (j in seq_along(configs)) for (i in seq_along(metrics)) {
     hit <- which(x$display_label == configs[[j]] & x$metric == metrics[[i]])
@@ -2562,7 +2571,7 @@ write_uncertainty_plot <- function(summary, path) {
   centers <- barplot(
     value, beside = TRUE, col = c("#E1A100", "#1B9E77"),
     ylim = c(extent[[1L]] - pad, extent[[2L]] + pad),
-    ylab = expression("Mean avoided emissions (Mt CO"[2] * "e)"),
+    ylab = expression("Mean net biomass carbon benefit (Mt CO"[2] * "e)"),
     main = "Paired MC1:n AGB decomposition\nempirical 2.5th-97.5th percentiles",
     las = 1
   )
@@ -3104,6 +3113,11 @@ main <- function(args = commandArgs(trailingOnly = TRUE), source_mode = interact
   script_path <- v5_script_path()
   run_manifest <- data.frame(
     script_version = 6L,
+    biomass_estimand = V6_BIOMASS_ESTIMAND,
+    decomposition_interpretation = paste0(
+      "Reference-relative stock-loss and stock-gain components of net retained carbon; ",
+      "not harvest-only NRB or process-attributed regrowth"
+    ),
     biomass_support_policy = V6_BIOMASS_SUPPORT_POLICY,
     biomass_support_reference = paste(unique(provenance$reference_raster_bau), collapse = ","),
     biomass_support_reference_md5 = paste(unique(provenance$agb_reference_md5), collapse = ","),

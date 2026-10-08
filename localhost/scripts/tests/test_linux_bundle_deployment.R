@@ -20,6 +20,9 @@ before <- tools::md5sum(sentinels)
 mofuss_copy_runtime_bundle(scripts, fixture)
 stopifnot(identical(before, tools::md5sum(sentinels)))
 files <- mofuss_runtime_bundle_files()
+stopifnot("10_dyn_Sc17_webmofuss_ctrees_g_v14.egoml" %in% files,
+          "helpers/woodfuel_nrb_attribution.R" %in% files,
+          "tools/windows_launcher_v1.R" %in% files)
 stopifnot(identical(unname(tools::md5sum(file.path(scripts, files))),
                     unname(tools::md5sum(file.path(fixture, files)))))
 if (.Platform$OS.type != "windows") {
@@ -33,6 +36,18 @@ stopifnot(file.exists(file.path(fixture, woodman)),
           identical(unname(tools::md5sum(file.path(scripts, woodman))),
                     unname(tools::md5sum(file.path(fixture, woodman)))),
           identical(before, tools::md5sum(sentinels)))
+# Step 2 configures v14 immediately, without depending on step 10 or changing
+# any other model bytes. Historical v13 files remain available and unchanged.
+source(file.path(scripts, "tools", "windows_launcher_v1.R"))
+for (luc in c(1L, 3L)) {
+  target <- file.path(fixture, woodman)
+  original <- readBin(target, "raw", n = file.info(target)$size)
+  mofuss_configure_model_luc(target, luc)
+  configured <- rawToChar(readBin(target, "raw", n = file.info(target)$size))
+  stopifnot(identical(configured,
+                     .mofuss_windows_constant(rawToChar(original), "Int", "v302", as.character(luc))))
+  stopifnot(identical(before, tools::md5sum(sentinels)))
+}
 failure <- try(mofuss_copy_runtime_bundle(scripts, fixture,
                  active_egoml = "missing_selected_model.egoml"), silent = TRUE)
 stopifnot(inherits(failure, "try-error"), identical(before, tools::md5sum(sentinels)))

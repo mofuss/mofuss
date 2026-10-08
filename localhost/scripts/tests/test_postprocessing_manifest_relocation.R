@@ -6,8 +6,8 @@ scripts_dir <- file.path(repo_root, "localhost", "scripts")
 post_dir <- file.path(scripts_dir, "postprocessing_emissions")
 stage_files <- c(
   stage1 = file.path(post_dir, "1post_raster_fr_generator_diskmemory_v9.R"),
-  stage2 = file.path(post_dir, "2post_emissions_bau-vs-ics_v13.R"),
-  stage3 = file.path(post_dir, "3post_agb_decomposition_v5.R")
+  stage2 = file.path(post_dir, "2post_emissions_bau-vs-ics_v14.R"),
+  stage3 = file.path(post_dir, "3post_agb_decomposition_v6.R")
 )
 stopifnot(all(file.exists(stage_files)))
 

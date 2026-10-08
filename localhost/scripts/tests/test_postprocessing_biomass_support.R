@@ -91,7 +91,9 @@ check_biomass_support <- function() {
             out$row$total_avoided_tco2e == 21 * factor + 300,
             all(out$country_rows$biomass_support_policy == policy),
             all(out$country_rows$agb_reference_md5 == ref_md5),
-            out$row$biomass_support_policy == policy, out$row$agb_reference_md5 == ref_md5)
+            out$row$biomass_support_policy == policy, out$row$agb_reference_md5 == ref_md5,
+            out$row$biomass_estimand == "net_retained_stock_under_prescribed_luc_v1",
+            all(out$country_rows$biomass_estimand == out$row$biomass_estimand))
   # Excluded raw benefits may change sign or magnitude without changing reported biomass.
   alternate <- r
   alternate$ics_end <- raster(c(-500, 8, 90, NA, 500, NA, 60, 5))
@@ -102,11 +104,14 @@ check_biomass_support <- function() {
     err <- tryCatch(force(expr), error = identity)
     stopifnot(inherits(err, "error"), grepl(pattern, conditionMessage(err)))
   }
-  manifest <- data.frame(biomass_support_policy = policy, initial_agb_md5 = ref_md5)
+  manifest <- data.frame(biomass_support_policy = policy, initial_agb_md5 = ref_md5,
+                         biomass_estimand = "net_retained_stock_under_prescribed_luc_v1")
   stopifnot(s3$validate_stage2_biomass_support(manifest, ref_md5, "fixture"))
   expect_error(s3$validate_stage2_biomass_support(manifest["initial_agb_md5"], ref_md5, "fixture"), "rerun Stage 2")
   wrong <- manifest; wrong$biomass_support_policy <- "unmasked"
   expect_error(s3$validate_stage2_biomass_support(wrong, ref_md5, "fixture"), "policy")
+  wrong <- manifest; wrong$biomass_estimand <- "harvest_only_nrb"
+  expect_error(s3$validate_stage2_biomass_support(wrong, ref_md5, "fixture"), "estimand")
   wrong <- manifest; wrong$initial_agb_md5 <- strrep("0", 32)
   expect_error(s3$validate_stage2_biomass_support(wrong, ref_md5, "fixture"), "MD5")
   # The actual manifest reader invokes the guard even for a post-spin-up period.

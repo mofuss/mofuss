@@ -47,6 +47,9 @@
 # setting, a 2000-2030 model uses 2026-2030, end-2025 as its state baseline, and
 # end-2030 as its endpoint. The primary AGB result is therefore the change in
 # the BAU-vs-CCTS AGB gap over the post-spin-up accounting period.
+# This is net retained biomass carbon under the prescribed land-cover pathway.
+# It is not harvest-only NRB or a causal attribution of each stock change to
+# woodfuel. Historical "harvest" columns/paths remain compatibility aliases.
 # Biomass reporting always uses the finite original agb3_c reference footprint,
 # including numeric zero. Later land-cover changes cannot add reporting cells.
 # This reporting mask does not change model TOF supply or demand-based end use.
@@ -75,6 +78,7 @@
 
 .V9_REQUIRED_PACKAGES <- c("terra", "fs", "stringr", "dplyr", "readr", "tibble")
 .V9_CO2_FACTOR <- 0.47 * (44 / 12)
+.V14_BIOMASS_ESTIMAND <- "net_retained_stock_under_prescribed_luc_v1"
 .V9_MC_FILES <- c(
   "k_all.csv", "rmax_all.csv", "i_st_all.csv",
   "Harvest_pixels_V.csv", "Harvest_pixels_W.csv",
@@ -2370,6 +2374,7 @@ SCENARIO_DIRS <- character()
     country_run$run_id <- run_id
     country_run$period_start_year <- preflight$period[[1L]]
     country_run$period_end_year <- preflight$period[[2L]]
+    country_run$biomass_estimand <- .V14_BIOMASS_ESTIMAND
     country_run$biomass_support_policy <- .V14_BIOMASS_SUPPORT_POLICY
     country_run$biomass_support_reference <- preflight$initial_agb_bau
     country_run$biomass_support_reference_md5 <- preflight$initial_agb_md5
@@ -2391,6 +2396,7 @@ SCENARIO_DIRS <- character()
       baseline_source = preflight$baseline_source,
       baseline_timing = preflight$baseline_timing,
       end_year_code = preflight$end_code,
+      biomass_estimand = .V14_BIOMASS_ESTIMAND,
       biomass_support_policy = .V14_BIOMASS_SUPPORT_POLICY,
       biomass_support_reference = preflight$initial_agb_bau,
       biomass_support_reference_md5 = preflight$initial_agb_md5,
@@ -2424,6 +2430,7 @@ SCENARIO_DIRS <- character()
       included_in_mc_batch = TRUE,
       period_start_year = preflight$period[1],
       period_end_year = preflight$period[2],
+      biomass_estimand = .V14_BIOMASS_ESTIMAND,
       biomass_support_policy = .V14_BIOMASS_SUPPORT_POLICY,
       biomass_support_reference = preflight$initial_agb_bau,
       biomass_support_reference_md5 = preflight$initial_agb_md5,
@@ -2672,6 +2679,12 @@ SCENARIO_DIRS <- character()
     NA_character_
   }
   manifest_row <- tibble::tibble(
+    biomass_estimand = .V14_BIOMASS_ESTIMAND,
+    biomass_estimand_description = paste0(
+      "Change in the ICS minus BAU stock gap; retains prescribed LUC interactions; ",
+      "not harvest-attributed NRB or an NRB-times-emission-factor calculation"
+    ),
+    legacy_harvest_label = "net retained biomass carbon",
     label = preflight$label,
     bau_dir = preflight$bau_dir,
     ics_dir = preflight$ics_dir,

@@ -49,10 +49,11 @@ options(scipen = 999)
 terra::terraOptions(progress = 0)
 
 SCRIPT_VERSION <- 3L
+BIOMASS_ESTIMAND <- "net_retained_stock_under_prescribed_luc_v1"
 DEFAULT_MIN_UNCERTAINTY_RUNS <- 30L
 CONFIGURATION_ORDER <- c("capped", "uncapped")
 COMPONENT_ORDER <- c("harvest", "enduse", "total")
-COMPONENT_LABELS <- c(harvest = "Harvest / AGB", enduse = "End-use", total = "Total")
+COMPONENT_LABELS <- c(harvest = "Net biomass carbon", enduse = "End-use", total = "Total")
 TABLE_PNG_DPI <- 300L
 TABLE_PNG_WIDTH_IN <- 7.5
 COUNTRY_FIGURE_DPI <- 300L
@@ -418,6 +419,10 @@ country_boundaries_path <- file.path(agb_dir, "country_boundaries.gpkg")
 per_run <- read_csv_required(agb_per_run_path, "Stage 3 per-run decomposition")
 require_columns(per_run, c("biomass_support_policy", "agb_reference_md5"),
                 "Stage 3 biomass reporting support; rerun Stages 2-3 if missing")
+require_columns(per_run, "biomass_estimand", "Stage 3 biomass estimand; rerun Stages 2-3")
+if (anyNA(per_run$biomass_estimand) || any(per_run$biomass_estimand != BIOMASS_ESTIMAND)) {
+  stopf("Stage 3 biomass estimand is incompatible; rerun Stages 2-3.")
+}
 if (anyNA(per_run$biomass_support_policy) ||
     any(per_run$biomass_support_policy != "finite_initial_agb_reference_v1")) {
   stopf("Stage 3 biomass support policy is outdated or inconsistent; rerun Stages 2-3.")
@@ -544,6 +549,11 @@ country_required <- c(
 require_columns(country_per_run, country_required, "Stage 3 country per-run decomposition")
 require_columns(country_per_run, c("biomass_support_policy", "agb_reference_md5"),
                 "Stage 3 country biomass reporting support")
+require_columns(country_per_run, "biomass_estimand", "Stage 3 country biomass estimand")
+if (anyNA(country_per_run$biomass_estimand) ||
+    any(country_per_run$biomass_estimand != BIOMASS_ESTIMAND)) {
+  stopf("Country and regional biomass estimands disagree; rerun Stages 2-3.")
+}
 if (anyNA(country_per_run$biomass_support_policy) ||
     anyNA(country_per_run$agb_reference_md5) ||
     any(country_per_run$biomass_support_policy != "finite_initial_agb_reference_v1") ||
@@ -656,11 +666,11 @@ metric_fields <- c(
 metric_labels <- c(
   sprintf("BAU AGB %d (Mg)", period_end),
   sprintf("CCTS AGB %d (Mg)", period_end),
-  "Avoided AGB loss (Mg/period)",
-  "Enhanced AGB regrowth (Mg/period)",
-  "Avoided AGB-loss emissions (tCO2e/period)",
-  "Enhanced-regrowth emissions (tCO2e/period)",
-  "AGB emissions avoided - Stage 2 (tCO2e/period)",
+  "Stock-loss component (Mg/period)",
+  "Stock-gain component (Mg/period)",
+  "Stock-loss component (tCO2e/period)",
+  "Stock-gain component (tCO2e/period)",
+  "Net biomass carbon benefit - Stage 2 (tCO2e/period)",
   "End-use emissions avoided (tCO2e/period)",
   "Total emissions avoided (tCO2e/period)",
   "Annual emissions avoided (MtCO2e yr^-1)",
@@ -672,11 +682,11 @@ metric_digits <- c(rep(0L, 9L), 3L, 0L)
 source_mc1_labels <- c(
   sprintf("BAU AGB %d (Mg)", period_end),
   sprintf("CCTS AGB %d (Mg)", period_end),
-  "Period avoided loss (Mg)",
-  "Period regrowth (Mg)",
-  "Period avoided loss (tCO2e)",
-  "Period regrowth (tCO2e)",
-  "AGB avoided - stage 2 (tCO2e)",
+  "Period stock-loss component (Mg)",
+  "Period stock-gain component (Mg)",
+  "Period stock-loss component (tCO2e)",
+  "Period stock-gain component (tCO2e)",
+  "Net biomass carbon - stage 2 (tCO2e)",
   "End-use avoided (tCO2e)",
   "Total avoided (tCO2e)",
   NA_character_,
@@ -827,11 +837,11 @@ country_metric_fields <- c(
 country_metric_labels <- c(
   bau_end_agb_mg = sprintf("BAU AGB %d", period_end),
   ics_end_agb_mg = sprintf("CCTS AGB %d", period_end),
-  avoided_agb_loss_mg = "Avoided AGB loss",
-  enhanced_agb_regrowth_mg = "Enhanced AGB regrowth",
-  avoided_agb_loss_tco2e = "Avoided AGB-loss emissions",
-  enhanced_agb_regrowth_tco2e = "Enhanced-regrowth emissions",
-  harvest_agb_avoided_tco2e = "Harvest / AGB emissions avoided",
+  avoided_agb_loss_mg = "Stock-loss component",
+  enhanced_agb_regrowth_mg = "Stock-gain component",
+  avoided_agb_loss_tco2e = "Stock-loss component",
+  enhanced_agb_regrowth_tco2e = "Stock-gain component",
+  harvest_agb_avoided_tco2e = "Net biomass carbon benefit",
   enduse_avoided_tco2e = "End-use emissions avoided",
   total_avoided_tco2e = "Total emissions avoided",
   annual_avoided_mtco2e_per_year = "Annual emissions avoided",
@@ -1105,7 +1115,7 @@ write_country_contribution_figure <- function(
   graphics::text(0.5, 0.64, subtitle, cex = 0.87, col = colours[["muted"]])
 
   legend_labels <- c(
-    "Avoided AGB loss", "Enhanced regrowth", "End-use adjustment", "Total mean"
+    "Stock-loss component", "Stock-gain component", "End-use adjustment", "Total mean"
   )
   legend_fill <- c(
     colours[["avoided_loss"]], colours[["regrowth"]], NA, NA
@@ -1247,7 +1257,7 @@ write_country_contribution_figure <- function(
   )
   graphics::mtext(
     paste0(
-      "Country values use spatial incidence. End-use arrows point from Harvest / AGB to Total; ",
+      "Country values use spatial incidence. End-use arrows point from Net biomass carbon to Total; ",
       "leftward arrows reduce avoided emissions."
     ),
     side = 1, outer = TRUE, line = 2.25, cex = 0.66, col = colours[["muted"]]
@@ -1263,9 +1273,9 @@ make_country_compact_table <- function(configuration) {
   rows <- rows[order(rows$country_id), , drop = FALSE]
   data.frame(
     Country = sprintf("%s (%s)", rows$country_name, rows$country_iso),
-    `Avoided loss` = as.numeric(rows$period_avoided_loss_tco2e) / 1e6,
-    Regrowth = as.numeric(rows$period_regrowth_tco2e) / 1e6,
-    `Harvest / AGB` = as.numeric(rows$agb_avoided_stage2_tco2e) / 1e6,
+    `Stock-loss component` = as.numeric(rows$period_avoided_loss_tco2e) / 1e6,
+    `Stock-gain component` = as.numeric(rows$period_regrowth_tco2e) / 1e6,
+    `Net biomass carbon` = as.numeric(rows$agb_avoided_stage2_tco2e) / 1e6,
     `End-use` = as.numeric(rows$enduse_avoided_tco2e) / 1e6,
     Total = as.numeric(rows$total_avoided_tco2e) / 1e6,
     Annual = as.numeric(rows$total_avoided_tco2e) / (1e6 * reporting_years),
@@ -1341,6 +1351,11 @@ for (configuration in CONFIGURATION_ORDER) {
 # the exact manuscript_outputs directory removed and rebuilt.
 prepare_output_dir(output_dir, source_dir, overwrite, uncertainty_adequate)
 write_csv_utf8(data.frame(
+  biomass_estimand = BIOMASS_ESTIMAND,
+  biomass_estimand_description = paste0(
+    "Net retained biomass carbon under prescribed LUC, split relative to the initial stock; ",
+    "not harvest-only NRB or process-attributed regrowth"
+  ),
   biomass_support_policy = "finite_initial_agb_reference_v1",
   agb_reference_md5 = biomass_reference_md5,
   biomass_support_description = "Finite original AGB reference; numeric zero retained",

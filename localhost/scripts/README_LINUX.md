@@ -1,5 +1,13 @@
 # MoFuSS v13 on Linux
 
+The woodfuel-only NRB attribution correction is implemented and tested in the
+Windows v14 graph, including fixed MODIS (LUC1) and annual Woodman (LUC3).
+The Linux launcher still selects the historical v13 Linux graph and has not
+been validated for the v14 balance contract. Its engine NRB/fNRB outputs retain
+legacy stock-difference accounting; do not treat them as corrected LUC
+attribution. The presence of a copied Windows v14 file does not change the
+Linux launcher's selected graph.
+
 The Linux model is `10_dyn_Sc17_webmofuss_ctrees_g_v13_linux.egoml`.
 It uses the normal Windows folder/file layout and scenario parameter CSVs.
 The original Windows model remains available alongside it. The shared V8 R

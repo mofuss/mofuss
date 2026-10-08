@@ -69,9 +69,9 @@ METRIC_FIELDS <- c(
   total = "total_avoided_tco2e"
 )
 METRIC_LABELS <- c(
-  avoided_loss = "Avoided AGB loss",
-  regrowth = "Enhanced regrowth",
-  harvest = "Harvest / AGB",
+  avoided_loss = "Stock-loss component",
+  regrowth = "Stock-gain component",
+  harvest = "Net biomass carbon",
   enduse = "End-use",
   total = "Total"
 )
@@ -353,6 +353,11 @@ manifest <- do.call(rbind, lapply(seq_along(candidate_roots), function(i) {
       any(preview$biomass_support_policy != "finite_initial_agb_reference_v1")) {
     stopf("Outdated or inconsistent biomass support policy in %s; rerun Stages 2-4.", root)
   }
+  require_columns(preview, "biomass_estimand", "Stage 3 biomass estimand; rerun Stages 2-4")
+  if (anyNA(preview$biomass_estimand) ||
+      any(preview$biomass_estimand != "net_retained_stock_under_prescribed_luc_v1")) {
+    stopf("Incompatible biomass estimand in %s; rerun Stages 2-4.", root)
+  }
   reference_md5 <- unique(as.character(preview$agb_reference_md5))
   if (length(reference_md5) != 1L || anyNA(reference_md5) ||
       !grepl("^[0-9a-fA-F]{32}$", reference_md5)) {
@@ -398,6 +403,7 @@ manifest <- do.call(rbind, lapply(seq_along(candidate_roots), function(i) {
     analysis_root = root,
     per_run_path = per_run_path,
     biomass_support_policy = "finite_initial_agb_reference_v1",
+    biomass_estimand = "net_retained_stock_under_prescribed_luc_v1",
     agb_reference_md5 = reference_md5,
     discovery_source = "auto_discovered_country_per_run",
     stringsAsFactors = FALSE
@@ -426,7 +432,7 @@ if (any(nonfinal)) {
 required_per_run_columns <- c(
   "country_iso", "country_name", "regrowth_mode", "run_id",
   "period_start_year", "period_end_year", unname(METRIC_FIELDS),
-  "all_invariants_ok", "biomass_support_policy", "agb_reference_md5"
+  "all_invariants_ok", "biomass_support_policy", "agb_reference_md5", "biomass_estimand"
 )
 
 analysis_data <- vector("list", nrow(manifest))
@@ -442,6 +448,9 @@ for (i in seq_len(nrow(manifest))) {
       any(x$biomass_support_policy != row$biomass_support_policy[[1L]]) ||
       any(x$agb_reference_md5 != row$agb_reference_md5[[1L]])) {
     stopf("Biomass reporting support changed during preflight: %s", per_run_path)
+  }
+  if (anyNA(x$biomass_estimand) || any(x$biomass_estimand != row$biomass_estimand[[1L]])) {
+    stopf("Biomass estimand changed during preflight: %s", per_run_path)
   }
   if (!all(as.logical(x$all_invariants_ok))) {
     stopf("%s contains a failed Stage 3 invariant.", row$analysis_id[[1L]])
@@ -535,6 +544,11 @@ for (i in seq_len(nrow(manifest))) {
     )
     require_columns(support, c("biomass_support_policy", "agb_reference_md5"),
                     "Stage 4 biomass support policy")
+    require_columns(support, "biomass_estimand", "Stage 4 biomass estimand; rerun Stage 4")
+    if (anyNA(support$biomass_estimand) ||
+        any(support$biomass_estimand != row$biomass_estimand[[1L]])) {
+      stopf("Stage 4 biomass estimand differs from Stage 3; rerun Stage 4.")
+    }
     if (nrow(support) != 1L || anyNA(support$biomass_support_policy) ||
         anyNA(support$agb_reference_md5) ||
         support$biomass_support_policy != row$biomass_support_policy[[1L]] ||
@@ -551,6 +565,7 @@ for (i in seq_len(nrow(manifest))) {
     per_run_source_kind = source_kind,
     per_run_path = per_run_path,
     biomass_support_policy = row$biomass_support_policy[[1L]],
+    biomass_estimand = row$biomass_estimand[[1L]],
     agb_reference_md5 = row$agb_reference_md5[[1L]],
     country_count = nrow(countries),
     run_count = length(reference_run_ids),
@@ -839,7 +854,7 @@ if (!all(mapply(
   global_harvest_check$mean,
   MoreArgs = list(tolerance = 1e-8)
 ))) {
-  stopf("Global mean Harvest / AGB does not reconcile to its components.")
+  stopf("Global mean Net biomass carbon does not reconcile to its components.")
 }
 
 subregion_coverage <- stats::aggregate(
@@ -929,6 +944,10 @@ validation_paths <- c(
   )
 )
 
+country_draws$biomass_estimand <- country_summary$biomass_estimand <-
+  subregion_draws$biomass_estimand <- subregion_summary$biomass_estimand <-
+  global_draws$biomass_estimand <- global_summary$biomass_estimand <-
+  "net_retained_stock_under_prescribed_luc_v1"
 readr::write_csv(country_draws, table_paths[["country_per_run"]], na = "")
 readr::write_csv(country_summary, table_paths[["country_summary"]], na = "")
 readr::write_csv(subregion_draws, table_paths[["subregion_per_draw"]], na = "")
@@ -1211,7 +1230,7 @@ write_country_contribution_figure <- function(
   graphics::legend(
     "bottom", horiz = TRUE, bty = "n", xpd = NA, cex = 0.76,
     legend = c(
-      "Avoided AGB loss", "Enhanced regrowth", "End-use adjustment",
+      "Stock-loss component", "Stock-gain component", "End-use adjustment",
       "Total mean", "Empirical 95% interval"
     ),
     fill = c(colours[["avoided_loss"]], colours[["regrowth"]], NA, NA, NA),
@@ -1442,7 +1461,7 @@ write_global_contribution_figure <- function(
   graphics::legend(
     "bottom", horiz = TRUE, bty = "n", xpd = NA, cex = 0.76,
     legend = c(
-      "Avoided AGB loss", "Enhanced regrowth", "End-use adjustment",
+      "Stock-loss component", "Stock-gain component", "End-use adjustment",
       "Total mean", "Empirical 95% interval"
     ),
     fill = c(colours[["avoided_loss"]], colours[["regrowth"]], NA, NA, NA),
@@ -1521,7 +1540,7 @@ write_global_contribution_figure <- function(
     side = 1, outer = TRUE, line = 0.65, cex = 0.86, col = colours[["text"]]
   )
   graphics::mtext(
-    "End-use arrows point from Harvest / AGB to Total; leftward arrows reduce avoided emissions.",
+    "End-use arrows point from Net biomass carbon to Total; leftward arrows reduce avoided emissions.",
     side = 1, outer = TRUE, line = 2.0, cex = 0.65, col = colours[["muted"]]
   )
   invisible(path)

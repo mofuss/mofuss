@@ -29,6 +29,7 @@ write_analysis <- function(id, totals) {
         enduse_avoided_tco2e = total / 4,
         total_avoided_tco2e = total, all_invariants_ok = TRUE,
         biomass_support_policy = "finite_initial_agb_reference_v1",
+        biomass_estimand = "net_retained_stock_under_prescribed_luc_v1",
         agb_reference_md5 = paste(rep("a", 32L), collapse = "")
       )
     }))
@@ -121,6 +122,15 @@ expect_failure(c("--mode=strict", paste0("--regionalization-file=", catalog_path
 
 # Reject repeated rows and overlapping analysis roots rather than double count.
 singleton <- read.csv(singleton_path)
+# Reject an NRB-based or unknown estimand before global aggregation. The same
+# policy must describe both retained stock and its algebraic decomposition.
+wrong_estimand <- singleton
+wrong_estimand$biomass_estimand <- "harvest_only_nrb"
+write.csv(wrong_estimand, singleton_path, row.names = FALSE)
+expect_failure(character(), "biomass estimand")
+wrong_estimand$biomass_estimand <- NULL
+write.csv(wrong_estimand, singleton_path, row.names = FALSE)
+expect_failure(character(), "biomass_estimand")
 # Prevent aggregation of pre-mask results with the new reporting footprint.
 old_policy <- singleton
 old_policy$biomass_support_policy <- "unrestricted_endpoint_support"

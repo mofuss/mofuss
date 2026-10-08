@@ -36,6 +36,20 @@ library(sf)
 library(tiff)
 library(tidyverse)
 
+# The engine exports a signed woodfuel-only depletion balance. Use the same
+# attribution helper as emissions postprocessing rather than total AGB loss.
+helper_dirs <- unique(c(
+  dirname(sub("^--file=", "", grep("^--file=", commandArgs(), value = TRUE))),
+  unlist(lapply(sys.frames(), function(frame) {
+    value <- get0("ofile", envir = frame, inherits = FALSE)
+    if (is.character(value) && length(value) == 1L) dirname(value) else character()
+  })), getwd(), file.path(getwd(), "localhost", "scripts")
+))
+helper_paths <- file.path(helper_dirs, "helpers", "woodfuel_nrb_attribution.R")
+helper_paths <- helper_paths[file.exists(helper_paths)]
+if (!length(helper_paths)) stop("Missing helpers/woodfuel_nrb_attribution.R; redeploy the complete script bundle.")
+source(helper_paths[[1L]])
+
 # Read in the arguments listed at the command line in Dinamica EGO'S "Run external process" ####
 args=(commandArgs(TRUE))
 
@@ -237,6 +251,17 @@ if (length(missing_run_files)) {
     " expected Dinamica raster(s). First missing: ", missing_run_files[[1]]
   )
 }
+
+# Do not silently reuse total-stock accounting for completed annual-LUC runs.
+# A complete ledger family proves these outputs came from the corrected engine.
+luc_value <- unique(country_parameters$ParCHR[country_parameters$Var == "LUCmap_v"])
+luc_mode <- if (length(luc_value)) suppressWarnings(as.integer(luc_value)) else NULL
+nrb_contexts <- lapply(seq_len(MC), function(j) {
+  mofuss_nrb_context(getwd(), luc_mode = luc_mode,
+                    expected_steps = STdyn + 1L, mc = j)
+})
+luc_mode <- unique(vapply(nrb_contexts, function(x) x$luc_mode, integer(1)))
+if (length(luc_mode) != 1L) stop("Conflicting LUC modes across Monte Carlo runs.")
 
 if (DryRun == 1L) {
   cat(
@@ -551,15 +576,12 @@ if(runagbmap == 1){
   colors <- color_pal(100)  # Create 100 intermediate colors
   
   start_agb_path <- file.path(
-    "debugging_1", paste0("Growth_less_harv", code_text(analysis_start_code), ".tif")
-  )
-  nrb_baseline_path <- file.path(
     "debugging_1", paste0("Growth", code_text(analysis_start_code), ".tif")
   )
   end_agb_path <- file.path(
     "debugging_1", paste0("Growth_less_harv", code_text(end_code), ".tif")
   )
-  required_map_inputs <- c(start_agb_path, nrb_baseline_path, end_agb_path)
+  required_map_inputs <- c(start_agb_path, end_agb_path)
   missing_map_inputs <- required_map_inputs[!file.exists(required_map_inputs)]
   if (length(missing_map_inputs)) {
     stop("Missing required static-map raster: ", missing_map_inputs[[1]])
@@ -571,13 +593,13 @@ if(runagbmap == 1){
   MaxAGB_1stMC <- ((max(MaxAGB_1stMC_bind[1, ], na.rm=TRUE))/Areaadj)
   
   bal_t0 <- raster(start_agb_path)
-  plot((bal_t0/Areaadj), main=paste0("Aboveground Biomass ",analysis_start_year),cex.main=mainsize, useRaster=TRUE,
+  plot((bal_t0/Areaadj), main=paste0("AGB: before ", analysis_start_year, " harvest"),cex.main=mainsize, useRaster=TRUE,
        legend=TRUE, legend.width=legwidth, legend.shrink=1,cex.axis=axissize,
        legend.args=list(text=expression("t ha"^-1*""),side=4, font=2, line=barline, cex=labelsize),zlim=c(0,MaxAGB_1stMC))
   plot(extent_analysis, border="red", col="transparent", add=TRUE, lwd = redline_wd)
   
   bal_tn <- raster(end_agb_path)
-  plot((bal_tn/Areaadj), main=paste0("Aboveground Biomass ",(IT+as.numeric(Last_STdyn))),cex.main=mainsize, useRaster=TRUE,
+  plot((bal_tn/Areaadj), main=paste0("AGB: after ", (IT + as.numeric(Last_STdyn)), " harvest"),cex.main=mainsize, useRaster=TRUE,
        legend=TRUE, legend.width=legwidth, legend.shrink=1,cex.axis=axissize,
        legend.args=list(text=expression("t ha"^-1*""),
                         side=4, font=2, line=barline, cex=labelsize),zlim=c(0,MaxAGB_1stMC),
@@ -585,12 +607,9 @@ if(runagbmap == 1){
   )
   plot(extent_analysis, border="red", col="transparent", add=TRUE, lwd = redline_wd)
   
-  # NRB uses standing biomass immediately before the first included harvest,
-  # matching stage-1's v3-compatible 2010-to-end definition.
-  nrb_baseline <- raster(nrb_baseline_path)
-  agbdiff <- bal_tn - nrb_baseline
-  NRBneg <- calc(agbdiff, fun = function(x) { ifelse(x >= 0, 0, x) })
-  NRB <- NRBneg*-1
+  # Same period and attribution used by administrative tables and emissions.
+  map_period <- mofuss_period_nrb(nrb_contexts[[1L]], analysis_start_code, end_code)
+  NRB <- map_period$nrb
   NRBmax<-(cellStats(NRB,max)/Areaadj)
   if(NRBmax == 0){
     plot((NRB/Areaadj), main=paste0("NRB: period ",analysis_start_year," to ",(IT+as.numeric(Last_STdyn))),
@@ -612,28 +631,9 @@ if(runagbmap == 1){
     
   }
   
-  # Define the range of your raster files
-  file_numbers <- analysis_start_code:end_code
-  # Create a vector of file paths
-  file_paths <- file.path(
-    "debugging_1", paste0("Harvest_tot", code_text(file_numbers), ".tif")
-  )
-  missing_harvest_inputs <- file_paths[!file.exists(file_paths)]
-  if (length(missing_harvest_inputs)) {
-    stop("Missing required harvest raster: ", missing_harvest_inputs[[1]])
-  }
-  # Load all rasters into a stack
-  raster_stack <- stack(file_paths)
-  # Sum all the rasters in the stack
-  summed_harvest <- sum(raster_stack)
-  fNRB <- overlay(
-    NRB,
-    summed_harvest,
-    fun = function(nrb, harvest) {
-      ifelse(is.na(nrb) | is.na(harvest) | harvest <= 0, NA_real_, 100 * nrb / harvest)
-    }
-  )
-  
+  summed_harvest <- map_period$harvest
+  fNRB <- map_period$fnrb
+
   # fNRB<-(raster("Temp//2_fNRB01.tif"))*100 # fNRB for the entire simulation period for 1st MC run
   plot(fNRB, main=paste0("fNRB: period ",analysis_start_year," to ",(IT+as.numeric(Last_STdyn))),
        col=colors,  # Apply the custom color palette
@@ -1514,10 +1514,101 @@ round_mc_result_columns <- function(data, digits) {
     )
 }
 
+# Existing column keys retain their decade-boundary convention. The actual
+# included years are explicit in nrb_periods.csv and displayed in the PDF:
+# internal bins are [start, end), while a bin ending at the configured final
+# year includes that last simulated harvest. NRB and its denominator always use
+# exactly the same steps. No simulated terminal year is silently discarded.
+mofuss_reporting_periods <- function(start_year, end_year) {
+  if (start_year != 2000L || !end_year %in% c(2020L, 2030L, 2035L, 2040L, 2050L)) {
+    stop("The current period-table schema requires start_year=2000 and a supported end_year.")
+  }
+  bounds <- rbind(c(2010L, end_year), c(2010L, 2020L))
+  if (end_year > 2020L) bounds <- rbind(bounds, c(2020L, end_year))
+  if (end_year >= 2040L) bounds <- rbind(bounds, c(2020L, 2030L), c(2030L, 2040L))
+  if (end_year == 2050L) bounds <- rbind(bounds, c(2040L, 2050L))
+  bounds <- unique(bounds)
+  first <- bounds[, 1L]
+  last <- bounds[, 2L] - as.integer(bounds[, 2L] != end_year)
+  data.frame(period_key = paste(bounds[, 1L], bounds[, 2L], sep = "_"),
+             first_year = first, last_year = last,
+             first_step = first - start_year + 1L,
+             last_step = last - start_year + 1L,
+             baseline = "preharvest_first_year", endpoint = "postharvest_last_year",
+             stringsAsFactors = FALSE)
+}
+
+mofuss_reporting_zone_table <- function(context, zones, periods) {
+  zonal_sum <- function(layer) {
+    result <- as.data.frame(raster::zonal(layer, zones, "sum", na.rm = TRUE))
+    # sum(..., na.rm=TRUE) returns zero for wholly unsupported zones. Keep
+    # those missing; a real zero means at least one valid simulated cell.
+    valid <- raster::calc(layer, function(x) as.integer(is.finite(x)))
+    counts <- as.data.frame(raster::zonal(valid, zones, "sum", na.rm = TRUE))
+    result[, 2L][counts[match(result[, 1L], counts[, 1L]), 2L] == 0] <- NA_real_
+    result
+  }
+  tables <- lapply(seq_len(nrow(periods)), function(k) {
+    period <- mofuss_period_nrb(context, periods$first_step[k], periods$last_step[k])
+    nrb <- zonal_sum(period$nrb)
+    harvest <- zonal_sum(period$harvest)
+    names(nrb) <- c("zone", "nrb")
+    names(harvest) <- c("zone", "harvest")
+    result <- merge(nrb, harvest, by = "zone", all = TRUE, sort = TRUE)
+    result$fnrb <- ifelse(is.finite(result$harvest) & result$harvest > 0,
+                         100 * result$nrb / result$harvest, NA_real_)
+    names(result)[-1L] <- paste0(c("NRB_", "Harv_", "fNRB_"), periods$period_key[k])
+    result
+  })
+  Reduce(function(x, y) merge(x, y, by = "zone", all = TRUE, sort = TRUE), tables)
+}
+
 if (fNRB_partition_tables == 1) {
   
   dir.create("Out/webmofuss_results/") 
   
+  nrb_periods <- mofuss_reporting_periods(IT, end_year)
+  # Certification is published only after every table/vector was rebuilt.
+  # Otherwise a failed rerun could certify stale historical output tables.
+  for (metadata_dir in c("LULCC/TempTables", "Out/webmofuss_results")) {
+    metadata_path <- file.path(metadata_dir, "nrb_attribution_metadata.csv")
+    if (file.exists(metadata_path) && !file.remove(metadata_path)) {
+      stop("Cannot invalidate prior NRB reporting metadata: ", metadata_path)
+    }
+  }
+
+  country_parameters %>%
+    dplyr::filter(Var == "ext_analysis_ID") %>%
+    pull(ParCHR) -> ext_analysis_ID
+
+  country_parameters %>%
+    dplyr::filter(Var == "ext_analysis_NAME") %>%
+    pull(ParCHR) -> ext_analysis_NAME
+
+  country_parameters %>%
+    dplyr::filter(Var == "ext_analysis_ID_1") %>%
+    pull(ParCHR) -> ext_analysis_ID_1
+
+  country_parameters %>%
+    dplyr::filter(Var == "ext_analysis_NAME_1") %>%
+    pull(ParCHR) -> ext_analysis_NAME_1
+
+  country_parameters %>%
+    dplyr::filter(Var == "ext_analysis_ID_2") %>%
+    pull(ParCHR) -> ext_analysis_ID_2
+
+  country_parameters %>%
+    dplyr::filter(Var == "ext_analysis_NAME_2") %>%
+    pull(ParCHR) -> ext_analysis_NAME_2
+
+  country_parameters %>%
+    dplyr::filter(Var == "ecoregions_ID") %>%
+    pull(ParCHR) -> ecoregions_ID
+
+  country_parameters %>%
+    dplyr::filter(Var == "ecoregions_NAME") %>%
+    pull(ParCHR) -> ecoregions_NAME
+
   # fNRB partition tables and vectors ####
   if (aoi_poly == 1) {
     admin <- raster("LULCC/TempRaster//admin_c.tif")
@@ -1539,38 +1630,6 @@ if (fNRB_partition_tables == 1) {
     userarea_gpkg2 <- st_read("LULCC/TempVector/userarea2.gpkg")
     ecoregions_gpkg <- st_read("LULCC/DownloadedDatasets/SourceDataGlobal/InVector/ecoregions.gpkg") # Why not TempVector?
 
-    country_parameters %>%
-      dplyr::filter(Var == "ext_analysis_ID") %>%
-      pull(ParCHR) -> ext_analysis_ID
-    
-    country_parameters %>%
-      dplyr::filter(Var == "ext_analysis_NAME") %>%
-      pull(ParCHR) -> ext_analysis_NAME
-    
-    country_parameters %>%
-      dplyr::filter(Var == "ext_analysis_ID_1") %>%
-      pull(ParCHR) -> ext_analysis_ID_1
-    
-    country_parameters %>%
-      dplyr::filter(Var == "ext_analysis_NAME_1") %>%
-      pull(ParCHR) -> ext_analysis_NAME_1
-    
-    country_parameters %>%
-      dplyr::filter(Var == "ext_analysis_ID_2") %>%
-      pull(ParCHR) -> ext_analysis_ID_2
-    
-    country_parameters %>%
-      dplyr::filter(Var == "ext_analysis_NAME_2") %>%
-      pull(ParCHR) -> ext_analysis_NAME_2
-    
-    country_parameters %>%
-      dplyr::filter(Var == "ecoregions_ID") %>%
-      pull(ParCHR) -> ecoregions_ID
-    
-    country_parameters %>%
-      dplyr::filter(Var == "ecoregions_NAME") %>%
-      pull(ParCHR) -> ecoregions_NAME
-    
     adminlevel <- c(admin, admin1, admin2, ecoregions)
     admin_name <- c("adm0", "adm1", "adm2", "ecoregions")
   }
@@ -1591,564 +1650,14 @@ if (fNRB_partition_tables == 1) {
       #j = 1
       print(j)
       
-      # NRB 
-      listGlH <- list.files(paste0("debugging_",j), pattern = "^Growth_less_harv.+[.]tif$",ignore.case=F)
-      stackGlH <- stack(paste0(paste0("debugging_",j,"/"),listGlH))
-      nlay <- nlayers(stackGlH)
-      
-      listGx <- list.files(paste0("debugging_",j), pattern = "^Growth.+[.]tif$",ignore.case=F)
-      listG <- listGx[ !grepl("_less_harv", listGx) ]
-      stackG <- stack(paste0(paste0("debugging_",j,"/"),listG))
-      nlayers(stackG) #for cross checking pattern
-      
-      nlay_yr <- nlay+1999
-      nrb_name_per <- paste("nrb_sum_bin2010", nlay_yr, sep = "_")
-      calculated_nrb_per <- stackG[[11]] - stackGlH[[nlay-1]] # Bin will start in 2010 and end in the final year
-      calculated_nrb_per[calculated_nrb_per <= 0] = NA 
-      calculated_sum_nrb_per <- as.data.frame(zonal(calculated_nrb_per, admm, 'sum')) %>%
-        as.data.table() %>%
-        setnames(.,"sum", paste0("NRB_2010_", nlay_yr))
-      assign(nrb_name_per, calculated_sum_nrb_per)
-      
-      if (STdyn != 20){
-        nrb_name <- paste("nrb_sum_bin2020", nlay_yr, sep = "_")
-        calculated_nrb <- stackG[[21]] - stackGlH[[nlay-1]] # Bin will start in 2020 and end in the final year
-        calculated_nrb[calculated_nrb <= 0] = NA 
-        calculated_sum_nrb <- as.data.frame(zonal(calculated_nrb, admm, 'sum')) %>%
-          as.data.table() %>%
-          setnames(.,"sum", paste0("NRB_2020_",nlay_yr)) %>%
-          dplyr::select(!zone)
-        assign(nrb_name, calculated_sum_nrb)
+      NRBzon_fr <- mofuss_reporting_zone_table(nrb_contexts[[j]], admm, nrb_periods)
+      NRBzon_fr$MC <- j
+      NRBzon_frlist[[j]] <- NRBzon_fr
+      if (j == 1L) {
+        NRBzon_frlist1MC <- NRBzon_fr %>%
+          rename_with(.fn = ~ paste0(.x, "_1MC"))
       }
-      
-      if (STdyn == 20){
-        nrb_bin2010_2020 <- stackG[[11]] - stackGlH[[nlay-1]] # Bin will be 2010-2020
-        nrb_bin2010_2020[nrb_bin2010_2020 <= 0] = NA 
-        nrb_sum_bin2010_2020 <- as.data.frame(zonal(nrb_bin2010_2020, admm, 'sum')) %>%
-          as.data.table() %>%
-          setnames(.,"sum", "NRB_2010_2020") #%>%
-        #dplyr::select(!zone)
-      }
-      
-      if (STdyn == 30){
-        nrb_bin2010_2020 <- stackG[[11]] - stackGlH[[20]] # Bin will be 2010-2020
-        nrb_bin2010_2020[nrb_bin2010_2020 <= 0] = NA 
-        nrb_sum_bin2010_2020 <- as.data.frame(zonal(nrb_bin2010_2020, admm, 'sum')) %>%
-          as.data.table() %>%
-          setnames(.,"sum", "NRB_2010_2020") %>%
-          dplyr::select(!zone)
-        
-        nrb_bin2020_2030 <- stackG[[21]] - stackGlH[[nlay-1]] # Bin will be 2020-2030
-        nrb_bin2020_2030[nrb_bin2020_2030 <= 0] = NA 
-        nrb_sum_bin2020_2030 <- as.data.frame(zonal(nrb_bin2020_2030, admm, 'sum')) %>%
-          as.data.table() %>%
-          setnames(.,"sum", "NRB_2020_2030") %>%
-          dplyr::select(!zone)
-      }
-      
-      if (STdyn == 35){
-        nrb_bin2010_2020 <- stackG[[11]] - stackGlH[[20]] # Bin will be 2010-2020
-        nrb_bin2010_2020[nrb_bin2010_2020 <= 0] = NA 
-        nrb_sum_bin2010_2020 <- as.data.frame(zonal(nrb_bin2010_2020, admm, 'sum')) %>%
-          as.data.table() %>%
-          setnames(.,"sum", "NRB_2010_2020") %>%
-          dplyr::select(!zone)
-        
-        nrb_bin2020_2035 <- stackG[[21]] - stackGlH[[nlay-1]] # Bin will be 2020-2035
-        nrb_bin2020_2035[nrb_bin2020_2035 <= 0] = NA 
-        nrb_sum_bin2020_2035 <- as.data.frame(zonal(nrb_bin2020_2035, admm, 'sum')) %>%
-          as.data.table() %>%
-          setnames(.,"sum", "NRB_2020_2035") %>%
-          dplyr::select(!zone)
-      }
-      
-      if (STdyn == 40){ 
-        nrb_bin2010_2020 <- stackG[[11]] - stackGlH[[20]] # Bin will be 2010-2020
-        nrb_bin2010_2020[nrb_bin2010_2020 <= 0] = NA 
-        nrb_sum_bin2010_2020 <- as.data.frame(zonal(nrb_bin2010_2020, admm, 'sum')) %>%
-          as.data.table() %>%
-          setnames(.,"sum", "NRB_2010_2020") %>%
-          dplyr::select(!zone)
-        
-        nrb_bin2020_2030 <- stackG[[21]] - stackGlH[[30]] # Bin will be 2020-2030
-        nrb_bin2020_2030[nrb_bin2020_2030 <= 0] = NA 
-        nrb_sum_bin2020_2030 <- as.data.frame(zonal(nrb_bin2020_2030, admm, 'sum')) %>%
-          as.data.table() %>%
-          setnames(.,"sum", "NRB_2020_2030") %>%
-          dplyr::select(!zone)
-        
-        nrb_bin2030_2040 <- stackG[[31]] - stackGlH[[nlay-1]] # Bin will be 2030-2040
-        nrb_bin2030_2040[nrb_bin2030_2040 <= 0] = NA 
-        nrb_sum_bin2030_2040 <- as.data.frame(zonal(nrb_bin2030_2040, admm, 'sum')) %>%
-          as.data.table() %>%
-          setnames(.,"sum", "NRB_2030_2040") %>%
-          dplyr::select(!zone)
-        
-        nrb_bin2020_2040 <- stackG[[21]] - stackGlH[[nlay-1]] # Bin will be 2020-2040
-        nrb_bin2020_2040[nrb_bin2020_2040 <= 0] = NA 
-        nrb_sum_bin2020_2040 <- as.data.frame(zonal(nrb_bin2020_2040, admm, 'sum')) %>%
-          as.data.table() %>%
-          setnames(.,"sum", "NRB_2020_2040") %>%
-          dplyr::select(!zone)
-      } 
-      
-      if (STdyn == 50){ # STdyn = 40 # 2050
-        nrb_bin2010_2020 <- stackG[[11]] - stackGlH[[20]] # Bin will be 2010-2020
-        nrb_bin2010_2020[nrb_bin2010_2020 <= 0] = NA 
-        nrb_sum_bin2010_2020 <- as.data.frame(zonal(nrb_bin2010_2020, admm, 'sum')) %>%
-          as.data.table() %>%
-          setnames(.,"sum", "NRB_2010_2020") %>%
-          dplyr::select(!zone)
-        
-        nrb_bin2020_2030 <- stackG[[21]] - stackGlH[[30]] # Bin will be 2020-2030
-        nrb_bin2020_2030[nrb_bin2020_2030 <= 0] = NA 
-        nrb_sum_bin2020_2030 <- as.data.frame(zonal(nrb_bin2020_2030, admm, 'sum')) %>%
-          as.data.table() %>%
-          setnames(.,"sum", "NRB_2020_2030") %>%
-          dplyr::select(!zone)
-        
-        nrb_bin2030_2040 <- stackG[[31]] - stackGlH[[40]] # Bin will be 2030-2040
-        nrb_bin2030_2040[nrb_bin2030_2040 <= 0] = NA 
-        nrb_sum_bin2030_2040 <- as.data.frame(zonal(nrb_bin2030_2040, admm, 'sum')) %>%
-          as.data.table() %>%
-          setnames(.,"sum", "NRB_2030_2040") %>%
-          dplyr::select(!zone)
-        
-        nrb_bin2040_2050 <- stackG[[41]] - stackGlH[[nlay-1]] # Bin will be 2040-2050
-        nrb_bin2040_2050[nrb_bin2040_2050 <= 0] = NA 
-        nrb_sum_bin2040_2050 <- as.data.frame(zonal(nrb_bin2040_2050, admm, 'sum')) %>%
-          as.data.table() %>%
-          setnames(.,"sum", "NRB_2040_2050") %>%
-          dplyr::select(!zone)
-        
-        nrb_bin2020_2050 <- stackG[[21]] - stackGlH[[nlay-1]] # Bin will be 2020-2050
-        nrb_bin2020_2050[nrb_bin2020_2050 <= 0] = NA 
-        nrb_sum_bin2020_2050 <- as.data.frame(zonal(nrb_bin2020_2050, admm, 'sum')) %>%
-          as.data.table() %>%
-          setnames(.,"sum", "NRB_2020_2050") %>%
-          dplyr::select(!zone)
-      }
-      
-      # Define all potential variable names
-      variable_nrb <- c("nrb_sum_bin2010_2050", # Do not use in summary tables
-                        "nrb_sum_bin2010_2040", # Do not use in summary tables
-                        "nrb_sum_bin2010_2035", # Do not use in summary tables
-                        "nrb_sum_bin2010_2030", # Do not use in summary tables
-                        "nrb_sum_bin2010_2020", # Do not use in summary tables
-                        "nrb_sum_bin2020_2030", # STdyn = 20 # 2030
-                        "nrb_sum_bin2020_2035", # STdyn = 25 # 2035
-                        "nrb_sum_bin2020_2040", # STdyn = 30 # 2040 + "nrb_sum_bin2020_2030",
-                        "nrb_sum_bin2020_2050", # STdyn = 40 # 2050 + "nrb_sum_bin2020_2030", + "nrb_sum_bin2030_2040"
-                        "nrb_sum_bin2030_2040", # STdyn = 30 # 2040 + "nrb_sum_bin2020_2030",
-                        "nrb_sum_bin2040_2050") # STdyn = 40 # 2050 + "nrb_sum_bin2020_2030", + "nrb_sum_bin2030_2040"
-      
-      # Use mget to try to get these variables from the global environment,
-      # specifying NA for any that don't exist
-      existing_nrb_x2 <- mget(variable_nrb, envir = .GlobalEnv, ifnotfound = list(NA))
-      
-      # Filter out the NAs from the list. Since each NA is actually a list element, we check for it differently
-      existing_nrb_x <- Filter(function(x) {
-        if (is.numeric(x) || is.character(x)) { # If the element is a vector or single value
-          return(!is.na(x))
-        } else if (is.data.frame(x) || is.list(x)) { # If the element is a data frame or list
-          # Check if any value in the data frame or list is not NA
-          return(any(!is.na(unlist(x))))
-        } else {
-          return(FALSE) # If the element is of a different type, exclude it
-        }
-      }, existing_nrb_x2)
-      
-      # Function to remove duplicates while preserving names
-      remove_nrb <- function(lst) {
-        unique_nrb <- list()  # Initialize an empty list for the unique elements
-        seen_nrbhashes <- character()  # Keep track of hashes for seen elements
-        
-        for (name in names(lst)) {
-          element <- lst[[name]]
-          # Serialize the element to a raw vector and generate a hash
-          element_nrbhash <- digest::digest(element, serialize = TRUE)
-          
-          if (!element_nrbhash %in% seen_nrbhashes) {
-            unique_nrb[[name]] <- element  # Add to unique list with the original name
-            seen_nrbhashes <- c(seen_nrbhashes, element_nrbhash)  # Mark this hash as seen
-          }
-        }
-        
-        return(unique_nrb)
-      }
-      
-      # Use the function
-      existing_nrb <- remove_nrb(existing_nrb_x)
-      
-      nrb_bind <- (bind_rows(existing_nrb))
-      # Function to remove NAs and shift non-NA values upwards
-      shift_up <- function(x) {
-        # Remove NAs and return the non-NA values
-        non_na_values <- x[!is.na(x)]
-        # Calculate the number of NAs to pad
-        na_pad <- rep(NA, length(x) - length(non_na_values))
-        # Combine non-NA values with NA padding
-        return(c(non_na_values, na_pad))
-      }
-      # Apply the function to each column
-      nrb_sum_fr_unfil <- as.data.frame(lapply(nrb_bind, shift_up))
-      nrb_sum_fr <- nrb_sum_fr_unfil[!is.na(nrb_sum_fr_unfil[[1]]), ]
-      nrb_sum_fr
-      
-      if (STdyn == 20) {
-        nrb_sum_fr <- nrb_sum_fr_unfil
-      }
-      
-      # Harvest
-      
-      listharvx_per <- list.files(paste0("debugging_",j), pattern = "^Harvest_tot.+[.]tif$",ignore.case=F)
-      listharv_per <- listharvx_per[ !grepl("_tot_nrb", listharvx_per) ]
-      #listharv_per <- listharv_per[!grepl("tot0[1-9]|tot10", listharv_per)] 
-      stackhar_per <- stack(paste0(paste0("debugging_",j,"/"),listharv_per[11:length(listharv_per)])) # Bin will start in 2010 and end in the final year
-      nlayers(stackhar_per)
-      
-      harv_name_per <- paste("harv_sum_bin2010", nlay_yr, sep = "_")
-      harvest_st_per <- stackApply(stackhar_per, indices=1, fun=sum)
-      # harv_mean <- stackApply(stackhar_mc1, indices=1, fun=mean)
-      harv_sum_per <- as.data.frame(zonal(harvest_st_per, admm, 'sum')) %>% # Bin will start in 2010 and end in the final year
-        as.data.table() %>%
-        setnames(.,"sum", paste0("Harv_2010_",nlay_yr))
-      assign(harv_name_per, harv_sum_per)
-      
-      harv_name <- paste("harv_sum_bin2020", nlay_yr, sep = "_")
-      listharv <- listharv_per[21:(nlay-1)]
-      stackharv <- stack(paste0(paste0("debugging_",j,"/"),listharv))
-      nlayers(stackharv)
-      
-      harvest_st <- stackApply(stackharv, indices=1, fun=sum)
-      # harv_mean <- stackApply(stackhar_mc1, indices=1, fun=mean)
-      harvest_sum_st <- as.data.frame(zonal(harvest_st, admm, 'sum')) %>%
-        as.data.table() %>%
-        setnames(.,"sum", paste0("Harv_2010_",nlay_yr)) %>%
-        dplyr::select(!zone)
-      assign(harv_name, harvest_sum_st)
-      
-      if (STdyn == 20){
-        listharv_bin2010_2020 <- listharv_per[11:(nlay-1)]
-        stackharv_bin2010_2020 <- stack(paste0(paste0("debugging_",j,"/"),listharv_bin2010_2020))
-        nlayers(stackharv_bin2010_2020)
-        
-        harvest_st_bin2010_2020 <- stackApply(stackharv_bin2010_2020, indices=1, fun=sum)
-        # harv_mean <- stackApply(stackhar_mc1, indices=1, fun=mean)
-        harv_sum_bin2010_2020 <- as.data.frame(zonal(harvest_st_bin2010_2020, admm, 'sum')) %>%
-          as.data.table() %>%
-          setnames(.,"sum", "Harv_2010_2020") #%>%
-        #dplyr::select(!zone)
-      }
-      
-      if (STdyn == 30){
-        listharv_bin2010_2020 <- listharv_per[11:20]
-        stackharv_bin2010_2020 <- stack(paste0(paste0("debugging_",j,"/"),listharv_bin2010_2020))
-        nlayers(stackharv_bin2010_2020)
-        
-        harvest_st_bin2010_2020 <- stackApply(stackharv_bin2010_2020, indices=1, fun=sum)
-        # harv_mean <- stackApply(stackhar_mc1, indices=1, fun=mean)
-        harv_sum_bin2010_2020 <- as.data.frame(zonal(harvest_st_bin2010_2020, admm, 'sum')) %>%
-          as.data.table() %>%
-          setnames(.,"sum", "Harv_2010_2020") %>%
-          dplyr::select(!zone)
-        
-        listharv_bin2020_2030 <- listharv_per[21:(nlay-1)]
-        stackharv_bin2020_2030 <- stack(paste0(paste0("debugging_",j,"/"),listharv_bin2020_2030))
-        nlayers(stackharv_bin2020_2030)
-        
-        harvest_st_bin2020_2030 <- stackApply(stackharv_bin2020_2030, indices=1, fun=sum)
-        # harv_mean <- stackApply(stackhar_mc1, indices=1, fun=mean)
-        harv_sum_bin2020_2030<- as.data.frame(zonal(harvest_st_bin2020_2030, admm, 'sum')) %>%
-          as.data.table() %>%
-          setnames(.,"sum", "Harv_2020_2030") %>%
-          dplyr::select(!zone)
-      }
-      
-      if (STdyn == 35){
-        listharv_bin2010_2020 <- listharv_per[11:20]
-        stackharv_bin2010_2020 <- stack(paste0(paste0("debugging_",j,"/"),listharv_bin2010_2020))
-        nlayers(stackharv_bin2010_2020)
-        
-        harvest_st_bin2010_2020 <- stackApply(stackharv_bin2010_2020, indices=1, fun=sum)
-        # harv_mean <- stackApply(stackhar_mc1, indices=1, fun=mean)
-        harv_sum_bin2010_2020 <- as.data.frame(zonal(harvest_st_bin2010_2020, admm, 'sum')) %>%
-          as.data.table() %>%
-          setnames(.,"sum", "Harv_2010_2020") %>%
-          dplyr::select(!zone)
-        
-        listharv_bin2020_2035 <- listharv_per[21:(nlay-1)]
-        stackharv_bin2020_2035 <- stack(paste0(paste0("debugging_",j,"/"),listharv_bin2020_2035))
-        nlayers(stackharv_bin2020_2035)
-        
-        harvest_st_bin2020_2035 <- stackApply(stackharv_bin2020_2035, indices=1, fun=sum)
-        # harv_mean <- stackApply(stackhar_mc1, indices=1, fun=mean)
-        harv_sum_bin2020_2035<- as.data.frame(zonal(harvest_st_bin2020_2035, admm, 'sum')) %>%
-          as.data.table() %>%
-          setnames(.,"sum", "Harv_2020_2035") %>%
-          dplyr::select(!zone)
-      }
-      
-      if (STdyn == 40){
-        listharv_bin2010_2020 <- listharv_per[11:20]
-        stackharv_bin2010_2020 <- stack(paste0(paste0("debugging_",j,"/"),listharv_bin2010_2020))
-        nlayers(stackharv_bin2010_2020)
-        
-        harvest_st_bin2010_2020 <- stackApply(stackharv_bin2010_2020, indices=1, fun=sum)
-        # harv_mean <- stackApply(stackhar_mc1, indices=1, fun=mean)
-        harv_sum_bin2010_2020 <- as.data.frame(zonal(harvest_st_bin2010_2020, admm, 'sum')) %>%
-          as.data.table() %>%
-          setnames(.,"sum", "Harv_2010_2020") %>%
-          dplyr::select(!zone)
-        
-        listharv_bin2020_2030 <- listharv_per[21:30]
-        stackharv_bin2020_2030 <- stack(paste0(paste0("debugging_",j,"/"),listharv_bin2020_2030))
-        nlayers(stackharv_bin2020_2030)
-        
-        harvest_st_bin2020_2030 <- stackApply(stackharv_bin2020_2030, indices=1, fun=sum)
-        # harv_mean <- stackApply(stackhar_mc1, indices=1, fun=mean)
-        harv_sum_bin2020_2030<- as.data.frame(zonal(harvest_st_bin2020_2030, admm, 'sum')) %>%
-          as.data.table() %>%
-          setnames(.,"sum", "Harv_2020_2030") %>%
-          dplyr::select(!zone)
-        
-        listharv_bin2030_2040 <- listharv_per[31:(nlay-1)]
-        stackharv_bin2030_2040 <- stack(paste0(paste0("debugging_",j,"/"),listharv_bin2030_2040))
-        nlayers(stackharv_bin2030_2040)
-        
-        harvest_st_bin2030_2040 <- stackApply(stackharv_bin2030_2040, indices=1, fun=sum)
-        # harv_mean <- stackApply(stackhar_mc1, indices=1, fun=mean)
-        harv_sum_bin2030_2040 <- as.data.frame(zonal(harvest_st_bin2030_2040, admm, 'sum')) %>%
-          as.data.table() %>% 
-          setnames(.,"sum", "Harv_2030_2040") %>%
-          dplyr::select(!zone)
-        
-        listharv_bin2020_2040 <- listharv_per[21:(nlay-1)]
-        stackharv_bin2020_2040 <- stack(paste0(paste0("debugging_",j,"/"),listharv_bin2020_2040))
-        nlayers(stackharv_bin2020_2040)
-        
-        harvest_st_bin2020_2040 <- stackApply(stackharv_bin2020_2040, indices=1, fun=sum)
-        # harv_mean <- stackApply(stackhar_mc1, indices=1, fun=mean)
-        harv_sum_bin2020_2040<- as.data.frame(zonal(harvest_st_bin2020_2040, admm, 'sum')) %>%
-          as.data.table() %>%
-          setnames(.,"sum", "Harv_2020_2040") %>%
-          dplyr::select(!zone)
-      }
-      
-      if (STdyn == 50){
-        listharv_bin2010_2020 <- listharv_per[11:20]
-        stackharv_bin2010_2020 <- stack(paste0(paste0("debugging_",j,"/"),listharv_bin2010_2020))
-        nlayers(stackharv_bin2010_2020)
-        
-        harvest_st_bin2010_2020 <- stackApply(stackharv_bin2010_2020, indices=1, fun=sum)
-        # harv_mean <- stackApply(stackhar_mc1, indices=1, fun=mean)
-        harv_sum_bin2010_2020 <- as.data.frame(zonal(harvest_st_bin2010_2020, admm, 'sum')) %>%
-          as.data.table() %>%
-          setnames(.,"sum", "Harv_2010_2020") %>%
-          dplyr::select(!zone)
-        
-        listharv_bin2020_2030 <- listharv_per[21:30]
-        stackharv_bin2020_2030 <- stack(paste0(paste0("debugging_",j,"/"),listharv_bin2020_2030))
-        nlayers(stackharv_bin2020_2030)
-        
-        harvest_st_bin2020_2030 <- stackApply(stackharv_bin2020_2030, indices=1, fun=sum)
-        # harv_mean <- stackApply(stackhar_mc1, indices=1, fun=mean)
-        harv_sum_bin2020_2030<- as.data.frame(zonal(harvest_st_bin2020_2030, admm, 'sum')) %>%
-          as.data.table() %>%
-          setnames(.,"sum", "Harv_2020_2030") %>%
-          dplyr::select(!zone)
-        
-        listharv_bin2030_2040 <- listharv_per[31:40]
-        stackharv_bin2030_2040 <- stack(paste0(paste0("debugging_",j,"/"),listharv_bin2030_2040))
-        nlayers(stackharv_bin2030_2040)
-        
-        harvest_st_bin2030_2040 <- stackApply(stackharv_bin2030_2040, indices=1, fun=sum)
-        # harv_mean <- stackApply(stackhar_mc1, indices=1, fun=mean)
-        harv_sum_bin2030_2040 <- as.data.frame(zonal(harvest_st_bin2030_2040, admm, 'sum')) %>%
-          as.data.table() %>% 
-          setnames(.,"sum", "Harv_2030_2040") %>%
-          dplyr::select(!zone)
-        
-        listharv_bin2040_2050 <- listharv_per[41:(nlay-1)]
-        stackharv_bin2040_2050 <- stack(paste0(paste0("debugging_",j,"/"),listharv_bin2040_2050))
-        nlayers(stackharv_bin2040_2050)
-        
-        harvest_st_bin2040_2050 <- stackApply(stackharv_bin2040_2050, indices=1, fun=sum)
-        # harv_mean <- stackApply(stackhar_mc1, indices=1, fun=mean)
-        harv_sum_bin2040_2050 <- as.data.frame(zonal(harvest_st_bin2040_2050, admm, 'sum')) %>%
-          as.data.table() %>%
-          setnames(.,"sum", "Harv_2040_2050") %>%
-          dplyr::select(!zone)
-        
-        listharv_bin2020_2050 <- listharv_per[21:(nlay-1)]
-        stackharv_bin2020_2050 <- stack(paste0(paste0("debugging_",j,"/"),listharv_bin2020_2050))
-        nlayers(stackharv_bin2020_2050)
-        
-        harvest_st_bin2020_2050 <- stackApply(stackharv_bin2020_2050, indices=1, fun=sum)
-        # harv_mean <- stackApply(stackhar_mc1, indices=1, fun=mean)
-        harv_sum_bin2020_2050 <- as.data.frame(zonal(harvest_st_bin2020_2050, admm, 'sum')) %>%
-          as.data.table() %>%
-          setnames(.,"sum", "Harv_2020_2050") %>%
-          dplyr::select(!zone)
-      }
-      
-      # Define all potential variable names
-      variable_harv <- c("harv_sum_bin2010_2050", # Do not use in summary tables
-                         "harv_sum_bin2010_2040", # Do not use in summary tables
-                         "harv_sum_bin2010_2035", # Do not use in summary tables
-                         "harv_sum_bin2010_2030", # Do not use in summary tables
-                         "harv_sum_bin2010_2020", # Do not use in summary tables
-                         "harv_sum_bin2020_2030", # STdyn = 20 # 2030
-                         "harv_sum_bin2020_2035", # STdyn = 25 # 2035
-                         "harv_sum_bin2020_2040", # STdyn = 30 # 2040 + "nrb_sum_bin2020_2030",
-                         "harv_sum_bin2020_2050", # STdyn = 40 # 2050 + "nrb_sum_bin2020_2030", + "nrb_sum_bin2030_2040"
-                         "harv_sum_bin2030_2040", # STdyn = 30 # 2040 + "nrb_sum_bin2020_2030",
-                         "harv_sum_bin2040_2050") # STdyn = 40 # 2050 + "nrb_sum_bin2020_2030", + "nrb_sum_bin2030_2040"
-      
-      # Use mget to try to get these variables from the global environment,
-      # specifying NA for any that don't exist
-      existing_harv_x2 <- mget(variable_harv, envir = .GlobalEnv, ifnotfound = list(NA))
-      
-      # Filter out the NAs from the list. Since each NA is actually a list element, we check for it differently
-      existing_harv_x <- Filter(function(x) {
-        if (is.numeric(x) || is.character(x)) { # If the element is a vector or single value
-          return(!is.na(x))
-        } else if (is.data.frame(x) || is.list(x)) { # If the element is a data frame or list
-          # Check if any value in the data frame or list is not NA
-          return(any(!is.na(unlist(x))))
-        } else {
-          return(FALSE) # If the element is of a different type, exclude it
-        }
-      }, existing_harv_x2)
-      
-      # Function to remove duplicates while preserving names
-      remove_harv <- function(lst) {
-        unique_harv <- list()  # Initialize an empty list for the unique elements
-        seen_harvhashes <- character()  # Keep track of hashes for seen elements
-        
-        for (name in names(lst)) {
-          element <- lst[[name]]
-          # Serialize the element to a raw vector and generate a hash
-          element_harvhash <- digest::digest(element, serialize = TRUE)
-          
-          if (!element_harvhash %in% seen_harvhashes) {
-            unique_harv[[name]] <- element  # Add to unique list with the original name
-            seen_harvhashes <- c(seen_harvhashes, element_harvhash)  # Mark this hash as seen
-          }
-        }
-        
-        return(unique_harv)
-      }
-      
-      # Use the function
-      existing_harv <- remove_harv(existing_harv_x)
-      
-      harv_bind <- (bind_rows(existing_harv))
-      # Function to remove NAs and shift non-NA values upwards
-      shift_up <- function(x) {
-        # Remove NAs and return the non-NA values
-        non_na_values <- x[!is.na(x)]
-        # Calculate the number of NAs to pad
-        na_pad <- rep(NA, length(x) - length(non_na_values))
-        # Combine non-NA values with NA padding
-        return(c(non_na_values, na_pad))
-      }
-      # Apply the function to each column
-      harv_sum_fr_unfil <- as.data.frame(lapply(harv_bind, shift_up))
-      harv_sum_fr <- harv_sum_fr_unfil[!is.na(harv_sum_fr_unfil[[1]]), ]
-      harv_sum_fr
-      
-      if (STdyn == 20) {
-        harv_sum_fr <- harv_sum_fr_unfil
-      }
-      
-      if (STdyn == 20){
-        NRBzon_fr <- merge(nrb_sum_fr, harv_sum_fr, by = "zone") %>%
-          # dplyr::rename(NRB_2010_2020 = x,
-          #               Harv_2010_2020 = y) %>%
-          dplyr::mutate(across(everything(), ~as.numeric(trimws(.x)))) %>%
-          dplyr::mutate(fNRB_2010_2020 = NRB_2010_2020/Harv_2010_2020*100)
-        
-        NRBzon_fr$MC <- j  # maybe you want to keep track of which iteration produced it?
-        NRBzon_frlist[[j]] <- NRBzon_fr # add it to your list
-        
-        if (j == 1) {
-          NRBzon_frlist1MC <- NRBzon_frlist %>%
-            as.data.frame() %>%
-            rename_with(.fn = ~ paste0(.x, "_1MC"))
-        }  
-      } else if (STdyn == 30){
-        NRBzon_fr <- merge(nrb_sum_fr, harv_sum_fr, by = "zone") %>%
-          dplyr::mutate(across(everything(), ~as.numeric(trimws(.x)))) %>%
-          dplyr::mutate(fNRB_2010_2030 = NRB_2010_2030/Harv_2010_2030*100,
-                        fNRB_2020_2030 = NRB_2020_2030/Harv_2020_2030*100,
-                        fNRB_2010_2020 = NRB_2010_2020/Harv_2010_2020*100)
-        
-        NRBzon_fr$MC <- j  # maybe you want to keep track of which iteration produced it?
-        NRBzon_frlist[[j]] <- NRBzon_fr # add it to your list
-        
-        if (j == 1) {
-          NRBzon_frlist1MC <- NRBzon_frlist %>%
-            as.data.frame() %>%
-            rename_with(.fn = ~ paste0(.x, "_1MC"))
-        }  
-        
-      } else if (STdyn == 35){
-        NRBzon_fr <- merge(nrb_sum_fr, harv_sum_fr, by = "zone") %>%
-          dplyr::mutate(across(everything(), ~as.numeric(trimws(.x)))) %>%
-          dplyr::mutate(fNRB_2010_2035 = NRB_2010_2035/Harv_2010_2035*100,
-                        fNRB_2020_2035 = NRB_2020_2035/Harv_2020_2035*100,
-                        fNRB_2010_2020 = NRB_2010_2020/Harv_2010_2020*100)
-        
-        NRBzon_fr$MC <- j  # maybe you want to keep track of which iteration produced it?
-        NRBzon_frlist[[j]] <- NRBzon_fr # add it to your list
-        
-        if (j == 1) {
-          NRBzon_frlist1MC <- NRBzon_frlist %>%
-            as.data.frame() %>%
-            rename_with(.fn = ~ paste0(.x, "_1MC"))
-        }  
-      } else if (STdyn == 40){
-        NRBzon_fr <- merge(nrb_sum_fr, harv_sum_fr, by = "zone") %>%
-          dplyr::mutate(across(everything(), ~as.numeric(trimws(.x)))) %>%
-          dplyr::mutate(fNRB_2010_2040 = NRB_2010_2040/Harv_2010_2040*100,
-                        fNRB_2020_2040 = NRB_2020_2040/Harv_2020_2040*100,
-                        fNRB_2010_2020 = NRB_2010_2020/Harv_2010_2020*100,
-                        fNRB_2020_2030 = NRB_2020_2030/Harv_2020_2030*100,
-                        fNRB_2030_2040 = NRB_2030_2040/Harv_2030_2040*100)
-        
-        NRBzon_fr$MC <- j  # maybe you want to keep track of which iteration produced it?
-        NRBzon_frlist[[j]] <- NRBzon_fr # add it to your list
-        
-        if (j == 1) {
-          NRBzon_frlist1MC <- NRBzon_frlist %>%
-            as.data.frame() %>%
-            rename_with(.fn = ~ paste0(.x, "_1MC"))
-        }  
-      } else if (STdyn == 50){
-        NRBzon_fr <- merge(nrb_sum_fr, harv_sum_fr, by = "zone") %>%
-          dplyr::mutate(across(everything(), ~as.numeric(trimws(.x)))) %>%
-          dplyr::mutate(
-            fNRB_2010_2050 = NRB_2010_2050 / Harv_2010_2050 * 100,
-            fNRB_2020_2050 = NRB_2020_2050 / Harv_2020_2050 * 100,
-            fNRB_2010_2020 = NRB_2010_2020 / Harv_2010_2020 * 100,
-            fNRB_2020_2030 = NRB_2020_2030 / Harv_2020_2030 * 100,
-            fNRB_2030_2040 = NRB_2030_2040 / Harv_2030_2040 * 100,
-            fNRB_2040_2050 = NRB_2040_2050 / Harv_2040_2050 * 100
-          )
-        
-        NRBzon_fr$MC <- j  # maybe you want to keep track of which iteration produced it?
-        NRBzon_frlist[[j]] <- NRBzon_fr # add it to your list
-        
-        if (j == 1) {
-          NRBzon_frlist1MC <- NRBzon_frlist %>%
-            as.data.frame() %>%
-            rename_with(.fn = ~ paste0(.x, "_1MC"))
-        } 
-      } else {
-        print("error with simulation length")  
-      }
-      
+
     } # for (j in 1:MC) {
     
     # Integrate tables with all the above datasets ----
@@ -2194,8 +1703,7 @@ if (fNRB_partition_tables == 1) {
       if (admname == "adm0") {
         NRB_fNRB2_frcompl_madm0 <- userarea_gpkg %>%
           st_drop_geometry() %>%
-          merge(., NRB_fNRB2_fr, by.x = ext_analysis_ID, by.y = "zone") %>%
-          replace(is.na(.), 0)
+          merge(., NRB_fNRB2_fr, by.x = ext_analysis_ID, by.y = "zone")
         write.csv(NRB_fNRB2_frcompl_madm0, "LULCC/TempTables/summary_adm0_frcompl.csv", row.names=FALSE, quote=FALSE)
         write.csv(NRB_fNRB2_frcompl_madm0, "Out/webmofuss_results/summary_adm0_frcompl.csv", row.names=FALSE, quote=FALSE)
         
@@ -2210,8 +1718,7 @@ if (fNRB_partition_tables == 1) {
           userarea_simpx_fr0 <- userarea_gpkg %>%
             inner_join(.,NRB_fNRB3_fr_madm0, by="ID") %>%
             dplyr::select(-NAME_0.y) %>%
-            dplyr::rename(NAME_0 = NAME_0.x) %>%
-            replace(is.na(.), 0)
+            dplyr::rename(NAME_0 = NAME_0.x)
           st_write(userarea_simpx_fr0, "Out/webmofuss_results/mofuss_adm0_fr.gpkg", delete_layer = TRUE)
           print(paste0(admname," finished for vector layers"))
         } else {
@@ -2221,8 +1728,7 @@ if (fNRB_partition_tables == 1) {
             dplyr::rename(GID_0 = GID_0.x,
                           NAME_0 = NAME_0.x,
                           Subregion = Subregion.x,
-                          mofuss_reg = mofuss_reg.x) %>%
-            replace(is.na(.), 0)
+                          mofuss_reg = mofuss_reg.x)
           st_write(userarea_simpx_fr0, "Out/webmofuss_results/mofuss_adm0_fr.gpkg", delete_layer = TRUE)
           print(paste0(admname," finished for vector layers"))
         }
@@ -2231,8 +1737,7 @@ if (fNRB_partition_tables == 1) {
         NRB_fNRB2_frcompl_madm1 <- userarea_gpkg1 %>%
           st_drop_geometry() %>%
           merge(., NRB_fNRB2_fr, by.x = ext_analysis_ID, by.y = "zone") %>%
-          dplyr::select(-GID_0, -GID_1) %>%
-          replace(is.na(.), 0)
+          dplyr::select(-GID_0, -GID_1)
         write.csv(NRB_fNRB2_frcompl_madm1, "LULCC/TempTables/summary_adm1_frcompl.csv", row.names=FALSE, quote=FALSE)
         write.csv(NRB_fNRB2_frcompl_madm1, "Out/webmofuss_results/summary_adm1_frcompl.csv", row.names=FALSE, quote=FALSE)
         
@@ -2247,8 +1752,7 @@ if (fNRB_partition_tables == 1) {
           inner_join(.,NRB_fNRB3_fr_madm1, by="ID") %>%
           dplyr::select(-NAME_0.y, -NAME_1.y) %>%
           dplyr::rename(NAME_0 = NAME_0.x,
-                        NAME_1 = NAME_1.x) %>%
-          replace(is.na(.), 0)
+                        NAME_1 = NAME_1.x)
         st_write(userarea_simpx_fr1, "Out/webmofuss_results/mofuss_adm1_fr.gpkg", delete_layer = TRUE)
         print(paste0(admname," finished for vector layers"))
         
@@ -2256,8 +1760,7 @@ if (fNRB_partition_tables == 1) {
         NRB_fNRB2_frcompl_madm2 <- userarea_gpkg2 %>%
           st_drop_geometry() %>%
           merge(., NRB_fNRB2_fr, by.x = ext_analysis_ID, by.y = "zone") %>%
-          dplyr::select(-GID_0, -GID_1, -GID_2) %>%
-          replace(is.na(.), 0)
+          dplyr::select(-GID_0, -GID_1, -GID_2)
         write.csv(NRB_fNRB2_frcompl_madm2, "LULCC/TempTables/summary_adm2_frcompl.csv", row.names=FALSE, quote=FALSE)
         write.csv(NRB_fNRB2_frcompl_madm2, "Out/webmofuss_results/summary_adm2_frcompl.csv", row.names=FALSE, quote=FALSE)
         
@@ -2273,16 +1776,14 @@ if (fNRB_partition_tables == 1) {
           dplyr::select(-NAME_0.y, -NAME_1.y, -NAME_2.y) %>%
           dplyr::rename(NAME_0 = NAME_0.x,
                         NAME_1 = NAME_1.x,
-                        NAME_2 = NAME_2.x,) %>%
-          replace(is.na(.), 0)
+                        NAME_2 = NAME_2.x,)
         st_write(userarea_simpx_fr2, "Out/webmofuss_results/mofuss_adm2_fr.gpkg", delete_layer = TRUE)
         print(paste0(admname," finished for vector layers"))
         
       } else if (admname == "ecoregions") {
         NRB_fNRB2_frcompl_meco2 <- ecoregions_gpkg %>%
           st_drop_geometry() %>%
-          merge(., NRB_fNRB2_fr, by.x = ecoregions_ID, by.y = "zone") %>%
-          replace(is.na(.), 0)
+          merge(., NRB_fNRB2_fr, by.x = ecoregions_ID, by.y = "zone")
         write.csv(NRB_fNRB2_frcompl_meco2, "LULCC/TempTables/summary_ecoregions_frcompl.csv", row.names=FALSE, quote=FALSE)
         write.csv(NRB_fNRB2_frcompl_meco2, "Out/webmofuss_results/summary_ecoregions_frcompl.csv", row.names=FALSE, quote=FALSE)
         
@@ -2302,8 +1803,7 @@ if (fNRB_partition_tables == 1) {
                         NAME_0 = NAME_0.x,
                         Subregion = Subregion.x,
                         ID = ID.x,
-                        mofuss_reg = mofuss_reg.x) %>%
-          replace(is.na(.), 0)
+                        mofuss_reg = mofuss_reg.x)
         st_write(userarea_simpx_fr2, "Out/webmofuss_results/mofuss_ecoregions_fr.gpkg", delete_layer = TRUE)
         print(paste0(admname," finished for vector layers"))
       }
@@ -2357,8 +1857,7 @@ if (fNRB_partition_tables == 1) {
       if (admname == "adm0") {
         NRB_fNRB2_frcompl_madm0 <- userarea_gpkg %>%
           st_drop_geometry() %>%
-          merge(., NRB_fNRB2_fr, by.x = ext_analysis_ID, by.y = "zone") %>%
-          replace(is.na(.), 0)
+          merge(., NRB_fNRB2_fr, by.x = ext_analysis_ID, by.y = "zone")
         write.csv(NRB_fNRB2_frcompl_madm0, "LULCC/TempTables/summary_adm0_frcompl.csv", row.names=FALSE, quote=FALSE)
         write.csv(NRB_fNRB2_frcompl_madm0, "Out/webmofuss_results/summary_adm0_frcompl.csv", row.names=FALSE, quote=FALSE)
         
@@ -2375,8 +1874,7 @@ if (fNRB_partition_tables == 1) {
           userarea_simpx_fr0 <- userarea_gpkg %>%
             inner_join(.,NRB_fNRB3_fr_madm0, by="ID") %>%
             dplyr::select(-NAME_0.y) %>%
-            dplyr::rename(NAME_0 = NAME_0.x) %>%
-            replace(is.na(.), 0)
+            dplyr::rename(NAME_0 = NAME_0.x)
           st_write(userarea_simpx_fr0, "Out/webmofuss_results/mofuss_adm0_fr.gpkg", delete_layer = TRUE)
           print(paste0(admname," finished for vector layers"))
         } else {
@@ -2386,8 +1884,7 @@ if (fNRB_partition_tables == 1) {
             dplyr::rename(GID_0 = GID_0.x,
                           NAME_0 = NAME_0.x,
                           Subregion = Subregion.x,
-                          mofuss_reg = mofuss_reg.x) %>%
-            replace(is.na(.), 0)
+                          mofuss_reg = mofuss_reg.x)
           st_write(userarea_simpx_fr0, "Out/webmofuss_results/mofuss_adm0_fr.gpkg", delete_layer = TRUE)
           print(paste0(admname," finished for vector layers"))
         }
@@ -2396,8 +1893,7 @@ if (fNRB_partition_tables == 1) {
         NRB_fNRB2_frcompl_madm1 <- userarea_gpkg1 %>%
           st_drop_geometry() %>%
           merge(., NRB_fNRB2_fr, by.x = ext_analysis_ID, by.y = "zone") %>%
-          dplyr::select(-GID_0, -GID_1) %>%
-          replace(is.na(.), 0)
+          dplyr::select(-GID_0, -GID_1)
         write.csv(NRB_fNRB2_frcompl_madm1, "LULCC/TempTables/summary_adm1_frcompl.csv", row.names=FALSE, quote=FALSE)
         write.csv(NRB_fNRB2_frcompl_madm1, "Out/webmofuss_results/summary_adm1_frcompl.csv", row.names=FALSE, quote=FALSE)
         
@@ -2414,8 +1910,7 @@ if (fNRB_partition_tables == 1) {
           inner_join(.,NRB_fNRB3_fr_madm1, by="ID") %>%
           dplyr::select(-NAME_0.y, -NAME_1.y) %>%
           dplyr::rename(NAME_0 = NAME_0.x,
-                        NAME_1 = NAME_1.x) %>%
-          replace(is.na(.), 0)
+                        NAME_1 = NAME_1.x)
         st_write(userarea_simpx_fr1, "Out/webmofuss_results/mofuss_adm1_fr.gpkg", delete_layer = TRUE)
         print(paste0(admname," finished for vector layers"))
         
@@ -2423,8 +1918,7 @@ if (fNRB_partition_tables == 1) {
         NRB_fNRB2_frcompl_madm2 <- userarea_gpkg2 %>%
           st_drop_geometry() %>%
           merge(., NRB_fNRB2_fr, by.x = ext_analysis_ID, by.y = "zone") %>%
-          dplyr::select(-GID_0, -GID_1, -GID_2) %>%
-          replace(is.na(.), 0)
+          dplyr::select(-GID_0, -GID_1, -GID_2)
         write.csv(NRB_fNRB2_frcompl_madm2, "LULCC/TempTables/summary_adm2_frcompl.csv", row.names=FALSE, quote=FALSE)
         write.csv(NRB_fNRB2_frcompl_madm2, "Out/webmofuss_results/summary_adm2_frcompl.csv", row.names=FALSE, quote=FALSE)
         
@@ -2442,16 +1936,14 @@ if (fNRB_partition_tables == 1) {
           dplyr::select(-NAME_0.y, -NAME_1.y, -NAME_2.y) %>%
           dplyr::rename(NAME_0 = NAME_0.x,
                         NAME_1 = NAME_1.x,
-                        NAME_2 = NAME_2.x,) %>%
-          replace(is.na(.), 0)
+                        NAME_2 = NAME_2.x,)
         st_write(userarea_simpx_fr2, "Out/webmofuss_results/mofuss_adm2_fr.gpkg", delete_layer = TRUE)
         print(paste0(admname," finished for vector layers"))
         
       } else if (admname == "ecoregions") {
         NRB_fNRB2_frcompl_meco2 <- ecoregions_gpkg %>%
           st_drop_geometry() %>%
-          merge(., NRB_fNRB2_fr, by.x = ecoregions_ID, by.y = "zone") %>%
-          replace(is.na(.), 0)
+          merge(., NRB_fNRB2_fr, by.x = ecoregions_ID, by.y = "zone")
         write.csv(NRB_fNRB2_frcompl_meco2, "LULCC/TempTables/summary_ecoregions_frcompl.csv", row.names=FALSE, quote=FALSE)
         write.csv(NRB_fNRB2_frcompl_meco2, "Out/webmofuss_results/summary_ecoregions_frcompl.csv", row.names=FALSE, quote=FALSE)
         
@@ -2473,8 +1965,7 @@ if (fNRB_partition_tables == 1) {
                         NAME_0 = NAME_0.x,
                         Subregion = Subregion.x,
                         ID = ID.x,
-                        mofuss_reg = mofuss_reg.x) %>%
-          replace(is.na(.), 0)
+                        mofuss_reg = mofuss_reg.x)
         st_write(userarea_simpx_fr2, "Out/webmofuss_results/mofuss_ecoregions_fr.gpkg", delete_layer = TRUE)
         print(paste0(admname," finished for vector layers"))
       }
@@ -2527,8 +2018,7 @@ if (fNRB_partition_tables == 1) {
       if (admname == "adm0") {
         NRB_fNRB2_frcompl_madm0 <- userarea_gpkg %>%
           st_drop_geometry() %>%
-          merge(., NRB_fNRB2_fr, by.x = ext_analysis_ID, by.y = "zone") %>%
-          replace(is.na(.), 0)
+          merge(., NRB_fNRB2_fr, by.x = ext_analysis_ID, by.y = "zone")
         write.csv(NRB_fNRB2_frcompl_madm0, "LULCC/TempTables/summary_adm0_frcompl.csv", row.names=FALSE, quote=FALSE)
         write.csv(NRB_fNRB2_frcompl_madm0, "Out/webmofuss_results/summary_adm0_frcompl.csv", row.names=FALSE, quote=FALSE)
         
@@ -2547,8 +2037,7 @@ if (fNRB_partition_tables == 1) {
           userarea_simpx_fr0 <- userarea_gpkg %>%
             inner_join(.,NRB_fNRB3_fr_madm0, by="ID") %>%
             dplyr::select(-NAME_0.y) %>%
-            dplyr::rename(NAME_0 = NAME_0.x) %>%
-            replace(is.na(.), 0)
+            dplyr::rename(NAME_0 = NAME_0.x)
           st_write(userarea_simpx_fr0, "Out/webmofuss_results/mofuss_adm0_fr.gpkg", delete_layer = TRUE)
           print(paste0(admname," finished for vector layers"))
         } else {
@@ -2558,8 +2047,7 @@ if (fNRB_partition_tables == 1) {
             dplyr::rename(GID_0 = GID_0.x,
                           NAME_0 = NAME_0.x,
                           Subregion = Subregion.x,
-                          mofuss_reg = mofuss_reg.x) %>%
-            replace(is.na(.), 0)
+                          mofuss_reg = mofuss_reg.x)
           st_write(userarea_simpx_fr0, "Out/webmofuss_results/mofuss_adm0_fr.gpkg", delete_layer = TRUE)
           print(paste0(admname," finished for vector layers"))
         }
@@ -2568,8 +2056,7 @@ if (fNRB_partition_tables == 1) {
         NRB_fNRB2_frcompl_madm1 <- userarea_gpkg1 %>%
           st_drop_geometry() %>%
           merge(., NRB_fNRB2_fr, by.x = ext_analysis_ID, by.y = "zone") %>%
-          dplyr::select(-GID_0, -GID_1) %>%
-          replace(is.na(.), 0)
+          dplyr::select(-GID_0, -GID_1)
         write.csv(NRB_fNRB2_frcompl_madm1, "LULCC/TempTables/summary_adm1_frcompl.csv", row.names=FALSE, quote=FALSE)
         write.csv(NRB_fNRB2_frcompl_madm1, "Out/webmofuss_results/summary_adm1_frcompl.csv", row.names=FALSE, quote=FALSE)
         
@@ -2588,8 +2075,7 @@ if (fNRB_partition_tables == 1) {
           inner_join(.,NRB_fNRB3_fr_madm1, by="ID") %>%
           dplyr::select(-NAME_0.y, -NAME_1.y) %>%
           dplyr::rename(NAME_0 = NAME_0.x,
-                        NAME_1 = NAME_1.x) %>%
-          replace(is.na(.), 0)
+                        NAME_1 = NAME_1.x)
         st_write(userarea_simpx_fr1, "Out/webmofuss_results/mofuss_adm1_fr.gpkg", delete_layer = TRUE)
         print(paste0(admname," finished for vector layers"))
         
@@ -2597,8 +2083,7 @@ if (fNRB_partition_tables == 1) {
         NRB_fNRB2_frcompl_madm2 <- userarea_gpkg2 %>%
           st_drop_geometry() %>%
           merge(., NRB_fNRB2_fr, by.x = ext_analysis_ID, by.y = "zone") %>%
-          dplyr::select(-GID_0, -GID_1, -GID_2) %>%
-          replace(is.na(.), 0)
+          dplyr::select(-GID_0, -GID_1, -GID_2)
         write.csv(NRB_fNRB2_frcompl_madm2, "LULCC/TempTables/summary_adm2_frcompl.csv", row.names=FALSE, quote=FALSE)
         write.csv(NRB_fNRB2_frcompl_madm2, "Out/webmofuss_results/summary_adm2_frcompl.csv", row.names=FALSE, quote=FALSE)
         
@@ -2618,16 +2103,14 @@ if (fNRB_partition_tables == 1) {
           dplyr::select(-NAME_0.y, -NAME_1.y, -NAME_2.y) %>%
           dplyr::rename(NAME_0 = NAME_0.x,
                         NAME_1 = NAME_1.x,
-                        NAME_2 = NAME_2.x,) %>%
-          replace(is.na(.), 0)
+                        NAME_2 = NAME_2.x,)
         st_write(userarea_simpx_fr2, "Out/webmofuss_results/mofuss_adm2_fr.gpkg", delete_layer = TRUE)
         print(paste0(admname," finished for vector layers"))
         
       } else if (admname == "ecoregions") {
         NRB_fNRB2_frcompl_meco2 <- ecoregions_gpkg %>%
           st_drop_geometry() %>%
-          merge(., NRB_fNRB2_fr, by.x = ecoregions_ID, by.y = "zone") %>%
-          replace(is.na(.), 0)
+          merge(., NRB_fNRB2_fr, by.x = ecoregions_ID, by.y = "zone")
         write.csv(NRB_fNRB2_frcompl_meco2, "LULCC/TempTables/summary_ecoregions_frcompl.csv", row.names=FALSE, quote=FALSE)
         write.csv(NRB_fNRB2_frcompl_meco2, "Out/webmofuss_results/summary_ecoregions_frcompl.csv", row.names=FALSE, quote=FALSE)
         
@@ -2651,8 +2134,7 @@ if (fNRB_partition_tables == 1) {
                         NAME_0 = NAME_0.x,
                         Subregion = Subregion.x,
                         ID = ID.x,
-                        mofuss_reg = mofuss_reg.x) %>%
-          replace(is.na(.), 0)
+                        mofuss_reg = mofuss_reg.x)
         st_write(userarea_simpx_fr2, "Out/webmofuss_results/mofuss_ecoregions_fr.gpkg", delete_layer = TRUE)
         print(paste0(admname," finished for vector layers"))
       }
@@ -2712,8 +2194,7 @@ if (fNRB_partition_tables == 1) {
       if (admname == "adm0") {
         NRB_fNRB2_frcompl_madm0 <- userarea_gpkg %>%
           st_drop_geometry() %>%
-          merge(., NRB_fNRB2_fr, by.x = ext_analysis_ID, by.y = "zone") %>%
-          replace(is.na(.), 0)
+          merge(., NRB_fNRB2_fr, by.x = ext_analysis_ID, by.y = "zone")
         write.csv(NRB_fNRB2_frcompl_madm0, "LULCC/TempTables/summary_adm0_frcompl.csv", row.names=FALSE, quote=FALSE)
         write.csv(NRB_fNRB2_frcompl_madm0, "Out/webmofuss_results/summary_adm0_frcompl.csv", row.names=FALSE, quote=FALSE)
         
@@ -2732,8 +2213,7 @@ if (fNRB_partition_tables == 1) {
           userarea_simpx_fr0 <- userarea_gpkg %>%
             inner_join(.,NRB_fNRB3_fr_madm0, by="ID") %>%
             dplyr::select(-NAME_0.y) %>%
-            dplyr::rename(NAME_0 = NAME_0.x) %>%
-            replace(is.na(.), 0)
+            dplyr::rename(NAME_0 = NAME_0.x)
           st_write(userarea_simpx_fr0, "Out/webmofuss_results/mofuss_adm0_fr.gpkg", delete_layer = TRUE)
           print(paste0(admname," finished for vector layers"))
         } else {
@@ -2743,8 +2223,7 @@ if (fNRB_partition_tables == 1) {
             dplyr::rename(GID_0 = GID_0.x,
                           NAME_0 = NAME_0.x,
                           Subregion = Subregion.x,
-                          mofuss_reg = mofuss_reg.x) %>%
-            replace(is.na(.), 0)
+                          mofuss_reg = mofuss_reg.x)
           st_write(userarea_simpx_fr0, "Out/webmofuss_results/mofuss_adm0_fr.gpkg", delete_layer = TRUE)
           print(paste0(admname," finished for vector layers"))
         }
@@ -2753,8 +2232,7 @@ if (fNRB_partition_tables == 1) {
         NRB_fNRB2_frcompl_madm1 <- userarea_gpkg1 %>%
           st_drop_geometry() %>%
           merge(., NRB_fNRB2_fr, by.x = ext_analysis_ID, by.y = "zone") %>%
-          dplyr::select(-GID_0, -GID_1) %>%
-          replace(is.na(.), 0)
+          dplyr::select(-GID_0, -GID_1)
         write.csv(NRB_fNRB2_frcompl_madm1, "LULCC/TempTables/summary_adm1_frcompl.csv", row.names=FALSE, quote=FALSE)
         write.csv(NRB_fNRB2_frcompl_madm1, "Out/webmofuss_results/summary_adm1_frcompl.csv", row.names=FALSE, quote=FALSE)
         
@@ -2773,8 +2251,7 @@ if (fNRB_partition_tables == 1) {
           inner_join(.,NRB_fNRB3_fr_madm1, by="ID") %>%
           dplyr::select(-NAME_0.y, -NAME_1.y) %>%
           dplyr::rename(NAME_0 = NAME_0.x,
-                        NAME_1 = NAME_1.x) %>%
-          replace(is.na(.), 0)
+                        NAME_1 = NAME_1.x)
         st_write(userarea_simpx_fr1, "Out/webmofuss_results/mofuss_adm1_fr.gpkg", delete_layer = TRUE)
         print(paste0(admname," finished for vector layers"))
         
@@ -2782,8 +2259,7 @@ if (fNRB_partition_tables == 1) {
         NRB_fNRB2_frcompl_madm2 <- userarea_gpkg2 %>%
           st_drop_geometry() %>%
           merge(., NRB_fNRB2_fr, by.x = ext_analysis_ID, by.y = "zone") %>%
-          dplyr::select(-GID_0, -GID_1, -GID_2) %>%
-          replace(is.na(.), 0)
+          dplyr::select(-GID_0, -GID_1, -GID_2)
         write.csv(NRB_fNRB2_frcompl_madm2, "LULCC/TempTables/summary_adm2_frcompl.csv", row.names=FALSE, quote=FALSE)
         write.csv(NRB_fNRB2_frcompl_madm2, "Out/webmofuss_results/summary_adm2_frcompl.csv", row.names=FALSE, quote=FALSE)
         
@@ -2803,16 +2279,14 @@ if (fNRB_partition_tables == 1) {
           dplyr::select(-NAME_0.y, -NAME_1.y, -NAME_2.y) %>%
           dplyr::rename(NAME_0 = NAME_0.x,
                         NAME_1 = NAME_1.x,
-                        NAME_2 = NAME_2.x,) %>%
-          replace(is.na(.), 0)
+                        NAME_2 = NAME_2.x,)
         st_write(userarea_simpx_fr2, "Out/webmofuss_results/mofuss_adm2_fr.gpkg", delete_layer = TRUE)
         print(paste0(admname," finished for vector layers"))
         
       } else if (admname == "ecoregions") {
         NRB_fNRB2_frcompl_meco2 <- ecoregions_gpkg %>%
           st_drop_geometry() %>%
-          merge(., NRB_fNRB2_fr, by.x = ecoregions_ID, by.y = "zone") %>%
-          replace(is.na(.), 0)
+          merge(., NRB_fNRB2_fr, by.x = ecoregions_ID, by.y = "zone")
         write.csv(NRB_fNRB2_frcompl_meco2, "LULCC/TempTables/summary_ecoregions_frcompl.csv", row.names=FALSE, quote=FALSE)
         write.csv(NRB_fNRB2_frcompl_meco2, "Out/webmofuss_results/summary_ecoregions_frcompl.csv", row.names=FALSE, quote=FALSE)
         
@@ -2836,8 +2310,7 @@ if (fNRB_partition_tables == 1) {
                         NAME_0 = NAME_0.x,
                         Subregion = Subregion.x,
                         ID = ID.x,
-                        mofuss_reg = mofuss_reg.x) %>%
-          replace(is.na(.), 0)
+                        mofuss_reg = mofuss_reg.x)
         st_write(userarea_simpx_fr2, "Out/webmofuss_results/mofuss_ecoregions_fr.gpkg", delete_layer = TRUE)
         print(paste0(admname," finished for vector layers"))
       }
@@ -2901,8 +2374,7 @@ if (fNRB_partition_tables == 1) {
       if (admname == "adm0") {
         NRB_fNRB2_frcompl_madm0 <- userarea_gpkg %>%
           st_drop_geometry() %>%
-          merge(., NRB_fNRB2_fr, by.x = ext_analysis_ID, by.y = "zone") %>%
-          replace(is.na(.), 0)
+          merge(., NRB_fNRB2_fr, by.x = ext_analysis_ID, by.y = "zone")
         write.csv(NRB_fNRB2_frcompl_madm0, "LULCC/TempTables/summary_adm0_frcompl.csv", row.names=FALSE, quote=FALSE)
         write.csv(NRB_fNRB2_frcompl_madm0, "Out/webmofuss_results/summary_adm0_frcompl.csv", row.names=FALSE, quote=FALSE)
         
@@ -2921,8 +2393,7 @@ if (fNRB_partition_tables == 1) {
           userarea_simpx_fr0 <- userarea_gpkg %>%
             inner_join(.,NRB_fNRB3_fr_madm0, by="ID") %>%
             dplyr::select(-NAME_0.y) %>%
-            dplyr::rename(NAME_0 = NAME_0.x) %>%
-            replace(is.na(.), 0)
+            dplyr::rename(NAME_0 = NAME_0.x)
           st_write(userarea_simpx_fr0, "Out/webmofuss_results/mofuss_adm0_fr.gpkg", delete_layer = TRUE)
           print(paste0(admname," finished for vector layers"))
         } else {
@@ -2932,8 +2403,7 @@ if (fNRB_partition_tables == 1) {
             dplyr::rename(GID_0 = GID_0.x,
                           NAME_0 = NAME_0.x,
                           Subregion = Subregion.x,
-                          mofuss_reg = mofuss_reg.x) %>%
-            replace(is.na(.), 0)
+                          mofuss_reg = mofuss_reg.x)
           st_write(userarea_simpx_fr0, "Out/webmofuss_results/mofuss_adm0_fr.gpkg", delete_layer = TRUE)
           print(paste0(admname," finished for vector layers"))
         }
@@ -2942,8 +2412,7 @@ if (fNRB_partition_tables == 1) {
         NRB_fNRB2_frcompl_madm1 <- userarea_gpkg1 %>%
           st_drop_geometry() %>%
           merge(., NRB_fNRB2_fr, by.x = ext_analysis_ID, by.y = "zone") %>%
-          dplyr::select(-GID_0, -GID_1) %>%
-          replace(is.na(.), 0)
+          dplyr::select(-GID_0, -GID_1)
         write.csv(NRB_fNRB2_frcompl_madm1, "LULCC/TempTables/summary_adm1_frcompl.csv", row.names=FALSE, quote=FALSE)
         write.csv(NRB_fNRB2_frcompl_madm1, "Out/webmofuss_results/summary_adm1_frcompl.csv", row.names=FALSE, quote=FALSE)
         
@@ -2962,8 +2431,7 @@ if (fNRB_partition_tables == 1) {
           inner_join(.,NRB_fNRB3_fr_madm1, by="ID") %>%
           dplyr::select(-NAME_0.y, -NAME_1.y) %>%
           dplyr::rename(NAME_0 = NAME_0.x,
-                        NAME_1 = NAME_1.x) %>%
-          replace(is.na(.), 0)
+                        NAME_1 = NAME_1.x)
         st_write(userarea_simpx_fr1, "Out/webmofuss_results/mofuss_adm1_fr.gpkg", delete_layer = TRUE)
         print(paste0(admname," finished for vector layers"))
         
@@ -2971,8 +2439,7 @@ if (fNRB_partition_tables == 1) {
         NRB_fNRB2_frcompl_madm2 <- userarea_gpkg2 %>%
           st_drop_geometry() %>%
           merge(., NRB_fNRB2_fr, by.x = ext_analysis_ID, by.y = "zone") %>%
-          dplyr::select(-GID_0, -GID_1, -GID_2) %>%
-          replace(is.na(.), 0)
+          dplyr::select(-GID_0, -GID_1, -GID_2)
         write.csv(NRB_fNRB2_frcompl_madm2, "LULCC/TempTables/summary_adm2_frcompl.csv", row.names=FALSE, quote=FALSE)
         write.csv(NRB_fNRB2_frcompl_madm2, "Out/webmofuss_results/summary_adm2_frcompl.csv", row.names=FALSE, quote=FALSE)
         
@@ -2992,16 +2459,14 @@ if (fNRB_partition_tables == 1) {
           dplyr::select(-NAME_0.y, -NAME_1.y, -NAME_2.y) %>%
           dplyr::rename(NAME_0 = NAME_0.x,
                         NAME_1 = NAME_1.x,
-                        NAME_2 = NAME_2.x,) %>%
-          replace(is.na(.), 0)
+                        NAME_2 = NAME_2.x,)
         st_write(userarea_simpx_fr2, "Out/webmofuss_results/mofuss_adm2_fr.gpkg", delete_layer = TRUE)
         print(paste0(admname," finished for vector layers"))
         
       } else if (admname == "ecoregions") {
         NRB_fNRB2_frcompl_meco2 <- ecoregions_gpkg %>%
           st_drop_geometry() %>%
-          merge(., NRB_fNRB2_fr, by.x = ecoregions_ID, by.y = "zone") %>%
-          replace(is.na(.), 0)
+          merge(., NRB_fNRB2_fr, by.x = ecoregions_ID, by.y = "zone")
         write.csv(NRB_fNRB2_frcompl_meco2, "LULCC/TempTables/summary_ecoregions_frcompl.csv", row.names=FALSE, quote=FALSE)
         write.csv(NRB_fNRB2_frcompl_meco2, "Out/webmofuss_results/summary_ecoregions_frcompl.csv", row.names=FALSE, quote=FALSE)
 
@@ -3025,8 +2490,7 @@ if (fNRB_partition_tables == 1) {
                         NAME_0 = NAME_0.x,
                         Subregion = Subregion.x,
                         ID = ID.x,
-                        mofuss_reg = mofuss_reg.x) %>%
-          replace(is.na(.), 0)
+                        mofuss_reg = mofuss_reg.x)
         st_write(userarea_simpx_fr2, "Out/webmofuss_results/mofuss_ecoregions_fr.gpkg", delete_layer = TRUE)
         print(paste0(admname," finished for vector layers"))
       }
@@ -3037,6 +2501,20 @@ if (fNRB_partition_tables == 1) {
     
   } # foreach(admm = adminlevel, admname = admin_name) %do% {
   
+  for (metadata_dir in c("LULCC/TempTables", "Out/webmofuss_results")) {
+    write.csv(nrb_periods, file.path(metadata_dir, "nrb_periods.csv"), row.names = FALSE)
+    metadata <- data.frame(
+      schema_version = "woodfuel_nrb_reporting_v1",
+      MC = seq_len(MC),
+      attribution_method = vapply(nrb_contexts, function(x) x$method, character(1)),
+      luc_mode = luc_mode,
+      zero_harvest_fnrb = "undefined (NA)",
+      period_accounting = "signed woodfuel depletion; later regrowth offsets earlier depletion",
+      stringsAsFactors = FALSE
+    )
+    write.csv(metadata, file.path(metadata_dir, "nrb_attribution_metadata.csv"), row.names = FALSE)
+  }
+
 } # if (fNRB_partition_tables == 1) {
 
 # Compile LaTeX file into PDF report ####

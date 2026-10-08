@@ -62,7 +62,7 @@ os <- Sys.info()["sysname"]
 
 # Runtime files copied by this preprocessing step on either operating system.
 # Linux launcher support remains internal to the normal workflow.
-mofuss_runtime_bundle_files <- function(active_egoml = "10_dyn_Sc17_webmofuss_ctrees_g_v13.egoml") {
+mofuss_runtime_bundle_files <- function(active_egoml = "10_dyn_Sc17_webmofuss_ctrees_g_v14.egoml") {
   unique(c(
     active_egoml,
     "10_dyn_Sc17_webmofuss_ctrees_g_v13.egoml",
@@ -70,11 +70,12 @@ mofuss_runtime_bundle_files <- function(active_egoml = "10_dyn_Sc17_webmofuss_ct
     "rnorm_v8.R", "NRB_graphs_datasets_v8.R", "maps_animations_v8.R",
     "finalogs_v8.R", "bypassMC_v8.R", "bypass_maps_animations_v8.R",
     "run_linux.sh", "run_linux.py", "mofuss_r_linux.sh",
-    "README_LINUX.md", "LaTeX/generate_modern_report_v8.R"
+    "README_LINUX.md", "LaTeX/generate_modern_report_v8.R",
+    "helpers/woodfuel_nrb_attribution.R", "tools/windows_launcher_v1.R"
   ))
 }
 
-mofuss_validate_runtime_bundle <- function(scripts_dir, active_egoml = "10_dyn_Sc17_webmofuss_ctrees_g_v13.egoml") {
+mofuss_validate_runtime_bundle <- function(scripts_dir, active_egoml = "10_dyn_Sc17_webmofuss_ctrees_g_v14.egoml") {
   files <- mofuss_runtime_bundle_files(active_egoml)
   sources <- file.path(scripts_dir, files)
   missing <- files[!file.exists(sources) | dir.exists(sources)]
@@ -85,7 +86,7 @@ mofuss_validate_runtime_bundle <- function(scripts_dir, active_egoml = "10_dyn_S
   invisible(sources)
 }
 
-mofuss_copy_runtime_bundle <- function(scripts_dir, destination, active_egoml = "10_dyn_Sc17_webmofuss_ctrees_g_v13.egoml") {
+mofuss_copy_runtime_bundle <- function(scripts_dir, destination, active_egoml = "10_dyn_Sc17_webmofuss_ctrees_g_v14.egoml") {
   sources <- mofuss_validate_runtime_bundle(scripts_dir, active_egoml)
   files <- mofuss_runtime_bundle_files(active_egoml)
   scripts_dir <- normalizePath(scripts_dir, winslash = "/", mustWork = TRUE)
@@ -109,26 +110,17 @@ mofuss_copy_runtime_bundle <- function(scripts_dir, destination, active_egoml = 
   invisible(targets)
 }
 
-# Select the Windows model from parameters loaded by the preceding workflow.
-# Include both model versions when Woodman LUC3 is prepared. The v14 wizard
-# chooses MODIS LUC1 or Woodman LUC3 at simulation time.
-model_parameter <- function(name, default) {
-  value <- country_parameters$ParCHR[
-    !is.na(country_parameters$Var) & country_parameters$Var == name
-  ]
-  if (!length(value)) return(default)
-  if (length(value) != 1L) stop("Duplicate model parameter: ", name)
-  if (is.na(value[[1L]]) || !nzchar(trimws(value[[1L]]))) return(default)
-  tolower(trimws(as.character(value)))
-}
-woodman_luc3 <- model_parameter("LULCt3map", "NO") == "yes"
-active_egoml <- if (woodman_luc3)
-  "10_dyn_Sc17_webmofuss_ctrees_g_v14.egoml" else
-    "10_dyn_Sc17_webmofuss_ctrees_g_v13.egoml"
-
+# Select the same graph and LUC channel used by Windows launcher preparation.
+# New MODIS LUC1 and Woodman LUC3 runs both use corrected v14. Retained v13
+# files support historical replay and legacy Copernicus/Linux workflows only.
+runtime_scripts_dir <- file.path(githubdir, "localhost", "scripts")
+model_configuration_helpers <- new.env(parent = baseenv())
+sys.source(file.path(runtime_scripts_dir, "tools", "windows_launcher_v1.R"),
+           envir = model_configuration_helpers)
+model_configuration <- model_configuration_helpers$mofuss_windows_run_configuration(country_parameters)
+active_egoml <- model_configuration$model
 
 # Validate before any existing inputs are removed.
-runtime_scripts_dir <- file.path(githubdir, "localhost", "scripts")
 mofuss_validate_runtime_bundle(runtime_scripts_dir, active_egoml)
 
 # Set working directory
@@ -344,6 +336,8 @@ for (folder in c("ffmpeg32", "ffmpeg64", "LaTeX")) {
   }
 }
 mofuss_copy_runtime_bundle(runtime_scripts_dir, countrydir, active_egoml)
+model_configuration_helpers$mofuss_configure_model_luc(
+  file.path(countrydir, active_egoml), model_configuration$luc)
 
 
 # Copy contents of logos_imgs into Wizard_imgs

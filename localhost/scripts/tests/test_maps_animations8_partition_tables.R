@@ -5,7 +5,7 @@ if (length(args) != 2L) {
 
 scenario_dir <- normalizePath(args[[1]], winslash = "/", mustWork = TRUE)
 maps_script <- normalizePath(args[[2]], winslash = "/", mustWork = TRUE)
-scratch <- tempfile("mofuss_fnrb_partition_")
+scratch <- tempfile("mofuss_fnrb_partition_", tmpdir = Sys.getenv("MOFUSS_TEST_SCRATCH", tempdir()))
 dir.create(scratch, recursive = TRUE)
 dir.create(file.path(scratch, "LULCC"), recursive = TRUE)
 dir.create(file.path(scratch, "LULCC", "TempTables"), recursive = TRUE)
@@ -58,11 +58,19 @@ parameter_value <- function(key) {
 }
 
 MC <- 1L
-STdyn <- as.integer(parameter_value("end_year")) - as.integer(parameter_value("start_year"))
+IT <- as.integer(parameter_value("start_year"))
+end_year <- as.integer(parameter_value("end_year"))
+STdyn <- end_year - IT
 aoi_poly <- as.integer(parameter_value("aoi_poly"))
 mcthreshold <- 30L
 uncertainty_digits <- 2L
 fNRB_partition_tables <- 1L
+source(file.path(dirname(maps_script), "helpers", "woodfuel_nrb_attribution.R"))
+luc_value <- unique(country_parameters$ParCHR[country_parameters$Var == "LUCmap_v"])
+luc_mode <- if (length(luc_value)) as.integer(luc_value) else NULL
+nrb_contexts <- list(mofuss_nrb_context(scenario_dir, luc_mode = luc_mode,
+                                       expected_steps = STdyn + 1L, mc = 1L))
+luc_mode <- nrb_contexts[[1L]]$luc_mode
 
 script_lines <- readLines(maps_script, warn = FALSE)
 block_start <- grep("^summarise_mc_uncertainty <- function", script_lines)

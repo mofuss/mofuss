@@ -35,7 +35,7 @@ parameters <- function(scenario = "BaU1_v2", luc = 1L) {
 }
 
 # Locate the actual owning functor independently of the implementation. Byte
-# equality after masking only these two constants proves all other graph bytes
+# equality after masking only these three constants proves all other graph bytes
 # (including scientific expressions and formatting) have been retained.
 constant_block <- function(text, id) {
   blocks <- gregexpr("(?s)<functor\\b[^>]*>.*?</functor>", text, perl = TRUE)
@@ -52,7 +52,7 @@ constant_value <- function(text, id) {
   values[[2L]]
 }
 mask_constants <- function(text) {
-  for (id in c("v256", "v302")) {
+  for (id in c("v256", "v302", "v261")) {
     block <- constant_block(text, id)
     old <- paste0('<inputport name="constant">', constant_value(text, id),
                   '</inputport>')
@@ -95,7 +95,7 @@ for (luc in c(1L, 3L)) {
     before <- tree_hashes(folder)
     input <- parameters(scenario, luc)
     configured <- mofuss_windows_run_configuration(input)
-    selected <- unname(model_names[[if (luc == 3L) "v14" else "v13"]])
+    selected <- unname(model_names[["v14"]])
     rerun <- startsWith(scenario, "BaU")
     stopifnot(identical(configured$model, selected),
               as.integer(configured$luc) == luc,
@@ -113,11 +113,14 @@ for (luc in c(1L, 3L)) {
     stopifnot(identical(constant_value(installed, "v256"),
                         if (rerun) ".yes" else ".no"),
               identical(constant_value(installed, "v302"), as.character(luc)),
+              identical(constant_value(installed, "v261"), if (rerun) '"BaU"' else '"ICS"'),
               identical(mask_constants(installed), mask_constants(original)))
     preserved <- names(before)[names(before) != file.path(folder, selected)]
     stopifnot(identical(before[preserved], tools::md5sum(preserved)))
     command <- read_text(launcher)
     stopifnot(grepl(selected, command, fixed = TRUE),
+              grepl(paste0("echo Configured LUC: ", luc), command, fixed = TRUE),
+              grepl(paste0("echo Monte Carlo rerun: ", if (rerun) "Yes" else "No"), command, fixed = TRUE),
               grepl("-processors 2", command, fixed = TRUE),
               grepl("-log-level 4", command, fixed = TRUE),
               !grepl("-disable-native-expressions", command, fixed = TRUE),
@@ -143,6 +146,41 @@ stopifnot(as.integer(mofuss_windows_run_configuration(both)$luc) == 3L)
 both$ParCHR[both$Var == "LULCt3map"] <- "NO"
 both$ParCHR[both$Var == "LULCt2map"] <- "YES"
 stopifnot(as.integer(mofuss_windows_run_configuration(both)$luc) == 1L)
+
+# Explicit experiment overrides take precedence without changing preparation
+# parameters, including a folder where both LUC channels have been prepared.
+both$ParCHR[both$Var == "LULCt3map"] <- "YES"
+both_before <- both
+for (luc in c(1L, 3L)) {
+  choice <- mofuss_windows_run_configuration(both, luc = luc)
+  stopifnot(identical(choice$luc, luc),
+            identical(choice$model, unname(model_names[["v14"]])),
+            identical(both, both_before))
+}
+override_folder <- new_fixture("explicit fixed cover ICS !")
+override_input <- both
+override_input$ParCHR[override_input$Var == "scenario_ver"] <- "ICS3_v2"
+override_before <- override_input
+override_hashes <- tree_hashes(override_folder)
+paired_bau <- file.path(scratch, "matching BAU with spaces & parentheses (1) !")
+override_result <- mofuss_write_windows_launcher(
+  override_folder, override_input, engine = engine, processors = 2L,
+  temp_root = temporary_root, luc = 1L, paired_bau = paired_bau)
+override_model <- file.path(override_folder, model_names[["v14"]])
+override_launcher <- file.path(override_folder, "RUN_MoFuSS.cmd")
+stopifnot(identical(override_input, override_before),
+          identical(override_result$luc, 1L), identical(override_result$mc_reruns, FALSE),
+          identical(override_result$paired_bau, paired_bau),
+          identical(constant_value(read_text(override_model), "v302"), "1"),
+          identical(constant_value(read_text(override_model), "v256"), ".no"),
+          identical(constant_value(read_text(override_model), "v261"), '"ICS"'),
+          grepl("echo Configured LUC: 1 - fixed MODIS cover", read_text(override_launcher), fixed = TRUE),
+          grepl("echo Monte Carlo rerun: No", read_text(override_launcher), fixed = TRUE),
+          grepl(.mofuss_windows_path(paired_bau, "fixture"), read_text(override_launcher), fixed = TRUE))
+preserved <- names(override_hashes)[names(override_hashes) != override_model]
+stopifnot(identical(override_hashes[preserved], tools::md5sum(preserved)),
+          identical(mask_constants(read_text(override_model)),
+                    mask_constants(read_text(file.path(scripts, model_names[["v14"]])))))
 
 regenerated <- fixtures[["3_ICS3_v2"]]
 sentinels <- file.path(regenerated, c("parameters.csv", "Out/science_result.csv",
@@ -176,6 +214,12 @@ none <- parameters()
 none$ParCHR[grepl("^LULCt", none$Var)] <- "NO"
 expect_no_mutation(none)
 expect_no_mutation(parameters(), processors = 0L)
+for (invalid_luc in list(0L, 2L, 4L, 1.5, "1", NA_real_, c(1L, 3L))) {
+  expect_no_mutation(parameters(), luc = invalid_luc)
+}
+expect_no_mutation(parameters(), luc = 1L, paired_bau = paired_bau)
+expect_no_mutation(parameters("ICS3_v2"), luc = 1L, paired_bau = "relative/BAU")
+expect_no_mutation(parameters("ICS3_v2"), luc = 1L, paired_bau = "E:/bad\nBAU")
 cat("WINDOWS_LAUNCHER_GENERATION_OK\n")
 
 # Verify the actual workflow wiring without executing any preprocessing step.
@@ -219,6 +263,7 @@ if (.Platform$OS.type == "windows") {
     installed <- read_text(selected)
     stopifnot(identical(constant_value(installed, "v256"), ".no"),
               identical(constant_value(installed, "v302"), "3"),
+              identical(constant_value(installed, "v261"), '"ICS"'),
               identical(mask_constants(installed),
                         mask_constants(read_text(file.path(scripts, model_names[["v14"]])))),
               file.exists(file.path(folder, "RUN_MoFuSS.cmd")))
@@ -293,7 +338,7 @@ if (.Platform$OS.type == "windows") {
             identical(record[[2L]], record[[4L]]),
             startsWith(normalize(record[[2L]]), paste0(normalize(temporary_root), "/")),
             identical(record[5:10], c("5", "-processors", "2", "-log-level", "4",
-                                        unname(model_names[["v13"]]))))
+                                        unname(model_names[["v14"]]))))
   first_temp <- record[[2L]]
   second <- execute_probe(23L)
   stopifnot(second$status == 23L)
@@ -307,6 +352,18 @@ if (.Platform$OS.type == "windows") {
   missing_engine <- execute_probe(0L)
   stopifnot(missing_engine$status != 0L, !file.exists(record_path))
   stopifnot(file.rename(paste0(engine, ".saved"), engine))
+  # Execute the explicit fixed-cover ICS launcher as well. Its quoted pairing
+  # notice must survive spaces, ampersands, parentheses and exclamation marks.
+  launcher <- override_launcher
+  paired_probe <- execute_probe(0L)
+  paired_record <- readLines(file.path(override_folder, "launcher_probe.txt"), warn = FALSE)
+  paired_log <- paste(readLines(paired_probe$log, warn = FALSE), collapse = "\n")
+  stopifnot(paired_probe$status == 0L,
+            identical(normalize(paired_record[[1L]]), normalize(override_folder)),
+            identical(paired_record[[10L]], unname(model_names[["v14"]])),
+            grepl("Configured LUC: 1 - fixed MODIS cover", paired_log, fixed = TRUE),
+            grepl("Monte Carlo rerun: No", paired_log, fixed = TRUE),
+            grepl(chartr("/", "\\", paired_bau), paired_log, fixed = TRUE))
   if (is.na(previous_exit)) Sys.unsetenv("MOFUSS_LAUNCHER_TEST_EXIT") else
     Sys.setenv(MOFUSS_LAUNCHER_TEST_EXIT = previous_exit)
   cat("WINDOWS_LAUNCHER_EXECUTION_OK\n")
