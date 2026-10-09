@@ -1,8 +1,8 @@
-# Small additive country-prep fixture. All runtime files live on E:.
+# Small additive country-prep fixture. Runtime files use the session temp directory.
 suppressPackageStartupMessages(library(terra))
 source("localhost/scripts/5c_prepare_woodman_country_additive_v1.R")
 
-test_root <- "E:/MoFuSS_Active/woodman_country_additive_fixture_2026-10-04"
+test_root <- tempdir()
 dir.create(test_root, recursive = TRUE, showWarnings = FALSE)
 fixture <- tempfile(pattern = "country_", tmpdir = test_root)
 target <- file.path(fixture, "target")

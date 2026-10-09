@@ -21,7 +21,7 @@ batch_computers <- list(
     log_root = "/home/mofuss/MoFuSS_Active"
   )
 )
-batch_apply <- FALSE      # FALSE previews; TRUE runs them sequentially.
+batch_apply <- TRUE      # FALSE previews; TRUE runs them sequentially.
 batch_telegram_msgs <- TRUE # One result per folder using the repository .env.
 # END USER INPUTS ------------------------------------------------------------
 

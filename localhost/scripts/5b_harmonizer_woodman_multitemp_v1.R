@@ -30,7 +30,8 @@ woodman_optional_parameter <- function(name, default) {
 modis_luc1 <- toupper(woodman_optional_parameter("LULCt1map", "NO")) == "YES"
 woodman_luc3 <- toupper(woodman_optional_parameter("LULCt3map", "NO")) == "YES"
 
-if (woodman_luc3) {
+prepare_woodman_annual_maps <- function() {
+  if (!woodman_luc3) return(invisible(NULL))
   woodman_slot <- 3L
   if (!exists("userarea_r", inherits = TRUE) ||
       !exists("align_raster_to_template", mode = "function")) {
@@ -74,6 +75,24 @@ if (woodman_luc3) {
   if (nrow(forced) != 1L || forced$TOF[[1L]] != 1L) {
     stop("Exactly one Urban_Forced TOF growth row is required.")
   }
+  # Raster values live outside R's managed heap. Several nested operations can
+  # exhaust RAM before R decides to collect their external pointers. Keep this
+  # stage on disk and bound each operation independently of the preceding scripts.
+  prior_options <- terra::terraOptions(print = FALSE)[
+    c("tempdir", "memfrac", "memmin", "memmax", "todisk")
+  ]
+  scratch <- tempfile("woodman_annual_", tmpdir = prior_options$tempdir)
+  if (!dir.create(scratch, recursive = TRUE)) {
+    stop("Could not create Woodman temporary directory: ", scratch)
+  }
+  on.exit({
+    do.call(terra::terraOptions, prior_options)
+    invisible(gc())
+    unlink(scratch, recursive = TRUE)
+  }, add = TRUE)
+  terra::terraOptions(tempdir = scratch, memfrac = 0.25, memmax = 1,
+                      memmin = 0, todisk = TRUE)
+  invisible(gc())
   forced_key <- as.integer(forced[["Key*"]][[1L]])
   base_key <- terra::rast(base_path)
   forced_mask <- base_key == forced_key
@@ -83,8 +102,6 @@ if (woodman_luc3) {
   key_matrix <- as.matrix(keys[, c("IDorig", "Key")])
   tof_matrix <- as.matrix(growth[, c("Key*", "TOF")])
   forest_keys <- as.integer(keys$Key[keys$luc_code %in% c(44L, 45L)])
-  previous_forest <- NULL
-  previous_tof <- NULL
   annual_overwrite <- !exists("woodman_no_overwrite", inherits = TRUE) ||
     !isTRUE(get("woodman_no_overwrite", inherits = TRUE))
   output_dir <- file.path(countrydir, "LULCC", "TempRaster")
@@ -110,30 +127,35 @@ if (woodman_luc3) {
     modis_tof <- file.path(output_dir, "TOFvsFOR_mask1.tif")
     missing_modis <- c(modis_luc, modis_tof)[!file.exists(c(modis_luc, modis_tof))]
     if (length(missing_modis)) stop("Missing MODIS LUC1 map: ", missing_modis[[1L]])
-    modis_zero <- terra::ifel(is.na(terra::rast(modis_luc)), NA, 0)
+    modis_zero_path <- file.path(scratch, "modis_zero.tif")
+    terra::ifel(
+      is.na(terra::rast(modis_luc)), NA, 0, filename = modis_zero_path,
+      wopt = list(datatype = "INT2S", gdal = c("COMPRESS=LZW"))
+    )
     for (year in years) {
       targets <- file.path(output_dir, c(
         sprintf("LULCt1_c_%d.tif", year),
-        sprintf("TOFvsFOR_mask1_%d.tif", year)
+        sprintf("TOFvsFOR_mask1_%d.tif", year),
+        sprintf("LULCt1_transition_%d.tif", year)
       ))
-      sources <- c(modis_luc, modis_tof)
+      sources <- c(modis_luc, modis_tof, modis_zero_path)
       copied <- file.copy(sources, targets, overwrite = annual_overwrite,
                           copy.mode = TRUE)
       if (!all(copied)) stop("Could not prepare annual MODIS map: ",
                             targets[which(!copied)[[1L]]])
-      terra::writeRaster(
-        modis_zero,
-        file.path(output_dir, sprintf("LULCt1_transition_%d.tif", year)),
-        datatype = "INT2S", overwrite = annual_overwrite,
-        wopt = list(gdal = c("COMPRESS=LZW"))
-      )
     }
     message("Prepared static MODIS LUC1/TOF aliases and zero transitions for ",
             length(years), " simulation years")
   }
 
-  for (i in seq_along(years)) {
+  # A function scope releases all annual intermediates when it returns. Only
+  # filenames for the previous forest/TOF masks survive into the next year.
+  prepare_year <- function(i, previous) {
     year <- years[[i]]
+    previous_forest <- if (is.null(previous)) NULL else
+      terra::rast(previous$forest)
+    previous_tof <- if (is.null(previous)) NULL else
+      terra::rast(previous$tof)
     luc <- align_raster_to_template(
       terra::rast(annual_paths[[i]]), userarea_r, method = "near"
     )
@@ -184,9 +206,10 @@ if (woodman_luc3) {
       datatype = "INT2S", overwrite = annual_overwrite,
       wopt = list(gdal = c("COMPRESS=LZW"))
     )
+    tof_path <- file.path(output_dir,
+                          sprintf("TOFvsFOR_mask%d_%d.tif", woodman_slot, year))
     terra::writeRaster(
-      tof, file.path(output_dir,
-                     sprintf("TOFvsFOR_mask%d_%d.tif", woodman_slot, year)),
+      tof, tof_path,
       datatype = "INT2S", overwrite = annual_overwrite,
       wopt = list(gdal = c("COMPRESS=LZW"))
     )
@@ -196,9 +219,29 @@ if (woodman_luc3) {
       datatype = "INT2S", overwrite = annual_overwrite,
       wopt = list(gdal = c("COMPRESS=LZW"))
     )
-    previous_forest <- forest
-    previous_tof <- tof
+    forest_path <- file.path(scratch, sprintf("forest_%d.tif", year))
+    terra::writeRaster(forest, forest_path, datatype = "INT2S",
+                       wopt = list(gdal = c("COMPRESS=LZW")))
+    list(forest = forest_path, tof = tof_path)
+  }
+  previous <- NULL
+  for (i in seq_along(years)) {
+    year <- years[[i]]
+    year_scratch <- file.path(scratch, as.character(year))
+    if (!dir.create(year_scratch)) {
+      stop("Could not create annual Woodman temporary directory: ", year_scratch)
+    }
+    terra::terraOptions(tempdir = year_scratch)
+    next_state <- prepare_year(i, previous)
+    invisible(gc())
+    terra::terraOptions(tempdir = scratch)
+    unlink(year_scratch, recursive = TRUE)
+    if (!is.null(previous)) unlink(previous$forest)
+    previous <- next_state
     message("Prepared Woodman LUC", woodman_slot,
             ", TOF and transition maps for ", year)
   }
+  invisible(NULL)
 }
+
+prepare_woodman_annual_maps()

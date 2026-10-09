@@ -2,7 +2,7 @@
 # Generated rasters live outside the source repository.
 suppressPackageStartupMessages(library(terra))
 
-test_root <- "E:/MoFuSS_Active/woodman_luc3_country_2026-10-03"
+test_root <- tempdir()
 dir.create(test_root, recursive = TRUE, showWarnings = FALSE)
 fixture <- tempfile(pattern = "woodman_luc3_fixture_", tmpdir = test_root)
 countrydir <- fixture
@@ -33,7 +33,9 @@ with_values <- function(x) {
 # cell 7 loses TOF without forest change, and source code 0 at cell 9 is NoData.
 luc2000 <- c(44, 22, 11, 45, 33, 22, 66, 77, NA)
 luc2001 <- c(11, 44, 11, 44, 11, 44, 33, 77, 0)
-annual_luc <- list(`2000` = luc2000, `2001` = luc2001)
+luc2002 <- c(11, 22, 44, 11, 44, 22, 33, NA, 77)
+annual_luc <- list(`2000` = luc2000, `2001` = luc2001,
+                   `2002` = luc2002, `2003` = luc2002)
 for (year in names(annual_luc)) {
   writeRaster(with_values(annual_luc[[year]]), file.path(
     global_data, "InRaster", sprintf("woodman_luc_%s_pcs.tif", year)
@@ -73,13 +75,16 @@ country_parameters <- data.frame(
   Var = c("LULCt1map", "LULCt3map", "LULCt3map_name", "LULCt3map_yr",
           "start_year", "end_year"),
   ParCHR = c("YES", "YES", "woodman_luc_pcs.tif",
-             "2000", "2000", "2001")
+             "2000", "2000", "2003")
 )
 userarea_r <- grid
 align_raster_to_template <- function(x, template, method, mask_output = TRUE) {
   stopifnot(compareGeom(x, template, stopOnError = FALSE))
   x
 }
+options_before <- terraOptions(print = FALSE)
+option_names <- c("tempdir", "memfrac", "memmin", "memmax", "todisk")
+temporary_before <- list.files(options_before$tempdir, pattern = "^woodman_annual_")
 source("localhost/scripts/5b_harmonizer_woodman_multitemp_v1.R")
 
 read_cells <- function(name) {
@@ -97,10 +102,54 @@ stopifnot(
                    as.numeric(c(0, 0, 0, 0, 0, 0, 0, 0, NA)))),
   isTRUE(all.equal(read_cells("LULCt3_transition_2001.tif"),
                    as.numeric(c(1, 2, 0, 0, 3, 0, 4, 0, NA)))),
+  isTRUE(all.equal(read_cells("LULCt3_c_2002.tif"),
+                   as.numeric(c(1, 2, 4, 1, 4, 9, 3, NA, NA)))),
+  isTRUE(all.equal(read_cells("LULCt3_transition_2002.tif"),
+                   as.numeric(c(0, 1, 2, 1, 2, 0, 0, NA, NA)))),
+  isTRUE(all.equal(read_cells("LULCt3_transition_2003.tif"),
+                   as.numeric(c(0, 0, 0, 0, 0, 0, 0, NA, NA)))),
   identical(unname(tools::md5sum(c(luc1_path, tof1_path))),
             luc1_hash_before),
   isTRUE(all.equal(read_cells("LULCt1_c_2001.tif"), rep(2, 9))),
   isTRUE(all.equal(read_cells("TOFvsFOR_mask1_2001.tif"), rep(0, 9))),
   isTRUE(all.equal(read_cells("LULCt1_transition_2001.tif"), rep(0, 9)))
 )
+stopifnot(
+  identical(terraOptions(print = FALSE)[option_names], options_before[option_names]),
+  identical(list.files(options_before$tempdir, pattern = "^woodman_annual_"),
+            temporary_before)
+)
+
+# An unknown annual key must fail cleanly after earlier years completed.
+bad_luc <- luc2002
+bad_luc[[1L]] <- 99
+writeRaster(with_values(bad_luc), file.path(
+  global_data, "InRaster", "woodman_luc_2002_pcs.tif"
+), overwrite = TRUE)
+failure <- tryCatch(
+  source("localhost/scripts/5b_harmonizer_woodman_multitemp_v1.R"),
+  error = identity
+)
+stopifnot(
+  inherits(failure, "error"),
+  grepl("2002 has 1 Woodman cells without growth-parameter keys", conditionMessage(failure)),
+  identical(terraOptions(print = FALSE)[option_names], options_before[option_names]),
+  identical(list.files(options_before$tempdir, pattern = "^woodman_annual_"),
+            temporary_before)
+)
+
+# Additive preparation must continue to refuse existing annual products.
+outputs <- list.files(output_dir, pattern = "_20[0-9][0-9]\\.tif$", full.names = TRUE)
+hashes <- unname(tools::md5sum(outputs))
+woodman_no_overwrite <- TRUE
+failure <- tryCatch(
+  source("localhost/scripts/5b_harmonizer_woodman_multitemp_v1.R"),
+  error = identity
+)
+stopifnot(inherits(failure, "error"),
+          identical(unname(tools::md5sum(outputs)), hashes),
+          identical(terraOptions(print = FALSE)[option_names], options_before[option_names]),
+          identical(list.files(options_before$tempdir, pattern = "^woodman_annual_"),
+                    temporary_before))
+unlink(fixture, recursive = TRUE)
 cat("Woodman LUC3 annual raster fixture passed.\n")

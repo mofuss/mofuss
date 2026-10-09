@@ -3,7 +3,7 @@ suppressPackageStartupMessages(library(terra))
 
 fixture <- tempfile(
   pattern = "harmonizer_test_",
-  tmpdir = "E:/MoFuSS_Active/woodman_multitemp_2026-09-25"
+  tmpdir = tempdir()
 )
 countrydir <- fixture
 country_name <- "Test"
