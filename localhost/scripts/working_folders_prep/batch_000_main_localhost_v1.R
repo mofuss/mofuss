@@ -10,9 +10,9 @@
 batch_computers <- list(
   Windows = list(          # WindowsNRBV1
     root = "D:/",
-    repo = "C:/Users/UNAM/Documents/mofuss",
+    repo = "C:/Users/aghil/Documents/mofuss", #"C:/Users/UNAM/Documents/mofuss" "C:/Users/aghil/Documents/mofuss"
     admin_regions = "D:/admin_regions",
-    log_root = "E:/MoFuSS_Active"
+    log_root = "D:/MoFuSS_Active"  #"E:/MoFuSS_Active"
   ),
   Linux = list(            # LinuxC3
     root = "/home/mofuss/Documents",
