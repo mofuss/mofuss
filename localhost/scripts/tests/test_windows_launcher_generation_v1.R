@@ -220,6 +220,51 @@ for (invalid_luc in list(0L, 2L, 4L, 1.5, "1", NA_real_, c(1L, 3L))) {
 expect_no_mutation(parameters(), luc = 1L, paired_bau = paired_bau)
 expect_no_mutation(parameters("ICS3_v2"), luc = 1L, paired_bau = "relative/BAU")
 expect_no_mutation(parameters("ICS3_v2"), luc = 1L, paired_bau = "E:/bad\nBAU")
+
+# The freeze control applies to Woodman only, preserves old tables through the
+# default, and must agree with the CSV actually consumed by the model.
+stopifnot(identical(mofuss_windows_run_configuration(parameters())$woodman_luc_freeze_year,
+                    2050L))
+with_freeze <- function(year, luc = 3L) {
+  rbind(parameters("BaU1_v2", luc),
+        data.frame(Var = "woodman_luc_freeze_year", ParCHR = as.character(year)))
+}
+for (invalid_year in c("1999", "2051", "2026.5", "", "NA", "2026bad")) {
+  expect_no_mutation(with_freeze(invalid_year))
+}
+expect_no_mutation(rbind(with_freeze(2026), tail(with_freeze(2026), 1L)))
+expect_no_mutation(with_freeze(2026)) # explicit freeze cannot lack runtime input
+for (invalid_seed in list(-1, 1.5, NA_real_, Inf, "123", c(1L, 2L), 2147483648)) {
+  expect_no_mutation(parameters(), seed = invalid_seed)
+}
+for (invalid_filename in c("../bad.cmd", "bad.exe", "folder/bad.cmd", "bad&name.cmd")) {
+  expect_no_mutation(parameters(), filename = invalid_filename)
+}
+freeze_folder <- new_fixture("Woodman frozen 2026 !")
+freeze_runtime <- file.path(freeze_folder, "LULCC/TempTables/parameters_dinamica.csv")
+dir.create(dirname(freeze_runtime), recursive = TRUE)
+write.csv(data.frame(Var = "woodman_luc_freeze_year", ParCHR = 2026L),
+          freeze_runtime, row.names = FALSE)
+freeze_result <- mofuss_write_windows_launcher(
+  freeze_folder, with_freeze(2026), engine = engine, processors = 2L,
+  temp_root = temporary_root, seed = 20261009L, filename = "RUN_MDG_optimized.cmd")
+freeze_command <- read_text(freeze_result$path)
+stopifnot(identical(freeze_result$woodman_luc_freeze_year, 2026L),
+          identical(freeze_result$seed, 20261009L),
+          identical(basename(freeze_result$path), "RUN_MDG_optimized.cmd"),
+          !file.exists(file.path(freeze_folder, "RUN_MoFuSS.cmd")),
+          grepl("Woodman LUC freeze year: 2026", freeze_command, fixed = TRUE),
+          grepl('set "MOFUSS_SEED=20261009"', freeze_command, fixed = TRUE),
+          identical(mask_constants(read_text(freeze_result$model_path)),
+                    mask_constants(read_text(file.path(scripts, model_names[["v14"]])))))
+before_mismatch <- tree_hashes(freeze_folder)
+mismatch <- try(mofuss_write_windows_launcher(
+  freeze_folder, with_freeze(2050), engine = engine, temp_root = temporary_root), silent = TRUE)
+stopifnot(inherits(mismatch, "try-error"), identical(before_mismatch, tree_hashes(freeze_folder)))
+# The same nondefault parameter is explicitly inactive when selecting MODIS.
+inactive <- mofuss_write_windows_launcher(
+  freeze_folder, with_freeze(2026, 1L), engine = engine, temp_root = temporary_root)
+stopifnot(grepl("freeze year is inactive", read_text(inactive$path), fixed = TRUE))
 cat("WINDOWS_LAUNCHER_GENERATION_OK\n")
 
 # Verify the actual workflow wiring without executing any preprocessing step.

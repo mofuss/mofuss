@@ -22,6 +22,11 @@ from dinamica_v12_transform import _parse_spans, _producers
 CONTRACT = "woodfuel_attributed_signed_balance_v1"
 MARKER_KEY = "mofuss.nrb.attribution.contract"
 NEW_IDS = ("v93000", "v93001", "v93002", "v93003", "v93004")
+# A signed balance can legitimately equal the engine's default -9999 NoData.
+# Keep the sentinel well outside any plausible biomass balance, including
+# GDAL's approximate float32 NoData comparison. This changes encoding only.
+LEDGER_IDS = ("v93000", "v93002", "v93003")
+LEDGER_NULL = "-1e30"
 
 # i1=S after the LUC reset, i2=P after harvest, i3=H realized harvest,
 # i4=legacy deforestation exclusion, i5=B available before harvest,
@@ -77,7 +82,7 @@ def _expression(element):
     return " ".join(element.findtext("inputport[@name='expression']").strip("[] \n\r\t").split())
 
 
-def _validate_corrected(root):
+def _validate_corrected(root, *, allow_legacy_null=False):
     producers = _producers(root)
     marker = root.find(f"property[@key='{MARKER_KEY}']")
     if marker is None or marker.get("value") != CONTRACT:
@@ -98,6 +103,10 @@ def _validate_corrected(root):
                 _maps(actual) != dict(enumerate(maps, 1)) or
                 actual.findtext("inputport[@name='cellType']") != ".float32"):
             raise ValueError("NRB attribution calculation changed: " + ident)
+    for ident in LEDGER_IDS:
+        allowed_nulls = (LEDGER_NULL, ".default") if allow_legacy_null else (LEDGER_NULL,)
+        if producers[ident].findtext("inputport[@name='nullValue']") not in allowed_nulls:
+            raise ValueError("NRB attribution ledger NoData encoding changed: " + ident)
     mux = producers["v93001"]
     if (mux.get("name") != "MuxMap" or
             mux.find("inputport[@name='initial']").get("peerid") != "v93000" or
@@ -133,8 +142,27 @@ def correct_nrb_attribution(text: str) -> tuple[str, dict]:
     root, data, spans = _parse_spans(text)
     producers = _producers(root)
     if root.find(f"property[@key='{MARKER_KEY}']") is not None:
-        _validate_corrected(root)
-        return text, {"already_applied": True, "contract": CONTRACT}
+        # Validate every existing equation, map input and feedback before a
+        # narrow encoding migration. The unchanged v1 contract describes the
+        # accounting equations; old -9999 output requires reader recovery.
+        _validate_corrected(root, allow_legacy_null=True)
+        edits = []
+        migrated = []
+        for ident in LEDGER_IDS:
+            entry = producers[ident].find("inputport[@name='nullValue']")
+            if entry.text == ".default":
+                span = spans[id(entry)]
+                edits.append((span.open_end, span.close_start, LEDGER_NULL.encode()))
+                migrated.append(ident)
+        for start, end, replacement in sorted(edits, reverse=True):
+            data = data[:start] + replacement + data[end:]
+        output = data.decode()
+        _validate_corrected(E.fromstring(output))
+        return output, {"already_applied": not migrated, "contract": CONTRACT,
+                        "ledger_null_migrated": bool(migrated),
+                        "changed_producer_ids": migrated,
+                        "balance_null_value": LEDGER_NULL,
+                        "dynamics_unchanged": True}
     for ident in NEW_IDS:
         if ident in producers:
             raise ValueError("NRB attribution reserved ID already occupied: " + ident)
@@ -196,7 +224,7 @@ def correct_nrb_attribution(text: str) -> tuple[str, dict]:
 
     initial = E.Element("fragment")
     calculate(initial, "Map", "Initial signed woodfuel balance on immutable stock support",
-              "if isNull(i1) then null else 0", "v93000", maps=("v200",))
+              "if isNull(i1) then null else 0", "v93000", maps=("v200",), null=LEDGER_NULL)
     annual = producers["v39"]
     insertion = spans[id(annual)].start
     edits.append((insertion, insertion, serialize_children(initial, 12).lstrip().encode() + b"\n            "))
@@ -207,10 +235,12 @@ def correct_nrb_attribution(text: str) -> tuple[str, dict]:
     port(mux, "feedback", peer="v93003")
     E.SubElement(mux, "outputport", name="map", id="v93001")
     post = calculate(ledger, "Map", "Signed woodfuel balance after harvest", POST_BALANCE,
-                     "v93002", maps=("v93001", "v90008", "v171", "v131", "v130", "v200", "v98"))
+                     "v93002", maps=("v93001", "v90008", "v171", "v131", "v130", "v200", "v98"),
+                     null=LEDGER_NULL)
     prop(post, "dff.functor.comment", "Cpost = Cprevious + min(post-LUC start, preharvest stock) - postharvest stock. Signed regrowth offsets persist; zero-harvest domain gaps retain previous balance; no LUC reset enters this observer.")
     end = calculate(ledger, "Map", "Signed woodfuel balance including endpoint seed", END_BALANCE,
-                    "v93003", maps=("v93002", "v98", "v131", "v93001", "v130", "v200", "v90008", "v171"))
+                    "v93003", maps=("v93002", "v98", "v131", "v93001", "v130", "v200", "v90008", "v171"),
+                    null=LEDGER_NULL)
     prop(end, "dff.functor.comment", "Cend = Cpost - (end stock - postharvest stock), retaining the existing 2 Mg forest seed. Float32 preserves compatibility with the production legacy engine.")
     filename(ledger, "debugging_<v1>/Woodfuel_balance<v2,2>.tif", ("v38", "v39"), "v93004")
     save(ledger, "Map", "v93002", "v93004")
@@ -234,6 +264,7 @@ def correct_nrb_attribution(text: str) -> tuple[str, dict]:
         "new_producer_ids": list(NEW_IDS),
         "annual_balance_family": "debugging_<MC>/Woodfuel_balance<step,2>.tif",
         "balance_cell_type": "float32",
+        "balance_null_value": LEDGER_NULL,
         "dynamics_unchanged": True,
     }
 

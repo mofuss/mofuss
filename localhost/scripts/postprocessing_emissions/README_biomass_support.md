@@ -1,5 +1,150 @@
 # Biomass reporting support
 
+## Woodman freeze year, 9 October 2026
+
+V14 accepts `woodman_luc_freeze_year`, an integer from 2000 through 2050,
+defaulting to 2050 when the parameter is absent. It affects LUC mode 3 only.
+The annual Woodman history, including transitions, applies through that year
+inclusive. Later steps reuse the freeze year's land-cover and TOF maps and
+apply zero new transition codes. The freeze-year clearing/new-forest event
+must not be replayed every subsequent year. Model time, demand, growth,
+harvest, biomass stocks and signed woodfuel accounting continue normally.
+
+For the matched Madagascar experiment, F uses Woodman LUC3 frozen at 2026 and
+D uses Woodman LUC3 through 2050. Both paths retain the same prescribed history
+through 2026. This differs from the earlier fixed-MODIS versus annual-Woodman
+comparison; retain its dated outputs as historical evidence.
+
+Each MC realization writes `debugging_<MC>/woodman_luc_execution.csv` from
+the actual native model inputs. It is a `Key*, Value` lookup table: 1 is the
+active LUC selector, 2 the freeze year, 3 the freeze-contract version (1), and
+4 the model start year. The model declares
+`mofuss.woodman.freeze.contract=woodman_freeze_year_v1`. Updating a model or
+parameter CSV does not establish how old physical outputs were generated:
+the shared NRB and process readers require this executed evidence for the new
+contract, reject conflicting ready-batch metadata, and reject different
+freeze years within a Woodman BAU/ICS pair. Legacy models without the freeze
+contract retain their historical annual-input interpretation through 2050.
+
+The MC readiness and bypass manifests also record the configured freeze year;
+old manifests lacking it imply the historical 2050 default. Changing the
+freeze year does not consume random draws. The ICS bypass validates matching
+BAU/ICS freeze settings for LUC3 before reusing BAU tables.
+Both preparation scripts compare the source parameter, prepared runtime
+parameter and actual Dinamica `WoodmanFreezeYear` argument before removing
+old outputs; inconsistent LUC3 settings fail at that preflight.
+
+Physical signed-ledger reconstruction and process attribution use the same
+effective cover year and transition suppression as the model. Output stock
+and ledger filenames still follow actual calendar steps. Stage 1 provenance
+and Stage 3 summary/annual/JSON products record the freeze setting and its
+evidence. Annual process tables distinguish actual `year` from
+`land_cover_year` and record whether Woodman transitions are enabled.
+
+Reporting windows and checkpoints are unchanged. In particular, explicit
+2026–2050 accounts use end-2025 through end-2050; opening saved biomass carries
+into each period. LUC losses remain separate from woodfuel NRB/fNRB and are
+already included in the net retained-stock benefit, so no second deduction is
+made. `test_woodfuel_luc_decomposition.R` covers the freeze-year reset, later
+regrowth/harvest, absent unused annual maps, period closure, NRB reconstruction,
+and missing/conflicting execution evidence. `test_bypassMC_v2.R` covers default
+compatibility and freeze-year pairing.
+
+## Signed-ledger storage and recovery, 8 October 2026
+
+The first corrected v14 exports used `-9999` as NoData in a signed balance.
+A legitimate negative balance can equal that value, and GDAL can also mask
+nearby float32 values. An exact collision can propagate missing accounting
+values into later years. The observer does not feed the physical simulation:
+saved growth, postharvest stock and harvest remain usable.
+
+The canonical model now uses `-1e30` for the initial, postharvest and end-step
+signed-ledger nodes. This changes storage only, with the attribution equations
+and physical model unchanged. Completed simulations are not rewritten.
+
+For existing exports, the shared NRB reader reconstructs signed **period
+increments** from saved annual physical states. It includes the previous
+step's seed correction, preserves the observer's zero-harvest carry rule,
+and rejects unexplained disagreements with readable ledger increments.
+The reconstruction is also used by the Stage 3 process account. This avoids
+interpolating across missing cumulative values or silently dropping cells
+whose balances collided with NoData. It does not recover genuinely missing
+physical states by substituting zero.
+
+The reader checks both model provenance and the actual TIFF NoData encoding;
+replacing a model file does not repair earlier exports. Stage 1 records the
+read policy, helper hash and auxiliary input hashes in its manifest, and
+preflights reconstruction inputs before clearing its exact output directory.
+Process outputs report recovered ledger coverage, validation error, annual
+support gaps and numerical residuals separately. The long-form
+`Temp/mc_k_NN.csv` table is indexed directly by its land-cover `Key`; the
+engine's extra column offset applies only to its wide table with a leading
+Monte Carlo ID column.
+
+The reporting mask remains the finite original AGB reference. Shared model
+reports reconstruct on the wider finite initial model-stock domain first,
+and Stage 1 applies its reporting mask afterward. Tests and native engine
+evidence are described in `tests/woodman_v14_runtime_regression.md`.
+
+## Woodfuel savings and land-cover reversal, 8 October 2026
+
+For corrected v14 runs, Stage 3 adds a process account beside the existing
+reference-relative stock-loss/stock-gain decomposition. It reads the saved
+annual model states and signed woodfuel ledger through
+`helpers/woodfuel_luc_decomposition.R`; it does not rerun the simulation.
+The new products are `process_attribution_per_run_*.csv`,
+`process_attribution_annual_*.csv`, and per-pair/run diagnostics under
+`process_attribution/`. Stage 4 publishes an MC1 process table and figure,
+with a separate `process_attribution_policy.csv` describing the account.
+
+The period identity is:
+
+```
+net retained stock benefit = signed woodfuel effect
+                          + direct LUC reset effect
+                          + TOF allowance effect
+                          + capacity adjustment effect
+                          + unclassified support adjustment
+                          + numerical closure residual
+```
+
+The net must reconcile to the unchanged Stage 2 result. Its LUC losses have
+already reduced the final BAU/CCTS stock difference; **do not subtract them
+again**. The signed woodfuel term retains biological growth offsets.
+The companion `net_before_direct_luc_mg` adds back the signed direct LUC
+reset effect to the net result. It describes an accounting exclusion under
+the realized pathway, not a simulated landscape without land-cover change.
+Separately reported clipped NRB saving is BAU period NRB minus CCTS period
+NRB. Because NRB is bounded cellwise, it is not interchangeable with the
+signed term in the stock identity and is not an additional emissions benefit.
+
+Direct reset effects, annual TOF allowances, and downward capacity adjustments
+are distinct components. The helper further diagnoses capacity changes and
+domain coverage. Where annual states or ledgers cannot identify a process,
+the unresolved stock contribution remains visible as a support diagnostic;
+it is not silently assigned to LUC or woodfuel. The fixed original-reference
+footprint and complete Stage 2 endpoint result remain the reporting baseline.
+
+The primary reversal percentage is **event conditional**: positive CCTS-minus-
+BAU stock removed at direct LUC reset events divided by positive saved stock
+exposed immediately before those same events. The denominator is summed over
+events, so repeated exposures count separately. Zero exposure produces an
+undefined value, not zero percent. This is not a claim that individual tonnes
+have been tracked since creation, nor a percentage of the signed NRB saving.
+Period opening stock, signed process gains and losses, and the denominator
+are supplied explicitly for interpretation. Carbon-equivalent conversion uses
+the existing `0.47 * 44/12` factor; end-use accounting remains separate.
+
+Legacy runs without corrected ledger provenance keep their stock-based
+products and report process attribution as unavailable. Corrected runs with
+missing required annual files fail process preflight before Stage 3 clears
+its output directory. Annual pixel-level coverage gaps are reported explicitly.
+
+`test_process_attribution_reporting.R` verifies the Stage 3/4 handoff,
+conservation and no double subtraction, the separate NRB metric, legacy
+availability, and the event denominator. Existing Stage 3/4 stock-estimand
+tests remain applicable.
+
 ## NRB attribution and the emissions estimand, 7 October 2026
 
 Stage 1 now uses `helpers/woodfuel_nrb_attribution.R`, the same NRB reader as

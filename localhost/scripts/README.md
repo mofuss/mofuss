@@ -34,6 +34,10 @@ separate temporary folder for each invocation under
 `E:/MoFuSS_Active/windows_runs`. The command window shows the exit code and stays
 open until a key is pressed. Missing engine/model files or unavailable temporary
 storage produce a visible error. The command does not change the engine seed.
+The existing launcher helper accepts an optional `seed` argument to set
+`MOFUSS_SEED` for reproducible R Monte Carlo parameter draws. Its default is
+`NULL`, preserving the inherited environment/default behavior; this is separate
+from Dinamica's engine seed.
 
 Step 2 configures the copied model's LUC selector immediately; the final R step
 checks it again and configures the Monte Carlo wizard constant and BAU/ICS
@@ -52,6 +56,18 @@ signed annual balance exported in `debugging_<MC>/Woodfuel_balanceNN.tif`.
 Historical v13 files remain available for replay. Copernicus-only LUC2 and the
 Linux launcher still use v13 legacy NRB accounting; corrected v14 attribution
 has not been validated for those workflows.
+
+For v14 Woodman LUC3, `woodman_luc_freeze_year` in `parameters.csv` is an integer
+from **2000 through 2050**, default **2050**. The model applies annual cover and
+transitions through that year, then retains that year's LUC and TOF maps. For
+example, 2026 applies the 2026 transition once and retains 2026 cover from 2027
+onward. No later transition resets occur, while growth, harvest, demand, and
+the simulation calendar continue normally. The parameter is inactive for LUC1.
+Step 7 exports it as the sixth row of `LULCC/TempTables/parameters_dinamica.csv`,
+preserving the earlier parameter positions; source tables without the new row
+receive the 2050 default. The model also defaults to 2050 when the runtime row
+is absent. The Windows launcher displays the freeze year and verifies it
+against an existing runtime table before preparing a Woodman launch.
 
 `scenario_ver` starting with `BaU` sets **MC rerun = Yes**; `ICS` or `CCTS` sets
 **No**. Other scenario prefixes are rejected rather than assigned an assumed
@@ -72,14 +88,18 @@ simulations. Do not rerun preprocessing over a completed/running run just
 to generate a launcher, because earlier preprocessing steps rebuild inputs.
 
 The eight existing MDG folders on F: and D: use their existing
-`RUN_MDG_optimized.cmd` for the October 8, 2026 update. All use corrected v14:
-F: uses fixed MODIS LUC1; D: uses annual Woodman LUC3. In both capped and
+`RUN_MDG_optimized.cmd` for the October 9, 2026 update. All use corrected v14
+and **Woodman LUC3**: F: freezes cover at **2026**, while D: keeps annual cover
+through **2050**. Both drives use the same explicit `MOFUSS_SEED=20261009`
+for reproducible corresponding R Monte Carlo parameter draws. In both capped and
 uncapped folders, BAU regenerates the three-draw MC batch and ICS reuses its
 matching BAU batch. Each ICS `bau_mc_source.txt` pins the BAU on the same drive
 with the same capped/uncapped setting. Finish the matching BAU before launching
 ICS. No additional generator or preprocessing step is needed to double-click
-these CMD files. Replaced runtime code is backed up under each run's
-`_code_backups/mdg_v14_nrb_launchers_2026-10-08`.
+these CMD files. The earlier October 8 fixed-MODIS versus annual-Woodman
+comparison is a different experiment from this matched Woodman comparison.
+Replaced code and configuration are backed up inside each run under
+`_code_backups/mdg_woodman_freeze_2026-10-09`.
 
 ## Script header contract
 

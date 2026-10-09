@@ -5,9 +5,10 @@ original scope and preserves arithmetic, map precision, input/output paths,
 external processes, and wizard metadata. Native regression on the server's
 Dinamica version remains required before replacing its working model.
 
-Known limitation: row selection evaluates every table column eagerly. An unused
-text column accepted by the original model makes this candidate fail. The real
-server's numeric preprocessing contract must be verified before deployment.
+Numeric tables with the current MC row use a selected-row cache. Other inputs
+retain the original expressions behind a conditional fallback. This preserves
+the demonstrated unused-text-column and missing-row lazy-access cases; native
+regression is still required for the complete workflow and other edge cases.
 
 The optional --last-mc-debugging avoids intermediate overwrites of shared
 Debugging maps. It preserves completed files, but changes when those files
@@ -16,6 +17,7 @@ appear during a run, so it is deliberately not part of the default candidate.
 from __future__ import annotations
 
 import argparse
+import copy
 import hashlib
 import json
 from pathlib import Path
@@ -36,6 +38,8 @@ SOURCE_SHA256 = "e4ce6ab47a12bbc7ed1f290a95ad6c1477182d21e95fba1428d816ecc85bca2
 TARGETS = ("v201", "v203", "v207", "v213")
 STATISTICS_ONLY = ("v23", "v27", "v128", "v129", "v311", "v312")
 DEBUG_CONDITION_ID = "v92050"
+NUMERIC_CONDITION_ID = "v97099"
+CACHE_CONDITION_ID = "v97105"
 
 
 class CandidateContractError(ValueError):
@@ -70,6 +74,114 @@ def _serialized(node: ET.Element) -> bytes:
     return ET.tostring(node, encoding="utf-8").rstrip()
 
 
+def _node(parent, name, label, *, container=False, inputs=(), output=None):
+    node = ET.SubElement(parent, "containerfunctor" if container else "functor", name=name)
+    ET.SubElement(node, "property", key="dff.functor.alias", value=label)
+    for port_name, value, peer in inputs:
+        port = ET.SubElement(node, "inputport", name=port_name)
+        if peer:
+            port.set("peerid", value)
+        else:
+            port.text = value
+    if output:
+        ET.SubElement(node, "outputport", name=output[0], id=output[1])
+    return node
+
+
+def _number(parent, kind, peer, slot):
+    return _node(parent, "Number" + kind, f"WebMoFuSS guard input {kind} {slot}",
+                 inputs=((kind.lower(), peer, True), (kind.lower() + "Number", str(slot), False)))
+
+
+def _guarded_lookup_nodes(producers, optimized_producers, lookup_report):
+    """Return local calculation replacements, outer helpers and MC helpers.
+
+    Only metadata and numeric key lists are hoisted outside the MC loop. Actual
+    row values are read only when all columns are numeric and all three source
+    tables contain this positive MC key. Otherwise the unmodified expressions
+    run in the same original scopes, retaining their per-pixel lazy branches.
+    """
+    outer, mc = ET.Element("fragment"), ET.Element("fragment")
+    numeric_keys = ET.Element("containerfunctor", name="IfThen")
+    ET.SubElement(numeric_keys, "property", key="dff.functor.alias",
+                  value="WebMoFuSS guard: numeric source keys")
+    ET.SubElement(numeric_keys, "inputport", name="condition", peerid=NUMERIC_CONDITION_ID)
+    row_guard = _node(mc, "IfThen", "WebMoFuSS guard: numeric MC row check", container=True,
+                      inputs=(("condition", NUMERIC_CONDITION_ID, True),))
+    row_checks, attributes = [], []
+    for index, row in enumerate(lookup_report["selected_rows"]):
+        selected = optimized_producers[row["lookup_output"]]
+        template = optimized_producers[input_port(_hook(selected, "Table", 1), "table").get("peerid")]
+        columns = optimized_producers[input_port(template, "constant").get("peerid")]
+        info = optimized_producers[input_port(columns, "table").get("peerid")]
+        for node in (info, columns, template):
+            outer.append(copy.deepcopy(node))
+        attribute_id = f"v{97000 + index}"
+        attributes.append(attribute_id)
+        _node(outer, "ExtractLookupTableAttributes", f"WebMoFuSS guard: types {row['source_table']}",
+              inputs=(("table", template.find("outputport").get("id"), True),
+                      ("extractStatisticalKeyAttributes", ".no", False),
+                      ("extractStatisticalValueAttributes", ".no", False),
+                      ("extractDynamicKeyValueAttributes", ".yes", False)),
+              output=("attributes", attribute_id))
+        keys_id, key_lookup_id = f"v{97200 + 2 * index}", f"v{97201 + 2 * index}"
+        _node(numeric_keys, "GetTableKeys", f"WebMoFuSS guard: keys {row['source_table']}",
+              inputs=(("table", row["source_table"], True),), output=("keys", keys_id))
+        _node(numeric_keys, "LookupTable", f"WebMoFuSS guard: numeric keys {row['source_table']}",
+              inputs=(("constant", keys_id, True),), output=("object", key_lookup_id))
+        check_id = f"v{97100 + index}"
+        row_checks.append(check_id)
+        _node(row_guard, "GetLookupTableValue", f"WebMoFuSS guard: row present {row['source_table']}",
+              inputs=(("table", key_lookup_id, True), ("key", row["row_peer"], True),
+                      ("valueIfNotFound", "0", False)), output=("value", check_id))
+
+    numeric = _node(outer, "CalculateValue", "WebMoFuSS guard: all source columns numeric", container=True,
+                    inputs=(("expression", "[t1[31] = t1[1] and t2[31] = t2[1] and t3[31] = t3[1]]", False),
+                            ("defaultValue", ".none", False)), output=("result", NUMERIC_CONDITION_ID))
+    for slot, peer in enumerate(attributes, 1):
+        _number(numeric, "Table", peer, slot)
+    outer.append(numeric_keys)
+    row_condition = _node(row_guard, "CalculateValue", "WebMoFuSS guard: all MC rows present", container=True,
+                          inputs=(("expression", "[v1 = v4 and v2 = v4 and v3 = v4]", False),
+                                  ("defaultValue", ".none", False)), output=("result", "v97103"))
+    for slot, peer in enumerate(row_checks + ["v10"], 1):
+        _number(row_condition, "Value", peer, slot)
+    nonnumeric = _node(mc, "IfNotThen", "WebMoFuSS guard: original text-table path", container=True,
+                       inputs=(("condition", NUMERIC_CONDITION_ID, True),))
+    _node(nonnumeric, "CalculateValue", "WebMoFuSS guard: disable cache", container=True,
+          inputs=(("expression", "[0]", False), ("defaultValue", ".none", False)),
+          output=("result", "v97104"))
+    _node(mc, "ValueJunction", "WebMoFuSS guard: safe MC cache condition",
+          inputs=(("possibleValue1", "v97103", True), ("possibleValue2", "v97104", True)),
+          output=("value", CACHE_CONDITION_ID))
+    cache = _node(mc, "IfThen", "WebMoFuSS guard: selected MC rows", container=True,
+                   inputs=(("condition", CACHE_CONDITION_ID, True),))
+    for row in lookup_report["selected_rows"]:
+        cache.append(copy.deepcopy(optimized_producers[row["lookup_output"]]))
+
+    replacements, branches = {}, []
+    for index, output in enumerate(TARGETS):
+        local = ET.Element("fragment")
+        fallback_id, cached_id = f"v{94000 + index}", f"v{95000 + index}"
+        for kind, original, private_id in (("IfNotThen", producers[output], fallback_id),
+                                           ("IfThen", optimized_producers[output], cached_id)):
+            branch = _node(local, kind, f"WebMoFuSS guard: {kind} {output}", container=True,
+                           inputs=(("condition", CACHE_CONDITION_ID, True),))
+            calculation = copy.deepcopy(original)
+            calculation.find("outputport[@name='result']").set("id", private_id)
+            branch.append(calculation)
+        _node(local, "MapJunction", f"WebMoFuSS guard: original output {output}",
+              inputs=(("possibleMap1", fallback_id, True), ("possibleMap2", cached_id, True)),
+              output=("map", output))
+        replacements[output] = list(local)
+        branches.append({"output": output, "fallback_output": fallback_id, "cached_output": cached_id})
+    return replacements, list(outer), list(mc), {
+        "numeric_condition": NUMERIC_CONDITION_ID, "cache_condition": CACHE_CONDITION_ID,
+        "missing_row_fallback": True, "calculation_branches": branches,
+        "type_codes": {"string": 0, "real": 1}, "type_attributes": {"count": 1, "sum": 31},
+    }
+
+
 def build_candidate(source: str, *, last_mc_debugging: bool = False) -> tuple[str, dict]:
     """Return candidate text and an audit report without touching the filesystem.
 
@@ -89,42 +201,33 @@ def build_candidate(source: str, *, last_mc_debugging: bool = False) -> tuple[st
             "Expected annual Repeat directly inside the MC Repeat")
     require(input_port(mc, "iterations").get("peerid") == "v282", "Unexpected MC count")
 
-    # Reuse the existing guarded, double-precision MC-row selection algorithm,
+    # Reuse the reviewed double-precision MC-row selection algorithm,
     # but apply its individual edits to the original text instead of accepting
     # ElementTree's reformatting of the entire model and embedded wizard HTML.
     lookup_text, lookup_report = optimize_table_lookups(source, target_outputs=TARGETS)
     optimized = ET.fromstring(lookup_text)
     optimized_producers = _producers(optimized)
-    optimized_mc = optimized_producers["v8"]
     edits: list[tuple[int, int, bytes, str]] = []
 
     def replace(node: ET.Element, replacement: bytes, label: str) -> None:
         span = spans[id(node)]
         edits.append((span.start, span.end, replacement, label))
 
-    for output in TARGETS:
-        before, after = producers[output], optimized_producers[output]
-        old_expression = input_port(before, "expression")
-        new_expression = input_port(after, "expression")
-        replace(old_expression, _serialized(new_expression), f"MC-row lookup expression {output}")
-        for hook in before.findall("functor"):
-            if hook.get("name") != "NumberTable":
-                continue
-            slot = int(hook.findtext("inputport[@name='tableNumber']"))
-            old_table = input_port(hook, "table")
-            new_table = input_port(_hook(after, "Table", slot), "table")
-            if old_table.attrib != new_table.attrib:
-                replace(old_table, _serialized(new_table), f"MC-row table hook {output}/{slot}")
-        # All four original v1 uses were only row indices. Their now-unused
-        # NumberValue hook is removed exactly as in the reusable transform.
-        require(not re.search(r"\bv1\b", new_expression.text or ""), f"Residual MC row use at {output}")
-        replace(_hook(before, "Value", 1), b"", f"Unused MC-row hook {output}")
-
-    added_nodes = [node for node in optimized_mc
-                   if any(p.get("id") not in producers for p in node.findall("outputport"))]
-    require(len(added_nodes) == 12 and len(lookup_report["selected_rows"]) == 3,
-            "Expected exactly three four-node MC-row helper chains")
-    additions = [_serialized(node) for node in added_nodes]
+    require(len(lookup_report["selected_rows"]) == 3, "Expected three MC-row helpers")
+    replacements, outer_nodes, mc_nodes, guard_report = _guarded_lookup_nodes(
+        producers, optimized_producers, lookup_report)
+    generated = outer_nodes + mc_nodes + [n for nodes in replacements.values() for n in nodes]
+    generated_ids = [p.get("id") for node in generated for p in node.iter("outputport")]
+    require(len(generated_ids) == len(set(generated_ids)), "Duplicate generated output IDs")
+    require((set(generated_ids) & set(producers)) == set(TARGETS), "Guard IDs overlap the source graph")
+    for output, nodes in replacements.items():
+        replace(producers[output], b"\n".join(_serialized(node) for node in nodes),
+                f"Guarded MC-row calculation with original fallback {output}")
+    outer_insertion = spans[id(parents[id(mc)])].close_start
+    edits.append((outer_insertion, outer_insertion,
+                  b"\n        " + b"\n        ".join(_serialized(n) for n in outer_nodes) + b"\n    ",
+                  "Once-per-run table metadata and guarded numeric keys"))
+    additions = [_serialized(node) for node in mc_nodes]
 
     # Attribute key 12 is SUM and key 9 is valid-cell count: dynamic attributes
     # stay enabled. Key 5 is cell width, available from geometry alone.
@@ -206,6 +309,7 @@ def build_candidate(source: str, *, last_mc_debugging: bool = False) -> tuple[st
         "source_sha256": digest,
         "candidate_sha256": hashlib.sha256(result).hexdigest(),
         "lookup_optimization": lookup_report,
+        "lookup_guard": guard_report,
         "attribute_flags_changed": flag_changes,
         "last_mc_debugging": last_mc_debugging,
         "last_mc_debugging_writers": gated_writers,

@@ -238,7 +238,7 @@ write_table_png <- function(x, path, title, subtitle) {
 
   format_value <- function(value, metric) {
     if (is_blank(value)) return("")
-    digits <- if (grepl("MtCO2e", metric, fixed = TRUE)) 3L else 0L
+    digits <- if (grepl("MtCO2e", metric, fixed = TRUE)) 3L else if (grepl("(%)", metric, fixed = TRUE)) 1L else 0L
     format_number <- function(z) {
       number <- suppressWarnings(as.numeric(trimws(z)))
       if (!is.finite(number)) return(trimws(z))
@@ -352,6 +352,164 @@ write_table_png <- function(x, path, title, subtitle) {
 
 same_number <- function(a, b, tolerance = 1e-6) {
   isTRUE(all.equal(as.numeric(a), as.numeric(b), tolerance = tolerance))
+}
+
+v3_process_products <- function(process, stock, labels) {
+  key <- function(x) paste(x$regrowth_mode, x$run_id, sep = "/")
+  if (is.null(process)) {
+    process <- stock[, c("regrowth_mode", "run_id", "period_start_year", "period_end_year")]
+    process$process_attribution_status <- "unavailable_legacy_stage3"
+    process$process_attribution_method <- "unavailable_legacy_stock_only"
+  }
+  require_columns(process, c("regrowth_mode", "run_id", "period_start_year", "period_end_year",
+    "process_attribution_status", "process_attribution_method"), "Process attribution")
+  if (anyDuplicated(key(process)) || !setequal(key(process), key(stock))) {
+    stopf("Process attribution configuration/run keys do not match Stage 3 stock results.")
+  }
+  process <- process[match(key(stock), key(process)), , drop = FALSE]
+  if (anyNA(process$process_attribution_status) ||
+      any(!process$process_attribution_status %in% c("available", "legacy_unavailable", "unavailable_legacy_stage3")) ||
+      any(process$period_start_year != stock$period_start_year) ||
+      any(process$period_end_year != stock$period_end_year)) {
+    stopf("Process attribution has incompatible status or period metadata.")
+  }
+  available <- process$process_attribution_status == "available"
+  required <- c("net_stock_benefit_mg", "raw_signed_woodfuel_effect_mg",
+    "direct_luc_net_effect_mg", "direct_luc_loss_mg", "direct_luc_gain_mg",
+    "tof_allowance_net_effect_mg", "capacity_clamp_net_effect_mg", "other_net_effect_mg",
+    "clipped_nrb_saving_mg", "luc_reversal_of_positive_gap_mg",
+    "luc_transition_exposed_saved_stock_mg", "luc_reversal_fraction",
+    "closure_residual_mg", "endpoint_support_pixels", "process_support_pixels",
+    "support_gap_stock_benefit_mg", "unattributed_stock_benefit_mg",
+    "complete_ledger_support_pixels", "stage2_reconciliation_ok")
+  if (any(available)) {
+    require_columns(process, required, "Available process attribution")
+    if (anyNA(process$process_attribution_method[available]) ||
+        any(process$process_attribution_method[available] != "paired_signed_woodfuel_direct_luc_v1")) {
+      stopf("Process attribution method is incompatible with this reporting contract.")
+    }
+    require_columns(process, "agb_reference_md5", "Available process attribution reference")
+    if (anyNA(process$agb_reference_md5[available]) ||
+        any(process$agb_reference_md5[available] != stock$agb_reference_md5[available])) {
+      stopf("Process attribution original AGB reference differs from the stock account.")
+    }
+    p <- process[available, , drop = FALSE]
+    numeric_fields <- setdiff(required, c("luc_reversal_fraction", "stage2_reconciliation_ok"))
+    if (any(!is.finite(as.matrix(p[, numeric_fields, drop = FALSE]))) ||
+        anyNA(p$stage2_reconciliation_ok) || !all(as.logical(p$stage2_reconciliation_ok))) {
+      stopf("Process attribution contains invalid totals or a failed Stage 2 reconciliation.")
+    }
+    expected <- stock$period_delta_agb_mg[available]
+    if (any(abs(p$net_stock_benefit_mg - expected) > pmax(0.05, abs(expected) * 1e-8))) {
+      stopf("Process attribution net does not reconcile to the Stage 2 stock benefit.")
+    }
+    accounted <- p$raw_signed_woodfuel_effect_mg + p$direct_luc_net_effect_mg +
+      p$tof_allowance_net_effect_mg + p$capacity_clamp_net_effect_mg + p$other_net_effect_mg +
+      p$closure_residual_mg
+    if (any(abs(accounted - p$net_stock_benefit_mg) > pmax(0.05, abs(expected) * 1e-7))) {
+      stopf("Process attribution components do not close to the net stock benefit.")
+    }
+    if (any(p$endpoint_support_pixels <= 0) || any(p$process_support_pixels < 0) ||
+        any(p$process_support_pixels > p$endpoint_support_pixels) ||
+        any(p$complete_ledger_support_pixels < p$process_support_pixels) ||
+        any(p$complete_ledger_support_pixels > p$endpoint_support_pixels)) {
+      stopf("Process attribution has inconsistent spatial coverage counts.")
+    }
+    exposed <- p$luc_transition_exposed_saved_stock_mg
+    fraction <- p$luc_reversal_fraction
+    if (any(exposed < 0) || any(p$luc_reversal_of_positive_gap_mg < 0) ||
+        any(p$luc_reversal_of_positive_gap_mg > exposed + pmax(0.05, exposed * 1e-8)) ||
+        any(exposed <= 0 & !is.na(fraction)) ||
+        any(exposed > 0 & (!is.finite(fraction) | fraction < 0 | fraction > 1)) ||
+        any(abs(fraction[exposed > 0] - p$luc_reversal_of_positive_gap_mg[exposed > 0] / exposed[exposed > 0]) > 1e-8)) {
+      stopf("Process attribution reversal fraction disagrees with its exposed-stock denominator.")
+    }
+  }
+  process$net_before_direct_luc_mg <- NA_real_
+  process$net_before_direct_luc_mg[available] <- process$net_stock_benefit_mg[available] -
+    process$direct_luc_net_effect_mg[available]
+  process$before_direct_luc_stock_equivalent_tco2e <- process$net_before_direct_luc_mg * (0.47 * 44 / 12)
+  process$net_retained_stock_equivalent_tco2e <- NA_real_
+  process$net_retained_stock_equivalent_tco2e[available] <- process$net_stock_benefit_mg[available] * (0.47 * 44 / 12)
+  metric_fields <- c("raw_signed_woodfuel_effect_mg", "direct_luc_net_effect_mg",
+    "direct_luc_loss_mg", "direct_luc_gain_mg",
+    "luc_reversal_of_positive_gap_mg", "luc_transition_exposed_saved_stock_mg",
+    "luc_reversal_fraction", "tof_allowance_net_effect_mg", "capacity_clamp_net_effect_mg",
+    "other_net_effect_mg", "closure_residual_mg", "support_gap_stock_benefit_mg",
+    "unattributed_stock_benefit_mg", "process_support_pixels", "complete_ledger_support_pixels",
+    "endpoint_support_pixels", "net_before_direct_luc_mg", "net_stock_benefit_mg",
+    "before_direct_luc_stock_equivalent_tco2e", "net_retained_stock_equivalent_tco2e", "clipped_nrb_saving_mg")
+  metric_labels <- c("Signed woodfuel effect (Mg AGB)", "Direct LUC net effect (Mg AGB)",
+    "Direct LUC negative effect - magnitude (Mg)", "Direct LUC positive effect (Mg)",
+    "Saved AGB reversed at LUC events (Mg)", "Saved AGB exposed to LUC events (Mg)",
+    "Exposed saved AGB reversed (%)", "TOF allowance effect (Mg AGB)",
+    "Capacity adjustment effect (Mg AGB)", "Unclassified support adjustment (Mg AGB)",
+    "Numerical closure residual (Mg)", "Net benefit outside complete process support (Mg)",
+    "Net benefit with unavailable ledger (Mg)", "Cells with complete process coverage",
+    "Cells with valid ledger endpoints", "Cells in net stock account",
+    "Net before direct LUC - accounting add-back (Mg)",
+    "Net retained AGB benefit - Stage 2 (Mg)",
+    "Before direct LUC - stock equivalent (tCO2e)", "Net retained stock equivalent (tCO2e)",
+    "Clipped NRB saving (Mg; separate metric)")
+  table <- data.frame(Metric = c("Process attribution status", metric_labels), check.names = FALSE)
+  for (configuration in names(labels)) {
+    p <- process[process$regrowth_mode == configuration & process$run_id == 1L, , drop = FALSE]
+    if (nrow(p) != 1L) stopf("Process attribution requires one MC1 row per configuration.")
+    if (p$process_attribution_status == "available") {
+      values <- vapply(metric_fields, function(field) as.numeric(p[[field]][[1L]]), numeric(1))
+      values[metric_fields == "luc_reversal_fraction"] <- values[metric_fields == "luc_reversal_fraction"] * 100
+      table[[labels[[configuration]]]] <- c("Available", ifelse(is.na(values), "Undefined", format(values, digits = 10, trim = TRUE)))
+    } else table[[labels[[configuration]]]] <- c("Unavailable: legacy run", rep("Unavailable", length(metric_fields)))
+  }
+  notes <- c(
+    "Net equals signed woodfuel + direct LUC + TOF + capacity + unclassified support adjustment + numerical residual; LUC losses are already included in Stage 2.",
+    "The signed woodfuel effect retains growth offsets. Clipped NRB saving is a separate metric and is not added to the stock account.",
+    "Net before direct LUC = net retained AGB minus the signed direct LUC effect. It is an accounting add-back under the realized pathway, not a no-LUC simulation.",
+    "Reversal percent = positive saved AGB removed by direct LUC events / positive saved AGB exposed immediately before those events; repeated events count separately.",
+    "Unclassified support adjustment and incomplete-coverage stock are quality diagnostics, not additional emissions components.",
+    "Stock-equivalent CO2 uses 0.47 x 44/12. TOF allowance is modeled availability, not physical sequestration; its carbon-equivalent bar is an accounting diagnostic."
+  )
+  note_rows <- data.frame(Metric = notes, check.names = FALSE)
+  for (label in unname(labels)) note_rows[[label]] <- ""
+  table <- rbind(table, note_rows)
+  list(rows = process, mc1_table = table, any_available = any(available & process$run_id == 1L))
+}
+
+v3_write_process_figure <- function(rows, path, labels, title) {
+  fields <- c("raw_signed_woodfuel_effect_mg", "direct_luc_net_effect_mg",
+    "tof_allowance_net_effect_mg", "capacity_clamp_net_effect_mg", "other_net_effect_mg",
+    "closure_residual_mg", "net_stock_benefit_mg")
+  terms <- c("Signed woodfuel", "Direct LUC", "TOF allowance", "Capacity adjustment",
+             "Unclassified support", "Numerical residual", "Net retained")
+  colours <- c("#1877A6", "#B9573A", "#5D9873", "#9774AE", "#989898", "#BCBCBC", "#153F4B")
+  available <- rows[rows$run_id == 1L & rows$process_attribution_status == "available", , drop = FALSE]
+  all_values <- as.numeric(unlist(available[, fields, drop = FALSE], use.names = FALSE)) * (0.47 * 44 / 12) / 1e6
+  lim <- range(c(0, all_values))
+  if (diff(lim) == 0) lim <- c(-1, 1)
+  padding <- diff(lim) * 0.16
+  grDevices::png(path, width = 3000, height = 1500, res = 300)
+  on.exit(grDevices::dev.off(), add = TRUE)
+  # This function owns a new PNG device; restoring par after closing it would
+  # accidentally open R's default device and create Rplots.pdf in the cwd.
+  graphics::par(mfrow = c(1, length(labels)), mar = c(8, 5, 3, 1), oma = c(3, 0, 3, 0))
+  for (configuration in names(labels)) {
+    row <- rows[rows$regrowth_mode == configuration & rows$run_id == 1L, , drop = FALSE]
+    if (row$process_attribution_status != "available") {
+      graphics::plot.new()
+      graphics::title(labels[[configuration]])
+      graphics::text(0.5, 0.5, "Process attribution unavailable\nfor this legacy run")
+    } else {
+      values <- as.numeric(unlist(row[1L, fields], use.names = FALSE)) * (0.47 * 44 / 12) / 1e6
+      graphics::barplot(values, names.arg = terms, las = 2, col = colours, border = NA,
+        ylim = lim + c(-padding, padding), ylab = "", main = labels[[configuration]], cex.names = 0.8,
+        cex.axis = 0.72)
+      graphics::mtext("Mt CO2-equivalent stock change", side = 2, line = 3.8, cex = 0.72)
+      graphics::abline(h = 0, col = "#777777")
+    }
+  }
+  graphics::mtext(title, side = 3, outer = TRUE, line = 1, font = 2)
+  graphics::mtext("First six bars sum to net retained stock. TOF is modeled availability, not sequestration; support terms are diagnostic. End-use is separate.",
+                  side = 1, outer = TRUE, line = 1, cex = 0.7)
 }
 
 # Stage 2 rasters are intentionally stored as FLT4S. Summing millions of
@@ -1347,9 +1505,44 @@ for (configuration in CONFIGURATION_ORDER) {
   if (length(missing)) stopf("Missing %s raster sources: %s", configuration, paste(missing, collapse = ", "))
 }
 
+process_paths <- Sys.glob(file.path(agb_dir, "process_attribution_per_run_*.csv"))
+if (length(process_paths) > 1L) stopf("Multiple Stage 3 process-attribution tables found.")
+process_input <- if (length(process_paths)) {
+  read_csv_required(process_paths[[1L]], "Stage 3 process attribution")
+} else NULL
+process_products <- v3_process_products(process_input, per_run, display_labels)
+process_policy_path <- file.path(output_dir, "process_attribution_policy.csv")
+process_table_path <- file.path(output_dir, "tables", sprintf("table_%s_%s_process_attribution_mc_1.csv", region_slug, period_tag))
+process_table_png_path <- sub("[.]csv$", ".png", process_table_path)
+process_figure_path <- file.path(output_dir, "figures", "mc_1", sprintf("figure_%s_%s_process_attribution_mc_1.png", region_slug, period_tag))
+
 # All scalar and raster inputs have passed their preflight checks. Only now is
 # the exact manuscript_outputs directory removed and rebuilt.
 prepare_output_dir(output_dir, source_dir, overwrite, uncertainty_adequate)
+write_csv_utf8(data.frame(
+  status = paste(unique(process_products$rows$process_attribution_status), collapse = ";"),
+  method = paste(unique(process_products$rows$process_attribution_method), collapse = ";"),
+  source = if (length(process_paths)) normalizePath(process_paths[[1L]], winslash = "/", mustWork = TRUE) else NA_character_,
+  source_md5 = if (length(process_paths)) unname(tools::md5sum(process_paths[[1L]])) else NA_character_,
+  stock_account_identity = "net = signed woodfuel + direct LUC + TOF allowance + capacity adjustment + unclassified support adjustment + numerical residual",
+  stock_account_relationship = "Stage2 net retained biomass is unchanged; do not subtract direct LUC losses again",
+  before_direct_luc_definition = "Net minus signed direct LUC effect: an accounting add-back under the realized pathway, not a no-LUC counterfactual simulation",
+  nrb_relationship = "Clipped NRB saving is separately reported; it is not an additive stock component",
+  reversal_fraction_definition = "direct-LUC loss of positive project stock gap divided by positive stock gap immediately before reset events; event-conditional, repeated events counted separately",
+  zero_exposure_fraction = "undefined_NA",
+  other_component_definition = "Support-boundary diagnostic, not an identified physical emissions process",
+  tof_interpretation = "Modeled renewable availability allowance; carbon-equivalent display is diagnostic, not physical sequestration",
+  biomass_to_co2_factor = 0.47 * 44 / 12,
+  stringsAsFactors = FALSE
+), process_policy_path)
+write_csv_utf8(process_products$mc1_table, process_table_path)
+write_table_png(process_products$mc1_table, process_table_png_path,
+                sprintf("%s biomass process account, %s", region_name, period_tag),
+                "MC1; signed contributions and direct LUC reversal")
+if (process_products$any_available) {
+  v3_write_process_figure(process_products$rows, process_figure_path, display_labels,
+                         sprintf("%s: biomass process account, %s", region_name, period_tag))
+}
 write_csv_utf8(data.frame(
   biomass_estimand = BIOMASS_ESTIMAND,
   biomass_estimand_description = paste0(
@@ -1728,6 +1921,9 @@ if (uncertainty_adequate) {
 
 expected_files <- c(
   "biomass_support_policy.csv",
+  "process_attribution_policy.csv",
+  file.path("tables", basename(process_table_path)),
+  file.path("tables", basename(process_table_png_path)),
   file.path("figures", "mc_1", basename(figure_path)),
   file.path("tables", basename(table_mc1_path)),
   file.path("tables", basename(table_mc1_png_path)),
@@ -1737,6 +1933,9 @@ expected_files <- c(
   file.path("spatial", basename(country_scope_output_path)),
   file.path("spatial", basename(country_boundaries_output_path))
 )
+if (process_products$any_available) {
+  expected_files <- c(expected_files, file.path("figures", "mc_1", basename(process_figure_path)))
+}
 if (uncertainty_adequate) {
   expected_files <- c(
     expected_files,

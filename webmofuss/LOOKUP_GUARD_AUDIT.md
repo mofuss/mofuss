@@ -1,8 +1,9 @@
 # Lookup-cache compatibility and fallback probe
 
-Date: 2026-10-08. This is a bounded local-engine investigation, **not a server
-compatibility certification**. No shipped EGOML or candidate-builder code was
-changed by this investigation.
+Date: 2026-10-08. This is a bounded local-engine investigation, **not a complete
+workflow compatibility certification**. The original model is untouched. The
+guard is now implemented in the WebMoFuSS builder and shipped fast candidate;
+the first sections below retain the evidence that motivated that improvement.
 
 ## Confirmed incompatibility in the unguarded lookup cache
 
@@ -37,8 +38,9 @@ The installed help page
 `C:\Program Files\Dinamica EGO\Help\doku.php@id=get_table_info.html`
 documents `GetTableInfo`'s `Column_Type` as 0 for strings and 1 for real numbers.
 The native metadata probe confirmed both codes. The documentation date is not
-an engine version; neither the user's recollection of the server version nor
-the backup establishes that the server runs this local build.
+an engine version. The user subsequently confirmed that the server model runs
+on this same local engine/computer; the native banner above is the tested
+version evidence.
 
 For each of the three parameter tables, the disposable guard prototype used:
 
@@ -84,10 +86,11 @@ Temporary probe files are under
 - `numeric_original`, `numeric_guarded`, `text_original`, and `text_guarded`
   retain disposable models, outputs, and logs.
 
-## Limits and deployment posture
+## Limits of the first, type-only prototype
 
-The numeric-type guard resolves the demonstrated text-column failure. It is
-**not a proof of universal compatibility**:
+The numeric-type guard resolves the demonstrated text-column failure. The
+first prototype left the following issues, which motivated the additional
+row-presence guard described below:
 
 - A numeric table may lack a requested MC key. The original may never access
   it on an empty/NoData map or bypassed expression branch, while an eager
@@ -112,7 +115,99 @@ However, the backup at `F:\webmofuss_speedup_sandbox` contains no prepared
 simulation case or frozen MC tables, so that actual runtime contract has not
 been verified on a completed job.
 
-Do not describe the unguarded lookup candidate as universally interchangeable.
-Keep statistics-only changes as the narrower compatibility option. A guarded
-lookup candidate remains an implementation and full-regression task until a
-prepared case and the actual Windows launch command are available.
+## Implemented full-model guard
+
+`tools/build_webmofuss_fast.py` now generates the guard directly; the checked-in
+`7_dyn_Sc17_webmofuss_ctrees_g_v3_fast.egoml` exactly equals its default output.
+Its SHA-256 is
+`15d9e2ff6f5aa9b166ab8a9ddc18f3f21cbd0960a18ef4c25e426fb5f5db5932`.
+The original SHA-256 remains
+`e4ce6ab47a12bbc7ed1f290a95ad6c1477182d21e95fba1428d816ecc85bca2d`.
+
+- Metadata chains `v92000`–`v92002`, `v92004`–`v92006`, and
+  `v92008`–`v92010` are computed once per run, inside simulation `group3674`.
+  Attribute tables `v97000`–`v97002` and condition `v97099` check that all
+  columns in all three source tables have numeric type codes.
+- `GetTableKeys` and `LookupTable` pairs `v97200`–`v97205` execute only inside
+  an `IfThen(v97099)`. They convert numeric keys, not parameter values, and
+  are also computed once per run. String-key tables therefore cannot trigger
+  an unsafe conversion on the fallback path.
+- For each positive MC key `v10`, `GetLookupTableValue` nodes
+  `v97100`–`v97102` find that key in each key list with missing-value default
+  zero. Condition `v97103` requires all three returned keys to equal `v10`.
+  The numeric-type false branch supplies zero through `v97104`;
+  `ValueJunction v97105` is the final cache condition. The MC repeat starts
+  at one, so a zero default cannot be mistaken for its current key.
+- Only `IfThen(v97105)` executes selected-row caches `v92003`, `v92007`,
+  and `v92011`. Missing numeric MC rows fall back to the original expressions,
+  which retain their original lazy table accesses on bypassed or NoData cells.
+- Each of `v201`, `v203`, `v207`, and `v213` is replaced **at its original
+  scope** by cached and original branches, then a `MapJunction` retaining the
+  original output ID. Original calculations have private IDs
+  `v94000`–`v94003`; cached calculations have `v95000`–`v95003`. In particular,
+  the `v207` branches remain under original AGB-map `ifThen1735`.
+
+All original load/save nodes, paths, R process calls, writer scopes, arithmetic,
+map cell types, constants, and root wizard metadata remain unchanged. The
+original fallback calculation XML is structurally identical except for its
+private result ID. No input columns are changed or discarded.
+
+The original R initialization dependency is retained: simulation `group3674`
+contains `v7` referring to `v294` in `group2500`, which also contains
+`runExternalProcess2510` with `waitProcessCompletion=.yes` (original lines
+166–169 and 4208–4221). Original parameter loaders are in nested `group5424`;
+new metadata remains inside `group3674`. The complete top-level group peer
+dependency graph is unchanged. There is no separate explicit dependency from
+each original table loader to the external process. The completed fresh
+two-MC full-callback case confirms ordering in this workflow: generated
+matrices and all 4,074 scientific outputs match. Frozen-input microprobes
+alone could not establish that ordering.
+
+## Native regression of the implemented guard
+
+Eight one-core native runs used the builder's actual replacement and helper
+nodes, the same four original map expressions, and three MC rows. All eight
+exited zero without error messages. Each pair produced the same 12 TIFFs with
+identical bytes:
+
+| Frozen-input case | Original / guarded TIFFs | Cached row evaluations | Exact equality |
+| --- | --- | --- | --- |
+| All numeric columns and rows present | 12 / 12 | 9 | All 12 |
+| Extra unused text column in every table | 12 / 12 | 0 | All 12 |
+| Initial-stock row 2 missing, tree-cover branch bypasses that table | 12 / 12 | 6 | All 12 |
+| Row 2 missing from all tables, LUC map entirely NoData | 12 / 12 | 6 | All 12 |
+
+The last two pairs directly test the eager-access regression left by the first
+prototype. MC rows 1 and 3 use caches; row 2 uses the original expressions.
+Temporary evidence, input hashes, model hashes, outputs and logs are under
+`E:\MoFuSS_Active\webmofuss_performance_audit\lookup_guard_probe\builder_guard_v2`;
+the reproducible scratch driver is its sibling `run_builder_guard_v2.py`.
+A separate `row_presence` microprobe established the key-list lookup's
+present/missing results as 1, 1, and 0 for MC keys 1–3.
+
+The static suite now has 11 passing tests, including shipped artifact equality,
+unchanged I/O, fallback expressions, original conditional placement, MC cache
+scope, type/row guards, unique/resolved peers, and unchanged group dependencies.
+Run it with `python -B -m unittest discover -s webmofuss/tests -p test_webmofuss_fast.py`.
+
+These microprobes remain slower overall because of native compilation and
+guard overhead; they are compatibility checks, not speed evidence. The added
+guard does not certify every possible numeric edge case, malformed table,
+production reporting option, or memory constraint. The separate full workflow
+now passes the declared two-MC capped fixture with all R callbacks, reports
+and animation; see `SMALL_CASE_VALIDATION.md`. Its competing workloads prevent
+an end-to-end speed conclusion. A statistics-only candidate remains the
+narrower alternative if guarded lookup overhead outweighs its pixel savings.
+
+## Scope qualification from graph review
+
+The numeric-row guard assumes the generated parameter matrices have one key
+column. `GetTableKeys` returns only the first key column; the guard does not
+prove compatibility with arbitrary numeric composite-key tables. The supplied
+`rnorm_v3.R` writes a single numeric `Key=1:MC` for all three matrices. The fresh
+full-callback test verifies that contract: each table has keys 1 and 2, 760
+numeric parameter columns and exclusively finite values. The three tables
+are byte-identical between the original and guarded runs. Log counters show
+exactly three added selected-row evaluations per MC. The demonstrated text-column
+and missing-row fallbacks should not be read as universal validation of every
+possible Dinamica table structure.

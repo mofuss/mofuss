@@ -619,6 +619,70 @@ v5_script_path <- function() {
   normalizePath(candidates[[1]], winslash = "/", mustWork = TRUE)
 }
 
+v6_luc_api <- local({
+  cached <- NULL
+  function() {
+    if (!is.null(cached)) return(cached)
+    script <- v5_script_path()
+    candidate <- file.path(dirname(script), "..", "helpers", "woodfuel_luc_decomposition.R")
+    if (is.na(script) || !file.exists(candidate)) {
+      stopf("Cannot locate helpers/woodfuel_luc_decomposition.R beside Stage 3.")
+    }
+    api <- new.env(parent = globalenv())
+    sys.source(candidate, envir = api)
+    api$source_path <- normalizePath(candidate, winslash = "/", mustWork = TRUE)
+    cached <<- api
+    api
+  }
+})
+
+v6_bind_process_rows <- function(rows) {
+  if (!length(rows)) return(data.frame())
+  fields <- unique(unlist(lapply(rows, names), use.names = FALSE))
+  do.call(rbind, lapply(rows, function(row) {
+    for (field in setdiff(fields, names(row))) row[[field]] <- NA
+    row[, fields, drop = FALSE]
+  }))
+}
+
+# This is an additional process account. Its net must reconcile to Stage 2;
+# none of its loss fields is subtracted a second time from the stock result.
+v6_process_identity <- function(meta, run_id, period) {
+  data.frame(
+    label = meta$label,
+    display_label = paste(meta$regrowth_mode, v5_safe_id(meta$ics_params$scenario_ver), sep = "_"),
+    regrowth_mode = meta$regrowth_mode, run_id = run_id,
+    period_start_year = period$start, period_end_year = period$end,
+    agb_reference_md5 = meta$reference_md5,
+    biomass_support_policy = V6_BIOMASS_SUPPORT_POLICY,
+    stringsAsFactors = FALSE
+  )
+}
+
+v6_validate_process_summary <- function(summary, expected_net_mg) {
+  needed <- c("raw_signed_woodfuel_effect_mg", "net_stock_benefit_mg",
+              "direct_luc_net_effect_mg", "closure_residual_mg")
+  if (!is.data.frame(summary) || nrow(summary) != 1L ||
+      !all(needed %in% names(summary))) {
+    stopf("Process helper returned an invalid period summary.")
+  }
+  if (any(!is.finite(unlist(summary[needed], use.names = FALSE)))) {
+    stopf("Process helper returned a non-finite accounting total.")
+  }
+  residual <- summary$net_stock_benefit_mg[[1L]] - expected_net_mg
+  tolerance <- max(0.05, abs(expected_net_mg) * 1e-8)
+  if (!is.finite(residual) || abs(residual) > tolerance) {
+    stopf("Process attribution net differs from Stage 2: residual=%g Mg, tolerance=%g Mg.",
+          residual, tolerance)
+  }
+  summary$stage2_reconciliation_residual_mg <- residual
+  summary$stage2_reconciliation_tolerance_mg <- tolerance
+  summary$stage2_reconciliation_ok <- TRUE
+  summary$net_before_direct_luc_mg <- summary$net_stock_benefit_mg - summary$direct_luc_net_effect_mg
+  summary$net_before_direct_luc_definition <- "Accounting add-back of direct reset effect under realized landscape; not a no-LUC simulation"
+  summary
+}
+
 v5_internal_pairs <- function(
   scenario_dirs = SCENARIO_DIRS, analysis_folder = NULL,
   analysis_parent = NULL
@@ -2827,6 +2891,18 @@ main <- function(args = commandArgs(trailingOnly = TRUE), source_mode = interact
   })
   names(metas_by_run) <- as.character(run_ids)
 
+  # Validate all corrected annual ledgers and process inputs before any clean
+  # rebuild. Legacy stock-only analyses retain their previous calculations.
+  process_api <- v6_luc_api()
+  process_statuses <- lapply(seq_along(run_ids), function(i) {
+    lapply(metas_by_run[[i]], function(meta) {
+      process_api$mofuss_luc_pair_status(
+        bau_dir = meta$bau_dir, ics_dir = meta$ics_dir, mc = run_ids[[i]],
+        start_year = period$start, end_year = period$end
+      )
+    })
+  })
+
   country_partitions <- unlist(lapply(
     metas_by_run,
     function(run_metas) lapply(run_metas, `[[`, "country_partition")
@@ -2885,6 +2961,8 @@ main <- function(args = commandArgs(trailingOnly = TRUE), source_mode = interact
     country_boundaries = file.path(output_dir, "country_boundaries.gpkg"),
     plot_mc1 = file.path(output_dir, paste0("agb_decomposition_plot_mc1_", period$label, ".png")),
     plot_uncertainty = file.path(output_dir, paste0("agb_decomposition_plot_", tag, ".png")),
+    process_per_run = file.path(output_dir, paste0("process_attribution_per_run_", tag, ".csv")),
+    process_annual = file.path(output_dir, paste0("process_attribution_annual_", tag, ".csv")),
     run_manifest = file.path(output_dir, paste0("run_manifest_", tag, ".csv"))
   )
   planned <- unlist(lapply(
@@ -2894,7 +2972,7 @@ main <- function(args = commandArgs(trailingOnly = TRUE), source_mode = interact
   planned_aggregates <- unlist(aggregate_files[c(
     "per_run", "country_per_run", "uncertainty", "country_uncertainty",
     "provenance", "enduse_validation", "country_scope", "country_boundaries",
-    "run_manifest"
+    "run_manifest", "process_per_run", "process_annual"
   )], use.names = FALSE)
   if (1L %in% run_ids) {
     planned_aggregates <- c(
@@ -2954,6 +3032,7 @@ main <- function(args = commandArgs(trailingOnly = TRUE), source_mode = interact
 
   wopt <- list(gdal = c("COMPRESS=DEFLATE", "TILED=YES", "BIGTIFF=IF_SAFER"))
   summary_rows <- country_rows <- provenance_rows <- enduse_rows <- list()
+  process_rows <- process_annual_rows <- list()
   mc1_comparison <- NULL
   mc1_summary <- NULL
   all_comparisons_valid <- TRUE
@@ -2966,6 +3045,42 @@ main <- function(args = commandArgs(trailingOnly = TRUE), source_mode = interact
     )
     run_summary <- do.call(rbind, lapply(processed, `[[`, "row"))
     if (!all(run_summary$all_invariants_ok)) stopf("An invariant failed for run %d.", run_id)
+    run_summary$process_attribution_status <- rep(NA_character_, nrow(run_summary))
+    for (config_index in seq_along(processed)) {
+      meta <- processed[[config_index]]$meta
+      process_status <- process_statuses[[run_index]][[config_index]]
+      identity <- v6_process_identity(meta, run_id, period)
+      identity$process_attribution_status <- process_status$status
+      identity$process_attribution_method <- if (isTRUE(process_status$available)) {
+        process_status$method
+      } else "unavailable_legacy_stock_only"
+      if (isTRUE(process_status$available) && !opts$dry_run) {
+        process_dir <- file.path(output_dir, "process_attribution",
+                                 sprintf("%s_run%03d", meta$safe_label, run_id))
+        account <- process_api$mofuss_luc_decompose_pair(
+          bau_dir = meta$bau_dir, ics_dir = meta$ics_dir, mc = run_id,
+          start_year = period$start, end_year = period$end,
+          output_dir = process_dir
+        )
+        values <- v6_validate_process_summary(
+          account$summary, processed[[config_index]]$row$period_delta_agb_mg[[1L]]
+        )
+        values <- values[, setdiff(names(values), names(identity)), drop = FALSE]
+        identity <- cbind(identity, values)
+        annual <- account$annual
+        if (nrow(annual)) {
+          keys <- v6_process_identity(meta, run_id, period)
+          annual <- annual[, setdiff(names(annual), names(keys)), drop = FALSE]
+          process_annual_rows[[length(process_annual_rows) + 1L]] <- cbind(
+            keys[rep(1L, nrow(annual)), , drop = FALSE], annual
+          )
+        }
+      } else if (isTRUE(process_status$available)) {
+        identity$process_attribution_status <- "available_preflight_only"
+      }
+      process_rows[[length(process_rows) + 1L]] <- identity
+      run_summary$process_attribution_status[[config_index]] <- identity$process_attribution_status
+    }
     all_comparisons_valid <- all_comparisons_valid && all(
       run_summary$comparison_validated
     )
@@ -3017,6 +3132,12 @@ main <- function(args = commandArgs(trailingOnly = TRUE), source_mode = interact
   country_per_run_summary <- do.call(rbind, country_rows)
   provenance <- do.call(rbind, provenance_rows)
   enduse_validation <- do.call(rbind, enduse_rows)
+  process_per_run <- v6_bind_process_rows(process_rows)
+  process_annual <- v6_bind_process_rows(process_annual_rows)
+  if (!ncol(process_annual)) process_annual <- data.frame(
+    label = character(), regrowth_mode = character(), run_id = integer(),
+    year = integer(), process_attribution_status = character()
+  )
   uncertainty <- make_uncertainty_summary(per_run_summary)
   country_uncertainty <- make_country_uncertainty_summary(
     country_per_run_summary
@@ -3053,7 +3174,7 @@ main <- function(args = commandArgs(trailingOnly = TRUE), source_mode = interact
   }
 
   if (opts$dry_run) {
-    cat("\nDry-run validated every selected run, calculation identity, and output collision; wrote nothing.\n")
+    cat("\nDry-run validated stock calculations, process-input availability, and output collisions; process accounting is calculated during the write run. Wrote nothing.\n")
     if (!is.null(mc1_comparison)) print_comparison_table(mc1_comparison)
     print(uncertainty[
       uncertainty$metric %in% c(
@@ -3077,7 +3198,8 @@ main <- function(args = commandArgs(trailingOnly = TRUE), source_mode = interact
       per_run = per_run_summary, deterministic = deterministic,
       uncertainty = uncertainty, country_per_run = country_per_run_summary,
       country_deterministic = country_deterministic,
-      country_uncertainty = country_uncertainty, provenance = provenance
+      country_uncertainty = country_uncertainty, provenance = provenance,
+      process_per_run = process_per_run
     )))
   }
 
@@ -3094,6 +3216,8 @@ main <- function(args = commandArgs(trailingOnly = TRUE), source_mode = interact
   readr::write_csv(country_uncertainty, aggregate_files$country_uncertainty)
   readr::write_csv(provenance, aggregate_files$provenance)
   readr::write_csv(enduse_validation, aggregate_files$enduse_validation)
+  readr::write_csv(process_per_run, aggregate_files$process_per_run)
+  readr::write_csv(process_annual, aggregate_files$process_annual)
   readr::write_csv(reference_partition$scope, aggregate_files$country_scope)
   terra::writeVector(
     reference_partition$boundaries,
@@ -3114,6 +3238,13 @@ main <- function(args = commandArgs(trailingOnly = TRUE), source_mode = interact
   run_manifest <- data.frame(
     script_version = 6L,
     biomass_estimand = V6_BIOMASS_ESTIMAND,
+    process_attribution_status = paste(unique(process_per_run$process_attribution_status), collapse = ","),
+    process_attribution_method = paste(unique(process_per_run$process_attribution_method), collapse = ","),
+    process_attribution_helper = process_api$source_path,
+    process_attribution_helper_md5 = file_md5(process_api$source_path),
+    process_attribution_per_run = aggregate_files$process_per_run,
+    process_attribution_annual = aggregate_files$process_annual,
+    process_accounting_relationship = "Additive explanation of Stage2 net; never subtract process losses from Stage2 again",
     decomposition_interpretation = paste0(
       "Reference-relative stock-loss and stock-gain components of net retained carbon; ",
       "not harvest-only NRB or process-attributed regrowth"
@@ -3211,7 +3342,8 @@ main <- function(args = commandArgs(trailingOnly = TRUE), source_mode = interact
     uncertainty = uncertainty, country_per_run = country_per_run_summary,
     country_deterministic = country_deterministic,
     country_uncertainty = country_uncertainty, provenance = provenance,
-    run_manifest = run_manifest
+    run_manifest = run_manifest, process_per_run = process_per_run,
+    process_annual = process_annual
   ))
 }
 

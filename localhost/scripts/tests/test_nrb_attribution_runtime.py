@@ -12,6 +12,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import shutil
 import subprocess
 import sys
 import xml.etree.ElementTree as E
@@ -20,6 +21,7 @@ sys.dont_write_bytecode = True
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tools"))
 from build_dinamica_sourcing_v12 import calculate, filename, node, port
 from dinamica_v12_transform import _producers
+from fix_woodman_nrb_attribution import LEDGER_IDS, LEDGER_NULL
 
 
 def main():
@@ -60,6 +62,10 @@ def main():
         ("legacy_deforestation_gate_survives_gap", 100, [(100, 100, 20, 80, 80, 1, 0), (None, None, 0, None, None, None, None), (0, 5, 0, 5, 5, 0, 0)]),
         ("numeric_zero_initial_is_supported", 0, [(0, 5, 0, 5, 5, 0, 0), (5, 5, 2, 3, 3, 0, 0), (3, 3, 1, 2, 2, 0, 0)]),
         ("missing_start_does_not_credit_seed", 100, [(100, 100, 20, 80, 80, 0, 0), (None, 0, 0, 0, 2, None, 0), (2, 3, 0, 3, 3, 0, 0)]),
+        ("signed_balance_crosses_exact_legacy_nodata", 100, [(100, 10099, 0, 10099, 10099, 0, 0), (10099, 10119, 5, 10114, 10114, 0, 0), (10114, 10134, 5, 10129, 10129, 0, 0)]),
+        ("signed_balance_near_legacy_nodata_below", 100, [(100, 10099.00390625, 0, 10099.00390625, 10099.00390625, 0, 0), (10099.00390625, 10119, 5, 10114, 10114, 0, 0), (10114, 10134, 5, 10129, 10129, 0, 0)]),
+        ("signed_balance_near_legacy_nodata_above", 100, [(100, 10098.9970703125, 0, 10098.9970703125, 10098.9970703125, 0, 0), (10098.9970703125, 10119, 5, 10114, 10114, 0, 0), (10114, 10134, 5, 10129, 10129, 0, 0)]),
+        ("end_balance_seed_crosses_exact_legacy_nodata", 2, [(2, 9999, 0, 9999, 9999, 0, 0), (0, 0, 0, 0, 2, 0, 0), (2, 7, 0, 7, 7, 0, 0)]),
     ]
     values = np.array([[[(np.nan if value is None else value) for value in step]
                         for step in steps] for _, _, steps in cases], dtype=np.float32)
@@ -129,6 +135,11 @@ def main():
     annual.append(copy.deepcopy(writer))
     for source, stem in (("v97", "annual_nrb"), ("v96", "annual_fnrb"), ("v93003", "balance_end")):
         save(annual, source, stem, annual=True)
+    # Explicit physical-state outputs demonstrate that a ledger-only NoData
+    # change cannot modify these inputs in the native observer graph.
+    physical = {"S": "v90008", "B": "v171", "H": "v130", "P": "v131", "E": "v98"}
+    for label, source in physical.items():
+        save(annual, source, "physical_" + label, annual=True)
     for ident in ("v193", "v194"):
         fixture.append(copy.deepcopy(producers[ident]))
     save(fixture, "v193", "terminal_nrb")
@@ -144,6 +155,43 @@ def main():
     (scratch / "engine.log").write_text(result.stdout + result.stderr, encoding="utf-8")
     if result.returncode:
         raise RuntimeError(result.stdout + result.stderr)
+
+    # Run the same observer with its historical sentinel to establish that
+    # the new crossing cases exercise the actual defect, not just a formula.
+    legacy_dir = scratch / "legacy_sentinel"
+    legacy_dir.mkdir()
+    shutil.copytree(scratch / "inputs", legacy_dir / "inputs")
+    (legacy_dir / "debugging_1").mkdir()
+    legacy = copy.deepcopy(fixture)
+    legacy_producers = _producers(legacy)
+    for ident in LEDGER_IDS:
+        legacy_producers[ident].find("inputport[@name='nullValue']").text = ".default"
+    legacy_path = legacy_dir / "fixture.egoml"
+    E.ElementTree(legacy).write(legacy_path, encoding="utf-8", xml_declaration=True)
+    old_result = subprocess.run([str(args.engine), "-processors", "1", "-predefined-seed",
+                                 "-log-level", "3", str(legacy_path)], cwd=legacy_dir,
+                                env=environment, text=True, capture_output=True, timeout=180)
+    (legacy_dir / "engine.log").write_text(old_result.stdout + old_result.stderr, encoding="utf-8")
+    if old_result.returncode:
+        raise RuntimeError(old_result.stdout + old_result.stderr)
+    legacy_collisions = []
+    for year in range(1, 4):
+        for label in physical:
+            relative = f"physical_{label}{year:02d}.tif"
+            np.testing.assert_equal(read_map(scratch / relative), values[:, year - 1, columns.index(label)])
+            if (scratch / relative).read_bytes() != (legacy_dir / relative).read_bytes():
+                raise AssertionError("Physical raster changed after sentinel migration: " + relative)
+        for relative in (f"debugging_1/Woodfuel_balance{year:02d}.tif", f"balance_end{year:02d}.tif"):
+            with rasterio.open(scratch / relative) as dataset:
+                np.testing.assert_equal(dataset.nodata, float(np.float32(float(LEDGER_NULL))))
+            safe_values = read_map(scratch / relative)
+            old_values = read_map(legacy_dir / relative)
+            for index, (label, _, _) in enumerate(cases):
+                if np.isfinite(safe_values[index]) and not np.isfinite(old_values[index]):
+                    legacy_collisions.append({"case": label, "year": year, "output": relative})
+    expected_collisions = {name for name, _, _ in cases if "legacy_nodata" in name}
+    if {entry["case"] for entry in legacy_collisions} != expected_collisions:
+        raise AssertionError("Native legacy control did not expose all sentinel collision cases")
 
     expected = {label: [] for label in ("annual_nrb", "annual_fnrb", "post", "balance_end")}
     cprev = np.where(np.isnan(initial), np.nan, 0.0)
@@ -206,7 +254,11 @@ def main():
                 for record in records if np.isfinite(record["expected"]))
     report = {"passed": True, "cases": len(cases), "years": 3, "checks": len(records),
               "maximum_absolute_error": error, "source_sha256": hashlib.sha256(model_bytes).hexdigest(),
-              "case_names": [case[0] for case in cases], "engine": str(args.engine)}
+              "case_names": [case[0] for case in cases], "engine": str(args.engine),
+              "balance_null_value": LEDGER_NULL,
+              "native_legacy_collision_cases": sorted(expected_collisions),
+              "legacy_collision_observations": legacy_collisions,
+              "physical_rasters_byte_identical_to_legacy": len(physical) * 3}
     (scratch / "report.json").write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
     print(json.dumps(report, indent=2))
 

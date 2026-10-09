@@ -30,6 +30,7 @@ DINAMICA EGO,
 monte_carlo_runs,3
 uncapped_regrowth,0
 npa_ease,10
+woodman_luc_freeze_year,2050
 REGION TO BE PROCESSED,
 byregion,Regional
 region2BprocessedCont,SSA

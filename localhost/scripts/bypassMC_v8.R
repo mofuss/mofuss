@@ -158,6 +158,11 @@ read_scenario_metadata <- function(root, quiet = FALSE) {
     if (is.na(value)) stopf("Parameter '%s' is not an integer in %s", key, files)
     value
   }
+  freeze <- getv("woodman_luc_freeze_year", required = FALSE)
+  freeze <- if (is.na(freeze)) 2050 else suppressWarnings(as.numeric(freeze))
+  if (length(freeze) != 1L || !is.finite(freeze) || freeze != as.integer(freeze) ||
+      !freeze %in% 2000:2050)
+    stopf("woodman_luc_freeze_year must be an integer from 2000 through 2050 in %s", files)
   list(
     root = norm_dir(root),
     parameters_file = files,
@@ -170,19 +175,42 @@ read_scenario_metadata <- function(root, quiet = FALSE) {
     end_year = as_int("end_year"),
     monte_carlo_runs = as_int("monte_carlo_runs"),
     uncapped_regrowth = as_int("uncapped_regrowth"),
+    woodman_luc_freeze_year = as.integer(freeze),
     gee_scale = getv("GEE_scale", required = FALSE)
   )
 }
 
 same_text <- function(a, b) identical(tolower(trimws(as.character(a))), tolower(trimws(as.character(b))))
 
-assert_matching_pair <- function(bau, ccts) {
+validate_freeze_runtime <- function(current, args, luc_version) {
+  runtime_path <- file.path(current$root, "LULCC/TempTables/parameters_dinamica.csv")
+  runtime <- 2050
+  if (file.exists(runtime_path)) {
+    tab <- read.csv(runtime_path,stringsAsFactors=FALSE)
+    if (!all(c("Var","ParCHR") %in% names(tab)))
+      stopf("Invalid runtime parameter table: %s",runtime_path)
+    if ("woodman_luc_freeze_year" %in% tab$Var)
+      runtime <- suppressWarnings(as.numeric(tab$ParCHR[tab$Var == "woodman_luc_freeze_year"]))
+  }
+  actual <- suppressWarnings(as.numeric(arg_text(args,"WoodmanFreezeYear",as.character(runtime))))
+  for (value in list(runtime,actual))
+    if (length(value) != 1L || !is.finite(value) || value != as.integer(value) ||
+        !value %in% 2000:2050)
+      stopf("Runtime WoodmanFreezeYear/woodman_luc_freeze_year must be an integer from 2000 through 2050.")
+  if (luc_version == 3L &&
+      (runtime != current$woodman_luc_freeze_year || actual != current$woodman_luc_freeze_year))
+    stopf("Woodman freeze year differs between Dinamica, parameters_dinamica.csv and parameters.csv; update them consistently before running.")
+  invisible(TRUE)
+}
+
+assert_matching_pair <- function(bau, ccts, luc_version = 3L) {
   if (bau$role != "BAU") stopf("MC source is not a BAU scenario: %s (%s)", bau$root, bau$scenario_ver)
   if (ccts$role != "CCTS") stopf("Current directory is not an ICS/CCTS scenario: %s (%s)", ccts$root, ccts$scenario_ver)
   fields <- c(
     "byregion", "geography", "start_year", "end_year",
     "monte_carlo_runs", "uncapped_regrowth", "gee_scale"
   )
+  if (luc_version == 3L) fields <- c(fields, "woodman_luc_freeze_year")
   bad <- fields[!vapply(fields, function(field) same_text(bau[[field]], ccts[[field]]), logical(1))]
   if (length(bad)) {
     details <- vapply(
@@ -298,6 +326,7 @@ read_mc_batch_ready <- function(
     )
   }
   scalar <- function(column) {
+    if (column == "woodman_luc_freeze_year" && !column %in% names(tab)) return("2050")
     values <- unique(trimws(as.character(tab[[column]])))
     values <- values[!is.na(values) & nzchar(values)]
     if (length(values) != 1L) {
@@ -335,6 +364,7 @@ read_mc_batch_ready <- function(
     lulc_version = luc_version,
     agb_version = agb_version
   )
+  if (luc_version == 3L) checks$woodman_luc_freeze_year <- bau$woodman_luc_freeze_year
   bad <- names(checks)[!vapply(
     names(checks),
     function(column) same_text(scalar(column), checks[[column]]),
@@ -542,6 +572,7 @@ prepare_stage <- function(
     end_year = ccts$end_year,
     monte_carlo_runs = ccts$monte_carlo_runs,
     uncapped_regrowth = ccts$uncapped_regrowth,
+    woodman_luc_freeze_year = ccts$woodman_luc_freeze_year,
     bau_dynamics_complete = bau_completion$all_complete,
     bau_completed_run_count = length(bau_completion$completed_run_ids),
     bau_completed_run_ids = paste(bau_completion$completed_run_ids, collapse = ";"),
@@ -651,10 +682,10 @@ main <- function() {
       source_method <- "matching_sibling"
     }
   }
-  assert_matching_pair(bau, current)
-
   luc_version <- arg_int(args, "LUCmap_v", 1L)
   agb_version <- arg_int(args, "AGBmap_v", 3L)
+  validate_freeze_runtime(current,args,luc_version)
+  assert_matching_pair(bau, current, luc_version)
   static_inputs <- c(
     sprintf("LULCC/TempTables/growth_parameters%d.csv", luc_version),
     sprintf("LULCC/TempRaster/LULCt%d_c.tif", luc_version),

@@ -1,12 +1,23 @@
 # Legacy WebMoFuSS performance audit
 
-Status: **candidate for testing, not yet certified for server replacement**.
-The supplied server backup has been inspected; it contains shared source/data
-but no prepared WebMoFuSS case or Windows launcher. Linux runs preparation and
-hands the simulation to Windows. The literal Windows Dinamica version remains
-to be verified. No server files or canonical simulation directories were changed.
+Status: **standalone candidate passed local full-workflow validation**.
+The guarded candidate preserves all 4,074 scientific raster/table files in a
+fresh two-MC, 51-year case, both geographic databases, all output names, every
+rendered PDF page and the animation. Its larger frozen-input test observed a
+49.4% reduction in dynamics-only elapsed time. Neither test establishes a
+universal speed gain or compatibility with every production option.
+The supplied server backup has been inspected. The Windows launcher supplied
+on 2026-10-08 confirms the local legacy Dinamica executable, independently
+measured as **2.4.1.20140602**, with `-processors 0 -log-level 4`.
+The user confirms this computer runs the Windows simulation and has a maximum
+of **eight logical processors**; the earlier 70-core assumption is superseded.
+Linux runs preparation and hands the simulation to Windows. No server files
+or canonical simulation directories were changed.
 See [SERVER_BACKUP_AUDIT.md](SERVER_BACKUP_AUDIT.md) for the 2026-10-08 findings
-and the missing files needed for an end-to-end test.
+and the launch evidence. The small real-data case was prepared and completed
+locally from the supplied global inputs. See
+[SMALL_CASE_VALIDATION.md](SMALL_CASE_VALIDATION.md) for its full evidence and
+the explicit test-environment adaptations.
 
 Later partial additions under `F:\webmofuss_speedup_sandbox\webmofuss_files`
 contain three case folders (`6840ecfcad627`, `68e88410b267d`, `68e895bd7eca3`).
@@ -14,23 +25,61 @@ They currently supply source/preparation data, not runnable dynamics inputs or
 completed outputs. All three configure Windows R 4.5.0 in `Rpath.csv`; their
 companion TXT discovery files identify Linux R. This is consistent with the
 Linux-preparation/Windows-simulation handoff. It does not identify the Dinamica
-build. No partial-case preprocessing or simulations have been launched.
+build by itself. The local preparation fixture uses the backup's global Kenya
+inputs, retaining national demand normalization before selecting a small
+Nakuru area; it is separate from those three partial case folders.
 
-**Known compatibility counterexample:** appending an unused text column to the
-numeric MC tables succeeds with the original but fails in the lookup candidate
-with `Variant type is not real`. The fast candidate must not be deployed as an
-unconditionally compatible replacement. Confirm the actual server's numeric
-table contract or narrow the change before deployment. A statistics-only
-candidate would avoid this eager-row-read issue. The small probe's original
+**Historical compatibility counterexample:** appending an unused text column to the
+numeric MC tables succeeds with the original but failed in the unguarded lookup candidate
+with `Variant type is not real`. That version must not be deployed as an
+unconditionally compatible replacement. The small probe's original
 produced all 12 expected TIFFs; its candidate produced none. Evidence is in
 `E:\MoFuSS_Active\webmofuss_performance_audit\lookup_contract_probe\results.json`.
 
-On 2026-10-08 a separate small local 2.4.1 probe tested a numeric-type guard
-with an original-expression fallback. Both numeric and mixed-type cases
-completed, each with all 12 TIFFs byte-identical to its original-expression
-baseline. This addresses the demonstrated text-column failure in that probe;
-it is not yet integrated into the full candidate and does not prove all
-conditional/empty-table behavior. See [LOOKUP_GUARD_AUDIT.md](LOOKUP_GUARD_AUDIT.md).
+On 2026-10-08 the builder and candidate were revised to guard both numeric
+column types and MC-row presence, falling back to the original expressions
+when caching is unsuitable. Local native microprobes cover numeric tables,
+unused text columns, a bypassed missing initial-stock row, and missing rows on
+an all-NoData map. These targeted checks supplement the completed full case.
+See [LOOKUP_GUARD_AUDIT.md](LOOKUP_GUARD_AUDIT.md).
+
+**The three-row historical timing table later in this document belongs to the
+earlier unguarded candidate** (SHA-256
+`a9a661abb802a66f4639ddbf7903bd660251b97f4fc0c8b1627e8255862ec54e`).
+They must not be represented as measurements of the newly guarded artifact.
+The guarded candidate's separate measurements follow.
+
+The first guarded **full-graph correctness** comparison now passes: the same
+two-MC, 21-year capped frozen fixture produced all **740 scientific files**
+byte-identical to its original baseline (719 TIFFs), with no missing or added
+files. All 614 frozen-input hashes matched. Evidence:
+`E:\MoFuSS_Active\webmofuss_performance_audit\comparison_baseline_v3_long_2mc_21y_vs_guarded_v3_long_2mc_21y.json`.
+The guarded run took 162.48 seconds while four other Dinamica jobs and new-case
+R preprocessing were active. That is not a comparable speed measurement
+against the earlier 144.21-second baseline. Both sides of this correctness
+test omit the same four R callbacks. The separate fresh case below retains them.
+
+A fresh sequential pair using the guarded candidate also passes the uncapped
+three-MC, three-year fixture: all **186 files** (159 TIFFs, 27 CSVs) are
+byte-identical, with no missing or added scientific outputs. The original took
+125.71 seconds and the guarded candidate 63.61 seconds, a **49.4% observed
+reduction**. Both used two processors while unrelated simulations were active;
+small-area R preparation was paused for both runs. This is one dynamics-only
+timing pair on a busy host, not an end-to-end or idle-server benchmark.
+Evidence: `comparison_baseline_guard_pair_uncapped_vs_guarded_pair_uncapped.json`
+and each fixture's `runtime_result.json` under the temporary audit root.
+
+The fresh **full-workflow** case also passes: two MCs, 2000–2050, a 33 by 33
+Nakuru grid, and capped BaU. All four R callbacks completed on both sides.
+All **4,074 scientific files** (1,752 TIFFs, 2,322 CSVs) are byte-identical;
+two GeoPackages have identical schemas, attributes, stored CRS and exact
+normalized geometries. The same 5,804 produced filenames exist. All ten PDF
+page renders and the MP4 animation match exactly. The original took 546.30
+seconds and the candidate 708.43 seconds, but four other simulations started
+before the candidate: this pair establishes compatibility, **not** a speed
+comparison. R callbacks consumed about 83% of the original tiny-case elapsed
+time, limiting the benefit available from EGOML-only changes for that case.
+Detailed timing, provenance and limits are in `SMALL_CASE_VALIDATION.md`.
 
 ## Deliverable
 
@@ -44,7 +93,8 @@ or substitute the newer localhost model.
 
 Two conservative changes are included:
 
-1. Select each realization's numeric parameter row once, then use numeric
+1. For numeric tables containing the requested MC row, select each
+   realization's parameter row once, then use numeric
    lookup tables in four raster expressions. The original arithmetic order,
    double-valued parameters, float32 output stages, class indices, and MC row
    identity are retained. These four maps are initialized once per MC, not once
@@ -73,7 +123,7 @@ Disposable tests and logs:
 `E:\MoFuSS_Active\webmofuss_performance_audit`.
 
 The local executable is Dinamica `2.4.1.20140602`, using two processors and
-`-predefined-seed`. Tests run the original and candidate sequentially on separate
+`-predefined-seed`. The frozen-input tests run each variant sequentially on separate
 copies with identical frozen inputs. They remove the same four external R calls
 from each test copy so initialization cannot regenerate MC draws and reporting
 cannot write outside the fixture. The deliverable retains those calls.
@@ -99,9 +149,13 @@ the web's one-scenario-per-job workflow. There were 1,103 byte-identical file
 comparisons across the three pairs. This is not a benchmark of the server or
 the full R/web workflow, and it does not negate the mixed-table counterexample.
 
-The eight static tests passed. The process-MC prototype was checked in memory
-but no actual MC worker processes were staged or launched. Full workflow tests
-await the complete real web case and Windows launcher requested from the user.
+The current eleven static tests passed. The process-MC prototype also ran
+three realizations with at most two concurrent one-processor workers. It
+preserved all 186 scientific outputs and proved at least 52.66 seconds of
+native-process overlap. Its worker phase took 105.83 seconds versus the
+earlier guarded serial run's 63.61 seconds, on a busy host. This demonstrates
+feasibility, not a speed benefit; small jobs can be dominated by repeated
+startup/compilation. It remains an experiment, not a production launcher.
 
 Static checks cover unchanged I/O and external calls, expression arithmetic,
 map precision, MC helper scope, live normalizers, unique/resolved IDs, exact
@@ -110,8 +164,10 @@ shipped-artifact reproducibility, and rejection of unreviewed source revisions.
 The parameter-row optimization assumes the numeric matrices produced by the
 legacy R preprocessing. The supplied backup's `rnorm_v3.R`, lines 643–678,
 generates numeric Key/LULC columns, drops helper columns, and replaces NA/NaN
-with 0.11111 before writing all three matrices. No generated matrices are in
-the backup, so the real case's data still needs checking. Eagerly reading a full row differs from conditionally
+with 0.11111 before writing all three matrices. The fresh full case confirms
+one numeric key, 760 numeric parameter columns, rows 1 and 2, and finite
+values throughout all three generated matrices. They match across both runs.
+Eagerly reading a full row differs from conditionally
 reading individual columns for the confirmed mixed-type counterexample, and
 also touches absent map categories and initial-stock cells that tree-cover mode
 would otherwise bypass.
@@ -139,11 +195,13 @@ appropriate random streams, and one ordered gather/report stage. They must also
 fit memory and I/O capacity and the web job's allocated CPU budget. This is an
 orchestration change beyond the current single-file candidate.
 
-Worker count must be calculated per job, not hard-coded to 30 or 70. The sample
-backup allocates eight Linux CPUs but passes only a session ID to the Windows
-launcher. No existing model input or visible handoff communicates a Windows CPU
-budget. Automatic hardware detection is not evidence of that budget. The missing
-launcher must establish how the user's 8–70 CPU allocation applies on Windows.
+Worker count must be calculated per job. The sample backup allocates eight
+Linux CPUs and passes only a session ID to the Windows launcher. The supplied
+launcher uses `-processors 0` for automatic Windows processor detection, and
+the user confirms that this Windows host has at most eight logical processors.
+The earlier 30/60-worker example describes the architecture only; it is not
+appropriate for this host. No existing handoff communicates a separate
+per-job Windows CPU allocation, so competing jobs also matter.
 
 Running thirty unmodified scripts with MC count set to one is incorrect: each
 would select the first parameter draw, rerun preprocessing/reporting, and
@@ -169,15 +227,23 @@ subcommands with an explicit temporary `--root`. It delegates the frozen-input
 copying and engine launch to the existing localhost regression harness. Its
 comparison additionally rejects candidate-only scientific files.
 
-Before replacing the production script, inspect the supplied web case and exact
-engine build, run the complete old/candidate workflow on independent copies,
-compare the complete final file set, CSV schema and values, raster geometry,
-NoData and pixels, and confirm all R reports finish. Also check the options the
-web interface actually exposes. Measure elapsed time and peak memory on that
-machine. Keep the original available for rollback. Neither XML validation nor
-the local frozen-input tests alone establish end-to-end server compatibility.
+The complete local workflow, scientific outputs and R reports have now been
+checked on the launcher-selected engine. Remaining coverage limits include
+the production wrapper's exact IDW settings, options beyond the tested capped
+BaU full case, stochastic patchers, the reporting branch at 30 or more MCs,
+and the launcher's automatic processor setting (tests bounded it to two).
+An idle-host comparison and peak-memory measurement would strengthen any
+production performance claim; current timings must retain the qualifications
+above. No source or server launcher has been replaced.
+
+For a deployment using the existing launcher, the candidate must be installed
+under `7_dyn_Sc17_webmofuss_ctrees_g_v3.egoml`, its current expected filename.
+Keep the original bytes available for rollback and make the swap between jobs.
+The `_fast` filename distinguishes the delivered artifact in this repository;
+no new inputs, helper process, R installation or output schema are required
+by the optimized EGOML itself.
 
 Original SHA-256:
 `e4ce6ab47a12bbc7ed1f290a95ad6c1477182d21e95fba1428d816ecc85bca2d`.
-Candidate SHA-256:
-`a9a661abb802a66f4639ddbf7903bd660251b97f4fc0c8b1627e8255862ec54e`.
+Current guarded candidate SHA-256:
+`15d9e2ff6f5aa9b166ab8a9ddc18f3f21cbd0960a18ef4c25e426fb5f5db5932`.

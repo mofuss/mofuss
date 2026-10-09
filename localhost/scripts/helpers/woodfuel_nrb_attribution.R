@@ -2,6 +2,35 @@
 # GrowthNN is preharvest STOCK, not the annual biomass increment.
 MOFUSS_NRB_CONTRACT <- "woodfuel_attributed_signed_balance_v1"
 
+# Old production ledgers used -9999 as both NoData and a possible signed
+# balance. Reconstruct their PERIOD increments from saved physical states;
+# never interpolate the damaged cumulative ledger or rewrite completed runs.
+.mofuss_nrb_reconstruction_api <- local({
+  cached <- NULL
+  source_files <- unlist(lapply(sys.frames(), function(frame) {
+    unlist(lapply(c("ofile", "file"), function(key) {
+      value <- get0(key, envir = frame, inherits = FALSE, ifnotfound = NULL)
+      if (is.character(value) && length(value) == 1L && !is.na(value) &&
+          file.exists(value) && !dir.exists(value))
+        normalizePath(value, winslash = "/", mustWork = TRUE) else character()
+    }), use.names = FALSE)
+  }), use.names = FALSE)
+  candidates <- unique(c(
+    file.path(dirname(source_files), "woodfuel_luc_decomposition.R"),
+    file.path(dirname(source_files), "helpers", "woodfuel_luc_decomposition.R"),
+    file.path(getwd(), "localhost/scripts/helpers/woodfuel_luc_decomposition.R")
+  ))
+  function() {
+    if (!is.null(cached)) return(cached)
+    found <- candidates[file.exists(candidates)]
+    if (!length(found)) stop("Legacy signed-ledger recovery requires helpers/woodfuel_luc_decomposition.R.")
+    cached <<- new.env(parent = environment())
+    sys.source(found[[1L]], envir = cached)
+    cached$source_path <- normalizePath(found[[1L]], winslash = "/", mustWork = TRUE)
+    cached
+  }
+})
+
 mofuss_nrb_context <- function(run_dir, luc_mode = NULL, expected_steps = NULL,
                                mc = 1L, model_path = NULL) {
   if (!requireNamespace("raster", quietly = TRUE)) stop("NRB accounting requires raster.")
@@ -64,6 +93,7 @@ mofuss_nrb_context <- function(run_dir, luc_mode = NULL, expected_steps = NULL,
     }
   }
   contract <- NULL
+  reconstruct_signed_balance <- FALSE
   if (!is.null(model_path)) {
     if (!file.exists(model_path)) stop("Selected run model is missing: ", model_path)
     if (!requireNamespace("xml2", quietly = TRUE)) stop("Reading model provenance requires xml2.")
@@ -74,11 +104,26 @@ mofuss_nrb_context <- function(run_dir, luc_mode = NULL, expected_steps = NULL,
     if (!length(evidence) && length(selector)) add_mode(unique(xml2::xml_text(selector)), "selected model")
     prop <- xml2::xml_find_first(model, "./property[@key='mofuss.nrb.attribution.contract']")
     if (!inherits(prop, "xml_missing")) contract <- xml2::xml_attr(prop, "value")
+    ledger_null <- xml2::xml_find_first(model,
+      ".//containerfunctor[outputport[@id='v93002']]/inputport[@name='nullValue']")
+    if (!inherits(ledger_null, "xml_missing")) {
+      null_text <- trimws(xml2::xml_text(ledger_null))
+      reconstruct_signed_balance <- null_text == ".default" ||
+        isTRUE(suppressWarnings(as.numeric(null_text)) == -9999)
+    }
   }
   if (!length(evidence)) stop("Unknown LUC mode; provide verified luc_mode or run provenance. Annual files alone do not establish the active LUC channel.")
   if (length(unique(evidence)) != 1L) stop("Conflicting LUC provenance: ", paste(names(evidence), evidence, sep = "=", collapse = ", "))
   mode <- unname(evidence[[1L]])
   if (!mode %in% c(1L, 3L)) stop("Unsupported LUC mode for NRB attribution: ", mode)
+  freeze <- list(year = 2050L, contract = "legacy_annual_history_no_freeze_parameter",
+                 evidence = "legacy_model", paths = character())
+  freeze_helper <- NULL
+  if (identical(contract, MOFUSS_NRB_CONTRACT)) {
+    freeze_api <- .mofuss_nrb_reconstruction_api()
+    freeze <- freeze_api$.mofuss_luc_freeze_provenance(run_dir, mc, model, mode)
+    freeze_helper <- freeze_api$source_path
+  }
   growth_files <- list.files(debug_dir, pattern = "^Growth[0-9]+[.]tif$")
   steps <- sort(as.integer(sub("^Growth([0-9]+)[.]tif$", "\\1", growth_files)))
   if (is.null(expected_steps)) expected_steps <- if (length(steps)) max(steps) else 0L
@@ -104,8 +149,31 @@ mofuss_nrb_context <- function(run_dir, luc_mode = NULL, expected_steps = NULL,
   } else {
     method <- "legacy_fixed_luc_stock_difference"
   }
+  if (corrected && !reconstruct_signed_balance) {
+    # A newer model file does not repair old rasters. Read the actual GDAL
+    # NoData tag; raster::NAvalue/terra::NAflag expose overrides, not reliably
+    # the original TIFF tag. Mixed encodings also select physical recovery.
+    if (!requireNamespace("terra", quietly = TRUE) ||
+        !requireNamespace("jsonlite", quietly = TRUE))
+      stop("Signed-ledger storage verification requires terra and jsonlite.")
+    reconstruct_signed_balance <- any(vapply(ledger, function(path) {
+      info <- terra::describe(path, options = "-json", print = FALSE)
+      bands <- jsonlite::fromJSON(paste(info, collapse = "\n"))$bands
+      values <- suppressWarnings(as.numeric(bands$noDataValue))
+      any(is.finite(values) & values == -9999)
+    }, logical(1)))
+  }
   structure(list(run_dir = run_dir, debug_dir = debug_dir, mc = as.integer(mc),
                  luc_mode = mode, expected_steps = expected_steps, method = method,
+                 woodman_luc_freeze_year = freeze$year,
+                 woodman_luc_freeze_contract = freeze$contract,
+                 woodman_luc_freeze_evidence = freeze$evidence,
+                 woodman_luc_execution_paths = freeze$paths,
+                 woodman_luc_freeze_helper = freeze_helper,
+                 reconstruct_signed_balance = corrected && reconstruct_signed_balance,
+                 signed_balance_read_policy = if (!corrected) "legacy_stock_difference" else
+                   if (reconstruct_signed_balance) "physical_period_reconstruction_legacy_nodata_v1" else
+                     "exported_signed_ledger",
                  model_path = model_path, provenance = evidence), class = "mofuss_nrb_context")
 }
 
@@ -121,7 +189,14 @@ mofuss_period_nrb <- function(context, start_step, end_step,
   harvest <- if (length(harvest_maps) == 1L) harvest_maps[[1L]] else
     raster::calc(raster::stack(harvest_maps), sum, na.rm = FALSE)
   post_end <- read_map("Growth_less_harv", end_step)
-  if (identical(context$method, MOFUSS_NRB_CONTRACT)) {
+  if (identical(context$method, MOFUSS_NRB_CONTRACT) &&
+      isTRUE(context$reconstruct_signed_balance)) {
+    recovered <- .mofuss_nrb_reconstruction_api()$mofuss_reconstruct_signed_period(
+      context$run_dir, context$mc, start_step, end_step, baseline = baseline,
+      temp_dir = raster::rasterOptions()$tmpdir)
+    signed <- raster::raster(recovered$signed)
+    harvest <- raster::raster(recovered$harvest)
+  } else if (identical(context$method, MOFUSS_NRB_CONTRACT)) {
     balance_end <- read_map("Woodfuel_balance", end_step)
     if (baseline == "preharvest") {
       start_depletion <- raster::overlay(
@@ -161,6 +236,7 @@ mofuss_period_nrb <- function(context, start_step, end_step,
     ifelse(!is.finite(n) | !is.finite(h) | h <= 0, NA_real_, 100 * n / h)
   })
   list(nrb = nrb, harvest = harvest, fnrb = fnrb, method = context$method,
+       signed_balance_read_policy = context$signed_balance_read_policy,
        baseline = baseline, start_step = start_step, end_step = end_step,
        ratio_units = "percent", zero_harvest_ratio = "undefined_NA")
 }

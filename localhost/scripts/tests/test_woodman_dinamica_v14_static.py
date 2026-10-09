@@ -251,7 +251,7 @@ class WoodmanDinamicaV14StaticTest(unittest.TestCase):
         transition = node_with_output(self.repeat, "v90018")
         start_stock = node_with_output(self.repeat, "v90008")
         end_stock = node_with_output(self.repeat, "v98")
-        self.assertEqual(set(peers(transition)), {"v90003", "v90007"})
+        self.assertEqual(set(peers(transition)), {"v90003", "v90007", "v302", "v90001", "v94002"})
         self.assertIn("if isNull(i2) then 0", expression(transition))
         self.assertEqual(set(peers(start_stock)), {"v40", "v90018", "v90005", "v90010", "v90019"})
         self.assertIn("i2 = 1 or i2 = 2 or i2 = 4 then 0", expression(start_stock))

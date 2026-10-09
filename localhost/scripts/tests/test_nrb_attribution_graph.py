@@ -11,7 +11,9 @@ HERE = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(HERE / "tools"))
 from build_woodman_dinamica_v14 import build_model, SOURCE, TARGET
 from dinamica_v12_transform import _producers
-from fix_woodman_nrb_attribution import CONTRACT, MARKER_KEY, NEW_IDS, correct_nrb_attribution
+from fix_woodman_nrb_attribution import (
+    CONTRACT, MARKER_KEY, NEW_IDS, LEDGER_IDS, LEDGER_NULL, correct_nrb_attribution,
+)
 
 
 def signature(element):
@@ -27,7 +29,18 @@ class NrbAttributionGraphTest(unittest.TestCase):
         cls.corrected, cls.report = correct_nrb_attribution(cls.reference)
 
     def test_generated_model_and_idempotence(self):
-        self.assertEqual(self.corrected, TARGET.read_text(encoding="utf-8"))
+        target = TARGET.read_text(encoding="utf-8")
+        self.assertEqual(build_model(SOURCE.read_text(encoding="utf-8")), target)
+        # Applying two independent patchers in reverse order changes only the
+        # order of their root metadata properties, which has no graph meaning.
+        roots = [E.fromstring(value) for value in (self.corrected, target)]
+        for root in roots:
+            properties = sorted(root.findall("property"), key=lambda p: p.get("key"))
+            for item in properties:
+                root.remove(item)
+            for index, item in enumerate(properties):
+                root.insert(index, item)
+        self.assertEqual(signature(roots[0]), signature(roots[1]))
         same, report = correct_nrb_attribution(self.corrected)
         self.assertEqual(same, self.corrected)
         self.assertTrue(report["already_applied"])
@@ -61,6 +74,36 @@ class NrbAttributionGraphTest(unittest.TestCase):
         broken = self.corrected.replace("i1 + min(i2, i3) - i4", "i1 + i2 - i4", 1)
         with self.assertRaisesRegex(ValueError, "calculation changed"):
             correct_nrb_attribution(broken)
+
+    def test_legacy_signed_nodata_migration_changes_only_three_literals(self):
+        safe = f'<inputport name="nullValue">{LEDGER_NULL}</inputport>'
+        legacy = '<inputport name="nullValue">.default</inputport>'
+        self.assertEqual(self.corrected.count(safe), 3)
+        old = self.corrected.replace(safe, legacy)
+        migrated, report = correct_nrb_attribution(old)
+        self.assertEqual(migrated, self.corrected)
+        self.assertTrue(report["ledger_null_migrated"])
+        self.assertFalse(report["already_applied"])
+        self.assertEqual(report["changed_producer_ids"], list(LEDGER_IDS))
+        self.assertEqual(report["balance_null_value"], LEDGER_NULL)
+        # Partial safe migrations remain idempotently repairable.
+        partial = self.corrected.replace(safe, legacy, 1)
+        self.assertEqual(correct_nrb_attribution(partial)[0], self.corrected)
+
+    def test_unreviewed_signed_nodata_is_rejected(self):
+        changed = self.corrected.replace(
+            f'<inputport name="nullValue">{LEDGER_NULL}</inputport>',
+            '<inputport name="nullValue">-9998</inputport>', 1)
+        with self.assertRaisesRegex(ValueError, "NoData encoding changed"):
+            correct_nrb_attribution(changed)
+
+    def test_legacy_encoding_does_not_bypass_graph_validation(self):
+        old = self.corrected.replace(
+            f'<inputport name="nullValue">{LEDGER_NULL}</inputport>',
+            '<inputport name="nullValue">.default</inputport>')
+        old = old.replace("i1 + min(i2, i3) - i4", "i1 + i2 - i4", 1)
+        with self.assertRaisesRegex(ValueError, "calculation changed"):
+            correct_nrb_attribution(old)
 
     def test_unreviewed_source_is_rejected(self):
         source = E.fromstring(self.reference)

@@ -411,7 +411,7 @@ def annual_loader(fixed_inputs: bool = True) -> str:
 
 
 def build_model(source: str, *, annual_cache: bool = True, fixed_inputs: bool = True,
-                nrb_attribution: bool = True) -> str:
+                nrb_attribution: bool = True, freeze_year: bool = True) -> str:
     """Build v14 from v13; opt-outs are only for regression reference graphs."""
     for new_id in (*range(90001, 90022), *range(90030, 90037)):
         if re.search(rf'\bv{new_id}\b', source):
@@ -564,6 +564,14 @@ def build_model(source: str, *, annual_cache: bool = True, fixed_inputs: bool = 
         try:
             from fix_woodman_nrb_attribution import correct_nrb_attribution
             output, _ = correct_nrb_attribution(output)
+        finally:
+            sys.path.remove(tool_dir)
+    if freeze_year:
+        tool_dir = str(HERE / "tools")
+        sys.path.insert(0, tool_dir)
+        try:
+            from add_woodman_freeze_year import add_freeze_year
+            output, _ = add_freeze_year(output)
         finally:
             sys.path.remove(tool_dir)
     ET.fromstring(output)

@@ -71,7 +71,8 @@ mofuss_runtime_bundle_files <- function(active_egoml = "10_dyn_Sc17_webmofuss_ct
     "finalogs_v8.R", "bypassMC_v8.R", "bypass_maps_animations_v8.R",
     "run_linux.sh", "run_linux.py", "mofuss_r_linux.sh",
     "README_LINUX.md", "LaTeX/generate_modern_report_v8.R",
-    "helpers/woodfuel_nrb_attribution.R", "tools/windows_launcher_v1.R"
+    "helpers/woodfuel_nrb_attribution.R", "helpers/woodfuel_luc_decomposition.R",
+    "tools/windows_launcher_v1.R"
   ))
 }
 

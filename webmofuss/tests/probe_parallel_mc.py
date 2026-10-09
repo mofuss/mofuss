@@ -238,6 +238,7 @@ def run(args: argparse.Namespace) -> None:
         verify_frozen(path, read_json(path / "frozen_input_hashes.json"))
     regression.emit_json(target / "parallel_launch.json", {
         "engine": str(engine), "processors_per_worker": args.processors_per_worker,
+        "max_workers": args.max_workers,
         "launched_utc": datetime.now(timezone.utc).isoformat(),
         "retry_policy": "A stopped or failed proof requires a freshly staged probe; no partial reruns",
     })
@@ -255,24 +256,56 @@ def run(args: argparse.Namespace) -> None:
         try:
             regression.run(child)
             entry["success"] = True
+            entry["native_elapsed_seconds"] = read_json(
+                target / "workers" / worker["name"] / "runtime_result.json")["elapsed_seconds"]
         except (Exception, SystemExit) as error:
             entry.update(success=False, error=f"{type(error).__name__}: {error}")
         entry.update(ended_offset_seconds=time.perf_counter() - started,
                      ended_utc=datetime.now(timezone.utc).isoformat())
         return entry
 
-    # Three independent regression subprocesses; each receives its own engine
-    # TEMP/TMP directory from regression.run. No background shell helper is used.
-    with ThreadPoolExecutor(max_workers=3) as pool:
+    # Process all three global identities through the bounded pool. Each child
+    # receives its own TEMP/TMP directory from regression.run.
+    with ThreadPoolExecutor(max_workers=args.max_workers) as pool:
         futures = [pool.submit(execute, worker) for worker in manifest["workers"]]
         for future in as_completed(futures):
             results.append(future.result())
     results.sort(key=lambda item: item["global_mc_id"])
     all_overlap = max(0.0, min(r["ended_offset_seconds"] for r in results)
                       - max(r["started_offset_seconds"] for r in results))
+    events = sorted((r[key], change) for r in results for key, change in
+                    (("started_offset_seconds", 1), ("ended_offset_seconds", -1)))
+    active, peak, overlapping_seconds, previous = 0, 0, 0.0, 0.0
+    for instant, change in events:
+        if active >= 2:
+            overlapping_seconds += instant - previous
+        active += change
+        peak = max(peak, active)
+        previous = instant
+    # Invocation intervals include input verification and output hashing. The
+    # native phase is wholly contained inside its invocation. Subtracting the
+    # enclosing pair interval from the sum of native durations proves a lower
+    # bound on overlapping native phases, without claiming invocation overlap
+    # alone proves concurrent simulation. A zero bound is inconclusive.
+    native_overlap_bounds = []
+    for index, left in enumerate(results):
+        for right in results[index + 1:]:
+            if "native_elapsed_seconds" not in left or "native_elapsed_seconds" not in right:
+                continue
+            enclosing = max(left["ended_offset_seconds"], right["ended_offset_seconds"]) - min(
+                left["started_offset_seconds"], right["started_offset_seconds"])
+            native_overlap_bounds.append({
+                "global_mc_ids": [left["global_mc_id"], right["global_mc_id"]],
+                "at_least_seconds": max(0.0, left["native_elapsed_seconds"]
+                                        + right["native_elapsed_seconds"] - enclosing),
+            })
     report = {"engine": str(engine), "processors_per_worker": args.processors_per_worker,
-              "requested_concurrent_processes": 3, "wall_seconds": time.perf_counter() - started,
+              "requested_concurrent_processes": args.max_workers, "total_global_mc_ids": len(MC_IDS),
+              "wall_seconds": time.perf_counter() - started,
               "worker_invocation_overlap_seconds": all_overlap, "workers": results,
+              "peak_worker_invocations": peak,
+              "at_least_two_worker_invocations_seconds": overlapping_seconds,
+              "pairwise_native_phase_overlap_lower_bounds": native_overlap_bounds,
               "all_succeeded": all(r["success"] for r in results),
               "rng_warning": manifest["rng_limit"]}
     regression.emit_json(target / "parallel_runtime.json", report)
@@ -414,8 +447,9 @@ def main() -> None:
     p.add_argument("--source", type=Path, required=True, help="Canonical source run recorded in baseline manifest")
     p.add_argument("--model", type=Path, required=True, help="Source EGOML matching baseline model hash")
     p.set_defaults(function=stage)
-    p = commands.add_parser("run", help="Explicitly launch three private Dinamica processes")
+    p = commands.add_parser("run", help="Process three global MC identities through a bounded private pool")
     p.add_argument("--engine", type=Path, required=True)
+    p.add_argument("--max-workers", type=int, choices=(1, 2, 3), default=2)
     p.add_argument("--processors-per-worker", type=int, choices=(1, 2), default=1)
     p.add_argument("--timeout", type=int, default=600)
     p.add_argument("--disable-native-expressions", action="store_true")

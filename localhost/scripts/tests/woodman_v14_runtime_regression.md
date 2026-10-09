@@ -4,6 +4,145 @@ These tests read the canonical Windows EGOML files and write only to a new,
 explicitly named folder under `E:/MoFuSS_Active`. They do not launch R preparation
 in a production run or modify existing D:/F: inputs or results.
 
+## Freeze-year container dependency repair, 2026-10-09
+
+The initial freeze-year reader introduced a dependency cycle between root
+Groups 1610 and 2457. Moving `v94000`, `v94001`, and `v94002` beside their
+parameter table `v267` in Group 2457 removes the cycle without changing any
+equations or scenario settings. The patcher also repairs already-patched graphs,
+and its static validator now rejects cycles between root containers.
+
+`test_woodman_freeze_full_graph_startup.py` preserves the complete production
+graph and checks native scheduling and R startup with isolated two-cell inputs
+and harmless R stubs. All eight combinations of freeze year 2026/2050,
+BAU/ICS, and capped/uncapped passed with native compilation enabled. An additional
+broken-graph negative control reproduced the reported loop. These are startup
+checks, not full simulations; the stubs stop before MC preparation or annual
+outputs. Native-expression fallback warnings also occur in successful startup
+checks and are separate from the dependency-cycle error.
+
+The repaired source and all eight MDG copies were verified; all 54,016 existing
+scientific output files retained their paths, sizes, and modification times.
+Permanent evidence is in
+`D:/mofuss_postprocessing/MDG_Woodman_freeze_setup_2026-10-09/loop_repair/`.
+
+## Signed-ledger NoData correction and recovery, 2026-10-08
+
+The default float32 NoData value, `-9999`, is a valid value of the signed
+woodfuel balance. A completed Madagascar uncapped MC1 cell reached exactly
+`-9999` in 2048; its observer remained NoData thereafter while its physical
+biomass continued growing. Values close to `-9999` can also be hidden by a
+raster reader's approximate NoData comparison. This is an observer-storage
+defect, not a loss of simulated biomass.
+
+The canonical v14 correction changes **only three `nullValue` literals** from
+`.default` to `-1e30`: `v93000` (initial signed balance), `v93002` (postharvest
+balance), and `v93003` (balance after the endpoint seed). The native engine
+stores this as float32 `-1.0000000150474662e30`, far outside plausible biomass
+balances. Equations, cell type, initialization, growth, harvest, sourcing and
+physical stock feedback are unchanged. The accounting contract remains
+`woodfuel_attributed_signed_balance_v1`; this is an encoding repair within
+that contract. Safe canonical v14 SHA256:
+`c7f86f4746f2f394d036d349d0f7ffb19de89d68cd592789e21980162229ff3d`.
+
+`tools/fix_woodman_nrb_attribution.py` validates the complete existing observer
+graph before migrating those known legacy literals. It rejects unreviewed
+NoData values and altered equations. Applying it again to the safe graph is
+byte-preserving. Newly generated v14 models use the safe sentinel immediately.
+
+```powershell
+python -B localhost/scripts/tests/test_nrb_attribution_graph.py
+python -B localhost/scripts/tests/test_nrb_attribution_runtime.py --scratch E:/MoFuSS_Active/my_v14_check/sentinel
+```
+
+Verification on the installed native Windows Dinamica engine:
+
+- Nine structural tests passed, including generation equality, migration,
+  idempotence, rejection of altered graphs, and absence of observer feedback
+  into physical mechanics. Migrating the existing canonical model changes
+  exactly the three literals identified above.
+- The native fixture passed **21 cases over three years, 294 numeric checks,
+  maximum absolute error zero**. It includes exact `-9999`, both nearby
+  float32 values, an endpoint seed that makes Cend exactly `-9999`, subsequent
+  feedback, true initial NoData, invalid-state gaps and ordinary NRB cases.
+- An otherwise identical legacy-sentinel control reproduces failures in all
+  four collision cases. All **15 physical S/B/H/P/E raster outputs** remain
+  byte-identical between the safe and legacy controls. This is a bounded
+  observer fixture plus full-graph structural isolation, not a new full-country
+  simulation or a claim that previously damaged observer outputs were correct.
+
+Native evidence is temporary under
+`E:/MoFuSS_Active/MDG_LUC_attribution_postprocessing_2026-10-08/tests_sentinel/`:
+`report.json`, `checks.csv`, the exact source snapshot, both native graphs and
+their engine logs. Test code and the conclusions above are retained here.
+
+The eight completed D:/F: runs and their executed model copies remain intact.
+Their postprocessing reconstructs **period increments** from saved physical
+states, using `min(post-LUC start, preharvest stock) - postharvest stock` and
+the preceding valid endpoint-seed correction. It does not substitute a raw
+AGB loss for NRB, interpolate damaged cumulative balances, or rewrite the
+completed rasters. True positive-harvest gaps remain un-attributable; known
+zero-harvest domain gaps retain the observer's carry rule. A seed is credited
+only when the preceding complete observer state was valid.
+
+Independent Python scalar calculations, without the R recovery helper or
+saved cumulative balance as the period estimator, verified four real uncapped
+MC1 collision cells over 2026-2050. Every cell had constant forest class, no
+land-cover transition, positive stock and nondecreasing preharvest growth,
+so the independent increment telescopes to previous minus current stock.
+The R helper matched **48 scalar checks exactly**, including both reporting
+baselines, BAU/ICS signed depletion, harvest and net savings. In particular,
+the F: BAU cell at zero-based row 901, column 508 recovers C2050
+`-10269.412109375`, while the old exported ledger is stuck at `-9999`.
+Both scenarios' clipped period NRB is zero at these regrowing cells.
+Evidence: `independent_collision_scalars.json` and
+`independent_collision_helper_comparison.json` in the same named task folder.
+
+Full-grid MC1 postprocessing pilots for D: capped and F: uncapped then passed
+with complete process support (660,846 and 619,748 cells respectively).
+Readable exported increments supplied 33,042,300 and 30,987,397 independent
+scenario-pixel-year comparisons. Maximum discrepancies were respectively
+`0.0009765625` and `0.0001220703125` Mg, consistent with float32 storage;
+reconstructed per-pixel and aggregate accounting closure errors were zero.
+The F: pilot recovered the exact-sentinel cell; nearby sentinel values were
+readable in that R/terra build. Reader-dependent masking is why actual storage
+encoding and physical reconstruction matter, not a fixed count of raster NAs.
+
+The readable-increment gate uses
+`8 * 2^-23 * max(1, abs(Ccurrent), abs(Cprevious), abs(Pcurrent), abs(Pprevious)) + 1e-6`
+Mg, ignoring missing scale terms while retaining every finite ledger comparison.
+Reconstruction works in double precision and preserves signed regrowth until
+the requested period is selected and NRB is bounded by its harvest total.
+These pilots are checks on the 2026-2050 MC1 period, not a substitute for
+validating every selected MC draw and reporting period in the production run.
+
+Production postprocessing subsequently passed all 12 BAU/ICS pair/draw
+accounts (F/D, capped/uncapped, MC1-3) for 2026-2050. Every account has complete
+process and reconstructed-ledger support on its reporting endpoints and zero
+aggregate component-closure error. Stages 3 and 4 reconcile with unchanged
+Stage 2 totals; Stage 5 was checked separately for each LUC product with
+Madagascar-only partial coverage, without combining the two experiments.
+Three draws are retained for diagnostics, not strong uncertainty inference.
+
+A computer restart interrupted postprocessing only. All 4,896 expected annual
+simulation rasters remained present, and all 96 final-step rasters were fully
+readable. Ten finished process accounts were reused only after complete raster,
+sum, annual-total, support, auxiliary-hash and source-version validation; the
+two unfinished uncapped MC3 accounts were recalculated. The dated analysis
+roots on D: and F: preserve interrupted outputs, executed source snapshots,
+cache/readback evidence and the recovery scripts under `_restart_provenance`.
+
+Final engineering fixtures also verify the nested lazy helper under both
+`source()` and `sys.source()` from an arbitrary working directory, positive-
+harvest gaps excluded from NRB-support counts, and the distinction between
+initial model-stock support and the original-AGB reporting mask. These last
+two diagnostic corrections change no Madagascar production totals or counts.
+The final Stage 1 readback passed all eight scenarios and all 96 report rasters:
+MC1-3, the 2026-2050 window, 2025/2050 snapshots, recovery provenance, original-
+AGB masking and `0 <= mean NRB <= mean harvest` all passed. Executed helper
+versions are preserved alongside the analysis outputs; the diagnostic-only
+source revision is distinguishable by its recorded hash.
+
 ## Pixel equations
 
 ```powershell

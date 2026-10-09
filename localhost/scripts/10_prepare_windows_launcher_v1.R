@@ -9,9 +9,14 @@
 # BEGIN USER INPUTS ----------------------------------------------------------
 # These are the same engine and processor settings used for the MDG runs.
 # Set process environment variables before preprocessing to override paths.
+# Set woodman_luc_freeze_year in parameters.csv (2000..2050, default 2050).
+# It takes effect only for LUC3; step 7 exports the model's runtime value.
 windows_dinamica_console <- Sys.getenv(
   "MOFUSS_DINAMICA_CONSOLE", "C:/Program Files/Dinamica EGO/DinamicaConsole.exe")
 windows_dinamica_processors <- 2L
+# Optional matching R Monte Carlo seed for related experiments; NULL retains
+# the existing inherited environment/default behavior and does not seed EGO.
+windows_monte_carlo_seed <- NULL
 windows_dinamica_temp_root <- Sys.getenv(
   "MOFUSS_WINDOWS_TEMP_ROOT", "E:/MoFuSS_Active/windows_runs")
 # END USER INPUTS ------------------------------------------------------------
@@ -32,7 +37,8 @@ if (.Platform$OS.type == "windows") {
              envir = launcher_helpers)
   launcher_helpers$mofuss_write_windows_launcher(
     countrydir, country_parameters, engine = windows_dinamica_console,
-    processors = windows_dinamica_processors, temp_root = windows_dinamica_temp_root)
+    processors = windows_dinamica_processors, temp_root = windows_dinamica_temp_root,
+    seed = windows_monte_carlo_seed)
 } else {
   message("Windows launcher generation skipped on this operating system.")
 }

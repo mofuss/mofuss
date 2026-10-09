@@ -39,9 +39,16 @@ mofuss_windows_run_configuration <- function(parameters, luc = NULL) {
   role <- if (grepl("^bau", scenario, ignore.case = TRUE)) "BAU" else
     if (grepl("^(ics|ccts)", scenario, ignore.case = TRUE)) "ICS" else
       stop("Cannot choose the MC rerun setting for scenario_ver: ", scenario)
+  freeze_text <- parameter("woodman_luc_freeze_year", "2050")
+  freeze_year <- suppressWarnings(as.numeric(freeze_text))
+  if (!grepl("^[0-9]+$", freeze_text) || !is.finite(freeze_year) ||
+      freeze_year < 2000 || freeze_year > 2050) {
+    stop("woodman_luc_freeze_year must be an integer from 2000 through 2050.")
+  }
   list(model = sprintf("10_dyn_Sc17_webmofuss_ctrees_g_v%d.egoml",
                        if (luc %in% c(1L, 3L)) 14L else 13L),
-       luc = luc, mc_reruns = role == "BAU", role = role, scenario = scenario)
+       luc = luc, mc_reruns = role == "BAU", role = role, scenario = scenario,
+       woodman_luc_freeze_year = as.integer(freeze_year))
 }
 
 mofuss_configure_model_luc <- function(model_path, luc) {
@@ -103,8 +110,23 @@ mofuss_write_windows_launcher <- function(
     destination, parameters,
     engine = "C:/Program Files/Dinamica EGO/DinamicaConsole.exe",
     processors = 2L, temp_root = "E:/MoFuSS_Active/windows_runs",
-    luc = NULL, paired_bau = NULL) {
+    luc = NULL, paired_bau = NULL, seed = NULL, filename = "RUN_MoFuSS.cmd") {
   configuration <- mofuss_windows_run_configuration(parameters, luc = luc)
+  if (length(filename) != 1L || is.na(filename) ||
+      !grepl("^[A-Za-z0-9_-]+[.]cmd$", filename, ignore.case = TRUE)) {
+    stop("Launcher filename must be a plain .cmd filename containing letters, numbers, '_' or '-'.")
+  }
+  seed_notice <- character()
+  if (!is.null(seed)) {
+    if (length(seed) != 1L || !is.numeric(seed) || is.na(seed) ||
+        !is.finite(seed) || seed < 0 || seed > .Machine$integer.max ||
+        seed != floor(seed)) {
+      stop("Monte Carlo seed must be a whole number from 0 through 2147483647.")
+    }
+    seed <- as.integer(seed)
+    seed_notice <- c(sprintf('set "MOFUSS_SEED=%d"', seed),
+                     'echo R Monte Carlo seed: %MOFUSS_SEED%.')
+  }
   if (length(processors) != 1L || is.na(processors) ||
       !is.numeric(processors) || !is.finite(processors) ||
       processors < 1 || processors != floor(processors) || processors > 1024) {
@@ -124,6 +146,26 @@ mofuss_write_windows_launcher <- function(
   }
   destination <- normalizePath(destination, winslash = "/", mustWork = TRUE)
   if (!dir.exists(destination)) stop("Run destination must be a folder.")
+  # The model reads the prepared runtime table, not the launcher's echo line.
+  # Refuse a stale/nonexistent table for an explicit frozen-Woodman experiment.
+  runtime_path <- file.path(destination, "LULCC/TempTables/parameters_dinamica.csv")
+  if (configuration$luc == 3L && file.exists(runtime_path)) {
+    runtime <- utils::read.csv(runtime_path, check.names = FALSE,
+                               stringsAsFactors = FALSE, colClasses = "character")
+    if (!all(c("Var", "ParCHR") %in% names(runtime))) {
+      stop("Prepared Dinamica parameters must contain Var and ParCHR: ", runtime_path)
+    }
+    selected <- which(trimws(runtime$Var) == "woodman_luc_freeze_year")
+    if (length(selected) > 1L) stop("Duplicate prepared woodman_luc_freeze_year.")
+    runtime_text <- if (length(selected)) trimws(runtime$ParCHR[selected]) else "2050"
+    if (is.na(runtime_text) || !identical(runtime_text,
+                                        as.character(configuration$woodman_luc_freeze_year))) {
+      stop("Prepared woodman_luc_freeze_year does not match parameters.csv. ",
+           "Run parameter export before launcher preparation: ", runtime_path)
+    }
+  } else if (configuration$luc == 3L && configuration$woodman_luc_freeze_year != 2050L) {
+    stop("Frozen Woodman requires a prepared parameters_dinamica.csv: ", runtime_path)
+  }
   model_path <- file.path(destination, configuration$model)
   if (!file.exists(model_path) || dir.exists(model_path)) {
     stop("Selected model is missing; complete step 2 first: ", model_path)
@@ -142,11 +184,21 @@ mofuss_write_windows_launcher <- function(
     stop("Selected v14 model lacks the woodfuel NRB attribution contract. ",
          "Prepare a fresh run from the current repository model.")
   }
+  if (configuration$luc == 3L && configuration$woodman_luc_freeze_year != 2050L &&
+      !grepl('key="mofuss.woodman.freeze.contract" value="woodman_freeze_year_v1"',
+             model_text, fixed = TRUE)) {
+    stop("Selected v14 model does not implement the Woodman freeze-year parameter. ",
+         "Install the current repository model before preparing this launcher.")
+  }
 
   notice <- if (configuration$mc_reruns)
     "echo BAU: this run generates a new Monte Carlo batch." else
     c("echo ICS: start only after the matching BAU has generated its NEW complete MC batch.",
       "echo The model reuses BAU draws; Monte Carlo rerun is set to No.")
+  freeze_notice <- if (configuration$luc == 3L) c(
+    sprintf("echo Woodman LUC freeze year: %d.", configuration$woodman_luc_freeze_year),
+    "echo Annual cover changes apply through that year; its cover is retained afterward."
+  ) else "echo Woodman LUC freeze year is inactive for this LUC selection."
   lines <- c(
     "@echo off", "setlocal EnableExtensions DisableDelayedExpansion",
     "rem Generated by MoFuSS preprocessing. Run once after installing IDW outputs.",
@@ -154,11 +206,13 @@ mofuss_write_windows_launcher <- function(
     paste0('set "MOFUSS_ENGINE=', engine_line, '"'),
     paste0('set "MOFUSS_MODEL=', configuration$model, '"'),
     paste0('set "MOFUSS_TEMP_ROOT=', temp_line, '"'),
+    seed_notice,
     'if not exist "%MOFUSS_ENGINE%" goto engine_error',
     'if not exist "%MOFUSS_MODEL%" goto model_error',
     sprintf("echo Configured LUC: %d - %s", configuration$luc,
             switch(as.character(configuration$luc), "1" = "fixed MODIS cover",
                    "3" = "annual Woodman cover", "2" = "legacy Copernicus cover")),
+    freeze_notice,
     paste0("echo Monte Carlo rerun: ", if (configuration$mc_reruns) "Yes" else "No"),
     paired_notice,
     notice,
@@ -186,7 +240,7 @@ mofuss_write_windows_launcher <- function(
   # Write explicit CRLF once, regardless of the R connection's platform.
   launcher <- charToRaw(paste0(paste(lines, collapse = "\r\n"), "\r\n"))
   model_bytes <- charToRaw(model_text)
-  path <- file.path(destination, "RUN_MoFuSS.cmd")
+  path <- file.path(destination, filename)
   if (!identical(original, model_bytes)) writeBin(model_bytes, model_path)
   writeBin(launcher, path)
   if (!identical(readBin(model_path, "raw", n = file.info(model_path)$size), model_bytes) ||
@@ -194,8 +248,11 @@ mofuss_write_windows_launcher <- function(
     stop("Windows launcher/model readback failed in: ", destination)
   }
   message("Created ", path, " -> ", configuration$model,
-          "; LUC=", configuration$luc, "; MC rerun=",
+          "; LUC=", configuration$luc,
+          "; Woodman freeze year=", configuration$woodman_luc_freeze_year,
+          if (configuration$luc == 3L) "" else " (inactive)", "; MC rerun=",
           if (configuration$mc_reruns) "Yes" else "No",
           ". Complete IDW output installation before running.")
-  invisible(c(list(path = path, model_path = model_path, paired_bau = paired_bau), configuration))
+  invisible(c(list(path = path, model_path = model_path, paired_bau = paired_bau,
+                   seed = seed), configuration))
 }

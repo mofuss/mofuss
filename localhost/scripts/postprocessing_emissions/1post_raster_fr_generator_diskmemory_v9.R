@@ -954,6 +954,27 @@ build_plan <- function(scenario_dir, periods = NULL, output_subdir) {
     )
   )
 
+  # Old corrected engines used -9999 as a signed-ledger NoData value. Recover
+  # period increments from saved physical states; validate every dependency
+  # before the guarded output rebuild and retain its provenance explicitly.
+  reconstruction_api <- NULL
+  reconstruction_auxiliary_paths <- character()
+  for (run in runs) {
+    if (!isTRUE(run$nrb_context$reconstruct_signed_balance)) next
+    reconstruction_api <- attribution$.mofuss_nrb_reconstruction_api()
+    recovery_plan <- reconstruction_api$mofuss_luc_pair_status(
+      scenario_dir, scenario_dir, run$run_id, min(periods$start), max(periods$end))
+    if (!isTRUE(recovery_plan$available)) stopf("Physical ledger recovery unavailable in %s", scenario_dir)
+    reconstruction_auxiliary_paths <- unique(c(reconstruction_auxiliary_paths,
+                                               recovery_plan$auxiliary_paths))
+    for (path in unique(recovery_plan$paths)) {
+      add_row(record_type = "input", run_id = run$run_id,
+              role = "nrb_physical_reconstruction_state", metric = "nrb",
+              source_family = "saved_physical_state_or_land_cover", path = path,
+              definition = "Physical period-increment reconstruction; avoids signed-ledger NoData collisions")
+    }
+  }
+
   for (period_index in seq_len(nrow(periods))) {
     period <- periods[period_index, , drop = FALSE]
     nrb_definition <- if (period$v3_stdyn_window) {
@@ -1170,14 +1191,33 @@ build_plan <- function(scenario_dir, periods = NULL, output_subdir) {
   records <- do.call(rbind, rows)
   methods <- vapply(runs, function(run) run$nrb_context$method, character(1))
   records$nrb_attribution_method <- paste(unique(methods), collapse = ";")
+  read_policies <- vapply(runs, function(run) run$nrb_context$signed_balance_read_policy, character(1))
+  records$nrb_signed_balance_read_policy <- paste(unique(read_policies), collapse = ";")
   records$nrb_helper_path <- attribution$source_path
   records$nrb_helper_md5 <- unname(tools::md5sum(attribution$source_path))
+  records$nrb_reconstruction_helper_path <- if (is.null(reconstruction_api)) NA_character_ else reconstruction_api$source_path
+  records$nrb_reconstruction_helper_md5 <- if (is.null(reconstruction_api)) NA_character_ else
+    unname(tools::md5sum(reconstruction_api$source_path))
+  records$nrb_reconstruction_auxiliary_paths <- paste(reconstruction_auxiliary_paths, collapse = ";")
+  records$nrb_reconstruction_auxiliary_md5 <- paste(
+    unname(tools::md5sum(reconstruction_auxiliary_paths)), collapse = ";")
   records$nrb_luc_mode <- runs[[1L]]$nrb_context$luc_mode
+  freeze_years <- vapply(runs, function(run) run$nrb_context$woodman_luc_freeze_year, integer(1))
+  if (length(unique(freeze_years)) != 1L)
+    stopf("MC realizations used different Woodman freeze years in %s.", scenario_name)
+  records$woodman_luc_freeze_year <- freeze_years[[1L]]
+  records$woodman_luc_freeze_contract <- runs[[1L]]$nrb_context$woodman_luc_freeze_contract
+  freeze_paths <- unique(unlist(lapply(runs, function(run)
+    c(run$nrb_context$woodman_luc_execution_paths, run$nrb_context$woodman_luc_freeze_helper))))
+  records$woodman_luc_execution_paths <- paste(freeze_paths, collapse = ";")
+  records$woodman_luc_execution_md5 <- paste(unname(tools::md5sum(freeze_paths)), collapse = ";")
   model_path <- runs[[1L]]$nrb_context$model_path
   records$nrb_model_path <- if (is.null(model_path)) NA_character_ else model_path
   records$nrb_model_md5 <- if (is.null(model_path)) NA_character_ else unname(tools::md5sum(model_path))
   for (run in runs) {
     records$nrb_attribution_method[which(records$run_id == run$run_id)] <- run$nrb_context$method
+    records$nrb_signed_balance_read_policy[which(records$run_id == run$run_id)] <-
+      run$nrb_context$signed_balance_read_policy
   }
   biomass_output <- records$record_type == "output" & records$metric %in% c("nrb", "harv", "agb")
   records$definition[biomass_output] <- paste0(

@@ -1,5 +1,6 @@
 """Static compatibility checks; native Dinamica execution is a separate gate."""
 from pathlib import Path
+import copy
 import re
 import sys
 import unittest
@@ -60,15 +61,21 @@ class WebMoFuSSFastContract(unittest.TestCase):
         self.assertIn(self.source.encode()[cursor:], self.text.encode())
 
     def test_only_the_four_lookup_syntaxes_change_and_precision_is_unchanged(self):
+        branches = {n["output"]: n for n in self.report["lookup_guard"]["calculation_branches"]}
         for output, before in self.before.items():
             after = self.after[output]
             old_expression = before.findtext("inputport[@name='expression']")
-            new_expression = after.findtext("inputport[@name='expression']")
             if output in builder.TARGETS:
+                self.assertEqual(after.get("name"), "MapJunction")
+                fallback = copy.deepcopy(self.after[branches[output]["fallback_output"]])
+                fallback.find("outputport").set("id", output)
+                self.assertEqual(ET.tostring(before).strip(), ET.tostring(fallback).strip())
+                after = self.after[branches[output]["cached_output"]]
+                new_expression = after.findtext("inputport[@name='expression']")
                 expected = re.sub(r"t(\d+)\[\[v1\]\[i1\s*\+\s*1\]\]", r"t\1[i1 + 1]", old_expression)
                 self.assertEqual(new_expression, expected)
             else:
-                self.assertEqual(old_expression, new_expression)
+                self.assertEqual(old_expression, after.findtext("inputport[@name='expression']"))
             for field in ("cellType", "nullValue", "useCompression"):
                 self.assertEqual(before.findtext(f"inputport[@name='{field}']"),
                                  after.findtext(f"inputport[@name='{field}']"))
@@ -76,17 +83,89 @@ class WebMoFuSSFastContract(unittest.TestCase):
     def test_helpers_refresh_once_per_mc_and_have_no_annual_scope(self):
         parents = {id(child): parent for parent in self.candidate.iter() for child in parent}
         additions = set(self.after) - set(self.before)
-        self.assertEqual(additions, {f"v{i}" for i in range(92000, 92012)})
-        for key in additions:
-            self.assertIs(parents[id(self.after[key])], self.after["v8"])
+        expected = (set(range(92000, 92012)) | set(range(97000, 97003)) | {97099}
+                    | set(range(97100, 97106)) | set(range(97200, 97206))
+                    | set(range(94000, 94004)) | set(range(95000, 95004)))
+        self.assertEqual(additions, {f"v{i}" for i in expected})
+        outer = parents[id(self.after["v8"])]
         for row in self.report["lookup_optimization"]["selected_rows"]:
             selected = self.after[row["lookup_output"]]
+            branch = parents[id(selected)]
+            self.assertEqual(branch.get("name"), "IfThen")
+            self.assertEqual(builder.input_port(branch, "condition").get("peerid"), builder.CACHE_CONDITION_ID)
+            self.assertIs(parents[id(branch)], self.after["v8"])
             self.assertEqual(selected.findtext("inputport[@name='expression']"), "[t2[[v1][line]]]")
             self.assertEqual(builder.input_port(builder._hook(selected, "Value", 1), "value").get("peerid"), "v10")
             self.assertEqual(builder.input_port(builder._hook(selected, "Table", 2), "table").get("peerid"), row["source_table"])
+            template = self.after[builder.input_port(builder._hook(selected, "Table", 1), "table").get("peerid")]
+            self.assertIs(parents[id(template)], outer)
         self.assertEqual({row["source_table"] for row in self.report["lookup_optimization"]["selected_rows"]},
                          {"v242", "v243", "v244"})
 
+    def test_fallback_and_cached_calculations_keep_their_original_conditional_scopes(self):
+        before_parents = {id(c): n for n in self.original.iter() for c in n}
+        after_parents = {id(c): n for n in self.candidate.iter() for c in n}
+        for item in self.report["lookup_guard"]["calculation_branches"]:
+            old_parent = before_parents[id(self.before[item["output"]])]
+            junction = self.after[item["output"]]
+            new_parent = after_parents[id(junction)]
+            self.assertEqual(builder.alias(new_parent), builder.alias(old_parent))
+            self.assertEqual(new_parent.get("name"), old_parent.get("name"))
+            for key, kind in (("fallback_output", "IfNotThen"), ("cached_output", "IfThen")):
+                branch = after_parents[id(self.after[item[key]])]
+                self.assertIs(after_parents[id(branch)], new_parent)
+                self.assertEqual(branch.get("name"), kind)
+                self.assertEqual(builder.input_port(branch, "condition").get("peerid"), builder.CACHE_CONDITION_ID)
+
+    def test_cache_requires_numeric_columns_and_an_existing_positive_mc_row(self):
+        parents = {id(c): n for n in self.candidate.iter() for c in n}
+        numeric = self.after[builder.NUMERIC_CONDITION_ID]
+        self.assertEqual(numeric.findtext("inputport[@name='expression']"),
+                         "[t1[31] = t1[1] and t2[31] = t2[1] and t3[31] = t3[1]]")
+        self.assertIs(parents[id(numeric)], parents[id(self.after["v8"])])
+        for key in ("v97000", "v97001", "v97002"):
+            attributes = self.after[key]
+            self.assertEqual(attributes.get("name"), "ExtractLookupTableAttributes")
+            self.assertEqual(attributes.findtext("inputport[@name='extractDynamicKeyValueAttributes']"), ".yes")
+        for key in ("v97100", "v97101", "v97102"):
+            check = self.after[key]
+            self.assertEqual(check.get("name"), "GetLookupTableValue")
+            self.assertEqual(check.findtext("inputport[@name='valueIfNotFound']"), "0")
+            self.assertEqual(builder.input_port(check, "key").get("peerid"), "v10")
+            branch = parents[id(check)]
+            self.assertEqual(branch.get("name"), "IfThen")
+            self.assertEqual(builder.input_port(branch, "condition").get("peerid"), builder.NUMERIC_CONDITION_ID)
+        self.assertEqual(self.after["v97103"].findtext("inputport[@name='expression']"),
+                         "[v1 = v4 and v2 = v4 and v3 = v4]")
+        self.assertEqual(self.after["v97104"].findtext("inputport[@name='expression']"), "[0]")
+        self.assertEqual(self.after[builder.CACHE_CONDITION_ID].get("name"), "ValueJunction")
+        for key in ("v97201", "v97203", "v97205"):
+            branch = parents[id(self.after[key])]
+            self.assertEqual(branch.get("name"), "IfThen")
+            self.assertEqual(builder.input_port(branch, "condition").get("peerid"), builder.NUMERIC_CONDITION_ID)
+
+    def test_outer_guard_helpers_preserve_the_existing_r_initialization_group_barrier(self):
+        def dependencies(root):
+            prods = builder._producers(root)
+            parents = {id(c): n for n in root.iter() for c in n}
+            def top(node):
+                while id(node) in parents and parents[id(node)] is not root:
+                    node = parents[id(node)]
+                return node
+            return {builder.alias(group): {
+                (p.get("peerid"), builder.alias(top(prods[p.get("peerid")])))
+                for p in group.iter("inputport") if p.get("peerid") in prods
+                and top(prods[p.get("peerid")]) is not group
+            } for group in root.findall("containerfunctor")}
+        self.assertEqual(dependencies(self.original), dependencies(self.candidate))
+        self.assertIn(("v294", "group2500"), dependencies(self.candidate)["group3674"])
+        self.assertEqual(builder.input_port(self.after["v7"], "constant").get("peerid"), "v294")
+        parents = {id(c): n for n in self.candidate.iter() for c in n}
+        r_initialization = next(n for n in self.candidate.iter("functor")
+                                if builder.alias(n) == "runExternalProcess2510")
+        self.assertEqual(builder.alias(parents[id(r_initialization)]), "group2500")
+        self.assertEqual(r_initialization.findtext("inputport[@name='waitProcessCompletion']"), ".yes")
+        self.assertEqual(builder.alias(parents[id(self.after[builder.NUMERIC_CONDITION_ID])]), "group3674")
     def test_only_unused_attribute_flags_change_live_normalizers_remain(self):
         self.assertEqual(len(self.report["attribute_flags_changed"]), 8)
         for key in builder.STATISTICS_ONLY:

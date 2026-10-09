@@ -3181,7 +3181,65 @@
                     <inputport name="possibleMap2" peerid="v207" />
                     <outputport name="map" id="v200" />
                 </functor>
-                <containerfunctor name="CalculateMap">
+                <containerfunctor name="IfNotThen"><property key="dff.functor.alias" value="WebMoFuSS guard: IfNotThen v201" /><inputport name="condition" peerid="v97105" /><containerfunctor name="CalculateMap">
+                    <property key="dff.container.collapsed" value="no" />
+                    <property key="dff.functor.alias" value="calculateMap1114" />
+                    <property key="dff.functor.comment" value="Creates the initial biomass stock map for SELLED and SELFGATHERED fuelwood. This is to say, is the TOTAL BIOMASS STOCK DISTRIBUTION AT TIME 0" />
+                    <property key="viewer.result" value="yes" />
+                    <inputport name="expression">[
+    if v55 = 0 then
+        if t1[[v1][i1 + 1]] &gt; t2[[v1][i1 + 1]] then
+            t2[[v1][i1 + 1]]
+        else 
+            t1[[v1][i1 + 1]]
+    else if i2 = 1 then
+        t2[[v1][i1 + 1]]
+    else 
+        i55 / 100 * t2[[v1][i1 + 1]]
+]</inputport>
+                    <inputport name="cellType">.float32</inputport>
+                    <inputport name="nullValue">.default</inputport>
+                    <inputport name="resultIsSparse">.no</inputport>
+                    <inputport name="resultFormat">.none</inputport>
+                    <outputport name="result" id="v94000" />
+                    <functor name="NumberMap">
+                        <property key="dff.functor.alias" value="numberMap832" />
+                        <inputport name="map" peerid="v298" />
+                        <inputport name="mapNumber">1</inputport>
+                    </functor>
+                    <functor name="NumberTable">
+                        <property key="dff.functor.alias" value="numberTable5436" />
+                        <inputport name="table" peerid="v242" />
+                        <inputport name="tableNumber">1</inputport>
+                    </functor>
+                    <functor name="NumberValue">
+                        <property key="dff.functor.alias" value="numberValue5438" />
+                        <inputport name="value" peerid="v10" />
+                        <inputport name="valueNumber">1</inputport>
+                    </functor>
+                    <functor name="NumberValue">
+                        <property key="dff.functor.alias" value="numberValue4988" />
+                        <inputport name="value" peerid="v270" />
+                        <inputport name="valueNumber">55</inputport>
+                    </functor>
+                    <functor name="NumberMap">
+                        <property key="dff.functor.alias" value="numberMap4991" />
+                        <inputport name="map" peerid="v202" />
+                        <inputport name="mapNumber">55</inputport>
+                    </functor>
+                    <functor name="NumberTable">
+                        <property key="dff.functor.alias" value="numberTable5444" />
+                        <inputport name="table" peerid="v244" />
+                        <inputport name="tableNumber">2</inputport>
+                    </functor>
+                    <functor name="NumberMap">
+                        <property key="dff.functor.alias" value="numberMap8174" />
+                        <inputport name="map" peerid="v204" />
+                        <inputport name="mapNumber">2</inputport>
+                    </functor>
+                </containerfunctor>
+                </containerfunctor>
+<containerfunctor name="IfThen"><property key="dff.functor.alias" value="WebMoFuSS guard: IfThen v201" /><inputport name="condition" peerid="v97105" /><containerfunctor name="CalculateMap">
                     <property key="dff.container.collapsed" value="no" />
                     <property key="dff.functor.alias" value="calculateMap1114" />
                     <property key="dff.functor.comment" value="Creates the initial biomass stock map for SELLED and SELFGATHERED fuelwood. This is to say, is the TOTAL BIOMASS STOCK DISTRIBUTION AT TIME 0" />
@@ -3201,7 +3259,7 @@
                     <inputport name="nullValue">.default</inputport>
                     <inputport name="resultIsSparse">.no</inputport>
                     <inputport name="resultFormat">.none</inputport>
-                    <outputport name="result" id="v201" />
+                    <outputport name="result" id="v95000" />
                     <functor name="NumberMap">
                         <property key="dff.functor.alias" value="numberMap832" />
                         <inputport name="map" peerid="v298" />
@@ -3212,7 +3270,6 @@
                         <inputport name="table" peerid="v92003" />
                         <inputport name="tableNumber">1</inputport>
                     </functor>
-                    
                     <functor name="NumberValue">
                         <property key="dff.functor.alias" value="numberValue4988" />
                         <inputport name="value" peerid="v270" />
@@ -3234,6 +3291,8 @@
                         <inputport name="mapNumber">2</inputport>
                     </functor>
                 </containerfunctor>
+                </containerfunctor>
+<functor name="MapJunction"><property key="dff.functor.alias" value="WebMoFuSS guard: original output v201" /><inputport name="possibleMap1" peerid="v94000" /><inputport name="possibleMap2" peerid="v95000" /><outputport name="map" id="v201" /></functor>
                 <containerfunctor name="CalculateMap">
                     <property key="dff.functor.alias" value="calculateMap5018" />
                     <inputport name="expression">[&#x0A;    if i1 = 0 then&#x0A;        i1 + 1&#x0A;    else &#x0A;        i1&#x0A;]</inputport>
@@ -3248,7 +3307,36 @@
                         <inputport name="mapNumber">1</inputport>
                     </functor>
                 </containerfunctor>
-                <containerfunctor name="CalculateMap">
+                <containerfunctor name="IfNotThen"><property key="dff.functor.alias" value="WebMoFuSS guard: IfNotThen v203" /><inputport name="condition" peerid="v97105" /><containerfunctor name="CalculateMap">
+                    <property key="dff.container.collapsed" value="no" />
+                    <property key="dff.functor.alias" value="calculateMap5412" />
+                    <property key="viewer.result" value="yes" />
+                    <inputport name="expression">[
+    t1[[v1][i1 + 1]]
+]</inputport>
+                    <inputport name="cellType">.float32</inputport>
+                    <inputport name="nullValue">.default</inputport>
+                    <inputport name="resultIsSparse">.no</inputport>
+                    <inputport name="resultFormat">.none</inputport>
+                    <outputport name="result" id="v94001" />
+                    <functor name="NumberMap">
+                        <property key="dff.functor.alias" value="numberMap5448" />
+                        <inputport name="map" peerid="v298" />
+                        <inputport name="mapNumber">1</inputport>
+                    </functor>
+                    <functor name="NumberTable">
+                        <property key="dff.functor.alias" value="numberTable5452" />
+                        <inputport name="table" peerid="v244" />
+                        <inputport name="tableNumber">1</inputport>
+                    </functor>
+                    <functor name="NumberValue">
+                        <property key="dff.functor.alias" value="numberValue5456" />
+                        <inputport name="value" peerid="v10" />
+                        <inputport name="valueNumber">1</inputport>
+                    </functor>
+                </containerfunctor>
+                </containerfunctor>
+<containerfunctor name="IfThen"><property key="dff.functor.alias" value="WebMoFuSS guard: IfThen v203" /><inputport name="condition" peerid="v97105" /><containerfunctor name="CalculateMap">
                     <property key="dff.container.collapsed" value="no" />
                     <property key="dff.functor.alias" value="calculateMap5412" />
                     <property key="viewer.result" value="yes" />
@@ -3259,7 +3347,7 @@
                     <inputport name="nullValue">.default</inputport>
                     <inputport name="resultIsSparse">.no</inputport>
                     <inputport name="resultFormat">.none</inputport>
-                    <outputport name="result" id="v203" />
+                    <outputport name="result" id="v95001" />
                     <functor name="NumberMap">
                         <property key="dff.functor.alias" value="numberMap5448" />
                         <inputport name="map" peerid="v298" />
@@ -3270,8 +3358,9 @@
                         <inputport name="table" peerid="v92007" />
                         <inputport name="tableNumber">1</inputport>
                     </functor>
-                    
                 </containerfunctor>
+                </containerfunctor>
+<functor name="MapJunction"><property key="dff.functor.alias" value="WebMoFuSS guard: original output v203" /><inputport name="possibleMap1" peerid="v94001" /><inputport name="possibleMap2" peerid="v95001" /><outputport name="map" id="v203" /></functor>
                 <containerfunctor name="CalculateMap">
                     <property key="dff.functor.alias" value="calculateMap7528" />
                     <inputport name="expression">[&#x0A;    t1[i1]&#x0A;]</inputport>
@@ -3324,7 +3413,53 @@
                         <inputport name="workdir">.none</inputport>
                         <outputport name="map" id="v206" />
                     </functor>
-                    <containerfunctor name="CalculateMap">
+                    <containerfunctor name="IfNotThen"><property key="dff.functor.alias" value="WebMoFuSS guard: IfNotThen v207" /><inputport name="condition" peerid="v97105" /><containerfunctor name="CalculateMap">
+                        <property key="dff.functor.alias" value="calculateMap1748" />
+                        <property key="viewer.result" value="yes" />
+                        <inputport name="expression">[
+    if i2 = 1 then
+        t2[[v1][i1 + 1]]
+    else 
+        i5 * v2 / 100
+]</inputport>
+                        <inputport name="cellType">.float32</inputport>
+                        <inputport name="nullValue">.default</inputport>
+                        <inputport name="resultIsSparse">.no</inputport>
+                        <inputport name="resultFormat">.none</inputport>
+                        <outputport name="result" id="v94002" />
+                        <functor name="NumberMap">
+                            <property key="dff.functor.alias" value="numberMap1741" />
+                            <inputport name="map" peerid="v206" />
+                            <inputport name="mapNumber">5</inputport>
+                        </functor>
+                        <functor name="NumberMap">
+                            <property key="dff.functor.alias" value="numberMap1883" />
+                            <inputport name="map" peerid="v204" />
+                            <inputport name="mapNumber">2</inputport>
+                        </functor>
+                        <functor name="NumberTable">
+                            <property key="dff.functor.alias" value="numberTable1885" />
+                            <inputport name="table" peerid="v244" />
+                            <inputport name="tableNumber">2</inputport>
+                        </functor>
+                        <functor name="NumberValue">
+                            <property key="dff.functor.alias" value="numberValue1887" />
+                            <inputport name="value" peerid="v10" />
+                            <inputport name="valueNumber">1</inputport>
+                        </functor>
+                        <functor name="NumberMap">
+                            <property key="dff.functor.alias" value="numberMap3960" />
+                            <inputport name="map" peerid="v298" />
+                            <inputport name="mapNumber">1</inputport>
+                        </functor>
+                        <functor name="NumberValue">
+                            <property key="dff.functor.alias" value="numberValue1813" />
+                            <inputport name="value" peerid="v268" />
+                            <inputport name="valueNumber">2</inputport>
+                        </functor>
+                    </containerfunctor>
+                </containerfunctor>
+<containerfunctor name="IfThen"><property key="dff.functor.alias" value="WebMoFuSS guard: IfThen v207" /><inputport name="condition" peerid="v97105" /><containerfunctor name="CalculateMap">
                         <property key="dff.functor.alias" value="calculateMap1748" />
                         <property key="viewer.result" value="yes" />
                         <inputport name="expression">[
@@ -3337,7 +3472,7 @@
                         <inputport name="nullValue">.default</inputport>
                         <inputport name="resultIsSparse">.no</inputport>
                         <inputport name="resultFormat">.none</inputport>
-                        <outputport name="result" id="v207" />
+                        <outputport name="result" id="v95002" />
                         <functor name="NumberMap">
                             <property key="dff.functor.alias" value="numberMap1741" />
                             <inputport name="map" peerid="v206" />
@@ -3353,7 +3488,6 @@
                             <inputport name="table" peerid="v92007" />
                             <inputport name="tableNumber">2</inputport>
                         </functor>
-                        
                         <functor name="NumberMap">
                             <property key="dff.functor.alias" value="numberMap3960" />
                             <inputport name="map" peerid="v298" />
@@ -3365,6 +3499,8 @@
                             <inputport name="valueNumber">2</inputport>
                         </functor>
                     </containerfunctor>
+                </containerfunctor>
+<functor name="MapJunction"><property key="dff.functor.alias" value="WebMoFuSS guard: original output v207" /><inputport name="possibleMap1" peerid="v94002" /><inputport name="possibleMap2" peerid="v95002" /><outputport name="map" id="v207" /></functor>
                 </containerfunctor>
                 <containerfunctor name="IfNotThen">
                     <property key="dff.functor.alias" value="ifNotThen1737" />
@@ -3467,17 +3603,17 @@
                         <inputport name="useCompression">.yes</inputport>
                         <inputport name="workdir">.none</inputport>
                     </functor>
-                    <containerfunctor name="CalculateMap">
+                    <containerfunctor name="IfNotThen"><property key="dff.functor.alias" value="WebMoFuSS guard: IfNotThen v213" /><inputport name="condition" peerid="v97105" /><containerfunctor name="CalculateMap">
                         <property key="dff.functor.alias" value="calculateMap5414" />
                         <property key="viewer.result" value="yes" />
                         <inputport name="expression">[
-    t1[i1 + 1] / v2 * v3
+    t1[[v1][i1 + 1]] / v2 * v3
 ]</inputport>
                         <inputport name="cellType">.float32</inputport>
                         <inputport name="nullValue">.default</inputport>
                         <inputport name="resultIsSparse">.no</inputport>
                         <inputport name="resultFormat">.none</inputport>
-                        <outputport name="result" id="v213" />
+                        <outputport name="result" id="v94003" />
                         <functor name="NumberMap">
                             <property key="dff.functor.alias" value="numberMap5450" />
                             <inputport name="map" peerid="v298" />
@@ -3485,10 +3621,14 @@
                         </functor>
                         <functor name="NumberTable">
                             <property key="dff.functor.alias" value="numberTable5454" />
-                            <inputport name="table" peerid="v92011" />
+                            <inputport name="table" peerid="v243" />
                             <inputport name="tableNumber">1</inputport>
                         </functor>
-                        
+                        <functor name="NumberValue">
+                            <property key="dff.functor.alias" value="numberValue5458" />
+                            <inputport name="value" peerid="v10" />
+                            <inputport name="valueNumber">1</inputport>
+                        </functor>
                         <functor name="NumberValue">
                             <property key="dff.functor.alias" value="numberValue7519" />
                             <inputport name="value" peerid="v5" />
@@ -3500,6 +3640,41 @@
                             <inputport name="valueNumber">2</inputport>
                         </functor>
                     </containerfunctor>
+                </containerfunctor>
+<containerfunctor name="IfThen"><property key="dff.functor.alias" value="WebMoFuSS guard: IfThen v213" /><inputport name="condition" peerid="v97105" /><containerfunctor name="CalculateMap">
+                        <property key="dff.functor.alias" value="calculateMap5414" />
+                        <property key="viewer.result" value="yes" />
+                        <inputport name="expression">[
+    t1[i1 + 1] / v2 * v3
+]</inputport>
+                        <inputport name="cellType">.float32</inputport>
+                        <inputport name="nullValue">.default</inputport>
+                        <inputport name="resultIsSparse">.no</inputport>
+                        <inputport name="resultFormat">.none</inputport>
+                        <outputport name="result" id="v95003" />
+                        <functor name="NumberMap">
+                            <property key="dff.functor.alias" value="numberMap5450" />
+                            <inputport name="map" peerid="v298" />
+                            <inputport name="mapNumber">1</inputport>
+                        </functor>
+                        <functor name="NumberTable">
+                            <property key="dff.functor.alias" value="numberTable5454" />
+                            <inputport name="table" peerid="v92011" />
+                            <inputport name="tableNumber">1</inputport>
+                        </functor>
+                        <functor name="NumberValue">
+                            <property key="dff.functor.alias" value="numberValue7519" />
+                            <inputport name="value" peerid="v5" />
+                            <inputport name="valueNumber">3</inputport>
+                        </functor>
+                        <functor name="NumberValue">
+                            <property key="dff.functor.alias" value="numberValue7517" />
+                            <inputport name="value" peerid="v6" />
+                            <inputport name="valueNumber">2</inputport>
+                        </functor>
+                    </containerfunctor>
+                </containerfunctor>
+<functor name="MapJunction"><property key="dff.functor.alias" value="WebMoFuSS guard: original output v213" /><inputport name="possibleMap1" peerid="v94003" /><inputport name="possibleMap2" peerid="v95003" /><outputport name="map" id="v213" /></functor>
                 </containerfunctor>
             </containerfunctor>
             <containerfunctor name="Group">
@@ -3666,23 +3841,10 @@
                 </functor>
             </containerfunctor>
         
-            <functor name="GetTableInfo">
-                <property key="dff.functor.alias" value="Column metadata for v242" />
-                <inputport name="table" peerid="v242" />
-                <outputport name="tableInfo" id="v92000" />
-            </functor>
-            <functor name="GetTableColumn">
-                <property key="dff.functor.alias" value="All source column indices for v242" />
-                <inputport name="table" peerid="v92000" />
-                <inputport name="columnIndexOrName">"Column_Type"</inputport>
-                <outputport name="result" id="v92001" />
-            </functor>
-            <functor name="LookupTable">
-                <property key="dff.functor.alias" value="Numeric source column indices for v242" />
-                <inputport name="constant" peerid="v92001" />
-                <outputport name="object" id="v92002" />
-            </functor>
-            <containerfunctor name="CalculateLookupTable">
+            <containerfunctor name="IfThen"><property key="dff.functor.alias" value="WebMoFuSS guard: numeric MC row check" /><inputport name="condition" peerid="v97099" /><functor name="GetLookupTableValue"><property key="dff.functor.alias" value="WebMoFuSS guard: row present v242" /><inputport name="table" peerid="v97201" /><inputport name="key" peerid="v10" /><inputport name="valueIfNotFound">0</inputport><outputport name="value" id="v97100" /></functor><functor name="GetLookupTableValue"><property key="dff.functor.alias" value="WebMoFuSS guard: row present v244" /><inputport name="table" peerid="v97203" /><inputport name="key" peerid="v10" /><inputport name="valueIfNotFound">0</inputport><outputport name="value" id="v97101" /></functor><functor name="GetLookupTableValue"><property key="dff.functor.alias" value="WebMoFuSS guard: row present v243" /><inputport name="table" peerid="v97205" /><inputport name="key" peerid="v10" /><inputport name="valueIfNotFound">0</inputport><outputport name="value" id="v97102" /></functor><containerfunctor name="CalculateValue"><property key="dff.functor.alias" value="WebMoFuSS guard: all MC rows present" /><inputport name="expression">[v1 = v4 and v2 = v4 and v3 = v4]</inputport><inputport name="defaultValue">.none</inputport><outputport name="result" id="v97103" /><functor name="NumberValue"><property key="dff.functor.alias" value="WebMoFuSS guard input Value 1" /><inputport name="value" peerid="v97100" /><inputport name="valueNumber">1</inputport></functor><functor name="NumberValue"><property key="dff.functor.alias" value="WebMoFuSS guard input Value 2" /><inputport name="value" peerid="v97101" /><inputport name="valueNumber">2</inputport></functor><functor name="NumberValue"><property key="dff.functor.alias" value="WebMoFuSS guard input Value 3" /><inputport name="value" peerid="v97102" /><inputport name="valueNumber">3</inputport></functor><functor name="NumberValue"><property key="dff.functor.alias" value="WebMoFuSS guard input Value 4" /><inputport name="value" peerid="v10" /><inputport name="valueNumber">4</inputport></functor></containerfunctor></containerfunctor>
+            <containerfunctor name="IfNotThen"><property key="dff.functor.alias" value="WebMoFuSS guard: original text-table path" /><inputport name="condition" peerid="v97099" /><containerfunctor name="CalculateValue"><property key="dff.functor.alias" value="WebMoFuSS guard: disable cache" /><inputport name="expression">[0]</inputport><inputport name="defaultValue">.none</inputport><outputport name="result" id="v97104" /></containerfunctor></containerfunctor>
+            <functor name="ValueJunction"><property key="dff.functor.alias" value="WebMoFuSS guard: safe MC cache condition" /><inputport name="possibleValue1" peerid="v97103" /><inputport name="possibleValue2" peerid="v97104" /><outputport name="value" id="v97105" /></functor>
+            <containerfunctor name="IfThen"><property key="dff.functor.alias" value="WebMoFuSS guard: selected MC rows" /><inputport name="condition" peerid="v97105" /><containerfunctor name="CalculateLookupTable">
                 <property key="dff.functor.alias" value="Exact selected MC row for v242" />
                 <inputport name="expression">[t2[[v1][line]]]</inputport>
                 <inputport name="keyName">.none</inputport>
@@ -3704,22 +3866,6 @@
                     <inputport name="valueNumber">1</inputport>
                 </functor>
             </containerfunctor>
-            <functor name="GetTableInfo">
-                <property key="dff.functor.alias" value="Column metadata for v244" />
-                <inputport name="table" peerid="v244" />
-                <outputport name="tableInfo" id="v92004" />
-            </functor>
-            <functor name="GetTableColumn">
-                <property key="dff.functor.alias" value="All source column indices for v244" />
-                <inputport name="table" peerid="v92004" />
-                <inputport name="columnIndexOrName">"Column_Type"</inputport>
-                <outputport name="result" id="v92005" />
-            </functor>
-            <functor name="LookupTable">
-                <property key="dff.functor.alias" value="Numeric source column indices for v244" />
-                <inputport name="constant" peerid="v92005" />
-                <outputport name="object" id="v92006" />
-            </functor>
             <containerfunctor name="CalculateLookupTable">
                 <property key="dff.functor.alias" value="Exact selected MC row for v244" />
                 <inputport name="expression">[t2[[v1][line]]]</inputport>
@@ -3742,22 +3888,6 @@
                     <inputport name="valueNumber">1</inputport>
                 </functor>
             </containerfunctor>
-            <functor name="GetTableInfo">
-                <property key="dff.functor.alias" value="Column metadata for v243" />
-                <inputport name="table" peerid="v243" />
-                <outputport name="tableInfo" id="v92008" />
-            </functor>
-            <functor name="GetTableColumn">
-                <property key="dff.functor.alias" value="All source column indices for v243" />
-                <inputport name="table" peerid="v92008" />
-                <inputport name="columnIndexOrName">"Column_Type"</inputport>
-                <outputport name="result" id="v92009" />
-            </functor>
-            <functor name="LookupTable">
-                <property key="dff.functor.alias" value="Numeric source column indices for v243" />
-                <inputport name="constant" peerid="v92009" />
-                <outputport name="object" id="v92010" />
-            </functor>
             <containerfunctor name="CalculateLookupTable">
                 <property key="dff.functor.alias" value="Exact selected MC row for v243" />
                 <inputport name="expression">[t2[[v1][line]]]</inputport>
@@ -3780,6 +3910,7 @@
                     <inputport name="valueNumber">1</inputport>
                 </functor>
             </containerfunctor>
+        </containerfunctor>
         </containerfunctor>
         <containerfunctor name="Group">
             <property key="dff.functor.alias" value="group5103" />
@@ -3925,6 +4056,60 @@
                 <outputport name="object" id="v245" />
             </functor>
         </containerfunctor>
+    
+        <functor name="GetTableInfo">
+                <property key="dff.functor.alias" value="Column metadata for v242" />
+                <inputport name="table" peerid="v242" />
+                <outputport name="tableInfo" id="v92000" />
+            </functor>
+        <functor name="GetTableColumn">
+                <property key="dff.functor.alias" value="All source column indices for v242" />
+                <inputport name="table" peerid="v92000" />
+                <inputport name="columnIndexOrName">"Column_Type"</inputport>
+                <outputport name="result" id="v92001" />
+            </functor>
+        <functor name="LookupTable">
+                <property key="dff.functor.alias" value="Numeric source column indices for v242" />
+                <inputport name="constant" peerid="v92001" />
+                <outputport name="object" id="v92002" />
+            </functor>
+        <functor name="ExtractLookupTableAttributes"><property key="dff.functor.alias" value="WebMoFuSS guard: types v242" /><inputport name="table" peerid="v92002" /><inputport name="extractStatisticalKeyAttributes">.no</inputport><inputport name="extractStatisticalValueAttributes">.no</inputport><inputport name="extractDynamicKeyValueAttributes">.yes</inputport><outputport name="attributes" id="v97000" /></functor>
+        <functor name="GetTableInfo">
+                <property key="dff.functor.alias" value="Column metadata for v244" />
+                <inputport name="table" peerid="v244" />
+                <outputport name="tableInfo" id="v92004" />
+            </functor>
+        <functor name="GetTableColumn">
+                <property key="dff.functor.alias" value="All source column indices for v244" />
+                <inputport name="table" peerid="v92004" />
+                <inputport name="columnIndexOrName">"Column_Type"</inputport>
+                <outputport name="result" id="v92005" />
+            </functor>
+        <functor name="LookupTable">
+                <property key="dff.functor.alias" value="Numeric source column indices for v244" />
+                <inputport name="constant" peerid="v92005" />
+                <outputport name="object" id="v92006" />
+            </functor>
+        <functor name="ExtractLookupTableAttributes"><property key="dff.functor.alias" value="WebMoFuSS guard: types v244" /><inputport name="table" peerid="v92006" /><inputport name="extractStatisticalKeyAttributes">.no</inputport><inputport name="extractStatisticalValueAttributes">.no</inputport><inputport name="extractDynamicKeyValueAttributes">.yes</inputport><outputport name="attributes" id="v97001" /></functor>
+        <functor name="GetTableInfo">
+                <property key="dff.functor.alias" value="Column metadata for v243" />
+                <inputport name="table" peerid="v243" />
+                <outputport name="tableInfo" id="v92008" />
+            </functor>
+        <functor name="GetTableColumn">
+                <property key="dff.functor.alias" value="All source column indices for v243" />
+                <inputport name="table" peerid="v92008" />
+                <inputport name="columnIndexOrName">"Column_Type"</inputport>
+                <outputport name="result" id="v92009" />
+            </functor>
+        <functor name="LookupTable">
+                <property key="dff.functor.alias" value="Numeric source column indices for v243" />
+                <inputport name="constant" peerid="v92009" />
+                <outputport name="object" id="v92010" />
+            </functor>
+        <functor name="ExtractLookupTableAttributes"><property key="dff.functor.alias" value="WebMoFuSS guard: types v243" /><inputport name="table" peerid="v92010" /><inputport name="extractStatisticalKeyAttributes">.no</inputport><inputport name="extractStatisticalValueAttributes">.no</inputport><inputport name="extractDynamicKeyValueAttributes">.yes</inputport><outputport name="attributes" id="v97002" /></functor>
+        <containerfunctor name="CalculateValue"><property key="dff.functor.alias" value="WebMoFuSS guard: all source columns numeric" /><inputport name="expression">[t1[31] = t1[1] and t2[31] = t2[1] and t3[31] = t3[1]]</inputport><inputport name="defaultValue">.none</inputport><outputport name="result" id="v97099" /><functor name="NumberTable"><property key="dff.functor.alias" value="WebMoFuSS guard input Table 1" /><inputport name="table" peerid="v97000" /><inputport name="tableNumber">1</inputport></functor><functor name="NumberTable"><property key="dff.functor.alias" value="WebMoFuSS guard input Table 2" /><inputport name="table" peerid="v97001" /><inputport name="tableNumber">2</inputport></functor><functor name="NumberTable"><property key="dff.functor.alias" value="WebMoFuSS guard input Table 3" /><inputport name="table" peerid="v97002" /><inputport name="tableNumber">3</inputport></functor></containerfunctor>
+        <containerfunctor name="IfThen"><property key="dff.functor.alias" value="WebMoFuSS guard: numeric source keys" /><inputport name="condition" peerid="v97099" /><functor name="GetTableKeys"><property key="dff.functor.alias" value="WebMoFuSS guard: keys v242" /><inputport name="table" peerid="v242" /><outputport name="keys" id="v97200" /></functor><functor name="LookupTable"><property key="dff.functor.alias" value="WebMoFuSS guard: numeric keys v242" /><inputport name="constant" peerid="v97200" /><outputport name="object" id="v97201" /></functor><functor name="GetTableKeys"><property key="dff.functor.alias" value="WebMoFuSS guard: keys v244" /><inputport name="table" peerid="v244" /><outputport name="keys" id="v97202" /></functor><functor name="LookupTable"><property key="dff.functor.alias" value="WebMoFuSS guard: numeric keys v244" /><inputport name="constant" peerid="v97202" /><outputport name="object" id="v97203" /></functor><functor name="GetTableKeys"><property key="dff.functor.alias" value="WebMoFuSS guard: keys v243" /><inputport name="table" peerid="v243" /><outputport name="keys" id="v97204" /></functor><functor name="LookupTable"><property key="dff.functor.alias" value="WebMoFuSS guard: numeric keys v243" /><inputport name="constant" peerid="v97204" /><outputport name="object" id="v97205" /></functor></containerfunctor>
     </containerfunctor>
     <containerfunctor name="Group">
         <property key="dff.container.collapsed" value="no" />

@@ -9,7 +9,9 @@ rnorm_script <- file.path(repo_root, "localhost", "scripts", "rnorm_v8.R")
 stopifnot(file.exists(script))
 stopifnot(file.exists(rnorm_script))
 
-fixture <- tempfile("bypassMC_test_")
+scratch <- Sys.getenv("MOFUSS_TEST_SCRATCH", tempdir())
+dir.create(scratch, recursive = TRUE, showWarnings = FALSE)
+fixture <- tempfile("bypassMC_test_", tmpdir = scratch)
 bau <- file.path(fixture, "rwa_bau1_capped")
 ccts <- file.path(fixture, "rwa_ics3_capped")
 dir.create(bau, recursive = TRUE)
@@ -227,6 +229,7 @@ stopifnot(
   identical(manifest$bau_mc_batch_id, batch_id),
   manifest$monte_carlo_runs == 30L,
   manifest$uncapped_regrowth == 0L,
+  manifest$woodman_luc_freeze_year == 2050L,
   identical(manifest$bau_dynamics_complete, FALSE),
   manifest$bau_completed_run_count == 15L,
   identical(manifest$patcher_bypassed, TRUE),
@@ -237,4 +240,53 @@ stopifnot(
   )
 )
 
+# Freeze metadata is backward compatible at 2050, strict for annual Woodman
+# pairs, and ignored by the static-LUC pairing check. Parse definitions only;
+# never source the destructive top-level bypass/preparation sequence here.
+bypass_env <- new.env(parent = globalenv())
+for (expr in as.list(parse(file = script))) {
+  if (is.call(expr) && identical(expr[[1L]], as.name("<-")) &&
+      (is.call(expr[[3L]]) && identical(expr[[3L]][[1L]], as.name("function")) ||
+       identical(expr[[2L]], as.name("mc_batch_ready_filename")))) eval(expr, bypass_env)
+}
+expect_error <- function(expr, pattern) {
+  err <- tryCatch({force(expr); NULL},error=identity)
+  stopifnot(inherits(err,"error"),grepl(pattern,conditionMessage(err)))
+}
+bmeta <- bypass_env$read_scenario_metadata(bau)
+imeta <- bypass_env$read_scenario_metadata(ccts)
+stopifnot(bmeta$woodman_luc_freeze_year == 2050L, imeta$woodman_luc_freeze_year == 2050L)
+imeta$woodman_luc_freeze_year <- 2026L
+expect_error(bypass_env$assert_matching_pair(bmeta,imeta,3L),"woodman_luc_freeze_year")
+bypass_env$assert_matching_pair(bmeta,imeta,1L)
+expect_error(bypass_env$validate_freeze_runtime(imeta,list(WoodmanFreezeYear="2026"),3L),
+             "differs between Dinamica")
+write.csv(data.frame(Var="woodman_luc_freeze_year",ParCHR="2026"),
+          file.path(ccts,"LULCC/TempTables/parameters_dinamica.csv"),row.names=FALSE)
+bypass_env$validate_freeze_runtime(imeta,list(WoodmanFreezeYear="2026"),3L)
+expect_error(bypass_env$validate_freeze_runtime(imeta,list(WoodmanFreezeYear="2050"),3L),
+             "differs between Dinamica")
+expect_error(bypass_env$validate_freeze_runtime(imeta,list(WoodmanFreezeYear="2026.5"),3L),
+             "must be an integer")
+bypass_env$validate_freeze_runtime(imeta,list(WoodmanFreezeYear="2050"),1L)
+tab <- read.csv(bmeta$parameters_file,stringsAsFactors=FALSE)
+tab <- rbind(tab,data.frame(Var="woodman_luc_freeze_year",ParCHR="2026"))
+write.csv(tab,bmeta$parameters_file,row.names=FALSE)
+stopifnot(bypass_env$read_scenario_metadata(bau)$woodman_luc_freeze_year == 2026L)
+tab$ParCHR[tab$Var == "woodman_luc_freeze_year"] <- "2026.5"
+write.csv(tab,bmeta$parameters_file,row.names=FALSE)
+expect_error(bypass_env$read_scenario_metadata(bau),"must be an integer")
+# Existing manifests that omit freeze imply the historical 2050 default.
+ready_path <- file.path(bau,"Temp",mc_batch_ready_filename)
+ready <- read.csv(ready_path,stringsAsFactors=FALSE)
+stopifnot(all(ready$woodman_luc_freeze_year == 2050L))
+ready$woodman_luc_freeze_year <- NULL
+ready$lulc_version <- 3L
+write.csv(ready,ready_path,row.names=FALSE)
+bypass_env$read_mc_batch_ready(bmeta,batch_files,3L,3L)
+bmeta$woodman_luc_freeze_year <- 2026L
+expect_error(bypass_env$read_mc_batch_ready(bmeta,batch_files,3L,3L),"woodman_luc_freeze_year")
+ready$woodman_luc_freeze_year <- 2026L
+write.csv(ready,ready_path,row.names=FALSE)
+bypass_env$read_mc_batch_ready(bmeta,batch_files,3L,3L)
 cat("BYPASS_MC_INTEGRATION_TEST_OK:", script_name, "\n")

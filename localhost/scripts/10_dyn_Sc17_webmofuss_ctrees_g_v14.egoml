@@ -1,4 +1,5 @@
 <script>
+    <property key="mofuss.woodman.freeze.contract" value="woodman_freeze_year_v1" />
     <property key="mofuss.nrb.attribution.contract" value="woodfuel_attributed_signed_balance_v1" />
     <property key="mofuss.sourcing.capture.contract" value="annual_domain_after_static_npa_cache_v1" />
     <property key="dff.date" value="Sat Sep 05 2026" />
@@ -10,7 +11,7 @@
     <property key="metadata.showproperties" value="no" />
     <property key="metadata.title" value="VegDyn" />
     <property key="metadata.version" value="0.9.4" />
-    <property key="metadata.wizard" value="{&#10;  &quot;inputPages&quot;: [&#10;    {&#10;      &quot;title&quot;: &quot;Cover page&quot;,&#10;      &quot;content&quot;: &quot;&lt;html&gt;\n&lt;head/&gt;\n&lt;body bgcolor=\&quot;white\&quot;&gt;\n&lt;p align=\&quot;center\&quot; style=\&quot;font-family:Verdana;font-size:14pt;color:#000099;\&quot;&gt;This is a user-friendly interface for running MoFuSS core-scripts while adjusting a set of selected parameters and assumptions&lt;/p&gt;\n&lt;p align=\&quot;center\&quot; style=\&quot;font-family:Verdana;font-size:14pt;color:#000099;\&quot;&gt;Last Update: August 18th 2026&lt;/p&gt;\n&lt;p align=\&quot;center\&quot;&gt;&lt;img src=\&quot;LULCC/Wizard_imgs/mofuss_366.png\&quot; border=\&quot;0\&quot;/&gt;&lt;/p&gt;\n&lt;p align=\&quot;center\&quot; style=\&quot;font-family:Verdana;font-size:12pt;\&quot;&gt;Designed and coded by Adrian Ghilardi (UNAM) and Rob Bailis (SEI)&lt;/p&gt;\n&lt;p align=\&quot;center\&quot; style=\&quot;font-family:Verdana;font-size:14pt;color:#000099;\&quot;&gt;Project funded by:&lt;/p&gt;\n&lt;p align=\&quot;center\&quot;&gt;&lt;img src=\&quot;LULCC/Wizard_imgs/sponsors_banner.png\&quot; border=\&quot;0\&quot;/&gt;&lt;/p&gt;\n&lt;/body&gt;\n&lt;/html&gt;\n&quot;,&#10;      &quot;editors&quot;: []&#10;    },&#10;    {&#10;      &quot;title&quot;: &quot;Simulation and landscape&quot;,&#10;      &quot;content&quot;: &quot;&lt;html&gt;&lt;head/&gt;&lt;body bgcolor=\&quot;white\&quot;&gt;\n&lt;h3 style=\&quot;font-family:Verdana;color:#000099;\&quot;&gt;Simulation and landscape&lt;/h3&gt;\n&lt;p style=\&quot;font-family:Verdana;font-size:12pt;color:#444444;\&quot;&gt;The supported workflow starts in 2000 from CTrees AGB. Set the simulation length consistently with the configured end year.&lt;/p&gt;\n&lt;p style=\&quot;font-family:Verdana;font-size:12pt;color:#444444;\&quot;&gt;Select the land-cover input and accessibility of protected areas.&lt;/p&gt;\n&lt;p style=\&quot;font-family:Verdana;font-size:11pt;color:#666666;\&quot;&gt;Legacy alternatives for missing AGB, tree-cover-derived initial stock, AGB version, and initial stock as a percentage of K remain internally preserved but are intentionally hidden.&lt;/p&gt;\n&lt;/body&gt;&lt;/html&gt;&quot;,&#10;      &quot;editors&quot;: [&#10;        {&#10;          &quot;name&quot;: &quot;Simulation Length (SL)&quot;,&#10;          &quot;description&quot;: &quot;Integer constant&quot;,&#10;          &quot;tag&quot;: &quot;Int_constant_1&quot;&#10;        },&#10;        {&#10;          &quot;name&quot;: &quot;LUC map version&quot;,&#10;          &quot;description&quot;: &quot;LUC data: 1 = MODIS static; 3 = Woodman annual&quot;,&#10;          &quot;tag&quot;: &quot;Int_constant_4&quot;&#10;        },&#10;        {&#10;          &quot;name&quot;: &quot;Percentage of ease to enter NPAs&quot;,&#10;          &quot;description&quot;: &quot;0 = PA are unreachable - 100 = PA are fully open for woodfuel harvest&quot;,&#10;          &quot;tag&quot;: &quot;Int_constant_5&quot;&#10;        }&#10;      ]&#10;    },&#10;    {&#10;      &quot;title&quot;: &quot;Monte Carlo and scenario pairing&quot;,&#10;      &quot;content&quot;: &quot;&lt;html&gt;&lt;head/&gt;&lt;body bgcolor=\&quot;white\&quot;&gt;\n&lt;h3 style=\&quot;font-family:Verdana;color:#000099;\&quot;&gt;Monte Carlo and BAU/CCTS pairing&lt;/h3&gt;\n&lt;p style=\&quot;font-family:Verdana;font-size:12pt;color:#444444;\&quot;&gt;Choose the number of realizations and which biological parameters vary across them. MC01 remains the nominal parameter realization; subsequent rows contain stochastic draws when the corresponding switches are enabled.&lt;/p&gt;\n&lt;p style=\&quot;font-family:Verdana;font-size:12pt;color:#444444;\&quot;&gt;&lt;b&gt;BAU:&lt;/b&gt; set &lt;i&gt;Re-run Monte Carlo?&lt;/i&gt; to Yes to generate the batch. &lt;b&gt;CCTS:&lt;/b&gt; set it to No so &lt;code&gt;bypassMC_v8.R&lt;/code&gt; validates and reuses the completed matching BAU tables.&lt;/p&gt;\n&lt;/body&gt;&lt;/html&gt;&quot;,&#10;      &quot;editors&quot;: [&#10;        {&#10;          &quot;name&quot;: &quot;MC runs&quot;,&#10;          &quot;description&quot;: &quot;Number of Monte Carlo realizations&quot;,&#10;          &quot;tag&quot;: &quot;Int_constant_6&quot;&#10;        },&#10;        {&#10;          &quot;name&quot;: &quot;K through MC?&quot;,&#10;          &quot;description&quot;: &quot;Do you want to allow the aboveground biomass carrying capacity (K) to vary randomly for each simulation? (i.e. pass thorugh the Monte Carlo module)&quot;,&#10;          &quot;tag&quot;: &quot;Bool_constant_7&quot;&#10;        },&#10;        {&#10;          &quot;name&quot;: &quot;rmax through MC?&quot;,&#10;          &quot;description&quot;: &quot;Do you want to allow the aboveground biomass maximum growth rate (rmax) to vary randomly for each simulation? (i.e. pass thorugh the Monte Carlo module)&quot;,&#10;          &quot;tag&quot;: &quot;Bool_constant_8&quot;&#10;        },&#10;        {&#10;          &quot;name&quot;: &quot;TOF through MC?&quot;,&#10;          &quot;description&quot;: &quot;Do you want to allow that the amount of fuelwood available from trees outside forests (TOF) to vary randomly for each simulation? (i.e. pass thorugh the Monte Carlo module)&quot;,&#10;          &quot;tag&quot;: &quot;Bool_constant_9&quot;&#10;        },&#10;        {&#10;          &quot;name&quot;: &quot;Re-run Monte Carlo?&quot;,&#10;          &quot;description&quot;: &quot;Only select \&quot;No\&quot; if you want to keep the last Monte Carlo results to be used in both scenarios: you can turn in on for the the first scenario (e.g. BaU) and off for the second one (e.g ICS). Turning this option off for both scenarios will produce an error. &quot;,&#10;          &quot;tag&quot;: &quot;Bool_constant_10&quot;&#10;        }&#10;      ]&#10;    },&#10;    {&#10;      &quot;title&quot;: &quot;Harvest allocation&quot;,&#10;      &quot;content&quot;: &quot;&lt;html&gt;&lt;head/&gt;&lt;body bgcolor=\&quot;white\&quot;&gt;\n&lt;h3 style=\&quot;font-family:Verdana;color:#000099;\&quot;&gt;Harvest allocation&lt;/h3&gt;\n&lt;p style=\&quot;font-family:Verdana;font-size:12pt;color:#444444;\&quot;&gt;&lt;b&gt;Bypass Patchers = Yes&lt;/b&gt; uses the faster deterministic allocation (all eligible pixels; prune factor 1). &lt;b&gt;No&lt;/b&gt; enables stochastic spatial Patcher allocation.&lt;/p&gt;\n&lt;p style=\&quot;font-family:Verdana;font-size:12pt;color:#444444;\&quot;&gt;When Patchers are enabled, the landscape percentages and prune factors control the walking (W) and vehicle (V) harvest channels. BAU and CCTS can share MC parameter tables while retaining independent Patcher locations.&lt;/p&gt;\n&lt;/body&gt;&lt;/html&gt;&quot;,&#10;      &quot;editors&quot;: [&#10;        {&#10;          &quot;name&quot;: &quot;Bypass Patchers&quot;,&#10;          &quot;description&quot;: &quot;Data carrier for boolean.&quot;,&#10;          &quot;tag&quot;: &quot;Bool_constant_19&quot;&#10;        },&#10;        {&#10;          &quot;name&quot;: &quot;Percentage of V landscape to be harvested&quot;,&#10;          &quot;description&quot;: &quot;Integer constant&quot;,&#10;          &quot;tag&quot;: &quot;Int_constant_20&quot;&#10;        },&#10;        {&#10;          &quot;name&quot;: &quot;Prune Factor V&quot;,&#10;          &quot;description&quot;: &quot;Integer constant&quot;,&#10;          &quot;tag&quot;: &quot;Int_constant_21&quot;&#10;        },&#10;        {&#10;          &quot;name&quot;: &quot;Percentage of W landscape to be harvested&quot;,&#10;          &quot;description&quot;: &quot;Integer constant&quot;,&#10;          &quot;tag&quot;: &quot;Int_constant_22&quot;&#10;        },&#10;        {&#10;          &quot;name&quot;: &quot;Prune Factor W&quot;,&#10;          &quot;description&quot;: &quot;Integer constant&quot;,&#10;          &quot;tag&quot;: &quot;Int_constant_23&quot;&#10;        }&#10;      ]&#10;    },&#10;    {&#10;      &quot;title&quot;: &quot;Outputs and sensitivity&quot;,&#10;      &quot;content&quot;: &quot;&lt;html&gt;&lt;head/&gt;&lt;body bgcolor=\&quot;white\&quot;&gt;\n&lt;h3 style=\&quot;font-family:Verdana;color:#000099;\&quot;&gt;Outputs, diagnostics, and sensitivity&lt;/h3&gt;\n&lt;p style=\&quot;font-family:Verdana;font-size:12pt;color:#444444;\&quot;&gt;The legacy annual administrative-summary branch is fixed off. The option below controls maps, animations, period-level fNRB summary tables/vectors and report rendering. Keep Yes for the complete standard output bundle. Turning it off retains annual Dinamica rasters, engine Temp tables and sourcing captures.&lt;/p&gt;\n&lt;p style=\&quot;font-family:Verdana;font-size:12pt;color:#444444;\&quot;&gt;Set the IDW switch to No for the 10-year jumping series: IDW_C++_fw_vNN.tif and IDW_C++_fw_wNN.tif snapshots 01, 11, 21, 31, 41, and 51. Each snapshot is held forward without interpolation until the next one. Set the switch to Yes to reuse one static Indice_v.tif and Indice_w.tif pair for all years. The instant-demand adjustment remains a specialist sensitivity control.&lt;/p&gt;\n&lt;/body&gt;&lt;/html&gt;&quot;,&#10;      &quot;editors&quot;: [&#10;        {&#10;          &quot;name&quot;: &quot;Generate maps, summary tables and report after simulation?&quot;,&#10;          &quot;tag&quot;: &quot;Bool_constant_25&quot;,&#10;          &quot;description&quot;: &quot;Yes keeps all standard products. No skips maps, animations, fNRB summary tables/vectors and report rendering. Annual Dinamica rasters, engine Temp tables and sourcing captures remain available. Keep Yes when these summary products are needed.&quot;&#10;        },&#10;        {&#10;          &quot;name&quot;: &quot;Reuse one static IDW pair? (No = 10-year jumping IDWs)&quot;,&#10;          &quot;description&quot;: &quot;No = use decennial snapshots 01, 11, 21, 31, 41, and 51, holding each forward without interpolation; Yes = reuse static Indice_v.tif and Indice_w.tif rasters for all years.&quot;,&#10;          &quot;tag&quot;: &quot;Bool_constant_16&quot;&#10;        },&#10;        {&#10;          &quot;name&quot;: &quot;Instant demand knob&quot;,&#10;          &quot;description&quot;: &quot;Instant increase/decrease of fuelwood use at initial time, in %. Use this for sensitivity purposes only.&quot;,&#10;          &quot;tag&quot;: &quot;Int_constant_24&quot;&#10;        }&#10;      ]&#10;    }&#10;  ],&#10;  &quot;outputPages&quot;: [&#10;    {&#10;      &quot;title&quot;: &quot;Default&quot;,&#10;      &quot;content&quot;: &quot;&lt;html&gt;\n&lt;head/&gt;\n&lt;body bgcolor='''white'''&gt;\n&lt;p style='''color:gray;font-family:verdana;font-size:20px;'''&gt;\n&lt;span style='''font-family:Verdana; color:#0000ff; font-size:18pt;'''&gt;\n&lt;b&gt;Your model ran successfully!&lt;/b&gt;\n&lt;/span&gt;\n&lt;b/&gt;\n&lt;/p&gt;\n&lt;p style='''font-family:verdana;color:gray;font-size:20px;'''&gt;\n&lt;img border='''0''' height='''106''' src='''LULCC/Wizard_imgs/success.jpg''' width='''159'''/&gt;\n&lt;/p&gt;\n&lt;p style='''font-family:verdana;color:gray;font-size:20px;'''&gt;\n&lt;span style='''font-family:Verdana; font-size:12pt;'''&gt;Summary outputs, including a .pdf summary report  are saved into the following folders: &lt;/span&gt;\n&lt;br/&gt;\n&lt;span style='''font-family:Verdana; font-size:12pt;'''&gt;…/Summary_Report/ &lt;/span&gt;\n&lt;br/&gt;\n&lt;span style='''font-family:Verdana; font-size:12pt;'''&gt;…/Out/ &lt;/span&gt;\n&lt;br/&gt;\n&lt;span style='''font-family:Verdana; font-size:12pt;'''&gt;…/Logs/ &lt;/span&gt;\n&lt;/p&gt;\n&lt;p style='''font-family:verdana;color:gray;font-size:20px;'''&gt;   &lt;/p&gt;\n&lt;p style='''font-family:verdana;color:gray;font-size:20px;'''&gt;\n&lt;span style='''font-family:Verdana; font-size:12pt;'''&gt;The MP4 animation, map products, and image exports are saved under Out. &lt;/span&gt;\n&lt;span&gt;\n&lt;br/&gt;\n&lt;/span&gt;\n&lt;/p&gt;\n&lt;/body&gt;\n&lt;/html&gt;\n&quot;,&#10;      &quot;editors&quot;: []&#10;    }&#10;  ]&#10;}" />
+    <property key="metadata.wizard" value="{&#10;  &quot;inputPages&quot;: [&#10;    {&#10;      &quot;title&quot;: &quot;Cover page&quot;,&#10;      &quot;content&quot;: &quot;&lt;html&gt;\n&lt;head/&gt;\n&lt;body bgcolor=\&quot;white\&quot;&gt;\n&lt;p align=\&quot;center\&quot; style=\&quot;font-family:Verdana;font-size:14pt;color:#000099;\&quot;&gt;This is a user-friendly interface for running MoFuSS core-scripts while adjusting a set of selected parameters and assumptions&lt;/p&gt;\n&lt;p align=\&quot;center\&quot; style=\&quot;font-family:Verdana;font-size:14pt;color:#000099;\&quot;&gt;Last Update: August 18th 2026&lt;/p&gt;\n&lt;p align=\&quot;center\&quot;&gt;&lt;img src=\&quot;LULCC/Wizard_imgs/mofuss_366.png\&quot; border=\&quot;0\&quot;/&gt;&lt;/p&gt;\n&lt;p align=\&quot;center\&quot; style=\&quot;font-family:Verdana;font-size:12pt;\&quot;&gt;Designed and coded by Adrian Ghilardi (UNAM) and Rob Bailis (SEI)&lt;/p&gt;\n&lt;p align=\&quot;center\&quot; style=\&quot;font-family:Verdana;font-size:14pt;color:#000099;\&quot;&gt;Project funded by:&lt;/p&gt;\n&lt;p align=\&quot;center\&quot;&gt;&lt;img src=\&quot;LULCC/Wizard_imgs/sponsors_banner.png\&quot; border=\&quot;0\&quot;/&gt;&lt;/p&gt;\n&lt;/body&gt;\n&lt;/html&gt;\n&quot;,&#10;      &quot;editors&quot;: []&#10;    },&#10;    {&#10;      &quot;title&quot;: &quot;Simulation and landscape&quot;,&#10;      &quot;content&quot;: &quot;&lt;html&gt;&lt;head/&gt;&lt;body bgcolor=\&quot;white\&quot;&gt;\n&lt;h3 style=\&quot;font-family:Verdana;color:#000099;\&quot;&gt;Simulation and landscape&lt;/h3&gt;\n&lt;p style=\&quot;font-family:Verdana;font-size:12pt;color:#444444;\&quot;&gt;The supported workflow starts in 2000 from CTrees AGB. Set the simulation length consistently with the configured end year.&lt;/p&gt;\n&lt;p style=\&quot;font-family:Verdana;font-size:12pt;color:#444444;\&quot;&gt;Select the land-cover input and accessibility of protected areas.&lt;/p&gt;\n&lt;p style=\&quot;font-family:Verdana;font-size:11pt;color:#666666;\&quot;&gt;Legacy alternatives for missing AGB, tree-cover-derived initial stock, AGB version, and initial stock as a percentage of K remain internally preserved but are intentionally hidden.&lt;/p&gt;\n&lt;/body&gt;&lt;/html&gt;&quot;,&#10;      &quot;editors&quot;: [&#10;        {&#10;          &quot;name&quot;: &quot;Simulation Length (SL)&quot;,&#10;          &quot;description&quot;: &quot;Integer constant&quot;,&#10;          &quot;tag&quot;: &quot;Int_constant_1&quot;&#10;        },&#10;        {&#10;          &quot;name&quot;: &quot;LUC map version&quot;,&#10;          &quot;description&quot;: &quot;LUC data: 1 = MODIS static; 3 = Woodman annual&quot;,&#10;          &quot;tag&quot;: &quot;Int_constant_4&quot;&#10;        },&#10;        {&#10;          &quot;name&quot;: &quot;Percentage of ease to enter NPAs&quot;,&#10;          &quot;description&quot;: &quot;0 = PA are unreachable - 100 = PA are fully open for woodfuel harvest&quot;,&#10;          &quot;tag&quot;: &quot;Int_constant_5&quot;&#10;        },&#10;        {&#10;          &quot;name&quot;: &quot;Woodman LUC freeze year&quot;,&#10;          &quot;description&quot;: &quot;2000-2050, default 2050. LUC=3 only. Apply changes through this year, then hold its cover and TOF; biomass and demand keep evolving.&quot;,&#10;          &quot;tag&quot;: &quot;Int_WoodmanFreezeYear&quot;&#10;        }&#10;      ]&#10;    },&#10;    {&#10;      &quot;title&quot;: &quot;Monte Carlo and scenario pairing&quot;,&#10;      &quot;content&quot;: &quot;&lt;html&gt;&lt;head/&gt;&lt;body bgcolor=\&quot;white\&quot;&gt;\n&lt;h3 style=\&quot;font-family:Verdana;color:#000099;\&quot;&gt;Monte Carlo and BAU/CCTS pairing&lt;/h3&gt;\n&lt;p style=\&quot;font-family:Verdana;font-size:12pt;color:#444444;\&quot;&gt;Choose the number of realizations and which biological parameters vary across them. MC01 remains the nominal parameter realization; subsequent rows contain stochastic draws when the corresponding switches are enabled.&lt;/p&gt;\n&lt;p style=\&quot;font-family:Verdana;font-size:12pt;color:#444444;\&quot;&gt;&lt;b&gt;BAU:&lt;/b&gt; set &lt;i&gt;Re-run Monte Carlo?&lt;/i&gt; to Yes to generate the batch. &lt;b&gt;CCTS:&lt;/b&gt; set it to No so &lt;code&gt;bypassMC_v8.R&lt;/code&gt; validates and reuses the completed matching BAU tables.&lt;/p&gt;\n&lt;/body&gt;&lt;/html&gt;&quot;,&#10;      &quot;editors&quot;: [&#10;        {&#10;          &quot;name&quot;: &quot;MC runs&quot;,&#10;          &quot;description&quot;: &quot;Number of Monte Carlo realizations&quot;,&#10;          &quot;tag&quot;: &quot;Int_constant_6&quot;&#10;        },&#10;        {&#10;          &quot;name&quot;: &quot;K through MC?&quot;,&#10;          &quot;description&quot;: &quot;Do you want to allow the aboveground biomass carrying capacity (K) to vary randomly for each simulation? (i.e. pass thorugh the Monte Carlo module)&quot;,&#10;          &quot;tag&quot;: &quot;Bool_constant_7&quot;&#10;        },&#10;        {&#10;          &quot;name&quot;: &quot;rmax through MC?&quot;,&#10;          &quot;description&quot;: &quot;Do you want to allow the aboveground biomass maximum growth rate (rmax) to vary randomly for each simulation? (i.e. pass thorugh the Monte Carlo module)&quot;,&#10;          &quot;tag&quot;: &quot;Bool_constant_8&quot;&#10;        },&#10;        {&#10;          &quot;name&quot;: &quot;TOF through MC?&quot;,&#10;          &quot;description&quot;: &quot;Do you want to allow that the amount of fuelwood available from trees outside forests (TOF) to vary randomly for each simulation? (i.e. pass thorugh the Monte Carlo module)&quot;,&#10;          &quot;tag&quot;: &quot;Bool_constant_9&quot;&#10;        },&#10;        {&#10;          &quot;name&quot;: &quot;Re-run Monte Carlo?&quot;,&#10;          &quot;description&quot;: &quot;Only select \&quot;No\&quot; if you want to keep the last Monte Carlo results to be used in both scenarios: you can turn in on for the the first scenario (e.g. BaU) and off for the second one (e.g ICS). Turning this option off for both scenarios will produce an error. &quot;,&#10;          &quot;tag&quot;: &quot;Bool_constant_10&quot;&#10;        }&#10;      ]&#10;    },&#10;    {&#10;      &quot;title&quot;: &quot;Harvest allocation&quot;,&#10;      &quot;content&quot;: &quot;&lt;html&gt;&lt;head/&gt;&lt;body bgcolor=\&quot;white\&quot;&gt;\n&lt;h3 style=\&quot;font-family:Verdana;color:#000099;\&quot;&gt;Harvest allocation&lt;/h3&gt;\n&lt;p style=\&quot;font-family:Verdana;font-size:12pt;color:#444444;\&quot;&gt;&lt;b&gt;Bypass Patchers = Yes&lt;/b&gt; uses the faster deterministic allocation (all eligible pixels; prune factor 1). &lt;b&gt;No&lt;/b&gt; enables stochastic spatial Patcher allocation.&lt;/p&gt;\n&lt;p style=\&quot;font-family:Verdana;font-size:12pt;color:#444444;\&quot;&gt;When Patchers are enabled, the landscape percentages and prune factors control the walking (W) and vehicle (V) harvest channels. BAU and CCTS can share MC parameter tables while retaining independent Patcher locations.&lt;/p&gt;\n&lt;/body&gt;&lt;/html&gt;&quot;,&#10;      &quot;editors&quot;: [&#10;        {&#10;          &quot;name&quot;: &quot;Bypass Patchers&quot;,&#10;          &quot;description&quot;: &quot;Data carrier for boolean.&quot;,&#10;          &quot;tag&quot;: &quot;Bool_constant_19&quot;&#10;        },&#10;        {&#10;          &quot;name&quot;: &quot;Percentage of V landscape to be harvested&quot;,&#10;          &quot;description&quot;: &quot;Integer constant&quot;,&#10;          &quot;tag&quot;: &quot;Int_constant_20&quot;&#10;        },&#10;        {&#10;          &quot;name&quot;: &quot;Prune Factor V&quot;,&#10;          &quot;description&quot;: &quot;Integer constant&quot;,&#10;          &quot;tag&quot;: &quot;Int_constant_21&quot;&#10;        },&#10;        {&#10;          &quot;name&quot;: &quot;Percentage of W landscape to be harvested&quot;,&#10;          &quot;description&quot;: &quot;Integer constant&quot;,&#10;          &quot;tag&quot;: &quot;Int_constant_22&quot;&#10;        },&#10;        {&#10;          &quot;name&quot;: &quot;Prune Factor W&quot;,&#10;          &quot;description&quot;: &quot;Integer constant&quot;,&#10;          &quot;tag&quot;: &quot;Int_constant_23&quot;&#10;        }&#10;      ]&#10;    },&#10;    {&#10;      &quot;title&quot;: &quot;Outputs and sensitivity&quot;,&#10;      &quot;content&quot;: &quot;&lt;html&gt;&lt;head/&gt;&lt;body bgcolor=\&quot;white\&quot;&gt;\n&lt;h3 style=\&quot;font-family:Verdana;color:#000099;\&quot;&gt;Outputs, diagnostics, and sensitivity&lt;/h3&gt;\n&lt;p style=\&quot;font-family:Verdana;font-size:12pt;color:#444444;\&quot;&gt;The legacy annual administrative-summary branch is fixed off. The option below controls maps, animations, period-level fNRB summary tables/vectors and report rendering. Keep Yes for the complete standard output bundle. Turning it off retains annual Dinamica rasters, engine Temp tables and sourcing captures.&lt;/p&gt;\n&lt;p style=\&quot;font-family:Verdana;font-size:12pt;color:#444444;\&quot;&gt;Set the IDW switch to No for the 10-year jumping series: IDW_C++_fw_vNN.tif and IDW_C++_fw_wNN.tif snapshots 01, 11, 21, 31, 41, and 51. Each snapshot is held forward without interpolation until the next one. Set the switch to Yes to reuse one static Indice_v.tif and Indice_w.tif pair for all years. The instant-demand adjustment remains a specialist sensitivity control.&lt;/p&gt;\n&lt;/body&gt;&lt;/html&gt;&quot;,&#10;      &quot;editors&quot;: [&#10;        {&#10;          &quot;name&quot;: &quot;Generate maps, summary tables and report after simulation?&quot;,&#10;          &quot;tag&quot;: &quot;Bool_constant_25&quot;,&#10;          &quot;description&quot;: &quot;Yes keeps all standard products. No skips maps, animations, fNRB summary tables/vectors and report rendering. Annual Dinamica rasters, engine Temp tables and sourcing captures remain available. Keep Yes when these summary products are needed.&quot;&#10;        },&#10;        {&#10;          &quot;name&quot;: &quot;Reuse one static IDW pair? (No = 10-year jumping IDWs)&quot;,&#10;          &quot;description&quot;: &quot;No = use decennial snapshots 01, 11, 21, 31, 41, and 51, holding each forward without interpolation; Yes = reuse static Indice_v.tif and Indice_w.tif rasters for all years.&quot;,&#10;          &quot;tag&quot;: &quot;Bool_constant_16&quot;&#10;        },&#10;        {&#10;          &quot;name&quot;: &quot;Instant demand knob&quot;,&#10;          &quot;description&quot;: &quot;Instant increase/decrease of fuelwood use at initial time, in %. Use this for sensitivity purposes only.&quot;,&#10;          &quot;tag&quot;: &quot;Int_constant_24&quot;&#10;        }&#10;      ]&#10;    }&#10;  ],&#10;  &quot;outputPages&quot;: [&#10;    {&#10;      &quot;title&quot;: &quot;Default&quot;,&#10;      &quot;content&quot;: &quot;&lt;html&gt;\n&lt;head/&gt;\n&lt;body bgcolor='''white'''&gt;\n&lt;p style='''color:gray;font-family:verdana;font-size:20px;'''&gt;\n&lt;span style='''font-family:Verdana; color:#0000ff; font-size:18pt;'''&gt;\n&lt;b&gt;Your model ran successfully!&lt;/b&gt;\n&lt;/span&gt;\n&lt;b/&gt;\n&lt;/p&gt;\n&lt;p style='''font-family:verdana;color:gray;font-size:20px;'''&gt;\n&lt;img border='''0''' height='''106''' src='''LULCC/Wizard_imgs/success.jpg''' width='''159'''/&gt;\n&lt;/p&gt;\n&lt;p style='''font-family:verdana;color:gray;font-size:20px;'''&gt;\n&lt;span style='''font-family:Verdana; font-size:12pt;'''&gt;Summary outputs, including a .pdf summary report  are saved into the following folders: &lt;/span&gt;\n&lt;br/&gt;\n&lt;span style='''font-family:Verdana; font-size:12pt;'''&gt;…/Summary_Report/ &lt;/span&gt;\n&lt;br/&gt;\n&lt;span style='''font-family:Verdana; font-size:12pt;'''&gt;…/Out/ &lt;/span&gt;\n&lt;br/&gt;\n&lt;span style='''font-family:Verdana; font-size:12pt;'''&gt;…/Logs/ &lt;/span&gt;\n&lt;/p&gt;\n&lt;p style='''font-family:verdana;color:gray;font-size:20px;'''&gt;   &lt;/p&gt;\n&lt;p style='''font-family:verdana;color:gray;font-size:20px;'''&gt;\n&lt;span style='''font-family:Verdana; font-size:12pt;'''&gt;The MP4 animation, map products, and image exports are saved under Out. &lt;/span&gt;\n&lt;span&gt;\n&lt;br/&gt;\n&lt;/span&gt;\n&lt;/p&gt;\n&lt;/body&gt;\n&lt;/html&gt;\n&quot;,&#10;      &quot;editors&quot;: []&#10;    }&#10;  ]&#10;}" />
     <containerfunctor name="Group">
         <property key="dff.container.collapsed" value="no" />
         <property key="dff.functor.alias" value="group1320" />
@@ -561,6 +562,63 @@
                 <inputport name="step" peerid="v8" />
                 <outputport name="step" id="v38" />
             </functor>
+            <functor name="LookupTable">
+                <property key="dff.functor.alias" value="Executed configuration key domain" />
+                <inputport name="constant">[
+    "Key" "Value"
+    1 0
+    2 0
+    3 0
+    4 0
+]</inputport>
+                <outputport name="object" id="v94006" />
+            </functor>
+            <containerfunctor name="CalculateLookupTable">
+                <property key="dff.functor.alias" value="Executed Woodman settings: 1 LUC, 2 freeze year, 3 contract version, 4 start year" />
+                <inputport name="expression">[if line = 1 then v1 else if line = 2 then v2 else if line = 3 then 1 else v3]</inputport>
+                <inputport name="keyName">"Key"</inputport>
+                <inputport name="valueName">"Value"</inputport>
+                <outputport name="result" id="v94004" />
+                <functor name="NumberTable">
+                    <property key="dff.functor.alias" value="Executed configuration keys" />
+                    <inputport name="table" peerid="v94006" />
+                    <inputport name="tableNumber">1</inputport>
+                </functor>
+                <functor name="NumberValue">
+                    <property key="dff.functor.alias" value="Sourcing input 1" />
+                    <inputport name="value" peerid="v302" />
+                    <inputport name="valueNumber">1</inputport>
+                </functor>
+                <functor name="NumberValue">
+                    <property key="dff.functor.alias" value="Sourcing input 2" />
+                    <inputport name="value" peerid="v94002" />
+                    <inputport name="valueNumber">2</inputport>
+                </functor>
+                <functor name="NumberValue">
+                    <property key="dff.functor.alias" value="Sourcing input 3" />
+                    <inputport name="value" peerid="v247" />
+                    <inputport name="valueNumber">3</inputport>
+                </functor>
+            </containerfunctor>
+            <containerfunctor name="CreateString">
+                <property key="dff.functor.alias" value="Sourcing filename" />
+                <inputport name="format">"debugging_&lt;v1&gt;/woodman_luc_execution.csv"</inputport>
+                <outputport name="result" id="v94005" />
+                <functor name="NumberValue">
+                    <property key="dff.functor.alias" value="Sourcing input 1" />
+                    <inputport name="value" peerid="v38" />
+                    <inputport name="valueNumber">1</inputport>
+                </functor>
+            </containerfunctor>
+            <functor name="SaveLookupTable">
+                <property key="dff.functor.alias" value="Sourcing capture LookupTable" />
+                <inputport name="table" peerid="v94004" />
+                <inputport name="filename" peerid="v94005" />
+                <inputport name="suffixDigits">0</inputport>
+                <inputport name="step">.none</inputport>
+                <inputport name="workdir">.none</inputport>
+            </functor>
+
             <containerfunctor name="CalculateValue">
                 <property key="dff.functor.alias" value="Windows performance: final MC shared diagnostics" />
                 <property key="dff.functor.comment" value="Only the last MC survives the original shared-file overwrites; retain every annual per-MC and sourcing output." />
@@ -616,7 +674,7 @@
     if isNull(i1) then null else 0
 ]</inputport>
                 <inputport name="cellType">.float32</inputport>
-                <inputport name="nullValue">.default</inputport>
+                <inputport name="nullValue">-1e30</inputport>
                 <inputport name="resultIsSparse">.no</inputport>
                 <inputport name="resultFormat">.none</inputport>
                 <outputport name="result" id="v93000" />
@@ -647,6 +705,30 @@
                         <inputport name="valueNumber">2</inputport>
                     </functor>
                 </containerfunctor>
+                <containerfunctor name="CalculateValue">
+                    <property key="dff.functor.alias" value="Selected Woodman cover year (calendar unchanged)" />
+                    <inputport name="expression">[
+    if v2 = 3 then min(v1, v3) else v1
+]</inputport>
+                    <inputport name="defaultValue">.none</inputport>
+                    <outputport name="result" id="v94003" />
+                    <functor name="NumberValue">
+                        <property key="dff.functor.alias" value="Sourcing input 1" />
+                        <inputport name="value" peerid="v90001" />
+                        <inputport name="valueNumber">1</inputport>
+                    </functor>
+                    <functor name="NumberValue">
+                        <property key="dff.functor.alias" value="Sourcing input 2" />
+                        <inputport name="value" peerid="v302" />
+                        <inputport name="valueNumber">2</inputport>
+                    </functor>
+                    <functor name="NumberValue">
+                        <property key="dff.functor.alias" value="Sourcing input 3" />
+                        <inputport name="value" peerid="v94002" />
+                        <inputport name="valueNumber">3</inputport>
+                    </functor>
+                </containerfunctor>
+
                 <containerfunctor name="CalculateValue">
                     <property key="dff.functor.alias" value="Use fixed LUC inputs" />
                     <inputport name="expression">[v1 = 1]</inputport>
@@ -704,20 +786,20 @@
                     <property key="dff.functor.alias" value="Annual Woodman input files" />
                     <inputport name="condition" peerid="v90030" />
                     <containerfunctor name="CreateString">
-                        <property key="dff.functor.alias" value="Woodman annual LULC filename" />
-                        <inputport name="format">"LULCC/TempRaster/LULCt&lt;v1&gt;_c_&lt;v2&gt;.tif"</inputport>
-                        <outputport name="result" id="v90002" />
-                        <functor name="NumberValue">
-                            <property key="dff.functor.alias" value="Selected LUC channel" />
-                            <inputport name="value" peerid="v302" />
-                            <inputport name="valueNumber">1</inputport>
-                        </functor>
-                        <functor name="NumberValue">
-                            <property key="dff.functor.alias" value="Annual year" />
-                            <inputport name="value" peerid="v90001" />
-                            <inputport name="valueNumber">2</inputport>
-                        </functor>
-                    </containerfunctor>
+                    <property key="dff.functor.alias" value="Woodman annual LULC filename" />
+                    <inputport name="format">"LULCC/TempRaster/LULCt&lt;v1&gt;_c_&lt;v2&gt;.tif"</inputport>
+                    <outputport name="result" id="v90002" />
+                    <functor name="NumberValue">
+                        <property key="dff.functor.alias" value="Selected LUC channel" />
+                        <inputport name="value" peerid="v302" />
+                        <inputport name="valueNumber">1</inputport>
+                    </functor>
+                    <functor name="NumberValue">
+                        <property key="dff.functor.alias" value="Annual year" />
+                        <inputport name="value" peerid="v94003" />
+                        <inputport name="valueNumber">2</inputport>
+                    </functor>
+                </containerfunctor>
                     <functor name="LoadMap">
                         <property key="dff.functor.alias" value="Woodman annual LULC key map" />
                         <inputport name="filename" peerid="v90002" />
@@ -729,20 +811,20 @@
                         <outputport name="map" id="v90031" />
                     </functor>
                     <containerfunctor name="CreateString">
-                        <property key="dff.functor.alias" value="Woodman annual TOF filename" />
-                        <inputport name="format">"LULCC/TempRaster/TOFvsFOR_mask&lt;v1&gt;_&lt;v2&gt;.tif"</inputport>
-                        <outputport name="result" id="v90004" />
-                        <functor name="NumberValue">
-                            <property key="dff.functor.alias" value="Selected LUC channel" />
-                            <inputport name="value" peerid="v302" />
-                            <inputport name="valueNumber">1</inputport>
-                        </functor>
-                        <functor name="NumberValue">
-                            <property key="dff.functor.alias" value="Annual year" />
-                            <inputport name="value" peerid="v90001" />
-                            <inputport name="valueNumber">2</inputport>
-                        </functor>
-                    </containerfunctor>
+                    <property key="dff.functor.alias" value="Woodman annual TOF filename" />
+                    <inputport name="format">"LULCC/TempRaster/TOFvsFOR_mask&lt;v1&gt;_&lt;v2&gt;.tif"</inputport>
+                    <outputport name="result" id="v90004" />
+                    <functor name="NumberValue">
+                        <property key="dff.functor.alias" value="Selected LUC channel" />
+                        <inputport name="value" peerid="v302" />
+                        <inputport name="valueNumber">1</inputport>
+                    </functor>
+                    <functor name="NumberValue">
+                        <property key="dff.functor.alias" value="Annual year" />
+                        <inputport name="value" peerid="v94003" />
+                        <inputport name="valueNumber">2</inputport>
+                    </functor>
+                </containerfunctor>
                     <functor name="LoadMap">
                         <property key="dff.functor.alias" value="Woodman annual TOF map" />
                         <inputport name="filename" peerid="v90004" />
@@ -754,20 +836,20 @@
                         <outputport name="map" id="v90033" />
                     </functor>
                     <containerfunctor name="CreateString">
-                        <property key="dff.functor.alias" value="Selected LUC transition filename" />
-                        <inputport name="format">"LULCC/TempRaster/LULCt&lt;v1&gt;_transition_&lt;v2&gt;.tif"</inputport>
-                        <outputport name="result" id="v90006" />
-                        <functor name="NumberValue">
-                            <property key="dff.functor.alias" value="Selected LUC channel" />
-                            <inputport name="value" peerid="v302" />
-                            <inputport name="valueNumber">1</inputport>
-                        </functor>
-                        <functor name="NumberValue">
-                            <property key="dff.functor.alias" value="Annual year" />
-                            <inputport name="value" peerid="v90001" />
-                            <inputport name="valueNumber">2</inputport>
-                        </functor>
-                    </containerfunctor>
+                    <property key="dff.functor.alias" value="Selected LUC transition filename" />
+                    <inputport name="format">"LULCC/TempRaster/LULCt&lt;v1&gt;_transition_&lt;v2&gt;.tif"</inputport>
+                    <outputport name="result" id="v90006" />
+                    <functor name="NumberValue">
+                        <property key="dff.functor.alias" value="Selected LUC channel" />
+                        <inputport name="value" peerid="v302" />
+                        <inputport name="valueNumber">1</inputport>
+                    </functor>
+                    <functor name="NumberValue">
+                        <property key="dff.functor.alias" value="Annual year" />
+                        <inputport name="value" peerid="v94003" />
+                        <inputport name="valueNumber">2</inputport>
+                    </functor>
+                </containerfunctor>
                     <functor name="LoadMap">
                         <property key="dff.functor.alias" value="Selected LUC annual transitions" />
                         <property key="dff.functor.comment" value="MODIS transitions stay zero; Woodman codes: 1 forest cleared; 2 new forest; 3 TOF gained; 4 TOF lost" />
@@ -836,8 +918,8 @@
                 </containerfunctor>
                 <containerfunctor name="CalculateMap">
                     <property key="dff.functor.alias" value="Woodman transition in current annual domain" />
-                    <property key="dff.functor.comment" value="New cells absent from the previous map start with transition code zero" />
-                    <inputport name="expression">[if isNull(i1) then null else if isNull(i2) then 0 else i2]</inputport>
+                    <property key="dff.functor.comment" value="After the inclusive freeze year, suppress all transition resets; never replay the held map's conversion year. Preserve annual NoData and initial-stock support." />
+                    <inputport name="expression">[if isNull(i1) then null else if v1 = 3 and v2 &gt; v3 then 0 else if isNull(i2) then 0 else i2]</inputport>
                     <inputport name="cellType">.int32</inputport>
                     <inputport name="nullValue">.default</inputport>
                     <inputport name="resultIsSparse">.no</inputport>
@@ -850,6 +932,21 @@
                     <functor name="NumberMap">
                         <inputport name="map" peerid="v90007" />
                         <inputport name="mapNumber">2</inputport>
+                    </functor>
+                    <functor name="NumberValue">
+                        <property key="dff.functor.alias" value="Sourcing input 1" />
+                        <inputport name="value" peerid="v302" />
+                        <inputport name="valueNumber">1</inputport>
+                    </functor>
+                    <functor name="NumberValue">
+                        <property key="dff.functor.alias" value="Sourcing input 2" />
+                        <inputport name="value" peerid="v90001" />
+                        <inputport name="valueNumber">2</inputport>
+                    </functor>
+                    <functor name="NumberValue">
+                        <property key="dff.functor.alias" value="Sourcing input 3" />
+                        <inputport name="value" peerid="v94002" />
+                        <inputport name="valueNumber">3</inputport>
                     </functor>
                 </containerfunctor>
                 <containerfunctor name="CalculateMap">
@@ -6006,7 +6103,7 @@ if abs(v1) &gt; 0 then (v1 * (2 ^ (-floor(v2 / 2))) * (2 ^ (floor(v2 / 2) - v2))
     if isNull(i6) then null else if isNull(i1) or isNull(i5) then null else if isNull(i2) or isNull(i3) or isNull(i4) or isNull(i7) then if i5 &lt;= 0 then i1 else null else i1 + min(i2, i3) - i4
 ]</inputport>
                     <inputport name="cellType">.float32</inputport>
-                    <inputport name="nullValue">.default</inputport>
+                    <inputport name="nullValue">-1e30</inputport>
                     <inputport name="resultIsSparse">.no</inputport>
                     <inputport name="resultFormat">.none</inputport>
                     <outputport name="result" id="v93002" />
@@ -6053,7 +6150,7 @@ if abs(v1) &gt; 0 then (v1 * (2 ^ (-floor(v2 / 2))) * (2 ^ (floor(v2 / 2) - v2))
     if isNull(i6) then null else if isNull(i1) or isNull(i5) then null else if isNull(i2) or isNull(i3) or isNull(i7) or isNull(i8) then if i5 &lt;= 0 then i4 else null else i1 - (i2 - i3)
 ]</inputport>
                     <inputport name="cellType">.float32</inputport>
-                    <inputport name="nullValue">.default</inputport>
+                    <inputport name="nullValue">-1e30</inputport>
                     <inputport name="resultIsSparse">.no</inputport>
                     <inputport name="resultFormat">.none</inputport>
                     <outputport name="result" id="v93003" />
@@ -7263,6 +7360,35 @@ if abs(v1) &gt; 0 then (v1 * (2 ^ (-floor(v2 / 2))) * (2 ^ (floor(v2 / 2) - v2))
             <inputport name="workdir">.none</inputport>
             <outputport name="table" id="v267" />
         </functor>
+        <functor name="GetTableValue">
+            <property key="dff.functor.alias" value="Woodman freeze year from named parameter" />
+            <inputport name="table" peerid="v267" />
+            <inputport name="keys">[ "woodman_luc_freeze_year" ]</inputport>
+            <inputport name="column">"ParCHR"</inputport>
+            <inputport name="valueIfNotFound">2050</inputport>
+            <outputport name="result" id="v94000" />
+        </functor>
+        <containerfunctor name="CalculateValue">
+            <property key="dff.functor.alias" value="Woodman freeze year numeric value" />
+            <inputport name="expression">[
+    v1
+]</inputport>
+            <inputport name="defaultValue">.none</inputport>
+            <outputport name="result" id="v94001" />
+            <functor name="NumberValue">
+                <property key="dff.functor.alias" value="Sourcing input 1" />
+                <inputport name="value" peerid="v94000" />
+                <inputport name="valueNumber">1</inputport>
+            </functor>
+        </containerfunctor>
+        <functor name="Int">
+            <property key="dff.functor.alias" value="Woodman LUC freeze year (2000-2050; LUC=3 only)" />
+            <property key="wizard.constant.input" value="Int_WoodmanFreezeYear" />
+            <property key="dff.functor.comment" value="Inclusive final year of Woodman changes. Keep this year's cover and TOF thereafter, with zero subsequent transitions. Default 2050. Ignored for other LUC versions." />
+            <inputport name="constant" peerid="v94001" />
+            <outputport name="object" id="v94002" />
+        </functor>
+
         <containerfunctor name="Group">
             <property key="dff.container.collapsed" value="no" />
             <property key="dff.functor.alias" value="Initial Stock parameters" />
@@ -7547,196 +7673,206 @@ if abs(v1) &gt; 0 then (v1 * (2 ^ (-floor(v2 / 2))) * (2 ^ (floor(v2 / 2) - v2))
             <property key="dff.functor.alias" value="ifThen3929" />
             <inputport name="condition" peerid="v256" />
             <containerfunctor name="CreateString">
-                <property key="dff.container.collapsed" value="no" />
-                <property key="dff.functor.alias" value="createString2505" />
-                <property key="viewer.result" value="yes" />
-                <inputport name="format">"R CMD BATCH --no-save \"--args MC=&lt;v1&gt; IT=&lt;v2&gt; K_MC=&lt;v4&gt; TOF_MC=&lt;v5&gt; Ini_st_MC=&lt;v6&gt; Ini_st.factor.percentage=&lt;v7&gt; COVER_MAP=&lt;v8&gt; rmax_MC=&lt;v9&gt; DEF_FW=&lt;v10&gt; IL=&lt;v11&gt; STdyn=&lt;v12&gt; Harv.Pix.W=&lt;v14&gt; Prune.W=&lt;v15&gt; Harv.Pix.V=&lt;v16&gt; Prune.V=&lt;v17&gt; Harv.Pix_MC=&lt;v18&gt; Prune_MC=&lt;v19&gt; Harvestable_W=&lt;v22&gt; Harvestable_V=&lt;v23&gt; Histograms.per.Fig_FOR=&lt;v24&gt; Histograms.per.Fig_TOF=&lt;v25&gt; AGBmap=&lt;v26&gt; OSType=&lt;v28&gt; BaUvsICS='&lt;s29&gt;' LUCmap_v=&lt;v30&gt; AGBmap_v=&lt;v31&gt; CTrees=&lt;v32&gt;\" -- rnorm_v8.R "</inputport>
-                <outputport name="result" id="v296" />
-                <functor name="NumberValue">
-                    <property key="dff.functor.alias" value="numberValue2507" />
-                    <inputport name="value" peerid="v282" />
-                    <inputport name="valueNumber">1</inputport>
-                </functor>
-                <functor name="NumberValue">
-                    <property key="dff.functor.alias" value="numberValue2488" />
-                    <inputport name="value" peerid="v268" />
-                    <inputport name="valueNumber">7</inputport>
-                </functor>
-                <functor name="NumberValue">
-                    <property key="dff.functor.alias" value="numberValue4951" />
-                    <inputport name="value" peerid="v269" />
-                    <inputport name="valueNumber">6</inputport>
-                </functor>
-                <functor name="NumberValue">
-                    <property key="dff.functor.alias" value="numberValue4961" />
-                    <inputport name="value" peerid="v251" />
-                    <inputport name="valueNumber">9</inputport>
-                </functor>
-                <functor name="NumberValue">
-                    <property key="dff.functor.alias" value="numberValue4963" />
-                    <inputport name="value" peerid="v250" />
-                    <inputport name="valueNumber">4</inputport>
-                </functor>
-                <functor name="NumberValue">
-                    <property key="dff.functor.alias" value="numberValue4967" />
-                    <inputport name="value" peerid="v252" />
-                    <inputport name="valueNumber">5</inputport>
-                </functor>
-                <functor name="NumberValue">
-                    <property key="dff.functor.alias" value="numberValue5026" />
-                    <inputport name="value" peerid="v270" />
-                    <inputport name="valueNumber">8</inputport>
-                </functor>
-                <functor name="NumberValue">
-                    <property key="dff.functor.alias" value="numberValue5170" />
-                    <inputport name="value" peerid="v253" />
-                    <inputport name="valueNumber">10</inputport>
-                </functor>
-                <functor name="NumberValue">
-                    <property key="dff.functor.alias" value="numberValue5084" />
-                    <inputport name="value" peerid="v288" />
-                    <inputport name="valueNumber">12</inputport>
-                </functor>
-                <functor name="NumberValue">
-                    <property key="dff.functor.alias" value="numberValue5087" />
-                    <inputport name="value" peerid="v247" />
-                    <inputport name="valueNumber">2</inputport>
-                </functor>
-                <functor name="NumberValue">
-                    <property key="dff.functor.alias" value="numberValue5091" />
-                    <inputport name="value" peerid="v249" />
-                    <inputport name="valueNumber">11</inputport>
-                </functor>
-                <functor name="NumberValue">
-                    <property key="dff.functor.alias" value="numberValue5103" />
-                    <inputport name="value" peerid="v303" />
-                    <inputport name="valueNumber">14</inputport>
-                </functor>
-                <functor name="NumberValue">
-                    <property key="dff.functor.alias" value="numberValue5105" />
-                    <inputport name="value" peerid="v306" />
-                    <inputport name="valueNumber">15</inputport>
-                </functor>
-                <functor name="NumberValue">
-                    <property key="dff.functor.alias" value="numberValue5107" />
-                    <inputport name="value" peerid="v304" />
-                    <inputport name="valueNumber">16</inputport>
-                </functor>
-                <functor name="NumberValue">
-                    <property key="dff.functor.alias" value="numberValue5109" />
-                    <inputport name="value" peerid="v305" />
-                    <inputport name="valueNumber">17</inputport>
-                </functor>
-                <functor name="NumberValue">
-                    <property key="dff.functor.alias" value="numberValue5123" />
-                    <inputport name="value" peerid="v308" />
-                    <inputport name="valueNumber">18</inputport>
-                </functor>
-                <functor name="NumberValue">
-                    <property key="dff.functor.alias" value="numberValue5125" />
-                    <inputport name="value" peerid="v307" />
-                    <inputport name="valueNumber">19</inputport>
-                </functor>
-                <functor name="NumberValue">
-                    <property key="dff.functor.alias" value="numberValue4933" />
-                    <inputport name="value" peerid="v318" />
-                    <inputport name="valueNumber">22</inputport>
-                </functor>
-                <functor name="NumberValue">
-                    <property key="dff.functor.alias" value="numberValue4946" />
-                    <inputport name="value" peerid="v319" />
-                    <inputport name="valueNumber">23</inputport>
-                </functor>
-                <functor name="NumberValue">
-                    <property key="dff.functor.alias" value="numberValue5987" />
-                    <inputport name="value" peerid="v254" />
-                    <inputport name="valueNumber">24</inputport>
-                </functor>
-                <functor name="NumberValue">
-                    <property key="dff.functor.alias" value="numberValue5989" />
-                    <inputport name="value" peerid="v255" />
-                    <inputport name="valueNumber">25</inputport>
-                </functor>
-                <functor name="NumberValue">
-                    <property key="dff.functor.alias" value="numberValue1762" />
-                    <inputport name="value" peerid="v271" />
-                    <inputport name="valueNumber">26</inputport>
-                </functor>
-                <functor name="NumberValue">
-                    <property key="dff.functor.alias" value="numberValue5165" />
-                    <inputport name="value" peerid="v265" />
-                    <inputport name="valueNumber">28</inputport>
-                </functor>
-                <functor name="NumberString">
-                    <property key="dff.functor.alias" value="numberString1791" />
-                    <inputport name="value" peerid="v261" />
-                    <inputport name="valueNumber">29</inputport>
-                </functor>
-                <functor name="NumberValue">
-                    <property key="dff.functor.alias" value="numberValue1787" />
-                    <inputport name="value" peerid="v302" />
-                    <inputport name="valueNumber">30</inputport>
-                </functor>
-                <functor name="NumberValue">
-                    <property key="dff.functor.alias" value="numberValue1789" />
-                    <inputport name="value" peerid="v280" />
-                    <inputport name="valueNumber">31</inputport>
-                </functor>
-                <functor name="NumberValue">
-                    <property key="dff.functor.alias" value="numberValue1873" />
-                    <inputport name="value" peerid="v291" />
-                    <inputport name="valueNumber">32</inputport>
-                </functor>
-            </containerfunctor>
+                    <property key="dff.container.collapsed" value="no" />
+                    <property key="dff.functor.alias" value="createString2505" />
+                    <property key="viewer.result" value="yes" />
+                    <inputport name="format">"R CMD BATCH --no-save \"--args WoodmanFreezeYear=&lt;v35&gt; MC=&lt;v1&gt; IT=&lt;v2&gt; K_MC=&lt;v4&gt; TOF_MC=&lt;v5&gt; Ini_st_MC=&lt;v6&gt; Ini_st.factor.percentage=&lt;v7&gt; COVER_MAP=&lt;v8&gt; rmax_MC=&lt;v9&gt; DEF_FW=&lt;v10&gt; IL=&lt;v11&gt; STdyn=&lt;v12&gt; Harv.Pix.W=&lt;v14&gt; Prune.W=&lt;v15&gt; Harv.Pix.V=&lt;v16&gt; Prune.V=&lt;v17&gt; Harv.Pix_MC=&lt;v18&gt; Prune_MC=&lt;v19&gt; Harvestable_W=&lt;v22&gt; Harvestable_V=&lt;v23&gt; Histograms.per.Fig_FOR=&lt;v24&gt; Histograms.per.Fig_TOF=&lt;v25&gt; AGBmap=&lt;v26&gt; OSType=&lt;v28&gt; BaUvsICS='&lt;s29&gt;' LUCmap_v=&lt;v30&gt; AGBmap_v=&lt;v31&gt; CTrees=&lt;v32&gt;\" -- rnorm_v8.R "</inputport>
+                    <outputport name="result" id="v296" />
+                    <functor name="NumberValue">
+                        <property key="dff.functor.alias" value="numberValue2507" />
+                        <inputport name="value" peerid="v282" />
+                        <inputport name="valueNumber">1</inputport>
+                    </functor>
+                    <functor name="NumberValue">
+                        <property key="dff.functor.alias" value="numberValue2488" />
+                        <inputport name="value" peerid="v268" />
+                        <inputport name="valueNumber">7</inputport>
+                    </functor>
+                    <functor name="NumberValue">
+                        <property key="dff.functor.alias" value="numberValue4951" />
+                        <inputport name="value" peerid="v269" />
+                        <inputport name="valueNumber">6</inputport>
+                    </functor>
+                    <functor name="NumberValue">
+                        <property key="dff.functor.alias" value="numberValue4961" />
+                        <inputport name="value" peerid="v251" />
+                        <inputport name="valueNumber">9</inputport>
+                    </functor>
+                    <functor name="NumberValue">
+                        <property key="dff.functor.alias" value="numberValue4963" />
+                        <inputport name="value" peerid="v250" />
+                        <inputport name="valueNumber">4</inputport>
+                    </functor>
+                    <functor name="NumberValue">
+                        <property key="dff.functor.alias" value="numberValue4967" />
+                        <inputport name="value" peerid="v252" />
+                        <inputport name="valueNumber">5</inputport>
+                    </functor>
+                    <functor name="NumberValue">
+                        <property key="dff.functor.alias" value="numberValue5026" />
+                        <inputport name="value" peerid="v270" />
+                        <inputport name="valueNumber">8</inputport>
+                    </functor>
+                    <functor name="NumberValue">
+                        <property key="dff.functor.alias" value="numberValue5170" />
+                        <inputport name="value" peerid="v253" />
+                        <inputport name="valueNumber">10</inputport>
+                    </functor>
+                    <functor name="NumberValue">
+                        <property key="dff.functor.alias" value="numberValue5084" />
+                        <inputport name="value" peerid="v288" />
+                        <inputport name="valueNumber">12</inputport>
+                    </functor>
+                    <functor name="NumberValue">
+                        <property key="dff.functor.alias" value="numberValue5087" />
+                        <inputport name="value" peerid="v247" />
+                        <inputport name="valueNumber">2</inputport>
+                    </functor>
+                    <functor name="NumberValue">
+                        <property key="dff.functor.alias" value="numberValue5091" />
+                        <inputport name="value" peerid="v249" />
+                        <inputport name="valueNumber">11</inputport>
+                    </functor>
+                    <functor name="NumberValue">
+                        <property key="dff.functor.alias" value="numberValue5103" />
+                        <inputport name="value" peerid="v303" />
+                        <inputport name="valueNumber">14</inputport>
+                    </functor>
+                    <functor name="NumberValue">
+                        <property key="dff.functor.alias" value="numberValue5105" />
+                        <inputport name="value" peerid="v306" />
+                        <inputport name="valueNumber">15</inputport>
+                    </functor>
+                    <functor name="NumberValue">
+                        <property key="dff.functor.alias" value="numberValue5107" />
+                        <inputport name="value" peerid="v304" />
+                        <inputport name="valueNumber">16</inputport>
+                    </functor>
+                    <functor name="NumberValue">
+                        <property key="dff.functor.alias" value="numberValue5109" />
+                        <inputport name="value" peerid="v305" />
+                        <inputport name="valueNumber">17</inputport>
+                    </functor>
+                    <functor name="NumberValue">
+                        <property key="dff.functor.alias" value="numberValue5123" />
+                        <inputport name="value" peerid="v308" />
+                        <inputport name="valueNumber">18</inputport>
+                    </functor>
+                    <functor name="NumberValue">
+                        <property key="dff.functor.alias" value="numberValue5125" />
+                        <inputport name="value" peerid="v307" />
+                        <inputport name="valueNumber">19</inputport>
+                    </functor>
+                    <functor name="NumberValue">
+                        <property key="dff.functor.alias" value="numberValue4933" />
+                        <inputport name="value" peerid="v318" />
+                        <inputport name="valueNumber">22</inputport>
+                    </functor>
+                    <functor name="NumberValue">
+                        <property key="dff.functor.alias" value="numberValue4946" />
+                        <inputport name="value" peerid="v319" />
+                        <inputport name="valueNumber">23</inputport>
+                    </functor>
+                    <functor name="NumberValue">
+                        <property key="dff.functor.alias" value="numberValue5987" />
+                        <inputport name="value" peerid="v254" />
+                        <inputport name="valueNumber">24</inputport>
+                    </functor>
+                    <functor name="NumberValue">
+                        <property key="dff.functor.alias" value="numberValue5989" />
+                        <inputport name="value" peerid="v255" />
+                        <inputport name="valueNumber">25</inputport>
+                    </functor>
+                    <functor name="NumberValue">
+                        <property key="dff.functor.alias" value="numberValue1762" />
+                        <inputport name="value" peerid="v271" />
+                        <inputport name="valueNumber">26</inputport>
+                    </functor>
+                    <functor name="NumberValue">
+                        <property key="dff.functor.alias" value="numberValue5165" />
+                        <inputport name="value" peerid="v265" />
+                        <inputport name="valueNumber">28</inputport>
+                    </functor>
+                    <functor name="NumberString">
+                        <property key="dff.functor.alias" value="numberString1791" />
+                        <inputport name="value" peerid="v261" />
+                        <inputport name="valueNumber">29</inputport>
+                    </functor>
+                    <functor name="NumberValue">
+                        <property key="dff.functor.alias" value="numberValue1787" />
+                        <inputport name="value" peerid="v302" />
+                        <inputport name="valueNumber">30</inputport>
+                    </functor>
+                    <functor name="NumberValue">
+                        <property key="dff.functor.alias" value="numberValue1789" />
+                        <inputport name="value" peerid="v280" />
+                        <inputport name="valueNumber">31</inputport>
+                    </functor>
+                    <functor name="NumberValue">
+                        <property key="dff.functor.alias" value="numberValue1873" />
+                        <inputport name="value" peerid="v291" />
+                        <inputport name="valueNumber">32</inputport>
+                    </functor>
+                    <functor name="NumberValue">
+                        <property key="dff.functor.alias" value="Sourcing input 35" />
+                        <inputport name="value" peerid="v94002" />
+                        <inputport name="valueNumber">35</inputport>
+                    </functor>
+                </containerfunctor>
         </containerfunctor>
         <containerfunctor name="IfNotThen">
             <property key="dff.functor.alias" value="ifNotThen3931" />
             <inputport name="condition" peerid="v256" />
             <containerfunctor name="CreateString">
-                <property key="dff.functor.alias" value="createString3927" />
-                <inputport name="format">"R CMD BATCH --no-save \"--args RerunMC=&lt;v33&gt; BaUvsICS='&lt;s29&gt;' MC=&lt;v1&gt; IT=&lt;v2&gt; STdyn=&lt;v12&gt; LUCmap_v=&lt;v30&gt; AGBmap_v=&lt;v31&gt; PatcherBypassed=&lt;v34&gt;\" -- bypassMC_v8.R"</inputport>
-                <outputport name="result" id="v297" />
-                <functor name="NumberValue">
-                    <property key="dff.functor.alias" value="numberValue1797" />
-                    <inputport name="value" peerid="v256" />
-                    <inputport name="valueNumber">33</inputport>
-                </functor>
-                <functor name="NumberString">
-                    <property key="dff.functor.alias" value="numberString1799" />
-                    <inputport name="value" peerid="v261" />
-                    <inputport name="valueNumber">29</inputport>
-                </functor>
-                <functor name="NumberValue">
-                    <property key="dff.functor.alias" value="bypassMC_runs" />
-                    <inputport name="value" peerid="v282" />
-                    <inputport name="valueNumber">1</inputport>
-                </functor>
-                <functor name="NumberValue">
-                    <property key="dff.functor.alias" value="bypassMC_start_year" />
-                    <inputport name="value" peerid="v247" />
-                    <inputport name="valueNumber">2</inputport>
-                </functor>
-                <functor name="NumberValue">
-                    <property key="dff.functor.alias" value="bypassMC_simulation_years" />
-                    <inputport name="value" peerid="v288" />
-                    <inputport name="valueNumber">12</inputport>
-                </functor>
-                <functor name="NumberValue">
-                    <property key="dff.functor.alias" value="bypassMC_luc_version" />
-                    <inputport name="value" peerid="v302" />
-                    <inputport name="valueNumber">30</inputport>
-                </functor>
-                <functor name="NumberValue">
-                    <property key="dff.functor.alias" value="bypassMC_agb_version" />
-                    <inputport name="value" peerid="v280" />
-                    <inputport name="valueNumber">31</inputport>
-                </functor>
-                <functor name="NumberValue">
-                    <property key="dff.functor.alias" value="bypassMC_patcher_bypassed" />
-                    <inputport name="value" peerid="v313" />
-                    <inputport name="valueNumber">34</inputport>
-                </functor>
-            </containerfunctor>
+                    <property key="dff.functor.alias" value="createString3927" />
+                    <inputport name="format">"R CMD BATCH --no-save \"--args WoodmanFreezeYear=&lt;v35&gt; RerunMC=&lt;v33&gt; BaUvsICS='&lt;s29&gt;' MC=&lt;v1&gt; IT=&lt;v2&gt; STdyn=&lt;v12&gt; LUCmap_v=&lt;v30&gt; AGBmap_v=&lt;v31&gt; PatcherBypassed=&lt;v34&gt;\" -- bypassMC_v8.R"</inputport>
+                    <outputport name="result" id="v297" />
+                    <functor name="NumberValue">
+                        <property key="dff.functor.alias" value="numberValue1797" />
+                        <inputport name="value" peerid="v256" />
+                        <inputport name="valueNumber">33</inputport>
+                    </functor>
+                    <functor name="NumberString">
+                        <property key="dff.functor.alias" value="numberString1799" />
+                        <inputport name="value" peerid="v261" />
+                        <inputport name="valueNumber">29</inputport>
+                    </functor>
+                    <functor name="NumberValue">
+                        <property key="dff.functor.alias" value="bypassMC_runs" />
+                        <inputport name="value" peerid="v282" />
+                        <inputport name="valueNumber">1</inputport>
+                    </functor>
+                    <functor name="NumberValue">
+                        <property key="dff.functor.alias" value="bypassMC_start_year" />
+                        <inputport name="value" peerid="v247" />
+                        <inputport name="valueNumber">2</inputport>
+                    </functor>
+                    <functor name="NumberValue">
+                        <property key="dff.functor.alias" value="bypassMC_simulation_years" />
+                        <inputport name="value" peerid="v288" />
+                        <inputport name="valueNumber">12</inputport>
+                    </functor>
+                    <functor name="NumberValue">
+                        <property key="dff.functor.alias" value="bypassMC_luc_version" />
+                        <inputport name="value" peerid="v302" />
+                        <inputport name="valueNumber">30</inputport>
+                    </functor>
+                    <functor name="NumberValue">
+                        <property key="dff.functor.alias" value="bypassMC_agb_version" />
+                        <inputport name="value" peerid="v280" />
+                        <inputport name="valueNumber">31</inputport>
+                    </functor>
+                    <functor name="NumberValue">
+                        <property key="dff.functor.alias" value="bypassMC_patcher_bypassed" />
+                        <inputport name="value" peerid="v313" />
+                        <inputport name="valueNumber">34</inputport>
+                    </functor>
+                    <functor name="NumberValue">
+                        <property key="dff.functor.alias" value="Sourcing input 35" />
+                        <inputport name="value" peerid="v94002" />
+                        <inputport name="valueNumber">35</inputport>
+                    </functor>
+                </containerfunctor>
         </containerfunctor>
     </containerfunctor>
     <containerfunctor name="Group">

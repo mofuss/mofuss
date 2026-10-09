@@ -14,15 +14,18 @@ cross-realization graph state consists of nine result-collection tables. This
 makes realization-level concurrency feasible in principle without changing the
 model equations, parameter files, or final output names.
 
-This graph finding does **not** establish that the installed Dinamica 2.11
+This graph finding does **not** establish that the installed Dinamica 2.4.1
 scheduler can execute independent realizations concurrently inside one EGOML.
 Removing feedback edges, duplicating groups, or adding a processor-count setting
 must not be described as parallel MC execution without engine documentation and
 a concurrent-execution test on that version. A processor policy may govern
 threads inside a raster operator rather than simultaneous realizations.
 
-During this audit, a separately installed local Dinamica runtime identified
-itself as `2.4.1.20140602`. Small scheduler probes on that binary used four
+The supplied Windows launcher identifies the same local Dinamica runtime
+measured as `2.4.1.20140602`, superseding the earlier reported version 2.11.
+The user confirms at most eight logical processors on Windows; Linux's larger
+processor allocations do not carry over to this host. Small scheduler probes
+on that binary used four
 independent two-second external tasks, `-processors 4`, and
 `-scheduler AutoFunctorScheduler`. An outer `Repeat`, independent sibling leaf
 functors, and independent sibling `Group` containers each took approximately
@@ -31,8 +34,8 @@ eight seconds. A Dinamica `8.13.0` positive control ran the same four tasks in
 approximately 2.3 seconds with four processors and approximately 8.6 seconds
 with one processor. This confirms that the probes can detect concurrency and
 that newer-runtime behavior cannot be assumed for the older binary. Those
-tests observed serial scheduling on the local 2.4 binary; the declared server
-version 2.11 still requires its own check. Probe artifacts were
+tests observed serial scheduling on the actual legacy executable selected by
+the Windows launcher. Probe artifacts were
 kept in the disposable directory
 `E:\MoFuSS_Active\webmofuss_performance_audit\scheduler_probe`.
 
@@ -200,17 +203,19 @@ relevant MC and branch. Do not apply the shared-path optimization to them.
 `createString1826` (line 2931) describes a per-MC gain path but has no connected
 output; `saveMap5178` actually uses the fixed `Debugging/Cum_Sim_gain.tif` path.
 
-The `webmofuss` copy does not include the old `rnorm_v3.R`, `bypassMC.R`,
+The original repository's `webmofuss` copy does not include the old `rnorm_v3.R`, `bypassMC.R`,
 `NRB_graphs_datasets2.R`, `maps_animations7.R`, `bypass_maps_animations.R`, or
 `finalogs.R` files invoked by the model. Their input/output assumptions and any
-external progress monitoring require validation against the server copy. Newer
-localhost scripts are not evidence that the old scripts behave identically.
+external progress monitoring require validation against the server copy. The
+subsequently supplied backup contains these callback scripts; the fresh small
+case exercises those copies. Newer local repository scripts are not substituted
+for them.
 
 ## A practical worker design, conditional on runtime support
 
 The intended scheduling unit is one entire realization of one scenario. The
 following design describes the necessary behavior; it is not a claim that
-Dinamica 2.11 already exposes a parallel-loop primitive.
+the verified Dinamica 2.4.1 runtime exposes a parallel-loop primitive.
 
 1. Execute the existing job setup and MC parameter generation once. Complete
    all preparation before workers read the shared tables and source rasters.
@@ -274,6 +279,62 @@ subset of MCs. These staging directories are disposable job work, not canonical
 runs or evidence archives.
 
 ## Acceptance evidence required before server replacement
+
+### Executed process proof: 2026-10-08
+
+The experimental `tests/probe_parallel_mc.py` now accepts `--max-workers 1..3`
+(default two). It processed three global MC IDs with at most two concurrent
+processes, one Dinamica processor per process, and private `TEMP`/`TMP`
+directories. This proof used the actual Windows `2.4.1.20140602` executable;
+it does not change the server launcher or establish an EGOML-only deployment.
+
+The completed `guarded_pair_uncapped` serial fixture supplied 582 frozen input
+files, three MCs, and three temporal steps. The source run was read-only
+`F:\LSO_1000m_bau1_2050_mc3_capped`; the fixture explicitly selected uncapped
+dynamics. The guarded source model SHA256 was
+`15d9e2ff6f5aa9b166ab8a9ddc18f3f21cbd0960a18ef4c25e426fb5f5db5932`.
+All four R callbacks were absent from this frozen-input comparison.
+Before launch, the harness checked that deforestation was disabled, patchers
+were bypassed, and no random expressions or external callbacks remained.
+The predefined native seed was identical across processes only as a regression
+control. It is **not** a valid independent-worker random-stream design.
+
+Each worker retained the complete original MC parameter tables and configured
+MC count. Its outer loop executed once, and all 27 consumers of the original
+outer-step port `v8` used the assigned global ID instead. The temporal body,
+including its feedback state, stayed unchanged. The gather restored the nine
+summary CSVs in global ID order with the exact native header and row formatting,
+selected the shared `Debugging/` outputs from MC 3, and rejected any conflicting
+duplicate path outside those explicit rules.
+
+All three workers succeeded. The gathered inventory contained **186 scientific
+files, including 159 TIFFs**, and every file was SHA256-identical to the serial
+fixture. There were no missing, additional, or different scientific files;
+the harness also verified frozen input identity before and after execution.
+
+The two-worker cap was respected. MC 1 and MC 2 had at least **52.66 seconds
+of overlapping native-process execution**, derived conservatively from their
+native durations and enclosing invocation intervals. MC 3 ran when a worker
+became available. Native durations were 53.54, 53.88, and 50.73 seconds;
+the complete worker phase took **105.83 seconds**, compared with **63.61 seconds**
+for the earlier two-processor serial fixture. Other jobs were active, so this
+is not a controlled performance comparison. The process proof was slower in
+this observation: per-process startup and compilation can outweigh concurrent
+MC work on a small fixture. A future design should measure multiple global MC
+IDs per persistent worker process to amortize that cost before adding server
+orchestration, particularly with the actual eight-processor host limit.
+Staging, gathering, and all external R callbacks are excluded from these times.
+
+Disposable evidence is under
+`E:\MoFuSS_Active\webmofuss_performance_audit\process_mc_guarded_probe`:
+`probe_manifest.json`, `parallel_launch.json`, `parallel_runtime.json`,
+`comparison.json`, each worker's runtime log and output hashes, and
+`gathered/gather_provenance.json`. This proves deterministic output preservation
+and overlapping native processes for this fixture only. It does not validate
+stochastic patchers, worker RNG independence, full reporting, failure/retry
+behavior, or a production speed benefit.
+
+### Remaining acceptance work
 
 The graph audit is not runtime certification. Compare the original and candidate
 on the installed Dinamica version and the same frozen, representative job inputs.

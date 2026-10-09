@@ -46,8 +46,13 @@ mc_batch_ready_filename <- "mc_batch_ready.csv"
 # never a partially written manifest.
 write_mc_batch_ready <- function(
   temp_dir, mc_runs, start_year, end_year, scenario_ver, byregion,
-  geography, uncapped_regrowth, luc_version, agb_version
+  geography, uncapped_regrowth, luc_version, agb_version,
+  woodman_luc_freeze_year = 2050L
 ) {
+  if (length(woodman_luc_freeze_year) != 1L || !is.finite(woodman_luc_freeze_year) ||
+      woodman_luc_freeze_year != as.integer(woodman_luc_freeze_year) ||
+      !woodman_luc_freeze_year %in% 2000:2050)
+    stop("woodman_luc_freeze_year must be an integer from 2000 through 2050.")
   category_name <- sprintf("LULC_Categories%d.csv", luc_version)
   batch_files <- c(
     "i_st_all.csv", "k_all.csv", "rmax_all.csv",
@@ -118,6 +123,7 @@ write_mc_batch_ready <- function(
     monte_carlo_runs = mc_runs,
     uncapped_regrowth = uncapped_regrowth,
     lulc_version = luc_version,
+    woodman_luc_freeze_year = as.integer(woodman_luc_freeze_year),
     agb_version = agb_version,
     file = batch_files,
     file_size_bytes = as.numeric(info$size),
@@ -290,6 +296,28 @@ parameter_value <- function(key) {
 configured_start <- suppressWarnings(as.integer(parameter_value("start_year")))
 configured_end <- suppressWarnings(as.integer(parameter_value("end_year")))
 configured_mc <- suppressWarnings(as.integer(parameter_value("monte_carlo_runs")))
+configured_freeze <- if ("woodman_luc_freeze_year" %in% preflight_parameters$Var)
+  suppressWarnings(as.numeric(parameter_value("woodman_luc_freeze_year"))) else 2050L
+if (length(configured_freeze) != 1L || !is.finite(configured_freeze) ||
+    configured_freeze != as.integer(configured_freeze) || !configured_freeze %in% 2000:2050)
+  stop("woodman_luc_freeze_year must be an integer from 2000 through 2050.")
+runtime_parameters <- read.csv("LULCC/TempTables/parameters_dinamica.csv", stringsAsFactors = FALSE)
+if (!all(c("Var", "ParCHR") %in% names(runtime_parameters)))
+  stop("parameters_dinamica.csv must contain Var and ParCHR columns.")
+runtime_freeze <- if ("woodman_luc_freeze_year" %in% runtime_parameters$Var)
+  suppressWarnings(as.numeric(runtime_parameters$ParCHR[
+    runtime_parameters$Var == "woodman_luc_freeze_year"])) else 2050
+if (length(runtime_freeze) != 1L || !is.finite(runtime_freeze) ||
+    runtime_freeze != as.integer(runtime_freeze) || !runtime_freeze %in% 2000:2050)
+  stop("Runtime woodman_luc_freeze_year must be an integer from 2000 through 2050.")
+actual_freeze <- if (exists("WoodmanFreezeYear", inherits = FALSE))
+  suppressWarnings(as.numeric(WoodmanFreezeYear)) else runtime_freeze
+if (length(actual_freeze) != 1L || !is.finite(actual_freeze) ||
+    actual_freeze != as.integer(actual_freeze) || !actual_freeze %in% 2000:2050)
+  stop("Dinamica WoodmanFreezeYear must be an integer from 2000 through 2050.")
+if (isTRUE(as.integer(LUCmap_v) == 3L) &&
+    (runtime_freeze != configured_freeze || actual_freeze != configured_freeze))
+  stop("Woodman freeze year differs between Dinamica, parameters_dinamica.csv and parameters.csv; update them consistently before running.")
 if (anyNA(c(configured_start, configured_end, configured_mc))) {
   stop("start_year, end_year, and monte_carlo_runs must be integers.")
 }
@@ -340,7 +368,8 @@ publish_current_mc_batch <- function() {
     geography = parameter_value(geography_key),
     uncapped_regrowth = uncapped_value,
     luc_version = luc_version,
-    agb_version = agb_version
+    agb_version = agb_version,
+    woodman_luc_freeze_year = as.integer(configured_freeze)
   )
 }
 

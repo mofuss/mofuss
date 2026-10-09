@@ -22,7 +22,7 @@
 # Purpose: Extract and validate the required runtime parameters, then install the
 # verified parameters_dinamica.csv consumed by Dinamica EGO.
 # Inputs: Source parameters.csv and inherited country/source-data paths.
-# Outputs: LULCC/DownloadedDatasets/SourceDataGlobal/parameters_dinamica.csv.
+# Outputs: LULCC/TempTables/parameters_dinamica.csv.
 # Side effects: Changes working directory and atomically replaces the Dinamica
 # runtime parameter table after validation.
 
@@ -91,7 +91,8 @@ required_parameters <- c(
   "end_year",
   "monte_carlo_runs",
   "uncapped_regrowth",
-  "npa_ease"
+  "npa_ease",
+  "woodman_luc_freeze_year"
 )
 
 required_columns <- c("Var", "ParCHR")
@@ -107,6 +108,16 @@ if (length(missing_columns) > 0L) {
 }
 
 country_parameters$Var <- trimws(as.character(country_parameters$Var))
+
+# Keep older source parameter tables usable. Append the new parameter so the
+# first five runtime rows retain their historical positions. Explicit empty,
+# duplicate or invalid values are errors rather than requests for the default.
+if (!any(country_parameters$Var == "woodman_luc_freeze_year", na.rm = TRUE)) {
+  default_row <- country_parameters[NA_integer_, , drop = FALSE]
+  default_row$Var <- "woodman_luc_freeze_year"
+  default_row$ParCHR <- "2050"
+  country_parameters <- rbind(country_parameters, default_row)
+}
 
 parameter_counts <- vapply(
   required_parameters,
@@ -193,6 +204,7 @@ end_year <- source_values[["end_year"]]
 monte_carlo_runs <- source_values[["monte_carlo_runs"]]
 uncapped_regrowth <- source_values[["uncapped_regrowth"]]
 npa_ease <- source_values[["npa_ease"]]
+woodman_luc_freeze_year <- source_values[["woodman_luc_freeze_year"]]
 
 if (end_year < start_year) {
   stop("`end_year` cannot be earlier than `start_year`.", call. = FALSE)
@@ -202,6 +214,10 @@ if (monte_carlo_runs < 1L) {
 }
 if (!(uncapped_regrowth %in% c(0L, 1L))) {
   stop("`uncapped_regrowth` must be exactly 0 or 1.", call. = FALSE)
+}
+if (woodman_luc_freeze_year < 2000L || woodman_luc_freeze_year > 2050L) {
+  stop("`woodman_luc_freeze_year` must be an integer from 2000 through 2050.",
+       call. = FALSE)
 }
 
 # Save parameters table for Dinamica EGO ----
@@ -380,13 +396,14 @@ message(
     paste0(
       "[OK] Dinamica parameters verified against parameters.csv: ",
       "start_year=%d, end_year=%d, monte_carlo_runs=%d, ",
-      "uncapped_regrowth=%d, npa_ease=%d"
+      "uncapped_regrowth=%d, npa_ease=%d, woodman_luc_freeze_year=%d"
     ),
     start_year,
     end_year,
     monte_carlo_runs,
     uncapped_regrowth,
-    npa_ease
+    npa_ease,
+    woodman_luc_freeze_year
   )
 )
 
