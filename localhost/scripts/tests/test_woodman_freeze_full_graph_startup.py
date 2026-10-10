@@ -5,7 +5,10 @@ detect dependency cycles between their original Group containers. This test keep
 every production node, connection and container. Only the normal BAU/ICS switches
 are configured in fixture copies. A two-cell landscape and harmless R startup stubs
 live in a new MoFuSS_Active directory. The stub records the real command arguments
-and exits before generating MC tables; the missing MC table then stops Dinamica.
+and exits before generating MC tables. A failed stub must trigger the explicit
+startup guard even with a stale success marker and old MC tables present. With
+--successful-stub it writes a fresh success marker and the missing MC table then
+stops Dinamica, proving that the success path continues past the guard.
 No simulation inputs or outputs from an existing run are opened or modified.
 
 An optional --broken-model checks the reported failure against a preserved graph.
@@ -74,6 +77,8 @@ def main():
     parser.add_argument("--rscript", type=Path,
                         default=Path("C:/Program Files/R/R-4.6.0/bin/Rscript.exe"))
     parser.add_argument("--disable-native-expressions", action="store_true")
+    parser.add_argument("--successful-stub", action="store_true")
+    parser.add_argument("--cases", nargs="+", help="Optional exact case names for a focused regression")
     parser.add_argument("--jobs", type=int, choices=(1, 2, 3, 4), default=2)
     args = parser.parse_args()
     work = args.scratch.resolve()
@@ -91,13 +96,21 @@ def main():
     cases = [(f"freeze{year}_{scenario}_{mode}", year, scenario == "bau", cap)
              for year in (2026, 2050) for scenario in ("bau", "ics")
              for mode, cap in (("capped", 0), ("uncapped", 1))]
+    if args.cases:
+        unknown = set(args.cases) - {c[0] for c in cases}
+        if unknown:
+            raise ValueError("Unknown case names: " + ", ".join(sorted(unknown)))
+        cases = [c for c in cases if c[0] in args.cases]
     if args.broken_model:
         cases.insert(0, ("broken_graph", 2026, True, 0))
     rexec = args.rscript.parent / "x64" / "R.exe"
     if not rexec.is_file():
         raise FileNotFoundError(rexec)
     # No package loading, MC generation or production script sourcing occurs.
-    stub = 'writeLines(commandArgs(TRUE), "startup_arguments.txt")\nquit(save="no", status=42, runLast=FALSE)\n'
+    stub = 'writeLines(commandArgs(TRUE), "startup_arguments.txt")\n'
+    stub += ('write.csv(data.frame(Key=1,Value=1), "mc_startup_guard.csv", row.names=FALSE, quote=FALSE)\n'
+             'quit(save="no", status=0, runLast=FALSE)\n' if args.successful_stub else
+             'quit(save="no", status=42, runLast=FALSE)\n')
     setup = '''suppressPackageStartupMessages(library(terra))
 root<-commandArgs(TRUE)[1]
 for(d in list.dirs(root,recursive=FALSE,full.names=TRUE)) {
@@ -116,6 +129,14 @@ for(d in list.dirs(root,recursive=FALSE,full.names=TRUE)) {
         tables.mkdir(parents=True)
         (case / "LULCC/TempRaster").mkdir()
         (case / "Temp").mkdir()
+        # Native reset must invalidate stale success from an earlier invocation.
+        (case / "mc_startup_guard.csv").write_text("Key,Value\n1,1\n")
+        if not args.successful_stub:
+            # Deliberately invalid old tables: consuming one is a detectable
+            # regression. They must remain untouched behind the failed guard.
+            for old in ("Prune_factor_V.csv", "Prune_factor_W.csv", "Harvest_pixels_V.csv",
+                        "Harvest_pixels_W.csv", "i_st_all.csv", "k_all.csv", "rmax_all.csv"):
+                (case / "Temp" / old).write_text("STALE_MC_TABLE_MUST_NOT_BE_READ\n")
         selected = args.broken_model.read_bytes() if label == "broken_graph" else content
         (case / "model.egoml").write_bytes(configure(selected, rerun))
         (tables / "Rpath.csv").write_text('"Key*","Rpath"\n1,"' + str(rexec) + '"\n')
@@ -151,22 +172,28 @@ for(d in list.dirs(root,recursive=FALSE,full.names=TRUE)) {
         cmd.append(str(case / "model.egoml"))
         started = time.monotonic()
         result = subprocess.run(cmd, cwd=case, env=case_env, capture_output=True,
-                                text=True, timeout=180)
+                                text=True, timeout=300)
         log = result.stdout + result.stderr
         (case / "engine.log").write_text(log)
         loop = "Loop detected in the functor list" in log
         sentinel = case / "startup_arguments.txt"
         if label == "broken_graph":
-            passed = loop and not sentinel.exists() and result.returncode != 0
+            passed = loop and not sentinel.exists()
             arguments = []
         else:
             arguments = sentinel.read_text().splitlines() if sentinel.exists() else []
-            passed = (not loop and result.returncode != 0 and
+            guard_failed = "MOFUSS_R_STARTUP_FAILED" in log
+            status = (case / "mc_startup_guard.csv").read_text()
+            expected_stop = (expected_mc_stop(log) and not guard_failed if args.successful_stub else
+                             guard_failed and "Execution cancelled by functor" in log and
+                             not expected_mc_stop(log) and "STALE_MC_TABLE_MUST_NOT_BE_READ" not in log and
+                             re.search(r"1\s*,\s*-1", status) is not None)
+            passed = (not loop and
                       f"WoodmanFreezeYear={year}" in arguments and
                       "LUCmap_v=3" in arguments and
                       "MC=3" in arguments and
                       (f"CTrees={cap}" in arguments if rerun else "RerunMC=0" in arguments) and
-                      expected_mc_stop(log) and
+                      expected_stop and
                       (case / ("rnorm_v8.Rout" if rerun else "bypassMC_v8.Rout")).is_file())
         created_rasters = [str(p.relative_to(case)) for p in case.rglob("*.tif")
                            if "TempRaster" not in p.parts]
@@ -174,6 +201,8 @@ for(d in list.dirs(root,recursive=FALSE,full.names=TRUE)) {
         record = dict(case=label, passed=passed, seconds=time.monotonic()-started,
                       exit_code=result.returncode, loop_detected=loop,
                       startup_reached=sentinel.exists(), arguments=arguments,
+                      startup_guard_failed="MOFUSS_R_STARTUP_FAILED" in log,
+                      stale_success_invalidated=("-1" in (case / "mc_startup_guard.csv").read_text()),
                       annual_output_rasters=created_rasters,
                       model_sha256=digest((case / "model.egoml").read_bytes()))
         return record
@@ -186,13 +215,14 @@ for(d in list.dirs(root,recursive=FALSE,full.names=TRUE)) {
             results.append(record)
             report = dict(source=str(args.model.resolve()), source_sha256=digest(content),
                           native_compilation_enabled=not args.disable_native_expressions,
+                          stub_succeeds=args.successful_stub,
                           full_graph_preserved=True, cases=results,
                           all_passed=len(results)==len(cases) and all(x["passed"] for x in results))
             (work / "summary.json").write_text(json.dumps(report, indent=2) + "\n")
             print(json.dumps(record), flush=True)
     if not all(record["passed"] for record in results):
         raise RuntimeError("Full-graph startup regression failed; see summary.json")
-    print("PASS: complete production graph schedules and passes freeze settings to both MC startup branches.")
+    print("PASS: full graph configures both MC startup branches and enforces fresh R success.")
 
 
 if __name__ == "__main__":

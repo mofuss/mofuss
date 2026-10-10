@@ -12,6 +12,7 @@
     <property key="metadata.title" value="VegDyn" />
     <property key="metadata.version" value="0.9.4" />
     <property key="metadata.wizard" value="{&#10;  &quot;inputPages&quot;: [&#10;    {&#10;      &quot;title&quot;: &quot;Cover page&quot;,&#10;      &quot;content&quot;: &quot;&lt;html&gt;\n&lt;head/&gt;\n&lt;body bgcolor=\&quot;white\&quot;&gt;\n&lt;p align=\&quot;center\&quot; style=\&quot;font-family:Verdana;font-size:14pt;color:#000099;\&quot;&gt;This is a user-friendly interface for running MoFuSS core-scripts while adjusting a set of selected parameters and assumptions&lt;/p&gt;\n&lt;p align=\&quot;center\&quot; style=\&quot;font-family:Verdana;font-size:14pt;color:#000099;\&quot;&gt;Last Update: August 18th 2026&lt;/p&gt;\n&lt;p align=\&quot;center\&quot;&gt;&lt;img src=\&quot;LULCC/Wizard_imgs/mofuss_366.png\&quot; border=\&quot;0\&quot;/&gt;&lt;/p&gt;\n&lt;p align=\&quot;center\&quot; style=\&quot;font-family:Verdana;font-size:12pt;\&quot;&gt;Designed and coded by Adrian Ghilardi (UNAM) and Rob Bailis (SEI)&lt;/p&gt;\n&lt;p align=\&quot;center\&quot; style=\&quot;font-family:Verdana;font-size:14pt;color:#000099;\&quot;&gt;Project funded by:&lt;/p&gt;\n&lt;p align=\&quot;center\&quot;&gt;&lt;img src=\&quot;LULCC/Wizard_imgs/sponsors_banner.png\&quot; border=\&quot;0\&quot;/&gt;&lt;/p&gt;\n&lt;/body&gt;\n&lt;/html&gt;\n&quot;,&#10;      &quot;editors&quot;: []&#10;    },&#10;    {&#10;      &quot;title&quot;: &quot;Simulation and landscape&quot;,&#10;      &quot;content&quot;: &quot;&lt;html&gt;&lt;head/&gt;&lt;body bgcolor=\&quot;white\&quot;&gt;\n&lt;h3 style=\&quot;font-family:Verdana;color:#000099;\&quot;&gt;Simulation and landscape&lt;/h3&gt;\n&lt;p style=\&quot;font-family:Verdana;font-size:12pt;color:#444444;\&quot;&gt;The supported workflow starts in 2000 from CTrees AGB. Set the simulation length consistently with the configured end year.&lt;/p&gt;\n&lt;p style=\&quot;font-family:Verdana;font-size:12pt;color:#444444;\&quot;&gt;Select the land-cover input and accessibility of protected areas.&lt;/p&gt;\n&lt;p style=\&quot;font-family:Verdana;font-size:11pt;color:#666666;\&quot;&gt;Legacy alternatives for missing AGB, tree-cover-derived initial stock, AGB version, and initial stock as a percentage of K remain internally preserved but are intentionally hidden.&lt;/p&gt;\n&lt;/body&gt;&lt;/html&gt;&quot;,&#10;      &quot;editors&quot;: [&#10;        {&#10;          &quot;name&quot;: &quot;Simulation Length (SL)&quot;,&#10;          &quot;description&quot;: &quot;Integer constant&quot;,&#10;          &quot;tag&quot;: &quot;Int_constant_1&quot;&#10;        },&#10;        {&#10;          &quot;name&quot;: &quot;LUC map version&quot;,&#10;          &quot;description&quot;: &quot;LUC data: 1 = MODIS static; 3 = Woodman annual&quot;,&#10;          &quot;tag&quot;: &quot;Int_constant_4&quot;&#10;        },&#10;        {&#10;          &quot;name&quot;: &quot;Percentage of ease to enter NPAs&quot;,&#10;          &quot;description&quot;: &quot;0 = PA are unreachable - 100 = PA are fully open for woodfuel harvest&quot;,&#10;          &quot;tag&quot;: &quot;Int_constant_5&quot;&#10;        },&#10;        {&#10;          &quot;name&quot;: &quot;Woodman LUC freeze year&quot;,&#10;          &quot;description&quot;: &quot;2000-2050, default 2050. LUC=3 only. Apply changes through this year, then hold its cover and TOF; biomass and demand keep evolving.&quot;,&#10;          &quot;tag&quot;: &quot;Int_WoodmanFreezeYear&quot;&#10;        }&#10;      ]&#10;    },&#10;    {&#10;      &quot;title&quot;: &quot;Monte Carlo and scenario pairing&quot;,&#10;      &quot;content&quot;: &quot;&lt;html&gt;&lt;head/&gt;&lt;body bgcolor=\&quot;white\&quot;&gt;\n&lt;h3 style=\&quot;font-family:Verdana;color:#000099;\&quot;&gt;Monte Carlo and BAU/CCTS pairing&lt;/h3&gt;\n&lt;p style=\&quot;font-family:Verdana;font-size:12pt;color:#444444;\&quot;&gt;Choose the number of realizations and which biological parameters vary across them. MC01 remains the nominal parameter realization; subsequent rows contain stochastic draws when the corresponding switches are enabled.&lt;/p&gt;\n&lt;p style=\&quot;font-family:Verdana;font-size:12pt;color:#444444;\&quot;&gt;&lt;b&gt;BAU:&lt;/b&gt; set &lt;i&gt;Re-run Monte Carlo?&lt;/i&gt; to Yes to generate the batch. &lt;b&gt;CCTS:&lt;/b&gt; set it to No so &lt;code&gt;bypassMC_v8.R&lt;/code&gt; validates and reuses the completed matching BAU tables.&lt;/p&gt;\n&lt;/body&gt;&lt;/html&gt;&quot;,&#10;      &quot;editors&quot;: [&#10;        {&#10;          &quot;name&quot;: &quot;MC runs&quot;,&#10;          &quot;description&quot;: &quot;Number of Monte Carlo realizations&quot;,&#10;          &quot;tag&quot;: &quot;Int_constant_6&quot;&#10;        },&#10;        {&#10;          &quot;name&quot;: &quot;K through MC?&quot;,&#10;          &quot;description&quot;: &quot;Do you want to allow the aboveground biomass carrying capacity (K) to vary randomly for each simulation? (i.e. pass thorugh the Monte Carlo module)&quot;,&#10;          &quot;tag&quot;: &quot;Bool_constant_7&quot;&#10;        },&#10;        {&#10;          &quot;name&quot;: &quot;rmax through MC?&quot;,&#10;          &quot;description&quot;: &quot;Do you want to allow the aboveground biomass maximum growth rate (rmax) to vary randomly for each simulation? (i.e. pass thorugh the Monte Carlo module)&quot;,&#10;          &quot;tag&quot;: &quot;Bool_constant_8&quot;&#10;        },&#10;        {&#10;          &quot;name&quot;: &quot;TOF through MC?&quot;,&#10;          &quot;description&quot;: &quot;Do you want to allow that the amount of fuelwood available from trees outside forests (TOF) to vary randomly for each simulation? (i.e. pass thorugh the Monte Carlo module)&quot;,&#10;          &quot;tag&quot;: &quot;Bool_constant_9&quot;&#10;        },&#10;        {&#10;          &quot;name&quot;: &quot;Re-run Monte Carlo?&quot;,&#10;          &quot;description&quot;: &quot;Only select \&quot;No\&quot; if you want to keep the last Monte Carlo results to be used in both scenarios: you can turn in on for the the first scenario (e.g. BaU) and off for the second one (e.g ICS). Turning this option off for both scenarios will produce an error. &quot;,&#10;          &quot;tag&quot;: &quot;Bool_constant_10&quot;&#10;        }&#10;      ]&#10;    },&#10;    {&#10;      &quot;title&quot;: &quot;Harvest allocation&quot;,&#10;      &quot;content&quot;: &quot;&lt;html&gt;&lt;head/&gt;&lt;body bgcolor=\&quot;white\&quot;&gt;\n&lt;h3 style=\&quot;font-family:Verdana;color:#000099;\&quot;&gt;Harvest allocation&lt;/h3&gt;\n&lt;p style=\&quot;font-family:Verdana;font-size:12pt;color:#444444;\&quot;&gt;&lt;b&gt;Bypass Patchers = Yes&lt;/b&gt; uses the faster deterministic allocation (all eligible pixels; prune factor 1). &lt;b&gt;No&lt;/b&gt; enables stochastic spatial Patcher allocation.&lt;/p&gt;\n&lt;p style=\&quot;font-family:Verdana;font-size:12pt;color:#444444;\&quot;&gt;When Patchers are enabled, the landscape percentages and prune factors control the walking (W) and vehicle (V) harvest channels. BAU and CCTS can share MC parameter tables while retaining independent Patcher locations.&lt;/p&gt;\n&lt;/body&gt;&lt;/html&gt;&quot;,&#10;      &quot;editors&quot;: [&#10;        {&#10;          &quot;name&quot;: &quot;Bypass Patchers&quot;,&#10;          &quot;description&quot;: &quot;Data carrier for boolean.&quot;,&#10;          &quot;tag&quot;: &quot;Bool_constant_19&quot;&#10;        },&#10;        {&#10;          &quot;name&quot;: &quot;Percentage of V landscape to be harvested&quot;,&#10;          &quot;description&quot;: &quot;Integer constant&quot;,&#10;          &quot;tag&quot;: &quot;Int_constant_20&quot;&#10;        },&#10;        {&#10;          &quot;name&quot;: &quot;Prune Factor V&quot;,&#10;          &quot;description&quot;: &quot;Integer constant&quot;,&#10;          &quot;tag&quot;: &quot;Int_constant_21&quot;&#10;        },&#10;        {&#10;          &quot;name&quot;: &quot;Percentage of W landscape to be harvested&quot;,&#10;          &quot;description&quot;: &quot;Integer constant&quot;,&#10;          &quot;tag&quot;: &quot;Int_constant_22&quot;&#10;        },&#10;        {&#10;          &quot;name&quot;: &quot;Prune Factor W&quot;,&#10;          &quot;description&quot;: &quot;Integer constant&quot;,&#10;          &quot;tag&quot;: &quot;Int_constant_23&quot;&#10;        }&#10;      ]&#10;    },&#10;    {&#10;      &quot;title&quot;: &quot;Outputs and sensitivity&quot;,&#10;      &quot;content&quot;: &quot;&lt;html&gt;&lt;head/&gt;&lt;body bgcolor=\&quot;white\&quot;&gt;\n&lt;h3 style=\&quot;font-family:Verdana;color:#000099;\&quot;&gt;Outputs, diagnostics, and sensitivity&lt;/h3&gt;\n&lt;p style=\&quot;font-family:Verdana;font-size:12pt;color:#444444;\&quot;&gt;The legacy annual administrative-summary branch is fixed off. The option below controls maps, animations, period-level fNRB summary tables/vectors and report rendering. Keep Yes for the complete standard output bundle. Turning it off retains annual Dinamica rasters, engine Temp tables and sourcing captures.&lt;/p&gt;\n&lt;p style=\&quot;font-family:Verdana;font-size:12pt;color:#444444;\&quot;&gt;Set the IDW switch to No for the 10-year jumping series: IDW_C++_fw_vNN.tif and IDW_C++_fw_wNN.tif snapshots 01, 11, 21, 31, 41, and 51. Each snapshot is held forward without interpolation until the next one. Set the switch to Yes to reuse one static Indice_v.tif and Indice_w.tif pair for all years. The instant-demand adjustment remains a specialist sensitivity control.&lt;/p&gt;\n&lt;/body&gt;&lt;/html&gt;&quot;,&#10;      &quot;editors&quot;: [&#10;        {&#10;          &quot;name&quot;: &quot;Generate maps, summary tables and report after simulation?&quot;,&#10;          &quot;tag&quot;: &quot;Bool_constant_25&quot;,&#10;          &quot;description&quot;: &quot;Yes keeps all standard products. No skips maps, animations, fNRB summary tables/vectors and report rendering. Annual Dinamica rasters, engine Temp tables and sourcing captures remain available. Keep Yes when these summary products are needed.&quot;&#10;        },&#10;        {&#10;          &quot;name&quot;: &quot;Reuse one static IDW pair? (No = 10-year jumping IDWs)&quot;,&#10;          &quot;description&quot;: &quot;No = use decennial snapshots 01, 11, 21, 31, 41, and 51, holding each forward without interpolation; Yes = reuse static Indice_v.tif and Indice_w.tif rasters for all years.&quot;,&#10;          &quot;tag&quot;: &quot;Bool_constant_16&quot;&#10;        },&#10;        {&#10;          &quot;name&quot;: &quot;Instant demand knob&quot;,&#10;          &quot;description&quot;: &quot;Instant increase/decrease of fuelwood use at initial time, in %. Use this for sensitivity purposes only.&quot;,&#10;          &quot;tag&quot;: &quot;Int_constant_24&quot;&#10;        }&#10;      ]&#10;    }&#10;  ],&#10;  &quot;outputPages&quot;: [&#10;    {&#10;      &quot;title&quot;: &quot;Default&quot;,&#10;      &quot;content&quot;: &quot;&lt;html&gt;\n&lt;head/&gt;\n&lt;body bgcolor='''white'''&gt;\n&lt;p style='''color:gray;font-family:verdana;font-size:20px;'''&gt;\n&lt;span style='''font-family:Verdana; color:#0000ff; font-size:18pt;'''&gt;\n&lt;b&gt;Your model ran successfully!&lt;/b&gt;\n&lt;/span&gt;\n&lt;b/&gt;\n&lt;/p&gt;\n&lt;p style='''font-family:verdana;color:gray;font-size:20px;'''&gt;\n&lt;img border='''0''' height='''106''' src='''LULCC/Wizard_imgs/success.jpg''' width='''159'''/&gt;\n&lt;/p&gt;\n&lt;p style='''font-family:verdana;color:gray;font-size:20px;'''&gt;\n&lt;span style='''font-family:Verdana; font-size:12pt;'''&gt;Summary outputs, including a .pdf summary report  are saved into the following folders: &lt;/span&gt;\n&lt;br/&gt;\n&lt;span style='''font-family:Verdana; font-size:12pt;'''&gt;…/Summary_Report/ &lt;/span&gt;\n&lt;br/&gt;\n&lt;span style='''font-family:Verdana; font-size:12pt;'''&gt;…/Out/ &lt;/span&gt;\n&lt;br/&gt;\n&lt;span style='''font-family:Verdana; font-size:12pt;'''&gt;…/Logs/ &lt;/span&gt;\n&lt;/p&gt;\n&lt;p style='''font-family:verdana;color:gray;font-size:20px;'''&gt;   &lt;/p&gt;\n&lt;p style='''font-family:verdana;color:gray;font-size:20px;'''&gt;\n&lt;span style='''font-family:Verdana; font-size:12pt;'''&gt;The MP4 animation, map products, and image exports are saved under Out. &lt;/span&gt;\n&lt;span&gt;\n&lt;br/&gt;\n&lt;/span&gt;\n&lt;/p&gt;\n&lt;/body&gt;\n&lt;/html&gt;\n&quot;,&#10;      &quot;editors&quot;: []&#10;    }&#10;  ]&#10;}" />
+    <property key="mofuss.mc.startup.contract" value="fresh_r_success_before_mc_tables_v1" />
     <containerfunctor name="Group">
         <property key="dff.container.collapsed" value="no" />
         <property key="dff.functor.alias" value="group1320" />
@@ -7651,18 +7652,94 @@ if abs(v1) &gt; 0 then (v1 * (2 ^ (-floor(v2 / 2))) * (2 ^ (floor(v2 / 2) - v2))
     <containerfunctor name="Group">
         <property key="dff.container.collapsed" value="no" />
         <property key="dff.functor.alias" value="group2500" />
-        <functor name="Bool">
-            <property key="dff.functor.alias" value="bool2502" />
-            <inputport name="constant" peerid="v246" />
-            <outputport name="object" id="v294" />
-        </functor>
-        <functor name="RunExternalProcess">
-            <property key="dff.functor.alias" value="runExternalProcess2510" />
-            <inputport name="fileName" peerid="v263" />
-            <inputport name="parameters" peerid="v295" />
-            <inputport name="waitProcessCompletion">.yes</inputport>
-            <inputport name="secondsToWait">0</inputport>
-        </functor>
+
+        <containerfunctor name="Group">
+            <property key="dff.functor.alias" value="Invalidate previous R startup success" />
+            <functor name="SaveLookupTable">
+                <property key="dff.functor.alias" value="Reset R startup guard before every attempt" />
+                <inputport name="table">[ "Key" "Value" 1 -1 ]</inputport>
+                <inputport name="filename">"mc_startup_guard.csv"</inputport>
+                <inputport name="suffixDigits">0</inputport>
+                <inputport name="step">.none</inputport>
+                <inputport name="workdir">.none</inputport>
+            </functor>
+            <functor name="Int">
+                <property key="dff.functor.alias" value="R startup guard reset completed" />
+                <inputport name="constant">0</inputport>
+                <outputport name="object" id="v95000" />
+            </functor>
+        </containerfunctor>
+        <containerfunctor name="Group">
+            <property key="dff.functor.alias" value="Run R after invalidating previous startup success" />
+            <functor name="RunExternalProcess">
+                <property key="dff.functor.alias" value="runExternalProcess2510" />
+                <inputport name="fileName" peerid="v263" />
+                <inputport name="parameters" peerid="v295" />
+                <inputport name="waitProcessCompletion">.yes</inputport>
+                <inputport name="secondsToWait" peerid="v95000" />
+            </functor>
+            <functor name="String">
+                <property key="dff.functor.alias" value="R startup guard filename after external process" />
+                <inputport name="constant">"mc_startup_guard.csv"</inputport>
+                <outputport name="object" id="v95001" />
+            </functor>
+            <functor name="Bool">
+                <property key="dff.functor.alias" value="bool2502" />
+                <inputport name="constant" peerid="v246" />
+                <outputport name="object" id="v95005" />
+            </functor>
+        </containerfunctor>
+        <containerfunctor name="Group">
+            <property key="dff.functor.alias" value="Require successful R startup before MC dynamics" />
+            <functor name="LoadLookupTable">
+                <property key="dff.functor.alias" value="Read freshly completed R startup status" />
+                <inputport name="filename" peerid="v95001" />
+                <inputport name="suffixDigits">0</inputport>
+                <inputport name="step">.none</inputport>
+                <inputport name="workdir">.none</inputport>
+                <outputport name="table" id="v95002" />
+            </functor>
+            <containerfunctor name="CalculateValue">
+                <property key="dff.functor.alias" value="Read R startup success value" />
+                <inputport name="expression">[t1[1]]</inputport>
+                <inputport name="defaultValue">-1</inputport>
+                <outputport name="result" id="v95004" />
+                <functor name="NumberTable">
+                    <property key="dff.functor.alias" value="R startup status" />
+                    <inputport name="table" peerid="v95002" />
+                    <inputport name="tableNumber">1</inputport>
+                </functor>
+            </containerfunctor>
+            <containerfunctor name="CalculateValue">
+                <property key="dff.functor.alias" value="R startup completed successfully" />
+                <inputport name="expression">[v1 = 1]</inputport>
+                <inputport name="defaultValue">0</inputport>
+                <outputport name="result" id="v95003" />
+                <functor name="NumberValue">
+                    <property key="dff.functor.alias" value="Fresh R success status" />
+                    <inputport name="value" peerid="v95004" />
+                    <inputport name="valueNumber">1</inputport>
+                </functor>
+            </containerfunctor>
+            <containerfunctor name="IfNotThen">
+                <property key="dff.functor.alias" value="Abort on incomplete or failed R startup" />
+                <inputport name="condition" peerid="v95003" />
+                <containerfunctor name="Print">
+                    <property key="dff.functor.alias" value="Explain Monte Carlo startup failure" />
+                    <inputport name="initialMessage">"MOFUSS_R_STARTUP_FAILED: MoFuSS R Monte Carlo startup did not complete successfully. Simulation stopped before consuming MC tables. See rnorm_v8.Rout or bypassMC_v8.Rout for the cause."</inputport>
+                    <inputport name="logLevel">.error</inputport>
+                    <functor name="Exit">
+                        <property key="dff.functor.alias" value="Stop before stale MC tables can be consumed" />
+                    </functor>
+                </containerfunctor>
+            </containerfunctor>
+            <functor name="Bool">
+                <property key="dff.functor.alias" value="bool2502" />
+                <inputport name="constant" peerid="v95005" />
+                <outputport name="object" id="v294" />
+            </functor>
+        </containerfunctor>
+
         <functor name="StringJunction">
             <property key="dff.functor.alias" value="stringJunction3935" />
             <inputport name="possibleString1" peerid="v297" />

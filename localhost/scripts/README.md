@@ -75,6 +75,20 @@ MC policy. Each ICS/CCTS must wait for its matching BAU's **new complete** MC
 batch. Existing `bypassMC_v8.R` checks still select and validate the matching
 BAU; the launcher does not guess a partner from the country name.
 
+The root and `LULCC/TempTables` copies of `bau_mc_source.txt` may coexist only
+when both resolve to the same BAU directory. Conflicting targets stop preparation.
+Each v14 launch first invalidates `mc_startup_guard.csv`; the final successful
+action in R preparation marks it complete. Dinamica stops before reading MC
+tables if that confirmation is missing, so an R error cannot silently reuse an
+old batch. The Windows launcher preserves the previous native log in its unique
+temporary directory and reports a startup failure even when the older Dinamica
+console returns exit code zero for an explicit model stop. Stage 1 also rejects
+an error in the latest R preparation log and identifies the affected run.
+
+Each emissions batch still requires only BAU/ICS times capped/uncapped: four
+folders. A fixed-versus-dynamic LUC experiment consists of two separate such
+batches and is not required for ordinary dynamic-LUC postprocessing.
+
 On the current four-core workstation, use at most four simultaneous simulations.
 Launch each folder once and allow the preparation step to finish. Do not run
 the wizard and CMD simultaneously for the same folder. Open the `.egoml` in

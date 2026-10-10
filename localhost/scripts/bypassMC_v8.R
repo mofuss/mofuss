@@ -14,7 +14,7 @@
 # -----------------------
 # 1. BAU_MC_DIR=<absolute or relative path> supplied by Dinamica/R.
 # 2. A one-line bau_mc_source.txt in the current scenario root or in
-#    LULCC/TempTables.
+#    LULCC/TempTables. Both may exist if they resolve to the same directory.
 # 3. Automatic discovery of one matching BAU sibling directory.
 #
 # The script deliberately does not copy or control Dinamica's internal Patcher
@@ -229,11 +229,23 @@ source_from_link_file <- function(current_root) {
   )
   candidates <- candidates[file.exists(candidates)]
   if (!length(candidates)) return(NULL)
-  if (length(candidates) > 1L) stopf("Multiple bau_mc_source.txt files found; retain only one.")
-  lines <- trimws(readLines(candidates, warn = FALSE))
-  lines <- lines[nzchar(lines) & !startsWith(lines, "#")]
-  if (length(lines) != 1L) stopf("%s must contain exactly one non-comment path.", candidates)
-  norm_dir(lines, base = dirname(candidates))
+  targets <- vapply(candidates, function(link_file) {
+    lines <- trimws(readLines(link_file, warn = FALSE))
+    lines <- lines[nzchar(lines) & !startsWith(lines, "#")]
+    if (length(lines) != 1L)
+      stopf("%s must contain exactly one non-comment path.", link_file)
+    target <- norm_dir(lines, base = dirname(link_file))
+    if (!dir.exists(target)) stopf("BAU source in %s is not a directory: %s", link_file, target)
+    target
+  }, character(1), USE.NAMES = FALSE)
+  # Relative paths belong to their own link file, and Windows paths can differ
+  # in slash direction or case while identifying the same existing directory.
+  target_keys <- if (.Platform$OS.type == "windows") tolower(targets) else targets
+  if (length(unique(target_keys)) != 1L) {
+    stopf("Conflicting bau_mc_source.txt targets:\n  %s",
+          paste(sprintf("%s -> %s", candidates, targets), collapse = "\n  "))
+  }
+  targets[[1L]]
 }
 
 discover_matching_bau <- function(current, parent = dirname(current$root)) {
@@ -767,6 +779,10 @@ main <- function() {
   } else {
     cat("[NOTE] Dinamica Patcher random choices are not paired by this table bypass.\n")
   }
+  # Final action only. DryRun returns above, and failed validation/install never
+  # reaches this marker. Dinamica resets it before each external R invocation.
+  write.csv(data.frame(Key = 1L, Value = 1L), file.path(current_root, "mc_startup_guard.csv"),
+            row.names = FALSE, quote = FALSE)
   invisible(TRUE)
 }
 

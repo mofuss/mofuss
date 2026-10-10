@@ -116,6 +116,10 @@ for (id in 1:15) {
 }
 
 # Stale CCTS content must be replaced only after complete preflight/staging.
+startup_marker <- file.path(ccts, "mc_startup_guard.csv")
+write.csv(data.frame(Key = 1L, Value = -1L), startup_marker,
+          row.names = FALSE, quote = FALSE)
+marker_pending <- function() identical(read.csv(startup_marker)$Value, -1L)
 dir.create(file.path(ccts, "Temp"), recursive = TRUE)
 writeLines("stale", file.path(ccts, "Temp", "sentinel.txt"))
 dir.create(file.path(ccts, "Out"), recursive = TRUE)
@@ -145,6 +149,7 @@ run_bypass <- function() {
 # Existing tables without a current-batch readiness manifest must never be used.
 missing_ready <- run_bypass()
 stopifnot(
+  marker_pending(),
   missing_ready$status != 0L,
   any(grepl("no atomic current-batch readiness manifest", missing_ready$output)),
   file.exists(file.path(ccts, "Temp", "sentinel.txt")),
@@ -160,6 +165,7 @@ stale_k[[2L]][[2L]] <- stale_k[[2L]][[2L]] + 1
 write.csv(stale_k, file.path(bau, "Temp", "k_all.csv"), row.names = FALSE)
 changed_after_ready <- run_bypass()
 stopifnot(
+  marker_pending(),
   changed_after_ready$status != 0L,
   any(grepl("changed after the current-batch manifest", changed_after_ready$output)),
   file.exists(file.path(ccts, "Temp", "sentinel.txt")),
@@ -170,8 +176,42 @@ stopifnot(
 write.csv(wide, file.path(bau, "Temp", "k_all.csv"), row.names = FALSE)
 unlink(file.path(bau, "Temp", "mc_batch_ready.csv"))
 batch_id <- write_batch_ready()
+
+# Preparation can leave an explicit BAU link in both supported locations.
+# Resolve both before mutating any ICS outputs; conflicting sources must fail.
+root_link <- file.path(ccts, "bau_mc_source.txt")
+nested_link <- file.path(ccts, "LULCC", "TempTables", "bau_mc_source.txt")
+other_bau <- file.path(fixture, "other_bau")
+dir.create(other_bau)
+writeLines(normalizePath(bau, winslash = "/", mustWork = TRUE), root_link)
+writeLines(normalizePath(other_bau, winslash = "/", mustWork = TRUE), nested_link)
+sentinel_paths <- file.path(ccts, c(
+  "Temp/sentinel.txt", "Out/sentinel.txt", "HTML_animation/sentinel.txt",
+  "debugging_1/sentinel.txt"
+))
+sentinel_hashes <- tools::md5sum(sentinel_paths)
+conflicting_links <- run_bypass()
+stopifnot(
+  marker_pending(),
+  conflicting_links$status != 0L,
+  any(grepl("Conflicting bau_mc_source.txt targets", conflicting_links$output, fixed = TRUE)),
+  any(grepl(normalizePath(bau, winslash = "/"), conflicting_links$output, fixed = TRUE)),
+  any(grepl(normalizePath(other_bau, winslash = "/"), conflicting_links$output, fixed = TRUE)),
+  identical(sentinel_hashes, tools::md5sum(sentinel_paths)),
+  !dir.exists(file.path(ccts, ".bypassMC.lock"))
+)
+# Same target, with independent relative bases, must complete the real bypass.
+writeLines(file.path("..", basename(bau)), root_link)
+writeLines(file.path("..", "..", "..", basename(bau)), nested_link)
+normal_args <- args
+args <- c(args, "DryRun=1")
+dry_run <- run_bypass()
+stopifnot(dry_run$status == 0L, marker_pending(),
+          identical(sentinel_hashes, tools::md5sum(sentinel_paths)))
+args <- normal_args
 success <- run_bypass()
 if (success$status != 0L) stop(paste(success$output, collapse = "\n"))
+stopifnot(identical(read.csv(startup_marker)$Value, 1L))
 
 mc_files <- batch_files
 source_hash <- unname(tools::md5sum(file.path(bau, "Temp", mc_files)))
@@ -253,6 +293,29 @@ expect_error <- function(expr, pattern) {
   err <- tryCatch({force(expr); NULL},error=identity)
   stopifnot(inherits(err,"error"),grepl(pattern,conditionMessage(err)))
 }
+
+# Exercise path normalization separately, without invoking destructive startup.
+expected_bau <- normalizePath(bau, winslash = "/", mustWork = TRUE)
+stopifnot(identical(bypass_env$source_from_link_file(ccts), expected_bau))
+writeLines(c("# same BAU with an absolute path", expected_bau, ""), root_link)
+if (.Platform$OS.type == "windows") {
+  # Windows accepts case and separator differences in the two absolute links.
+  windows_bau <- chartr("/", "\\", toupper(expected_bau))
+  writeLines(windows_bau, nested_link)
+} else {
+  writeLines(paste0(expected_bau, "/."), nested_link)
+}
+stopifnot(identical(bypass_env$source_from_link_file(ccts), expected_bau))
+writeLines(c(expected_bau, expected_bau), nested_link)
+expect_error(bypass_env$source_from_link_file(ccts), "exactly one non-comment path")
+writeLines(file.path(bau, "Temp", "mc_batch_ready.csv"), nested_link)
+expect_error(bypass_env$source_from_link_file(ccts), "is not a directory")
+writeLines(file.path(fixture, "absent_bau"), nested_link)
+expect_error(bypass_env$source_from_link_file(ccts), "")
+unlink(nested_link)
+stopifnot(identical(bypass_env$source_from_link_file(ccts), expected_bau))
+unlink(root_link)
+stopifnot(is.null(bypass_env$source_from_link_file(ccts)))
 bmeta <- bypass_env$read_scenario_metadata(bau)
 imeta <- bypass_env$read_scenario_metadata(ccts)
 stopifnot(bmeta$woodman_luc_freeze_year == 2050L, imeta$woodman_luc_freeze_year == 2050L)

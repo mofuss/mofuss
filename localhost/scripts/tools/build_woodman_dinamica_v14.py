@@ -566,6 +566,15 @@ def build_model(source: str, *, annual_cache: bool = True, fixed_inputs: bool = 
             output, _ = correct_nrb_attribution(output)
         finally:
             sys.path.remove(tool_dir)
+    # The engine does not propagate R process failure. Guard every v14 build,
+    # including regression variants without the optional freeze-year control.
+    tool_dir = str(HERE / "tools")
+    sys.path.insert(0, tool_dir)
+    try:
+        from guard_mc_startup import guard_mc_startup
+        output, _ = guard_mc_startup(output)
+    finally:
+        sys.path.remove(tool_dir)
     if freeze_year:
         tool_dir = str(HERE / "tools")
         sys.path.insert(0, tool_dir)

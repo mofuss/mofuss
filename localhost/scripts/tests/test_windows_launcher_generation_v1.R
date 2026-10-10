@@ -6,7 +6,9 @@
 scripts <- normalizePath("localhost/scripts", winslash = "/", mustWork = TRUE)
 source(file.path(scripts, "tools", "windows_launcher_v1.R"))
 
-scratch <- tempfile("windows_launcher_test_", tmpdir = tempdir())
+scratch_root <- Sys.getenv("MOFUSS_TEST_SCRATCH", tempdir())
+dir.create(scratch_root, recursive = TRUE, showWarnings = FALSE)
+scratch <- tempfile("windows_launcher_test_", tmpdir = scratch_root)
 stopifnot(dir.create(scratch, recursive = TRUE))
 scratch <- normalizePath(scratch, winslash = "/", mustWork = TRUE)
 cat("Windows launcher test scratch: ", scratch, "\n", sep = "")
@@ -345,6 +347,8 @@ if (.Platform$OS.type == "windows") {
     "    record[4] = args.Length.ToString();",
     "    Array.Copy(args, 0, record, 5, args.Length);",
     "    File.WriteAllLines(\"launcher_probe.txt\", record);",
+    "    string log = Environment.GetEnvironmentVariable(\"MOFUSS_LAUNCHER_TEST_LOG\");",
+    "    if (log != \"NO_LOG\") File.WriteAllText(\"log.txt\", log ?? \"Model script completed successfully.\");",
     "    int code;",
     "    return Int32.TryParse(Environment.GetEnvironmentVariable(\"MOFUSS_LAUNCHER_TEST_EXIT\"), out code) ? code : 0;",
     "  }",
@@ -363,9 +367,13 @@ if (.Platform$OS.type == "windows") {
   input_path <- file.path(scratch, "pause_input.txt")
   writeLines(rep("", 10L), input_path, useBytes = TRUE)
   previous_exit <- Sys.getenv("MOFUSS_LAUNCHER_TEST_EXIT", unset = NA_character_)
-  execute_probe <- function(code) {
+  previous_log <- Sys.getenv("MOFUSS_LAUNCHER_TEST_LOG", unset = NA_character_)
+  probe_count <- 0L
+  execute_probe <- function(code, native_log = "Model script completed successfully.") {
     Sys.setenv(MOFUSS_LAUNCHER_TEST_EXIT = as.character(code))
-    log <- file.path(scratch, paste0("launch_", code, ".log"))
+    Sys.setenv(MOFUSS_LAUNCHER_TEST_LOG = native_log)
+    probe_count <<- probe_count + 1L
+    log <- file.path(scratch, paste0("launch_", probe_count, "_", code, ".log"))
     status <- suppressWarnings(system2(Sys.getenv("COMSPEC"),
       c("/d", "/c", shQuote(normalizePath(launcher, winslash = "\\"))),
       stdin = input_path, stdout = log, stderr = log))
@@ -390,6 +398,26 @@ if (.Platform$OS.type == "windows") {
   record <- readLines(record_path, warn = FALSE)
   stopifnot(!identical(first_temp, record[[2L]]))
 
+  # Native Exit can return process code zero despite blocked R startup. Only
+  # the explicit failure marker converts this to a launcher error; ordinary
+  # compilation fallback warnings are allowed. The native nonzero code wins.
+  marker <- "[ERROR] MOFUSS_R_STARTUP_FAILED: R Monte Carlo startup failed."
+  startup_failed <- execute_probe(0L, marker)
+  stopifnot(startup_failed$status == 1L,
+            any(grepl("R Monte Carlo startup failed", readLines(startup_failed$log), fixed = TRUE)))
+  native_failed <- execute_probe(23L, marker)
+  stopifnot(native_failed$status == 23L)
+  old_log <- read_bytes(file.path(folder, "log.txt"))
+  warning_only <- execute_probe(0L,
+    "[WARNING] Unable to generate native version. Disable native expression compilation.")
+  record <- readLines(record_path, warn = FALSE)
+  stopifnot(warning_only$status == 0L,
+            identical(old_log, read_bytes(file.path(record[[2L]], "previous_dinamica_log.txt"))))
+  # An unchanged old marker cannot condemn a successful fresh run; missing or
+  # unreadable fresh logs cannot silently produce a success result either.
+  missing_native_log <- execute_probe(0L, "NO_LOG")
+  stopifnot(missing_native_log$status == 1L)
+
   # Runtime missing-engine failure must remain visible to a double-click user,
   # propagate a nonzero exit, and never start the probe.
   stopifnot(file.rename(engine, paste0(engine, ".saved")))
@@ -411,6 +439,8 @@ if (.Platform$OS.type == "windows") {
             grepl(chartr("/", "\\", paired_bau), paired_log, fixed = TRUE))
   if (is.na(previous_exit)) Sys.unsetenv("MOFUSS_LAUNCHER_TEST_EXIT") else
     Sys.setenv(MOFUSS_LAUNCHER_TEST_EXIT = previous_exit)
+  if (is.na(previous_log)) Sys.unsetenv("MOFUSS_LAUNCHER_TEST_LOG") else
+    Sys.setenv(MOFUSS_LAUNCHER_TEST_LOG = previous_log)
   cat("WINDOWS_LAUNCHER_EXECUTION_OK\n")
 } else {
   cat("Windows execution probe skipped on this operating system.\n")

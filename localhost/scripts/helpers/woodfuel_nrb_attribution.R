@@ -2,6 +2,37 @@
 # GrowthNN is preharvest STOCK, not the annual biomass increment.
 MOFUSS_NRB_CONTRACT <- "woodfuel_attributed_signed_balance_v1"
 
+# Dinamica can continue after an R startup process exits unsuccessfully, using
+# an older Temp batch. Neither matching LUC metadata nor newly written annual
+# rasters prove that the latest MC generation/bypass succeeded. R CMD BATCH
+# replaces its .Rout on every attempt, so inspect the most recently modified
+# startup log (both on a timestamp tie). Older logs from the other startup
+# branch do not invalidate a later successful attempt. Missing legacy logs
+# remain supported; this is a failure guard, not a success certification.
+.mofuss_nrb_validate_startup <- function(run_dir) {
+  paths <- file.path(run_dir, c("rnorm_v8.Rout", "bypassMC_v8.Rout"))
+  paths <- paths[file.exists(paths) & !dir.exists(paths)]
+  if (!length(paths)) return(invisible(character()))
+  modified <- file.info(paths)$mtime
+  if (anyNA(modified)) stop("Cannot inspect MC startup log timestamps in ", run_dir)
+  latest <- paths[modified == max(modified)]
+  for (path in latest) {
+    lines <- readLines(path, warn = FALSE)
+    # Prompts ('> ' and '+ ') identify echoed source, including the handler
+    # containing message("ERROR: ..."); only emitted error lines are failures.
+    failed <- grep("^[[:space:]]*(ERROR[[:space:]]*:|Error([[:space:]]|:)|Execution halted([[:space:]]|$))",
+                   lines)
+    if (length(failed)) {
+      stop("Failed latest Monte Carlo startup in ", run_dir, ": ",
+           trimws(lines[failed[[1L]]]), " Log: ", path,
+           ". Existing Temp tables or annual rasters do not establish a valid current batch. ",
+           "Correct the startup failure and rerun this scenario before postprocessing.",
+           call. = FALSE)
+    }
+  }
+  invisible(latest)
+}
+
 # Old production ledgers used -9999 as both NoData and a possible signed
 # balance. Reconstruct their PERIOD increments from saved physical states;
 # never interpolate the damaged cumulative ledger or rewrite completed runs.
@@ -40,6 +71,7 @@ mofuss_nrb_context <- function(run_dir, luc_mode = NULL, expected_steps = NULL,
     run_dir <- dirname(run_dir)
   }
   if (length(mc) != 1L || is.na(mc) || mc < 1L || mc != as.integer(mc)) stop("Invalid MC index.")
+  .mofuss_nrb_validate_startup(run_dir)
   evidence <- integer()
   add_mode <- function(value, source) {
     numeric_value <- suppressWarnings(as.numeric(value))

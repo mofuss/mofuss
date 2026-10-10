@@ -1264,3 +1264,9 @@ write.csv(MaxAGB_firstMC,"Temp//MaxAGB_firstMC.csv")
 # END ----
 
 publish_current_mc_batch()
+
+# Final action only: Dinamica invalidates this marker before invoking R and
+# refuses to consume MC tables unless this invocation completes successfully.
+# DryRun and PublishExistingBatch exit above and cannot authorize simulation.
+write.csv(data.frame(Key = 1L, Value = 1L), "mc_startup_guard.csv",
+          row.names = FALSE, quote = FALSE)
